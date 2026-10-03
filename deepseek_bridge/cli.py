@@ -4,6 +4,8 @@ from pathlib import Path
 
 from .config import DeepSeekConfig
 from .client import DeepSeekClient
+from .token_guard import TokenGuard
+from .orchestrator import Orchestrator
 
 def main():
     parser = argparse.ArgumentParser(
@@ -12,6 +14,14 @@ def main():
     parser.add_argument(
         "--check", action="store_true",
         help="Kiểm tra cấu hình API Key và danh sách model khả dụng từ API"
+    )
+    parser.add_argument(
+        "--token-stats", action="store_true",
+        help="Xem thống kê lượng token đã sử dụng và hạn mức phiên"
+    )
+    parser.add_argument(
+        "--reset-tokens", action="store_true",
+        help="Đặt lại hạn mức phiên token"
     )
     parser.add_argument(
         "-t", "--task", type=str,
@@ -23,7 +33,15 @@ def main():
     )
     parser.add_argument(
         "-M", "--model", type=str, default=None,
-        help="Chỉ định model cụ thể (VD: deepseek-v4-pro, deepseek-flash, deepseek-chat, deepseek-reasoner)"
+        help="Chỉ định model cụ thể (VD: deepseek-v4-pro, deepseek-flash)"
+    )
+    parser.add_argument(
+        "-O", "--orchestrate", action="store_true",
+        help="Bật chế độ điều phối tự động: Nén ngữ cảnh -> Sinh code -> Kiểm định -> Tự sửa lỗi tối đa 3-4 lần"
+    )
+    parser.add_argument(
+        "--max-retries", type=int, default=3,
+        help="Số lần tự sửa lỗi tối đa trước khi dừng lại hỏi người dùng (mặc định: 3)"
     )
     parser.add_argument(
         "-f", "--files", nargs="*", default=[],
@@ -37,6 +55,23 @@ def main():
     args = parser.parse_args()
 
     config = DeepSeekConfig()
+    token_guard = TokenGuard()
+
+    if args.token_stats:
+        stats = token_guard.get_summary()
+        print("=== BÁO CÁO NGÂN SÁCH TOKEN DEEPSEEK ===")
+        print(f"📊 Tổng token đã dùng: {stats['total_tokens_used']:,} / {stats['session_limit']:,} ({stats['percentage_used']}%)")
+        print(f"   • Prompt tokens:     {stats['prompt_tokens_used']:,}")
+        print(f"   • Completion tokens: {stats['completion_tokens_used']:,}")
+        print(f"   • Số lượt gọi API:   {stats['call_count']}")
+        print(f"💰 Ngân sách còn lại:  {stats['remaining_budget']:,} tokens")
+        print(f"🔒 Giới hạn/request:    {stats['max_tokens_per_call']:,} tokens")
+        return
+
+    if args.reset_tokens:
+        token_guard.reset_session()
+        print("✅ Đã đặt lại bộ đếm ngân sách token cho phiên mới.")
+        return
 
     if args.check:
         print("=== KIỂM TRA CẤU HÌNH DEEPSEEK API ===")
@@ -57,19 +92,51 @@ def main():
                     print(f"  - {m}")
             else:
                 print("ℹ️ Không thể liệt kê model (hoặc endpoint /models không mở).")
+                
+            stats = token_guard.get_summary()
+            print(f"\n📊 Ngân sách token: Đã dùng {stats['total_tokens_used']:,} / {stats['session_limit']:,} tokens ({stats['percentage_used']}%)")
         else:
             print("❌ Trạng thái: CHƯA CẤU HÌNH API KEY")
             print("Hướng dẫn: Tạo file .env tại thư mục deepseek_bridge/.env và thêm:")
             print("DEEPSEEK_API_KEY=sk-...")
-            print("DEEPSEEK_MODEL_REASONING=deepseek-v4-pro")
-            print("DEEPSEEK_MODEL_CODING=deepseek-flash")
         return
 
     if not args.task:
-        print("Vui lòng cung cấp tác vụ thông qua --task hoặc dùng --check để kiểm tra cấu hình.")
+        print("Vui lòng cung cấp tác vụ thông qua --task hoặc dùng --check / --token-stats.")
         parser.print_help()
         sys.exit(1)
 
+    # Chế độ 1: Điều phối tự động có vòng lặp kiểm định và giới hạn retry (Orchestrate)
+    if args.orchestrate:
+        orchestrator = Orchestrator(config)
+        res = orchestrator.run_task(
+            task=args.task,
+            relevant_files=args.files,
+            max_retries=args.max_retries,
+            model=args.model,
+            output_path=args.output
+        )
+
+        print("\n" + "=" * 30 + f" [KẾT QUẢ ĐIỀU PHỐI: {res.status}] " + "=" * 30)
+        print(f"📌 Thông điệp: {res.message}")
+        print(f"🔢 Số lần thử đã thực hiện: {res.attempts}/{res.max_retries}")
+        
+        if res.status == "SUCCESS":
+            print("\n" + "=" * 25 + " [MÃ NGUỒN HOÀN CHỈNH ĐÃ KIỂM ĐỊNH] " + "=" * 25)
+            print(res.code)
+        elif res.status == "NEEDS_USER_DECISION":
+            print("\n⚠️ CẦN QUYẾT ĐỊNH TỪ NGƯỜI DÙNG:")
+            print("Các lỗi chưa thể tự khắc phục sau các lần thử:")
+            for err in res.errors:
+                print(f"  ❌ {err}")
+            print("\n👉 Cậu có muốn mình tiếp tục yêu cầu DeepSeek sửa tiếp, hay cậu muốn mình trực tiếp can thiệp?")
+        elif res.status == "TOKEN_LIMIT_EXCEEDED":
+            print(f"\n🚨 {res.message}")
+            print("Dùng `--reset-tokens` nếu bạn muốn khởi động phiên tính token mới.")
+
+        return
+
+    # Chế độ 2: Gọi trực tiếp một lần (Standard Client Call)
     client = DeepSeekClient(config)
     selected_model = args.model or (config.model_reasoning if args.mode == "reason" else config.model_coding)
     
