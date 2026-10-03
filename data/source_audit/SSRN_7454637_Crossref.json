@@ -1,0 +1,727 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "indexed": {
+      "date-parts": [
+        [
+          2026,
+          9,
+          13
+        ]
+      ],
+      "date-time": "2026-09-13T15:03:57Z",
+      "timestamp": 1789311837139,
+      "version": "build-2803163510"
+    },
+    "posted": {
+      "date-parts": [
+        [
+          2026
+        ]
+      ]
+    },
+    "group-title": "SSRN",
+    "reference-count": 67,
+    "publisher": "Elsevier BV",
+    "license": [
+      {
+        "start": {
+          "date-parts": [
+            [
+              2026,
+              1,
+              1
+            ]
+          ],
+          "date-time": "2026-01-01T00:00:00Z",
+          "timestamp": 1767225600000
+        },
+        "content-version": "unspecified",
+        "delay-in-days": 0,
+        "URL": "https://www.uspto.gov/ip-policy/copyright-policy/copyright-basics"
+      }
+    ],
+    "content-domain": {
+      "domain": [],
+      "crossmark-restriction": false
+    },
+    "short-container-title": [],
+    "abstract": "<jats:p>Vietnamese phishing is under-represented in public datasets, and two developments make existingbenchmarks fragile: large language models write fluent lures, and detectors accurate in-distributioncollapse across datasets. We evaluate a multi-channel fusion detector, combining Vietnamese page-text representations (char-n-gram TF-IDF; frozen PhoBERT, PhoBERT-v2, ViSoBERT, XLM-R)with21URL/hostlexicalfeatures.Avariance-correctedevaluationuncoversanobserveddirectionalasymmetry on one cleaned subset: incorporating page-content representations into URL featuresimprovesallfourreportedmetricsforfouroffiveencoders(upto+0.094F1),whereasnostatisticallysignificantincrementalgainfromappendingURLfeaturestocontentembeddingsisresolved(0.54≤𝑞 ≤ 0.95 on F1; 𝑞 ≥ 0.087 on ranking metrics). A seven-fold leave-one-scenario-out test lowersMacro-F1 from 0.928on matched random splits to 0.892, with errors concentrated in benign falsepositives (19.0%). Under a pre-specified token-Jaccard band [0.20,0.30], paraphrasing raises thebaseline miss rate from 3.2%to 17.9%; character-level adversarial training leaves it at 22.8%, whiledisjointparaphraseaugmentationlowersitto5.9%onthiscorpus.Theexplicitleave-one-LLM-outtestis asymmetric: training on Claude rewrites numerically reduces held-out Gemini misses from 23.1%to 17.2%without corrected significance (𝑝 = 0.160), whereas Gemini augmentation increases held-out Claude misses to 36.6%(𝑝&lt;0.001). These results do not establish generator-invariant semanticrobustness; machine-written phishing versus human-written benign controls remains an authorshipconfound.</jats:p>",
+    "DOI": "10.2139/ssrn.7454637",
+    "type": "posted-content",
+    "created": {
+      "date-parts": [
+        [
+          2026,
+          9,
+          13
+        ]
+      ],
+      "date-time": "2026-09-13T14:10:44Z",
+      "timestamp": 1789308644000
+    },
+    "source": "Crossref",
+    "is-referenced-by-count": 0,
+    "title": [
+      "Content and URL Fusion for Vietnamese Phishing Pages: Five Encoders under a Variance-Corrected Protocol and a Strength-Controlled Paraphrase Attack"
+    ],
+    "prefix": "10.2139",
+    "author": [
+      {
+        "given": "Thai",
+        "family": "Nguyen Vu",
+        "sequence": "first",
+        "affiliation": [],
+        "role": [
+          {
+            "vocabulary": "crossref",
+            "role": "author"
+          }
+        ]
+      }
+    ],
+    "member": "78",
+    "reference": [
+      {
+        "key": "ref1",
+        "first-page": "1037",
+        "article-title": "PhoBERT: Pre-trained language models for Vietnamese",
+        "author": "D Q Nguyen",
+        "year": "2020",
+        "journal-title": "Findings Assoc. Comput. Linguistics: EMNLP 2020"
+      },
+      {
+        "key": "ref2",
+        "author": "R Goenka",
+        "journal-title": "Mendeley Data"
+      },
+      {
+        "key": "ref3",
+        "article-title": "PhiUSIIL: A diverse security profile empowered phishing URL detection framework based on similarity index and incremental learning",
+        "volume": "136",
+        "author": "A Prasad",
+        "year": "2024",
+        "journal-title": "UCI Machine Learning Repository"
+      },
+      {
+        "key": "ref4",
+        "article-title": "GramBeddings: A new neural network for URL based identification of phishing web pages through n-gram embeddings",
+        "volume": "124",
+        "author": "A S Bozkir",
+        "journal-title": "Comput. Secur"
+      },
+      {
+        "key": "ref5",
+        "author": "A S Bozkir",
+        "year": "2023",
+        "journal-title": "GramBeddings benchmark corpora (ISCXURL2016, PhishStorm),\" companion data release"
+      },
+      {
+        "key": "ref6",
+        "author": "F Chen",
+        "year": "2025",
+        "journal-title": "SoK: Exposing the generation and detection gaps in LLM-generated phishing"
+      },
+      {
+        "key": "ref7",
+        "author": "T Koide",
+        "year": "2026",
+        "journal-title": "Clouding the mirror: Stealthy prompt injection attacks targeting LLM-based phishing detection"
+      },
+      {
+        "key": "ref8",
+        "first-page": "137",
+        "article-title": "Can features for phishing URL detection be trusted across diverse datasets? A case study with explainable AI",
+        "author": "M Mia",
+        "year": "2024",
+        "journal-title": "Proc. 11th Int"
+      },
+      {
+        "issue": "4",
+        "key": "ref9",
+        "first-page": "527",
+        "article-title": "A survey of phishing attack techniques, defence mechanisms and open research challenges",
+        "volume": "16",
+        "author": "A K Jain",
+        "year": "2022"
+      },
+      {
+        "key": "ref10",
+        "article-title": "Phishing attacks: A recent comprehensive study and a new anatomy",
+        "volume": "3",
+        "author": "Z Alkhalil",
+        "journal-title": "Frontiers Comput. Sci"
+      },
+      {
+        "key": "ref11",
+        "article-title": "PhishVN: A time-stamped Vietnamese URL phishing dataset with impersonation-scenario labels and confidence tiers",
+        "volume": "4",
+        "author": "T Nguyen Vu",
+        "year": "2026",
+        "journal-title": "Data article: Data in Brief"
+      },
+      {
+        "key": "ref12",
+        "first-page": "5191",
+        "article-title": "Vi-SoBERT: A pre-trained language model for Vietnamese social media text processing",
+        "author": "N Nguyen",
+        "year": "2023",
+        "journal-title": "Proc. EMNLP"
+      },
+      {
+        "issue": "1883452",
+        "key": "ref13",
+        "article-title": "Cross-model evaluation of phishing detectors against LLM-generated emails",
+        "volume": "9",
+        "author": "R Gutierrez",
+        "year": "2026",
+        "journal-title": "Frontiers Big Data"
+      },
+      {
+        "key": "ref14",
+        "article-title": "Evidence-consistent generative detection under scenario-level distribution shift",
+        "author": "S Kim",
+        "year": "2026",
+        "journal-title": "Proc. 35th ACM Int. Conf. Inf. Knowl. Manag. (CIKM)"
+      },
+      {
+        "key": "ref15",
+        "article-title": "URL-Phish: A feature-engineered dataset for phishing detection",
+        "volume": "1",
+        "author": "L Dam Minh",
+        "journal-title": "Mendeley Data"
+      },
+      {
+        "key": "ref16",
+        "doi-asserted-by": "crossref",
+        "first-page": "345",
+        "DOI": "10.1016/j.eswa.2018.09.029",
+        "article-title": "Machine learning based phishing detection from URLs",
+        "volume": "117",
+        "author": "O K Sahingoz",
+        "year": "2019",
+        "journal-title": "Expert Syst. Appl"
+      },
+      {
+        "key": "ref17",
+        "doi-asserted-by": "crossref",
+        "first-page": "639",
+        "DOI": "10.1145/1242572.1242659",
+        "article-title": "CANTINA: A content-based approach to detecting phishing web sites",
+        "author": "Y Zhang",
+        "year": "2007",
+        "journal-title": "Proc. 16th Int. Conf. World Wide Web (WWW)"
+      },
+      {
+        "key": "ref18",
+        "article-title": "Large-scale automatic classification of phishing pages",
+        "author": "C Whittaker",
+        "year": "2010",
+        "journal-title": "Proc. Netw. Distrib. Syst. Secur. Symp. (NDSS)"
+      },
+      {
+        "key": "ref19",
+        "first-page": "191",
+        "article-title": "PhishDef: URL names say it all",
+        "author": "A Le",
+        "year": "2011",
+        "journal-title": "Proc. IEEE INFOCOM"
+      },
+      {
+        "issue": "10",
+        "key": "ref20",
+        "doi-asserted-by": "crossref",
+        "first-page": "1717",
+        "DOI": "10.1109/TC.2017.2703808",
+        "article-title": "Off-the-hook: An efficient and usable client-side phishing prevention application",
+        "volume": "66",
+        "author": "S Marchal",
+        "year": "2017",
+        "journal-title": "IEEE Trans. Comput"
+      },
+      {
+        "issue": "16",
+        "key": "ref21",
+        "article-title": "Phishing webpage detection via multi-modal integration of HTML DOM graphs and URL features",
+        "volume": "13",
+        "author": "J H Yoon",
+        "journal-title": "Electronics"
+      },
+      {
+        "issue": "1",
+        "key": "ref22",
+        "doi-asserted-by": "crossref",
+        "first-page": "31209",
+        "DOI": "10.48084/etasr.15759",
+        "article-title": "NetPhish-Mix: A multi-modal phishing detection method utilizing URL graphs and page screenshot vision transformer",
+        "volume": "16",
+        "author": "A Mohammad",
+        "year": "2026",
+        "journal-title": "Eng., Technol. Appl. Sci. Res"
+      },
+      {
+        "key": "ref23",
+        "first-page": "3971",
+        "article-title": "Dos and don'ts of machine learning in computer security",
+        "author": "D Arp",
+        "year": "2022",
+        "journal-title": "Proc. 31st USENIX Security Symp"
+      },
+      {
+        "key": "ref24",
+        "first-page": "729",
+        "article-title": "TESSERACT: Eliminating experimental bias in malware classification across space and time",
+        "author": "F Pendlebury",
+        "year": "2019",
+        "journal-title": "Proc. 28th USENIX Security Symp"
+      },
+      {
+        "issue": "4",
+        "key": "ref25",
+        "doi-asserted-by": "crossref",
+        "first-page": "5152",
+        "DOI": "10.1109/TNSM.2022.3157344",
+        "article-title": "The cross-evaluation of machine learning-based network intrusion detection systems",
+        "volume": "19",
+        "author": "G Apruzzese",
+        "year": "2022",
+        "journal-title": "IEEE Trans. Netw. Service Manag"
+      },
+      {
+        "issue": "4",
+        "key": "ref26",
+        "doi-asserted-by": "crossref",
+        "first-page": "1",
+        "DOI": "10.1145/2523813",
+        "article-title": "A survey on concept drift adaptation",
+        "volume": "46",
+        "author": "J Gama",
+        "year": "2014",
+        "journal-title": "ACM Comput. Surv"
+      },
+      {
+        "key": "ref27",
+        "first-page": "443",
+        "article-title": "Learning from time-changing data with adaptive windowing",
+        "author": "A Bifet",
+        "year": "2007",
+        "journal-title": "Proc. SIAM Int. Conf. Data Mining (SDM)"
+      },
+      {
+        "issue": "12",
+        "key": "ref28",
+        "first-page": "2346",
+        "article-title": "Learning under concept drift: A review",
+        "volume": "31",
+        "author": "J Lu",
+        "year": "2019",
+        "journal-title": "IEEE Trans. Knowl. Data Eng"
+      },
+      {
+        "issue": "13",
+        "key": "ref29",
+        "doi-asserted-by": "crossref",
+        "first-page": "3521",
+        "DOI": "10.1073/pnas.1611835114",
+        "article-title": "Overcoming catastrophic forgetting in neural networks",
+        "volume": "114",
+        "author": "J Kirkpatrick",
+        "year": "2017",
+        "journal-title": "Proc. Nat. Acad. Sci. USA"
+      },
+      {
+        "key": "ref30",
+        "first-page": "6467",
+        "article-title": "Gradient episodic memory for continual learning",
+        "author": "D Lopez-Paz",
+        "year": "2017",
+        "journal-title": "Proc"
+      },
+      {
+        "issue": "110",
+        "key": "ref31",
+        "first-page": "1",
+        "article-title": "River: Machine learning for streaming data in Python",
+        "volume": "22",
+        "author": "J Montiel",
+        "year": "2021",
+        "journal-title": "J. Mach. Learn. Res"
+      },
+      {
+        "issue": "1",
+        "key": "ref32",
+        "doi-asserted-by": "crossref",
+        "first-page": "5",
+        "DOI": "10.1023/A:1010933404324",
+        "article-title": "Random forests",
+        "volume": "45",
+        "author": "L Breiman",
+        "year": "2001",
+        "journal-title": "Mach. Learn"
+      },
+      {
+        "key": "ref33",
+        "doi-asserted-by": "crossref",
+        "first-page": "785",
+        "DOI": "10.1145/2939672.2939785",
+        "article-title": "XGBoost: A scalable tree boosting system",
+        "author": "T Chen",
+        "year": "2016",
+        "journal-title": "Proc. 22nd ACM SIGKDD Int. Conf. Knowl. Discovery Data Mining"
+      },
+      {
+        "key": "ref34",
+        "first-page": "3146",
+        "article-title": "LightGBM: A highly efficient gradient boosting decision tree",
+        "author": "G Ke",
+        "year": "2017",
+        "journal-title": "Proc"
+      },
+      {
+        "key": "ref35",
+        "first-page": "2825",
+        "article-title": "Scikit-learn: Machine learning in Python",
+        "volume": "12",
+        "author": "F Pedregosa",
+        "year": "2011",
+        "journal-title": "J. Mach. Learn. Res"
+      },
+      {
+        "key": "ref36",
+        "first-page": "5998",
+        "article-title": "Attention is all you need",
+        "author": "A Vaswani",
+        "year": "2017",
+        "journal-title": "Proc"
+      },
+      {
+        "key": "ref37",
+        "first-page": "4171",
+        "article-title": "BERT: Pre-training of deep bidirectional transformers for language understanding",
+        "author": "J Devlin",
+        "year": "2019",
+        "journal-title": "Proc. NAACL-HLT"
+      },
+      {
+        "key": "ref38",
+        "first-page": "281",
+        "article-title": "Random search for hyper-parameter optimization",
+        "volume": "13",
+        "author": "J Bergstra",
+        "year": "2012",
+        "journal-title": "J. Mach. Learn. Res"
+      },
+      {
+        "key": "ref39",
+        "doi-asserted-by": "crossref",
+        "first-page": "46",
+        "DOI": "10.1016/j.advengsoft.2013.12.007",
+        "article-title": "Grey wolf optimizer",
+        "volume": "69",
+        "author": "S Mirjalili",
+        "year": "2014",
+        "journal-title": "Adv. Eng. Softw"
+      },
+      {
+        "key": "ref40",
+        "doi-asserted-by": "crossref",
+        "DOI": "10.14722/ndss.2019.23386",
+        "article-title": "Tranco: A research-oriented top sites ranking hardened against manipulation",
+        "author": "V Le Pochat",
+        "year": "2019",
+        "journal-title": "Proc. Netw. Distrib. Syst. Secur. Symp. (NDSS)"
+      },
+      {
+        "issue": "12",
+        "key": "ref41",
+        "doi-asserted-by": "crossref",
+        "first-page": "86",
+        "DOI": "10.1145/3458723",
+        "article-title": "Datasheets for datasets",
+        "volume": "64",
+        "author": "T Gebru",
+        "year": "2021",
+        "journal-title": "Commun. ACM"
+      },
+      {
+        "key": "ref42",
+        "first-page": "577",
+        "article-title": "PhishFusion: A multimodal phishing website detection framework using joint URL and JavaScript features",
+        "author": "D M Duc",
+        "year": "2026",
+        "journal-title": "Proc. Asian Conf. Intell. Inf. Database Syst. (ACIIDS), Communications in Computer and Information Science"
+      },
+      {
+        "key": "ref43",
+        "first-page": "136",
+        "article-title": "ViT5: Pretrained text-to-text transformer for Vietnamese language generation",
+        "author": "L Phan",
+        "journal-title": "Proc. NAACL 2022 Student Res. Workshop, 2022"
+      },
+      {
+        "key": "ref44",
+        "first-page": "284",
+        "article-title": "A CNNbased model for detecting malicious URLs",
+        "author": "X D Hoang",
+        "year": "2023",
+        "journal-title": "Proc. RIVF Int. Conf. Comput"
+      },
+      {
+        "issue": "4A",
+        "key": "ref45",
+        "first-page": "124",
+        "article-title": "Applying the autoencoder model for URL phishing detection",
+        "volume": "53",
+        "author": "T M Dang",
+        "year": "2024",
+        "journal-title": "J. Sci., Natural Sci., Eng. Technol"
+      },
+      {
+        "issue": "3",
+        "key": "ref46",
+        "doi-asserted-by": "crossref",
+        "first-page": "3021",
+        "DOI": "10.11591/ijece.v14i3.pp3021-3035",
+        "article-title": "Realtime phishing detection using deep learning methods by extensions",
+        "volume": "14",
+        "author": "D M Linh",
+        "year": "2024",
+        "journal-title": "Int. J. Electr. Comput. Eng. (IJECE)"
+      },
+      {
+        "key": "ref47",
+        "article-title": "A feature-engineered dataset of benign and phishing URLs for machine learning and large language models evaluation",
+        "volume": "63",
+        "author": "D M Linh",
+        "journal-title": "Data in Brief"
+      },
+      {
+        "key": "ref48",
+        "first-page": "27869",
+        "article-title": "PhishAgent: A robust multimodal agent for phishing webpage detection",
+        "volume": "39",
+        "author": "T Cao",
+        "year": "2025",
+        "journal-title": "Proc. AAAI Conf"
+      },
+      {
+        "key": "ref49",
+        "doi-asserted-by": "crossref",
+        "DOI": "10.1016/j.comnet.2024.110398",
+        "article-title": "Phishing URL detection generalisation using unsupervised domain adaptation",
+        "volume": "245",
+        "author": "F Rashid",
+        "year": "2024",
+        "journal-title": "Comput. Netw"
+      },
+      {
+        "issue": "2",
+        "key": "ref50",
+        "doi-asserted-by": "crossref",
+        "first-page": "1",
+        "DOI": "10.1145/3737295",
+        "article-title": "From ML to LLM: Evaluating the robustness of phishing web page detection models against adversarial attacks",
+        "volume": "6",
+        "author": "A Kulkarni",
+        "year": "2025",
+        "journal-title": "Digit. Threats, Res. Pract"
+      },
+      {
+        "key": "ref51",
+        "article-title": "Adversarial attacks on phishing webpage detectors via heuristic search techniques",
+        "volume": "100",
+        "author": "G Lo Re",
+        "year": "2026",
+        "journal-title": "J. Inf. Secur. Appl"
+      },
+      {
+        "key": "ref52",
+        "first-page": "233",
+        "article-title": "Raze to the ground: Query-efficient adversarial HTML attacks on machine-learning phishing webpage detectors",
+        "author": "B Montaruli",
+        "year": "2023",
+        "journal-title": "Proc. 16th ACM Workshop"
+      },
+      {
+        "key": "ref53",
+        "author": "Y Tian",
+        "year": "2025",
+        "journal-title": "From past to present: A survey of malicious URL detection techniques, datasets and code repositories"
+      },
+      {
+        "issue": "1",
+        "key": "ref54",
+        "doi-asserted-by": "crossref",
+        "first-page": "573",
+        "DOI": "10.1007/s00521-022-07745-w",
+        "article-title": "Vietnamese hate and offensive detection using PhoBERT-CNN and social media streaming data",
+        "volume": "35",
+        "author": "K Q Tran",
+        "year": "2023",
+        "journal-title": "Neural Comput. Appl"
+      },
+      {
+        "key": "ref55",
+        "first-page": "36",
+        "article-title": "From chatbots to phishbots?: Phishing scam generation in commercial large language models",
+        "author": "S S Roy",
+        "year": "2024",
+        "journal-title": "Proc. IEEE Symp. Secur. Privacy (S&P)"
+      },
+      {
+        "issue": "1",
+        "key": "ref56",
+        "doi-asserted-by": "crossref",
+        "first-page": "41",
+        "DOI": "10.15625/1813-9663/22392",
+        "article-title": "VNSED: Vietnamese spam email detection using multi deep learning models",
+        "volume": "42",
+        "author": "T C Nguyen",
+        "year": "2026",
+        "journal-title": "J. Comput. Sci. Cybern"
+      },
+      {
+        "issue": "3",
+        "key": "ref57",
+        "doi-asserted-by": "crossref",
+        "first-page": "239",
+        "DOI": "10.1023/A:1024068626366",
+        "article-title": "Inference for the generalization error",
+        "volume": "52",
+        "author": "C Nadeau",
+        "year": "2003",
+        "journal-title": "Mach. Learn"
+      },
+      {
+        "issue": "1",
+        "key": "ref58",
+        "doi-asserted-by": "crossref",
+        "first-page": "289",
+        "DOI": "10.1111/j.2517-6161.1995.tb02031.x",
+        "article-title": "Controlling the false discovery rate: A practical and powerful approach to multiple testing",
+        "volume": "57",
+        "author": "Y Benjamini",
+        "year": "1995",
+        "journal-title": "J. Roy. Statist. Soc. B"
+      },
+      {
+        "issue": "7",
+        "key": "ref59",
+        "doi-asserted-by": "crossref",
+        "first-page": "1895",
+        "DOI": "10.1162/089976698300017197",
+        "article-title": "Approximate statistical tests for comparing supervised classification learning algorithms",
+        "volume": "10",
+        "author": "T G Dietterich",
+        "year": "1998",
+        "journal-title": "Neural Comput"
+      },
+      {
+        "key": "ref60",
+        "first-page": "3829",
+        "article-title": "Reevaluating adversarial examples in natural language",
+        "author": "J X Morris",
+        "year": "2020",
+        "journal-title": "Findings Assoc. Comput. Linguistics: EMNLP 2020"
+      },
+      {
+        "key": "ref61",
+        "first-page": "119",
+        "article-title": "TextAttack: A framework for adversarial attacks, data augmentation, and adversarial training in NLP",
+        "author": "J X Morris",
+        "year": "2020",
+        "journal-title": "Proc. Conf. Empirical Methods Natural Lang. Process. (EMNLP): Syst. Demonstrations"
+      },
+      {
+        "key": "ref62",
+        "first-page": "8018",
+        "article-title": "Is BERT really robust? A strong baseline for natural language attack on text classification and entailment",
+        "volume": "34",
+        "author": "D Jin",
+        "year": "2020",
+        "journal-title": "Proc. 34th AAAI Conf"
+      },
+      {
+        "key": "ref63",
+        "doi-asserted-by": "crossref",
+        "first-page": "6193",
+        "DOI": "10.18653/v1/2020.emnlp-main.500",
+        "article-title": "BERT-ATTACK: Adversarial attack against BERT using BERT",
+        "author": "L Li",
+        "year": "2020",
+        "journal-title": "Proc. Conf. Empirical Methods Natural Lang. Process. (EMNLP)"
+      },
+      {
+        "key": "ref64",
+        "article-title": "Paraphrasing evades detectors of AI-generated text, but retrieval is an effective defense",
+        "volume": "36",
+        "author": "K Krishna",
+        "journal-title": "Proc"
+      },
+      {
+        "key": "ref65",
+        "author": "J Hazell",
+        "year": "2023",
+        "journal-title": "Spear phishing with large language models: An experimental study"
+      },
+      {
+        "key": "ref66",
+        "first-page": "1515",
+        "article-title": "Phishpedia: A deep learning-based approach to identify phishing webpages via identity discovery",
+        "author": "S Lin",
+        "year": "2021",
+        "journal-title": "Proc. 30th USENIX Secur. Symp"
+      },
+      {
+        "key": "ref67",
+        "first-page": "1681",
+        "article-title": "VisualPhishNet: Zeroday phishing website detection by visual similarity",
+        "author": "S Abdelnabi",
+        "year": "2020",
+        "journal-title": "Proc. ACM SIGSAC Conf. Comput. Commun. Secur. (CCS)"
+      }
+    ],
+    "container-title": [],
+    "original-title": [],
+    "deposited": {
+      "date-parts": [
+        [
+          2026,
+          9,
+          13
+        ]
+      ],
+      "date-time": "2026-09-13T14:15:11Z",
+      "timestamp": 1789308911000
+    },
+    "score": 1,
+    "resource": {
+      "primary": {
+        "URL": "https://www.ssrn.com/abstract=7454637"
+      }
+    },
+    "subtitle": [],
+    "short-title": [],
+    "issued": {
+      "date-parts": [
+        [
+          2026
+        ]
+      ]
+    },
+    "references-count": 67,
+    "URL": "https://doi.org/10.2139/ssrn.7454637",
+    "relation": {},
+    "subject": [],
+    "published": {
+      "date-parts": [
+        [
+          2026
+        ]
+      ]
+    },
+    "subtype": "preprint"
+  }
+}

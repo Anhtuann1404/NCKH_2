@@ -1,0 +1,85 @@
+{
+  "status": "draft_template_not_frozen",
+  "proposal_path": "docs/De_cuong_NCKH_Phishing_Mau_2.md",
+  "project_title": "Phát hiện website phishing mạo danh tổ chức bằng học máy kết hợp URL và nội dung trang",
+  "project_start_date": null,
+  "team": {
+    "A_name": null,
+    "B_name": null,
+    "C_name": null,
+    "D_name": null,
+    "model_owner": "D",
+    "annotation_hours_A": null,
+    "annotation_hours_B": null,
+    "lead_role": "D",
+    "api_owner": "D",
+    "extension_owner": "D",
+    "data_pipeline_owner": "C",
+    "primary_annotation_owner": "A",
+    "independent_annotation_qa_owner": "B"
+  },
+  "data": {
+    "main_source": "phreshphish",
+    "main_split": "train",
+    "official_test_reserved": true,
+    "selected_revision": null,
+    "observed_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+    "main_files_sha256": null,
+    "date_audit_complete": false,
+    "proposed_window": [
+      "2024-10-01",
+      "2025-12-31"
+    ],
+    "dictionary_version": null,
+    "dictionary_sha256": null,
+    "target_phishing": 2000,
+    "target_phishing_domains": 500,
+    "fallback_phishing": 1200,
+    "fallback_phishing_domains": 300,
+    "target_benign": 10000,
+    "target_benign_domains": 3000,
+    "target_hard_benign": 300,
+    "target_hard_benign_domains": 100,
+    "second_annotation_random_fraction": 0.3,
+    "class_audit_reference_n": 200,
+    "pilot_phishing_n": 20,
+    "fallback_if_mean_minutes_gt": 5
+  },
+  "experiments": {
+    "outer_folds": 5,
+    "seeds": [
+      17,
+      42,
+      2026
+    ],
+    "target_fprs": [
+      0.01,
+      0.05
+    ],
+    "primary_analyses": [
+      "all_samples",
+      "phishing_in_dictionary"
+    ],
+    "temporal_quantiles": [
+      0.6,
+      0.8
+    ],
+    "bootstrap_repetitions_proposed": 2000,
+    "model_families": [
+      "logistic_regression",
+      "lightgbm_optional"
+    ]
+  },
+  "demo": {
+    "api_host": "127.0.0.1",
+    "api_port": 8765,
+    "max_body_bytes": 2097152,
+    "max_html_characters": 1000000,
+    "client_timeout_ms_proposed": 5000,
+    "dom_debounce_ms_proposed": 500,
+    "allowed_extension_id": null,
+    "token_env_variable": "PHISHING_LOCAL_API_TOKEN",
+    "preprocessing_version_proposed": "snapshot-v1",
+    "cache_enabled": false
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "status": "draft_template_not_verified",
+  "source_id": "phreshphish",
+  "source_url": "https://huggingface.co/datasets/phreshphish/phreshphish",
+  "revision": null,
+  "retrieved_at_utc": null,
+  "reviewer": null,
+  "license_declaration": null,
+  "usage_conditions": null,
+  "permission_evidence_url": null,
+  "redistribution_status": "not_reviewed",
+  "files": [],
+  "date_audit_path": null,
+  "dictionary_lock_path": null,
+  "source_split": "train",
+  "capture_mode": "unknown",
+  "notes": "Fill file path, sha256, byte_size and verification evidence for each pinned file. Null does not mean verified."
+}

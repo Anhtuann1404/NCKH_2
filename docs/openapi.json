@@ -1,0 +1,792 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Phishing Research Local Demo API",
+    "version": "0.1.0",
+    "description": "Design contract only. Server/model not implemented. Examples are synthetic, not experimental results."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8765",
+      "description": "Proposed loopback demo"
+    }
+  ],
+  "security": [
+    {
+      "LocalBearer": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Process liveness, not model readiness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Process alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model": {
+      "get": {
+        "operationId": "activeBundle",
+        "summary": "Read active bundle metadata",
+        "responses": {
+          "200": {
+            "description": "Bundle ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveBundle"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu/sai token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin/Host bị từ chối",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi nội bộ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Mô hình chưa sẵn sàng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyze": {
+      "post": {
+        "operationId": "analyzeSnapshot",
+        "summary": "Analyze sanitized snapshot without fetching its URL",
+        "description": "Token required. Enforce 2 MiB UTF-8 body limit before JSON parse, strict http/https URL validation and bundle preprocessing parity. Never execute HTML. Compare completed score >= threshold in application code.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              },
+              "examples": {
+                "content": {
+                  "summary": "Synthetic content example",
+                  "value": {
+                    "request_id": "11111111-1111-4111-8111-111111111111",
+                    "navigation_id": "22222222-2222-4222-8222-222222222222",
+                    "dom_revision": 1,
+                    "phase": "url_content",
+                    "url": "https://example.org/account",
+                    "html": "<html><body><h1>Example account</h1><form><input type=\"password\"></form></body></html>",
+                    "preprocessing_version": "snapshot-v1",
+                    "capture_mode": "rendered_dom"
+                  }
+                },
+                "url": {
+                  "summary": "Synthetic preliminary URL example",
+                  "value": {
+                    "request_id": "11111111-1111-4111-8111-111111111111",
+                    "navigation_id": "22222222-2222-4222-8222-222222222222",
+                    "dom_revision": 0,
+                    "phase": "url_only",
+                    "url": "https://example.org/account",
+                    "preprocessing_version": "snapshot-v1",
+                    "capture_mode": "url_only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed or insufficient content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeResponse"
+                },
+                "examples": {
+                  "completed": {
+                    "value": {
+                      "request_id": "11111111-1111-4111-8111-111111111111",
+                      "navigation_id": "22222222-2222-4222-8222-222222222222",
+                      "dom_revision": 1,
+                      "phase": "url_content",
+                      "status": "completed",
+                      "verdict": "warning",
+                      "score": 0.82,
+                      "threshold": 0.75,
+                      "model": {
+                        "model_id": "demo-example-only",
+                        "variant": "M3",
+                        "preprocessing_version": "snapshot-v1",
+                        "dictionary_version": "example-only",
+                        "score_semantics": "uncalibrated_model_score"
+                      },
+                      "signals": [
+                        {
+                          "code": "sensitive_form_detected",
+                          "org_candidate_id": null,
+                          "domain_relation": "not_applicable",
+                          "message": "Quan sát thấy trường yêu cầu mật khẩu."
+                        }
+                      ],
+                      "limitations": [
+                        "example_response_not_model_result"
+                      ],
+                      "timing_ms": {
+                        "preprocess": 3,
+                        "extract": 8,
+                        "infer": 2,
+                        "server_total": 14
+                      }
+                    }
+                  },
+                  "insufficient": {
+                    "value": {
+                      "request_id": "11111111-1111-4111-8111-111111111111",
+                      "navigation_id": "22222222-2222-4222-8222-222222222222",
+                      "dom_revision": 1,
+                      "phase": "url_content",
+                      "status": "insufficient_content",
+                      "verdict": "unable_to_assess",
+                      "score": null,
+                      "threshold": null,
+                      "model": {
+                        "model_id": "demo-example-only",
+                        "variant": "M3",
+                        "preprocessing_version": "snapshot-v1",
+                        "dictionary_version": "example-only",
+                        "score_semantics": "uncalibrated_model_score"
+                      },
+                      "signals": [],
+                      "limitations": [
+                        "insufficient_text_or_dom"
+                      ],
+                      "timing_ms": {
+                        "preprocess": 3,
+                        "extract": 8,
+                        "infer": 2,
+                        "server_total": 14
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu/sai token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin/Host bị từ chối",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phiên bản preprocessing không tương thích",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Body vượt 2 MiB UTF-8",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Type không hỗ trợ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Schema hoặc URL không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Quá nhiều yêu cầu",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Lỗi nội bộ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Mô hình chưa sẵn sàng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Vượt ngân sách xử lý",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "LocalBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Random local token; not JWT or committed secret."
+      }
+    },
+    "schemas": {
+      "UrlOnlyRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "navigation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dom_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192,
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "preprocessing_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "phase": {
+            "const": "url_only"
+          },
+          "capture_mode": {
+            "const": "url_only"
+          }
+        },
+        "required": [
+          "request_id",
+          "navigation_id",
+          "dom_revision",
+          "url",
+          "preprocessing_version",
+          "phase",
+          "capture_mode"
+        ]
+      },
+      "ContentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "navigation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dom_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192,
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "preprocessing_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "phase": {
+            "const": "url_content"
+          },
+          "capture_mode": {
+            "type": "string",
+            "enum": [
+              "rendered_dom",
+              "stored_html"
+            ]
+          },
+          "html": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000
+          }
+        },
+        "required": [
+          "request_id",
+          "navigation_id",
+          "dom_revision",
+          "url",
+          "preprocessing_version",
+          "phase",
+          "capture_mode",
+          "html"
+        ]
+      },
+      "AnalyzeRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/UrlOnlyRequest"
+          },
+          {
+            "$ref": "#/components/schemas/ContentRequest"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "phase",
+          "mapping": {
+            "url_only": "#/components/schemas/UrlOnlyRequest",
+            "url_content": "#/components/schemas/ContentRequest"
+          }
+        }
+      },
+      "AnalyzeResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "navigation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dom_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "url_only",
+              "url_content"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "insufficient_content"
+            ]
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "no_indication",
+              "unable_to_assess"
+            ]
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "threshold": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelMetadata"
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Signal"
+            },
+            "maxItems": 20
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "maxItems": 20
+          },
+          "timing_ms": {
+            "$ref": "#/components/schemas/Timing"
+          }
+        },
+        "required": [
+          "request_id",
+          "navigation_id",
+          "dom_revision",
+          "phase",
+          "status",
+          "verdict",
+          "score",
+          "threshold",
+          "model",
+          "signals",
+          "limitations",
+          "timing_ms"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "completed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "score": {
+                  "type": "number"
+                },
+                "threshold": {
+                  "type": "number"
+                },
+                "verdict": {
+                  "enum": [
+                    "warning",
+                    "no_indication"
+                  ]
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "score": {
+                  "type": "null"
+                },
+                "threshold": {
+                  "type": "null"
+                },
+                "verdict": {
+                  "const": "unable_to_assess"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ModelMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "variant": {
+            "type": "string",
+            "enum": [
+              "M0",
+              "M1",
+              "M2",
+              "M3"
+            ]
+          },
+          "preprocessing_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dictionary_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "score_semantics": {
+            "const": "uncalibrated_model_score"
+          }
+        },
+        "required": [
+          "model_id",
+          "variant",
+          "preprocessing_version",
+          "dictionary_version",
+          "score_semantics"
+        ]
+      },
+      "Signal": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "org_candidate_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "domain_relation": {
+            "type": "string",
+            "enum": [
+              "verified_first_party",
+              "verified_authorized",
+              "unverified_shared_hosting",
+              "unverified",
+              "mismatch",
+              "not_applicable"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "code",
+          "org_candidate_id",
+          "domain_relation",
+          "message"
+        ]
+      },
+      "Timing": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "preprocess": {
+            "type": "number",
+            "minimum": 0
+          },
+          "extract": {
+            "type": "number",
+            "minimum": 0
+          },
+          "infer": {
+            "type": "number",
+            "minimum": 0
+          },
+          "server_total": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "preprocess",
+          "extract",
+          "infer",
+          "server_total"
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 300
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          },
+          "request_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "error",
+          "request_id"
+        ]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "const": "ok"
+          },
+          "model_ready": {
+            "type": "boolean"
+          },
+          "api_version": {
+            "const": "0.1.0"
+          }
+        },
+        "required": [
+          "status",
+          "model_ready",
+          "api_version"
+        ]
+      },
+      "ActiveBundle": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bundle_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModelMetadata"
+              },
+              {
+                "properties": {
+                  "variant": {
+                    "const": "M0"
+                  }
+                }
+              }
+            ]
+          },
+          "content_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ModelMetadata"
+              },
+              {
+                "properties": {
+                  "variant": {
+                    "enum": [
+                      "M1",
+                      "M2",
+                      "M3"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "dictionary_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "feature_version": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "bundle_id",
+          "url_model",
+          "content_model",
+          "dictionary_sha256",
+          "feature_version"
+        ]
+      }
+    }
+  }
+}

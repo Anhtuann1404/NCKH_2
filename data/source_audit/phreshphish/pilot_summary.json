@@ -1,0 +1,239 @@
+{
+  "purpose": "Kiểm tra khả năng truy cập và trích cấu trúc/văn bản; chưa kiểm chứng nhãn hoặc đo hiệu năng",
+  "metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+  "rows_api_revision_pinned": false,
+  "gated": false,
+  "declared_license": "cc-by-4.0",
+  "terms": "Anti-phishing research only as stated by dataset card",
+  "pilot_sha256": "738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f",
+  "n_rows": 20,
+  "labels": {
+    "benign": 12,
+    "phish": 8
+  },
+  "n_nonempty_html": 20,
+  "n_nonempty_text": 19,
+  "n_rows_with_form": 12,
+  "rows": [
+    {
+      "row_idx": 0,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 518982,
+      "text_chars": 27006,
+      "forms": 2,
+      "inputs": 14,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 1,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 192077,
+      "text_chars": 15898,
+      "forms": 0,
+      "inputs": 1,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 2,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 164883,
+      "text_chars": 18677,
+      "forms": 3,
+      "inputs": 5,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 3,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 216067,
+      "text_chars": 7318,
+      "forms": 2,
+      "inputs": 7,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 4,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 25199,
+      "text_chars": 2295,
+      "forms": 1,
+      "inputs": 1,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 5,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 1736334,
+      "text_chars": 15071,
+      "forms": 1,
+      "inputs": 46,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 6,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 150364,
+      "text_chars": 12412,
+      "forms": 2,
+      "inputs": 5,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 7,
+      "label": "phish",
+      "lang": "en",
+      "html_chars": 1146343,
+      "text_chars": 1536,
+      "forms": 2,
+      "inputs": 34,
+      "password_inputs": 2,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 8,
+      "label": "phish",
+      "lang": "en",
+      "html_chars": 9064,
+      "text_chars": 31,
+      "forms": 0,
+      "inputs": 0,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 9,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 1599304,
+      "text_chars": 5855,
+      "forms": 4,
+      "inputs": 4,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 10,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 98672,
+      "text_chars": 22027,
+      "forms": 1,
+      "inputs": 3,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 11,
+      "label": "phish",
+      "lang": "en",
+      "html_chars": 167947,
+      "text_chars": 920,
+      "forms": 0,
+      "inputs": 4,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 12,
+      "label": "phish",
+      "lang": "en",
+      "html_chars": 64396,
+      "text_chars": 337,
+      "forms": 0,
+      "inputs": 0,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 13,
+      "label": "phish",
+      "lang": "nl",
+      "html_chars": 4643,
+      "text_chars": 718,
+      "forms": 0,
+      "inputs": 0,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 14,
+      "label": "phish",
+      "lang": null,
+      "html_chars": 95163,
+      "text_chars": 0,
+      "forms": 0,
+      "inputs": 1,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 15,
+      "label": "phish",
+      "lang": "en",
+      "html_chars": 15651,
+      "text_chars": 436,
+      "forms": 1,
+      "inputs": 8,
+      "password_inputs": 1,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 16,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 354400,
+      "text_chars": 15748,
+      "forms": 5,
+      "inputs": 68,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 17,
+      "label": "phish",
+      "lang": "la",
+      "html_chars": 106428,
+      "text_chars": 8768,
+      "forms": 1,
+      "inputs": 1,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 18,
+      "label": "benign",
+      "lang": "en",
+      "html_chars": 56424,
+      "text_chars": 1894,
+      "forms": 0,
+      "inputs": 0,
+      "password_inputs": 0,
+      "truncated_cells": []
+    },
+    {
+      "row_idx": 19,
+      "label": "benign",
+      "lang": "ja",
+      "html_chars": 156511,
+      "text_chars": 4643,
+      "forms": 0,
+      "inputs": 0,
+      "password_inputs": 0,
+      "truncated_cells": []
+    }
+  ]
+}

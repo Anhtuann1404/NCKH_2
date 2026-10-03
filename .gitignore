@@ -1,0 +1,32 @@
+# Local OS and development environments
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+dist/
+coverage/
+
+# Secrets; sample configuration is kept in configs/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Research data and potentially sensitive output
+data/raw/
+data/processed/
+data/labels/
+data/features/
+data/annotations/
+artifacts/models/
+artifacts/runs/
+data/source_audit/*.zip
+data/source_audit/**/*.zip
+data/source_audit/phreshphish/pilot_20_rows.json
+tmp/
