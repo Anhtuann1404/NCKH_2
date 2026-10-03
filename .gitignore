@@ -14,7 +14,6 @@ coverage/
 # Secrets; sample configuration is kept in configs/
 .env
 .env.*
-!.env.example
 *.pem
 *.key
 
