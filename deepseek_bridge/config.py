@@ -37,8 +37,11 @@ class DeepSeekConfig:
         load_env()
         self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
         self.base_url = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
-        self.model_reasoning = os.environ.get("DEEPSEEK_MODEL_REASONING", "deepseek-reasoner")
-        self.model_coding = os.environ.get("DEEPSEEK_MODEL_CODING", "deepseek-chat")
+        # Cấu hình mặc định DeepSeek V4:
+        # deepseek-v4-pro: bản Pro suy luận và phân tích sâu
+        # deepseek-flash: bản V4.1-Flash siêu tốc, 1M context cho coding & thực thi
+        self.model_reasoning = os.environ.get("DEEPSEEK_MODEL_REASONING", "deepseek-v4-pro")
+        self.model_coding = os.environ.get("DEEPSEEK_MODEL_CODING", "deepseek-flash")
 
     @property
     def is_configured(self) -> bool:

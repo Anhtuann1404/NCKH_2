@@ -31,10 +31,26 @@ class DeepSeekClient:
         if not self.config.is_configured:
             raise ValueError(
                 "DEEPSEEK_API_KEY chưa được cấu hình!\n"
-                "Vui lòng tạo file .env tại thư mục gốc và thêm:\n"
+                "Vui lòng tạo file .env tại thư mục deepseek_bridge/.env và thêm:\n"
                 "DEEPSEEK_API_KEY=sk-...\n"
-                "(Xem file .env.example để biết thêm chi tiết)"
             )
+
+    def list_models(self) -> List[str]:
+        """Lấy danh sách các model khả dụng từ DeepSeek API."""
+        self._ensure_api_key()
+        endpoint = f"{self.config.base_url}/models"
+        headers = {
+            "Authorization": f"Bearer {self.config.api_key}",
+            "Content-Type": "application/json"
+        }
+        try:
+            res = requests.get(endpoint, headers=headers, timeout=15)
+            if res.status_code == 200:
+                data = res.json()
+                return [m.get("id") for m in data.get("data", [])]
+        except Exception as e:
+            logger.warning("Không thể lấy danh sách model: %s", e)
+        return []
 
     def call_api(
         self,
@@ -57,8 +73,8 @@ class DeepSeekClient:
             "stream": False
         }
         
-        # deepseek-reasoner không hỗ trợ temperature tùy biến, mặc định API kiểm soát
-        if model != "deepseek-reasoner" and temperature is not None:
+        # Các model thuần reasoning thường không hỗ trợ temperature tùy biến
+        if "reason" not in model.lower() and temperature is not None:
             payload["temperature"] = temperature
         if max_tokens:
             payload["max_tokens"] = max_tokens
@@ -95,7 +111,8 @@ class DeepSeekClient:
     def _save_log(self, model: str, messages: List[Dict[str, str]], res: DeepSeekResponse):
         """Lưu lại nhật ký gọi DeepSeek phục vụ đối chiếu và kiểm chứng học thuật."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = self.log_dir / f"session_{timestamp}_{model.replace('/', '_')}.json"
+        safe_model_name = model.replace("/", "_").replace(":", "_")
+        log_file = self.log_dir / f"session_{timestamp}_{safe_model_name}.json"
         log_data = {
             "timestamp": datetime.now().isoformat(),
             "model": model,
@@ -117,30 +134,34 @@ class DeepSeekClient:
         self,
         task: str,
         relevant_files: Optional[List[str]] = None,
-        additional_instructions: str = ""
+        additional_instructions: str = "",
+        model: Optional[str] = None
     ) -> DeepSeekResponse:
-        """Sử dụng mô hình suy luận sâu (DeepSeek-R1) để brainstorm giải thuật hoặc kiến trúc."""
+        """Sử dụng mô hình suy luận sâu (DeepSeek V4 Pro) để brainstorm giải thuật hoặc kiến trúc."""
+        target_model = model or self.config.model_reasoning
         compressed_task = compress_task_context(task, relevant_files)
         user_content = f"{compressed_task}\n\n{additional_instructions}".strip()
         
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT_DEEPSEEK},
-            {"role": "user", "content": f"[CHẾ ĐỘ BRAINSTORM - SUY LUẬN SÂU]\n\n{user_content}"}
+            {"role": "user", "content": f"[CHẾ ĐỘ BRAINSTORM - SUY LUẬN SÂU ({target_model})]\n\n{user_content}"}
         ]
-        return self.call_api(messages, model=self.config.model_reasoning)
+        return self.call_api(messages, model=target_model)
 
     def generate_code(
         self,
         task: str,
         relevant_files: Optional[List[str]] = None,
-        additional_instructions: str = ""
+        additional_instructions: str = "",
+        model: Optional[str] = None
     ) -> DeepSeekResponse:
-        """Sử dụng DeepSeek để sinh mã nguồn chuẩn mực (deepseek-chat hoặc reasoner tùy cấu hình)."""
+        """Sử dụng DeepSeek V4 (deepseek-flash / v4-pro) để sinh mã nguồn chuẩn mực."""
+        target_model = model or self.config.model_coding
         compressed_task = compress_task_context(task, relevant_files)
         user_content = f"{compressed_task}\n\n{additional_instructions}".strip()
         
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT_DEEPSEEK},
-            {"role": "user", "content": f"[CHẾ ĐỘ SINH CODE - IMPLEMENTATION]\n\n{user_content}"}
+            {"role": "user", "content": f"[CHẾ ĐỘ SINH CODE - IMPLEMENTATION ({target_model})]\n\n{user_content}"}
         ]
-        return self.call_api(messages, model=self.config.model_coding, temperature=0.2)
+        return self.call_api(messages, model=target_model, temperature=0.2)

@@ -7,11 +7,11 @@ from .client import DeepSeekClient
 
 def main():
     parser = argparse.ArgumentParser(
-        description="DeepSeek Bridge CLI - Cầu nối điều phối giữa Antigravity và DeepSeek cho dự án NCKH"
+        description="DeepSeek Bridge CLI - Cầu nối điều phối giữa Antigravity và DeepSeek V4 cho dự án NCKH"
     )
     parser.add_argument(
         "--check", action="store_true",
-        help="Kiểm tra cấu hình API Key và trạng thái kết nối"
+        help="Kiểm tra cấu hình API Key và danh sách model khả dụng từ API"
     )
     parser.add_argument(
         "-t", "--task", type=str,
@@ -19,7 +19,11 @@ def main():
     )
     parser.add_argument(
         "-m", "--mode", choices=["reason", "code"], default="code",
-        help="Chế độ chạy: 'reason' (DeepSeek-R1 suy luận sâu) hoặc 'code' (DeepSeek-V3 sinh mã nguồn)"
+        help="Chế độ chạy: 'reason' (suy luận sâu / brainstorm) hoặc 'code' (sinh mã nguồn)"
+    )
+    parser.add_argument(
+        "-M", "--model", type=str, default=None,
+        help="Chỉ định model cụ thể (VD: deepseek-v4-pro, deepseek-flash, deepseek-chat, deepseek-reasoner)"
     )
     parser.add_argument(
         "-f", "--files", nargs="*", default=[],
@@ -41,12 +45,24 @@ def main():
             print(f"✅ Trạng thái: ĐÃ CẤU HÌNH")
             print(f"🔑 API Key: {masked_key}")
             print(f"🌐 Base URL: {config.base_url}")
-            print(f"🧠 Reasoning Model: {config.model_reasoning}")
-            print(f"💻 Coding Model: {config.model_coding}")
+            print(f"🧠 Default Reasoning Model: {config.model_reasoning}")
+            print(f"💻 Default Coding Model: {config.model_coding}")
+            
+            client = DeepSeekClient(config)
+            print("\n🔍 Đang kiểm tra danh sách model từ API endpoint...")
+            models = client.list_models()
+            if models:
+                print("📋 Các model khả dụng trên tài khoản của bạn:")
+                for m in models:
+                    print(f"  - {m}")
+            else:
+                print("ℹ️ Không thể liệt kê model (hoặc endpoint /models không mở).")
         else:
             print("❌ Trạng thái: CHƯA CẤU HÌNH API KEY")
-            print("Hướng dẫn: Tạo file .env tại thư mục deepseek_bridge/.env (hoặc thư mục gốc) và thêm:")
+            print("Hướng dẫn: Tạo file .env tại thư mục deepseek_bridge/.env và thêm:")
             print("DEEPSEEK_API_KEY=sk-...")
+            print("DEEPSEEK_MODEL_REASONING=deepseek-v4-pro")
+            print("DEEPSEEK_MODEL_CODING=deepseek-flash")
         return
 
     if not args.task:
@@ -55,21 +71,23 @@ def main():
         sys.exit(1)
 
     client = DeepSeekClient(config)
+    selected_model = args.model or (config.model_reasoning if args.mode == "reason" else config.model_coding)
     
-    print(f"\n🚀 Đang gửi tác vụ tới DeepSeek (Mode: {args.mode.upper()})...")
+    print(f"\n🚀 Đang gửi tác vụ tới DeepSeek...")
+    print(f"🎯 Model: {selected_model} (Mode: {args.mode.upper()})")
     if args.files:
         print(f"📂 Đính kèm ngữ cảnh từ: {', '.join(args.files)}")
 
     try:
         if args.mode == "reason":
-            res = client.brainstorm(task=args.task, relevant_files=args.files)
+            res = client.brainstorm(task=args.task, relevant_files=args.files, model=args.model)
             if res.reasoning_content:
-                print("\n" + "=" * 30 + " [REASONING TRACE - DEEPSEEK-R1] " + "=" * 30)
+                print("\n" + "=" * 30 + f" [REASONING TRACE - {res.model}] " + "=" * 30)
                 print(res.reasoning_content)
         else:
-            res = client.generate_code(task=args.task, relevant_files=args.files)
+            res = client.generate_code(task=args.task, relevant_files=args.files, model=args.model)
 
-        print("\n" + "=" * 30 + " [KẾT QUẢ / MÃ NGUỒN] " + "=" * 30)
+        print("\n" + "=" * 30 + f" [KẾT QUẢ / MÃ NGUỒN - {res.model}] " + "=" * 30)
         print(res.content)
         print(f"\n📊 Thống kê token: Prompt={res.prompt_tokens} | Completion={res.completion_tokens} | Total={res.total_tokens}")
 
