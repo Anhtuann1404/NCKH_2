@@ -6,7 +6,7 @@ def load_env(env_path: Path | None = None) -> dict[str, str]:
     env_vars = {}
     if env_path is None:
         # Tìm .env ở thư mục gốc của dự án
-        root_dir = Path(__file__).resolve().parent.parent.parent
+        root_dir = Path(__file__).resolve().parent.parent
         env_path = root_dir / ".env"
     
     if env_path.is_file():

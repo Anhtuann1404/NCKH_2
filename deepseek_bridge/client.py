@@ -24,7 +24,7 @@ class DeepSeekResponse:
 class DeepSeekClient:
     def __init__(self, config: Optional[DeepSeekConfig] = None):
         self.config = config or DeepSeekConfig()
-        self.log_dir = Path(__file__).resolve().parent.parent.parent / "logs" / "deepseek"
+        self.log_dir = Path(__file__).resolve().parent.parent / "logs" / "deepseek"
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
     def _ensure_api_key(self):

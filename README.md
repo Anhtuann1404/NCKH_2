@@ -38,7 +38,8 @@ NCKH_2/
 │   └── source_manifest.example.json
 ├── data/                      # Dữ liệu phục vụ kiểm kê và thực nghiệm (đã ignore file nén lớn)
 │   └── source_audit/          # Báo cáo kiểm kê nguồn (PhishVN, PhreshPhish, Crossref)
-└── src/                       # Mã nguồn pipeline, trích xuất đặc trưng, huấn luyện & extension
+├── deepseek_bridge/           # Công cụ điều phối & nén ngữ cảnh kết nối DeepSeek API
+└── src/                       # Mã nguồn nghiên cứu chính: pipeline, features, model & extension
 ```
 
 ---
