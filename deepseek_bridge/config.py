@@ -2,12 +2,20 @@ import os
 from pathlib import Path
 
 def load_env(env_path: Path | None = None) -> dict[str, str]:
-    """Tự động đọc các biến môi trường từ file .env nếu có mà không cần thư viện bên ngoài."""
+    """Tự động đọc các biến môi trường từ file .env.
+    Ưu tiên tìm trong deepseek_bridge/.env, sau đó mới tìm ở thư mục gốc."""
     env_vars = {}
     if env_path is None:
-        # Tìm .env ở thư mục gốc của dự án
-        root_dir = Path(__file__).resolve().parent.parent
-        env_path = root_dir / ".env"
+        bridge_dir = Path(__file__).resolve().parent
+        bridge_env = bridge_dir / ".env"
+        root_env = bridge_dir.parent / ".env"
+        
+        if bridge_env.is_file():
+            env_path = bridge_env
+        elif root_env.is_file():
+            env_path = root_env
+        else:
+            env_path = bridge_env  # Đường dẫn mặc định
     
     if env_path.is_file():
         with open(env_path, "r", encoding="utf-8") as f:

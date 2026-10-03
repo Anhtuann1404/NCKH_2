@@ -45,7 +45,7 @@ def main():
             print(f"💻 Coding Model: {config.model_coding}")
         else:
             print("❌ Trạng thái: CHƯA CẤU HÌNH API KEY")
-            print("Hướng dẫn: Tạo file .env tại thư mục gốc và thêm:")
+            print("Hướng dẫn: Tạo file .env tại thư mục deepseek_bridge/.env (hoặc thư mục gốc) và thêm:")
             print("DEEPSEEK_API_KEY=sk-...")
         return
 
