@@ -1,6 +1,6 @@
 # Technical specification v0.1
 
-Trạng thái: thiết kế khởi đầu, chưa triển khai. Phạm vi theo đề cương đã duyệt. Tham chiếu: đề cương 5.2c–f.
+Trạng thái: thiết kế khởi đầu; đã có scaffold preprocessing/features DEV-01 bằng fixture, chưa có model/API/extension. Phạm vi theo đề cương đã duyệt. Tham chiếu: đề cương 5.2c–f.
 
 ## Kiến trúc
 
@@ -59,6 +59,19 @@ Thiết kế ban đầu: URL giữ scheme/host/path và tên tham số; giá tr�
 HTML loại script, inline handler và giá trị điền trong biểu mẫu/textarea/contenteditable trước gửi; giữ cấu trúc và thuộc tính cần trích đặc trưng. Parser offline không tải tài nguyên. Đếm script/iframe nếu cần phải được tính bằng pipeline thống nhất trước loại, với trường thống kê được kiểm soát phiên bản; API v0.1 chưa nhận các thống kê tự do từ client. Vì vậy những đặc trưng không thể tái lập từ snapshot làm sạch sẽ chưa dùng trong bundle v0.1, phải ghi rõ khi đặc tả M1.
 
 Không thu phím bấm, cookie, storage, mật khẩu/OTP hay lịch sử duyệt. Làm sạch không bảo đảm xóa mọi thông tin cá nhân trong văn bản; demo chỉ chạy trên trang được phép và có công tắc bật phân tích nội dung. Nội dung gửi máy chủ cục bộ cũng cần được giải thích trong giao diện.
+
+### Scaffold hiện có — DEV-01
+
+- `prepare_snapshot(url, html, capture_mode=...)` chỉ nhận URL/HTML/chế độ; `extract(snapshot)` từ chối dataset row chứa label/target. Mode/version kiểm đầu vào, không đưa vào vector.
+- URL bỏ userinfo/fragment, thay giá trị query bằng `_redacted_`, giữ thứ tự và query key lặp, chuẩn hóa host/port/IDNA. Path và query key còn có thể chứa thông tin cá nhân; quy tắc xử lý token path cần chốt trước run chính.
+- HTMLParser từ thư viện chuẩn không fetch tài nguyên hay chạy script. Loại script/style/template/noscript/object/embed, event handler, thuộc tính ngoài danh sách, giá trị input, nội dung textarea/contenteditable/hidden và comments. URL trong thuộc tính được làm sạch và giải tương đối theo URL trang.
+- DOM draft gồm số thẻ, form/input/iframe/image, link và link cùng/khác **hostname**; không có script count hoặc metadata nguồn. Text hiện là văn bản trích thô, gồm title; chưa có TF-IDF hay fit corpus.
+- `DomainRule` kiểm hostname/path scope, subdomain chỉ khi cho phép; UGC lấn át quy tắc nhà cung cấp rộng. Chỉ thử bằng tổ chức `.test` mô phỏng, chưa có danh mục thương hiệu chính thức, bộ nhận diện tên/ý định, M3 hoặc B-rule.
+- Version `snapshot-dev-0`/`features-dev-0` phân biệt rõ với `snapshot-v1` mới là đề xuất trong hợp đồng API. Không dùng scaffold để tự đánh dấu freeze preprocessing hoặc training readiness.
+
+Giới hạn cần giải quyết trước khóa pipeline: HTMLParser không dựng DOM theo đầy đủ quy tắc trình duyệt; bản hiện tại bỏ qua `<base>` và CSS visibility, không phải bộ lọc an toàn để render HTML. Dùng IDNA của Python, chưa kiểm parity với URL WHATWG phía extension. So sánh link theo hostname không thay eTLD+1, phân nhóm miền hoặc xác minh quyền sở hữu; PSL/grouping thuộc phần bàn giao của C. Domain rule hiện là primitive bảo thủ, chưa tải bằng chứng/historical validity từ dictionary thật. Không đưa text fixture vào đánh giá nghiên cứu.
+
+Tài liệu parser/URL chính thức: [HTMLParser](https://docs.python.org/3/library/html.parser.html), [urllib.parse](https://docs.python.org/3/library/urllib.parse.html). Thư viện phân tách URL không tự kiểm mọi trường hợp; scaffold bổ sung kiểm HTTP(S), hostname, whitespace/control, escaping và giới hạn.
 
 ## Snapshot và phản hồi
 

@@ -33,7 +33,7 @@ Khi bắt đầu viết mã, tạo nhánh riêng từ `main` đã cập nhật v
 - [Đề cương được dùng làm chuẩn](De_cuong_NCKH_Phishing_Mau_2.md).
 - [Ghi chú và lịch sử xác minh](Ghi_chu_nghien_cuu.md).
 - Đề cương quyết định mục tiêu, phạm vi và giao thức nghiên cứu. Tài liệu này cụ thể hóa triển khai; khi phát hiện mâu thuẫn, ghi lại và xử lý trước bước phụ thuộc, không âm thầm đổi lõi.
-- API và stack là thiết kế khởi đầu v0.1, chưa có backend/extension chạy được. Ví dụ API là dữ liệu mô phỏng, không phải kết quả mô hình.
+- API và stack là thiết kế khởi đầu v0.1, chưa có backend/extension chạy được. Đã có scaffold URL/HTML/features bằng fixture; ví dụ API không phải kết quả mô hình.
 
 ## Phạm vi giữ nguyên
 
@@ -41,7 +41,7 @@ Lõi là URL + nội dung + tín hiệu tổ chức–miền–ý định; tập
 
 ## Trạng thái ban đầu
 
-Đã có đề cương, ghi chú, kiểm kê URL PhishVN và thử tải 20 dòng PhreshPhish. Đã xác nhận nhóm từ 4 người trở lên. Chưa kiểm kê date toàn revision, chưa khóa tập thực nghiệm/danh mục cuối, chưa đo pilot nhãn, chưa huấn luyện, chưa có API hoặc extension.
+Đã có đề cương, ghi chú, kiểm kê URL PhishVN và thử tải 20 dòng PhreshPhish. Đã xác nhận nhóm từ 4 người trở lên. DEV-01 phần D đã có scaffold preprocessing/features, CLI fixture và 17 unittest đạt; xem lệnh trong DEVELOPMENT. Chưa kiểm kê date toàn revision, chưa khóa tập thực nghiệm/danh mục cuối, chưa đo pilot nhãn, chưa huấn luyện, chưa có API hoặc extension.
 
 Vai trò A gán nhãn, B kiểm độc lập và QA, C quản lý dữ liệu/giao diện mù. D là cậu: lead, owner xây dựng–huấn luyện–đánh giá model và API–extension. A/B/C phải là ba người khác nhau; họ tên A/B/C và ngân sách giờ chưa chốt. B hỗ trợ tái lập sau khóa nhãn, C bàn giao pipeline dữ liệu; D chịu trách nhiệm model. Chi tiết ở TEAM.
 

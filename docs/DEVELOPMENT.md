@@ -17,13 +17,27 @@ artifacts/models|runs/      bundle và run output, không commit mặc định
 docs/archive/               lịch sử đề cương/ghi chú
 ```
 
-Đây là cấu trúc mục tiêu; src, extension, tests và scripts chưa được scaffold bởi lượt tạo tài liệu. Chưa có lệnh train hoặc server chạy thật; ghi lệnh sau khi implement và kiểm chứng, không copy hướng dẫn chưa tồn tại.
+Đã có scaffold DEV-01 của D tại `src/phishing/preprocessing/`, `src/phishing/features/`, CLI `scripts/inspect_snapshot.py` và tests/fixtures mô phỏng. Data/annotation/training/evaluation/serving và extension vẫn là cấu trúc mục tiêu; chưa có lệnh train hoặc server chạy thật.
 
 ## Cách bắt đầu
 
-Đọc CURRENT_TASKS, hoàn thành START-01 rồi DATA-01/DATA-02. D có thể làm EXT-01 bằng mock/fixture, D làm preprocessing/features của DEV-01, C làm import/index; A/B chưa đọc nội dung chính trước khóa dictionary. Chốt Git/môi trường local khi scaffold. Repo chưa có .git tại thời điểm tạo tài liệu; chưa tạo remote, chưa push.
+Đọc CURRENT_TASKS, hoàn thành START-01 rồi DATA-01/DATA-02 trước các bước dữ liệu phụ thuộc. D có thể làm EXT-01 bằng mock/fixture, D làm preprocessing/features của DEV-01, C làm import/index; A/B chưa đọc nội dung chính trước khóa dictionary. Repo đã có Git/remote; nhánh triển khai scaffold là `feat/dev-01-preprocessing`, tách khỏi `main`.
 
 Khi bắt đầu code: môi trường Python riêng, TypeScript/Node riêng cho extension; khóa dependency bằng công cụ nhóm chọn sau compatibility check. Ghi OS/Python/Node/dependency versions và lock trong run manifest. Không load pickle/joblib không rõ nguồn hoặc từ upload API.
+
+## Chạy scaffold DEV-01
+
+Từ thư mục gốc repo, dùng Python 3.11 trở lên; môi trường đã kiểm là CPython 3.14.6 trên macOS arm64. Các module hiện tại và unittest chỉ dùng thư viện chuẩn, không cần cài thư viện học máy hoặc gọi DeepSeek. [dev_environment.lock.json](../configs/dev_environment.lock.json) ghi môi trường đã chạy; dependency cho train/API sẽ được khóa riêng sau thử tương thích.
+
+```sh
+python3 -m venv .venv
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -v
+PYTHONPATH=src .venv/bin/python scripts/inspect_snapshot.py --url 'https://org.fixture.test/login?ticket=synthetic' --html tests/fixtures/synthetic_login.html
+```
+
+Lệnh inspect chỉ đọc file cục bộ và xuất đặc trưng URL/DOM/văn bản, không phân loại phishing. CLI dùng để kiểm tra fixture; đầu ra có văn bản và có thể chứa thông tin cá nhân nếu dùng trang thật, không đưa đầu ra đó lên Git. Phiên bản hiện tại là `snapshot-dev-0`/`features-dev-0`, chưa phải `snapshot-v1` dự kiến trong API và chưa được khóa cho thực nghiệm.
+
+17 unittest kiểm ranh giới DNS, path/UGC, dữ liệu điền, script/event handler, no-network/no-process, metadata nhãn, replay, mode/version và giới hạn đầu vào. Đây là kiểm chức năng trên dữ liệu mô phỏng, không là đánh giá hiệu năng mô hình.
 
 ## Ownership
 
