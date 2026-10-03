@@ -59,18 +59,23 @@ def main():
 
     if args.token_stats:
         stats = token_guard.get_summary()
-        print("=== BÁO CÁO NGÂN SÁCH TOKEN DEEPSEEK ===")
-        print(f"📊 Tổng token đã dùng: {stats['total_tokens_used']:,} / {stats['session_limit']:,} ({stats['percentage_used']}%)")
-        print(f"   • Prompt tokens:     {stats['prompt_tokens_used']:,}")
-        print(f"   • Completion tokens: {stats['completion_tokens_used']:,}")
-        print(f"   • Số lượt gọi API:   {stats['call_count']}")
-        print(f"💰 Ngân sách còn lại:  {stats['remaining_budget']:,} tokens")
-        print(f"🔒 Giới hạn/request:    {stats['max_tokens_per_call']:,} tokens")
+        curr = stats['currency']
+        print("=== BÁO CÁO TÀI KHOẢN & SỐ DƯ DEEPSEEK API ===")
+        print(f"💵 Số dư tài khoản hiện tại:   {stats['current_balance']:.2f} {curr}")
+        print(f"📈 Mức nạp cao nhất ghi nhận: {stats['peak_balance']:.2f} {curr}")
+        print(f"🔋 Tỷ lệ số dư khả dụng:       {stats['remaining_percentage']}%")
+        print(f"🛑 Ngưỡng cảnh báo tự dừng:     {stats['stop_percentage_threshold']}% (khi chạm {stats['stop_balance_threshold']:.2f} {curr})")
+        print("--------------------------------------------------")
+        print(f"📊 Thống kê token đã dùng:     {stats['total_tokens_used']:,} tokens")
+        print(f"   • Prompt tokens:            {stats['prompt_tokens_used']:,}")
+        print(f"   • Completion tokens:        {stats['completion_tokens_used']:,}")
+        print(f"   • Số lượt gọi API:          {stats['call_count']}")
+        print(f"🔒 Giới hạn max/request:       {stats['max_tokens_per_call']:,} tokens")
         return
 
     if args.reset_tokens:
-        token_guard.reset_session()
-        print("✅ Đã đặt lại bộ đếm ngân sách token cho phiên mới.")
+        token_guard.fetch_live_balance()
+        print("✅ Đã đồng bộ số dư tài khoản trực tiếp từ API.")
         return
 
     if args.check:
@@ -94,7 +99,9 @@ def main():
                 print("ℹ️ Không thể liệt kê model (hoặc endpoint /models không mở).")
                 
             stats = token_guard.get_summary()
-            print(f"\n📊 Ngân sách token: Đã dùng {stats['total_tokens_used']:,} / {stats['session_limit']:,} tokens ({stats['percentage_used']}%)")
+            curr = stats['currency']
+            print(f"\n💵 Số dư tài khoản: {stats['current_balance']:.2f} {curr} (Khả dụng: {stats['remaining_percentage']}%)")
+            print(f"🛑 Hệ thống sẽ tự dừng khi số dư còn <= {stats['stop_percentage_threshold']}% ({stats['stop_balance_threshold']:.2f} {curr})")
         else:
             print("❌ Trạng thái: CHƯA CẤU HÌNH API KEY")
             print("Hướng dẫn: Tạo file .env tại thư mục deepseek_bridge/.env và thêm:")
