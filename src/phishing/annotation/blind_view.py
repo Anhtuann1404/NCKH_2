@@ -560,6 +560,7 @@ def export_blind_view(
     is_synthetic: bool = False,
     purpose: str = "Gói dữ liệu Blind View phục vụ gán nhãn mù độc lập (Task LABEL-01)",
     description: str = "",
+    sampling_plan_version: str | None = None,
 ) -> Dict[str, Any]:
     """Xuất danh sách mẫu thành gói JSON Blind View an toàn cho A và B."""
     out_file = Path(output_path)
@@ -586,6 +587,8 @@ def export_blind_view(
         "total_samples": len(clean_samples),
         "samples": clean_samples,
     }
+    if sampling_plan_version:
+        payload["sampling_plan_version"] = sampling_plan_version
     assert_no_label_leak(payload)
 
     with open(out_file, "w", encoding="utf-8", newline="\n") as f:

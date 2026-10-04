@@ -1078,6 +1078,103 @@ class TestResumeStrictProvenanceAndManifestChecks:
         # Bảo đảm tệp cũ hoàn toàn không bị can thiệp, không bị ghi đè hay bổ sung dữ liệu giả
         assert out_file.read_text(encoding="utf-8") == old_content
 
+    def test_resume_with_correct_provenance_skips_annotated_and_never_duplicates(self, tmp_path, cli_module):
+        """File cũ thiếu provenance phải lỗi; khi đúng provenance thì resume bỏ qua mẫu đã làm và không ghi trùng."""
+        from unittest.mock import patch
+
+        samples = [
+            {"sample_id": "SMP-001", "url": "https://a.test/login", "html": "<p>Login A</p>"},
+            {"sample_id": "SMP-002", "url": "https://b.test/login", "html": "<p>Login B</p>"},
+        ]
+        blind_file = tmp_path / "real_view.json"
+        export_blind_view(
+            samples, blind_file,
+            dataset_id="TEST-PKG",
+            dataset_type="real_pilot_ready",
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
+        )
+        view_hash = hashlib.sha256(blind_file.read_bytes()).hexdigest()
+        root = Path(__file__).resolve().parent.parent
+        cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+
+        manifest_file = tmp_path / "manifest.json"
+        manifest_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 2,
+            "blind_view_sha256": view_hash,
+            "codebook_sha256": cb_hash,
+            "dictionary_sha256": dict_hash,
+            "dataset_id": "TEST-PKG",
+            "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
+        }), encoding="utf-8")
+
+        blind_data = json.loads(blind_file.read_text(encoding="utf-8"))
+        s1_hash = compute_sample_content_hash(blind_data["samples"][0])
+
+        out_file = tmp_path / "A_out.jsonl"
+
+        # 1. Kiểm tra: file cũ thiếu provenance phải bị từ chối
+        bad_rec = {
+            "annotator_id": "A",
+            "sample_id": "SMP-001",
+            "pass_id": 1,
+            "class_label": "phishing",
+            "is_dry_run": False,
+            # Thiếu provenance
+        }
+        out_file.write_text(json.dumps(bad_rec) + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
+            cli_module.annotate_interactive_session("A", blind_file, out_file, manifest_path=manifest_file)
+
+        # 2. Chuẩn bị file cũ với ĐÚNG ĐẦY ĐỦ 6 TRƯỜNG PROVENANCE cho SMP-001
+        valid_rec_1 = validate_annotation_record({
+            "annotator_id": "A",
+            "sample_id": "SMP-001",
+            "pass_id": 1,
+            "class_label": "phishing",
+            "primary_org_status": "identified",
+            "catalog_status": "in_catalog",
+            "observed_service": "Office",
+            "org_targets": ["microsoft"],
+            "primary_org": "microsoft",
+            "identity_role": "identity_claim",
+            "domain_role": "first_party_identity",
+            "evidence_note": "valid s1",
+            "seconds_spent": 10.0,
+            "random_subset": True,
+            "difficult_case": False,
+            "is_dry_run": False,
+            "is_synthetic": False,
+            "dataset_id": "TEST-PKG",
+            "dataset_hash": view_hash,
+            "codebook_version": "1.0.0",
+            "codebook_hash": cb_hash,
+            "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
+            "sample_content_hash": s1_hash,
+            "timestamp_utc": "2026-10-05T00:00:00Z",
+        })
+        out_file.write_text(json.dumps(valid_rec_1.to_dict()) + "\n", encoding="utf-8")
+
+        # 3. Tiếp tục phiên: CLI chỉ nhập SMP-002, bỏ qua SMP-001 và không ghi trùng
+        mock_inputs_s2 = ["2", "1", "1", "Office", "google", "google", "1", "1", "valid s2", "n"]
+        with patch("builtins.input", side_effect=mock_inputs_s2):
+            cli_module.annotate_interactive_session("A", blind_file, out_file, manifest_path=manifest_file)
+
+        records_after = [json.loads(line) for line in out_file.read_text(encoding="utf-8").strip().split("\n")]
+        assert len(records_after) == 2, f"Kỳ vọng đúng 2 bản ghi, thực tế có {len(records_after)}"
+        assert records_after[0]["sample_id"] == "SMP-001"
+        assert records_after[1]["sample_id"] == "SMP-002"
+
+        # 4. Khi chạy lại gói đã hoàn thành: không ghi thêm bất kỳ dòng trùng nào
+        with patch("builtins.input", side_effect=[]):
+            cli_module.annotate_interactive_session("A", blind_file, out_file, manifest_path=manifest_file)
+
+        records_final = [json.loads(line) for line in out_file.read_text(encoding="utf-8").strip().split("\n")]
+        assert len(records_final) == 2, "Chạy lại gói đã hoàn thành không được sinh thêm bản ghi trùng!"
+
     def test_resume_content_hash_includes_structure_summary(self, tmp_path, cli_module):
         """Thay đổi structure_summary (DOM) dù URL và page_text giữ nguyên cũng bị phát hiện và từ chối."""
         out_file = tmp_path / "resume_dom_changed.jsonl"
