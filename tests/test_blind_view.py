@@ -1514,6 +1514,250 @@ class TestResumeStrictProvenanceAndManifestChecks:
                 )
             assert mock_display.call_count == 0
 
+    def test_manifest_preflight_rejects_missing_blind_view_sha256(self, tmp_path, cli_module):
+        """Preflight từ chối nếu manifest thiếu trường bắt buộc blind_view_sha256."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        m_file = tmp_path / "m_no_hash.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            # blind_view_sha256 missing
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="THIẾU MÃ BĂM MANIFEST"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_rejects_pending_codebook_version(self, tmp_path, cli_module):
+        """Preflight từ chối nếu codebook_version trong manifest vẫn ở trạng thái pending."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        m_file = tmp_path / "m_cb_pending.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "codebook_version": "v1.0.0-pending-review",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="CODEBOOK CHƯA KHÓA"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_rejects_unlocked_dictionary_status(self, tmp_path, cli_module):
+        """Preflight từ chối nếu dictionary_status trong manifest không phải locked."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        m_file = tmp_path / "m_dict_pending.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "dictionary_status": "draft",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="DICTIONARY CHƯA KHÓA"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_rejects_codebook_disk_hash_mismatch(self, tmp_path, cli_module):
+        """Preflight từ chối nếu codebook_sha256 trong manifest không khớp mã băm docs/CODEBOOK_V1.md trên đĩa."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        m_file = tmp_path / "m_cb_mismatch.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "codebook_sha256": "fake_cb_hash_mismatch_12345",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM CODEBOOK"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_rejects_dictionary_disk_hash_mismatch(self, tmp_path, cli_module):
+        """Preflight từ chối nếu dictionary_sha256 trong manifest không khớp configs/dictionary_v1.json trên đĩa."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        m_file = tmp_path / "m_dict_mismatch.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "dictionary_sha256": "fake_dict_hash_mismatch_12345",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM DICTIONARY"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_rejects_view_metadata_hash_mismatch(self, tmp_path, cli_module):
+        """Preflight từ chối nếu metadata gói view khai báo hash codebook/dictionary không khớp manifest."""
+        root = Path(__file__).resolve().parent.parent
+        cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        # Giả lập metadata gói view khai báo sai khác hash codebook
+        data["codebook_sha256"] = "mismatched_view_cb_hash"
+        input_blind.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+
+        m_file = tmp_path / "m_valid.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "codebook_sha256": cb_hash,
+            "dictionary_sha256": dict_hash,
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM CODEBOOK TRONG GÓI"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+        # Giả lập metadata gói view khai báo sai khác hash dictionary
+        data["codebook_sha256"] = cb_hash
+        data["dictionary_sha256"] = "mismatched_view_dict_hash"
+        input_blind.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        view_hash2 = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "codebook_sha256": cb_hash,
+            "dictionary_sha256": dict_hash,
+            "sample_count": 1,
+            "blind_view_sha256": view_hash2,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM DICTIONARY TRONG GÓI"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_rejects_dataset_id_and_sampling_plan_mismatch(self, tmp_path, cli_module):
+        """Preflight từ chối nếu dataset_id hoặc sampling_plan_version không khớp manifest."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="PACKAGE-ID-1",
+            sampling_plan_version="PLAN-V1",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+
+        m_file = tmp_path / "m.json"
+        # 1. Mismatch dataset_id
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+            "dataset_id": "DIFFERENT-ID",
+            "sampling_plan_version": "PLAN-V1",
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="SAI KHÁC DATASET_ID"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+        # 2. Mismatch sampling_plan_version
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+            "dataset_id": "PACKAGE-ID-1",
+            "sampling_plan_version": "PLAN-V2",
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="SAI KHÁC SAMPLING_PLAN"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_manifest_preflight_passes_when_all_conditions_and_hashes_valid(self, tmp_path, cli_module):
+        """Preflight thành công mỹ mãn khi tất cả trạng thái nghiệm thu và mã băm đĩa đều khớp hoàn hảo."""
+        root = Path(__file__).resolve().parent.parent
+        cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [
+                {"sample_id": "S1", "url": "https://test.invalid/1", "html": "<p>Page 1</p>"},
+                {"sample_id": "S2", "url": "https://test.invalid/2", "html": "<p>Page 2</p>"},
+            ],
+            input_blind,
+            dataset_id="VALID-PILOT-V1",
+            sampling_plan_version="PLAN-V1",
+        )
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        data["codebook_sha256"] = cb_hash
+        data["dictionary_sha256"] = dict_hash
+        input_blind.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+
+        m_file = tmp_path / "m_good.json"
+        manifest_payload = {
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "codebook_version": "v1.0.0",
+            "dictionary_status": "locked",
+            "codebook_sha256": cb_hash,
+            "dictionary_sha256": dict_hash,
+            "sample_count": 2,
+            "blind_view_sha256": view_hash,
+            "dataset_id": "VALID-PILOT-V1",
+            "sampling_plan_version": "PLAN-V1",
+        }
+        m_file.write_text(json.dumps(manifest_payload), encoding="utf-8")
+
+        res = cli_module.validate_manifest_preflight(m_file, input_blind, data)
+        assert res["ready_for_annotation"] is True
+        assert res["blind_view_sha256"] == view_hash
+
 
 
 
