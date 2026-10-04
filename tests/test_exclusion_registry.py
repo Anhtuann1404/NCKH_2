@@ -3,8 +3,8 @@
 Kiểm tra:
 1. Gọi ExclusionRegistry() với đường dẫn mặc định (không truyền đối số) phải tìm đúng file và nạp đủ 20 mẫu.
 2. Ném FileNotFoundError khi đường dẫn registry không tồn tại.
-3. Ném RuntimeError chặn huấn luyện chính (assert_training_allowed) khi mapping pilot còn unresolved.
-4. Chứng minh toàn bộ 20 mẫu pilot bị chặn thông qua sample_content_hash và fingerprint cấu trúc.
+3. Ném RuntimeError chặn huấn luyện chính (assert_training_allowed) khi mapping pilot còn unresolved (kể cả khi cờ training_blocked bị sửa thành False).
+4. Chứng minh toàn bộ 20 mẫu pilot bị chặn thông qua summary_fingerprint_hash và fingerprint cấu trúc.
 5. Kiểm tra tính năng lọc tách biệt (kept vs excluded).
 6. Kiểm tra ném lỗi phát hiện rò rỉ (assert_no_leakage).
 """
@@ -13,7 +13,11 @@ import json
 from pathlib import Path
 import pytest
 
-from phishing.data.exclusion import ExclusionRegistry, compute_sample_fingerprint_hash
+from phishing.data.exclusion import (
+    ExclusionRegistry,
+    compute_sample_fingerprint_hash,
+    compute_summary_fingerprint_hash,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PILOT_SUMMARY_PATH = PROJECT_ROOT / "data" / "source_audit" / "phreshphish" / "pilot_summary.json"
@@ -42,6 +46,31 @@ class TestExclusionRegistry:
         with pytest.raises(RuntimeError, match="LỆNH CHẶN HUẤN LUYỆN CHÍNH"):
             registry.assert_training_allowed()
 
+    def test_training_blocked_even_if_flag_is_false_when_mapping_unresolved(self):
+        """Dù cờ training_blocked bị đổi thành False, hàm assert_training_allowed vẫn phải chặn nếu còn lô unresolved."""
+        registry = ExclusionRegistry()
+        # Giả lập can thiệp cờ sai quy chuẩn
+        registry.training_blocked = False
+        with pytest.raises(
+            RuntimeError,
+            match="Lô loại trừ 'EXCL-PILOT-01' có trạng thái mapping='unresolved_source_mapping'",
+        ):
+            registry.assert_training_allowed()
+
+    def test_training_allowed_when_all_batches_resolved_and_pinned(self):
+        """Khi tất cả các lô đã được resolved, rows_api_revision_pinned=True và training_blocked=False, cho phép huấn luyện."""
+        registry = ExclusionRegistry()
+        registry.training_blocked = False
+        registry._raw_exclusions = [
+            {
+                "exclusion_id": "EXCL-PILOT-01",
+                "mapping_status": "resolved",
+                "rows_api_revision_pinned": True,
+            }
+        ]
+        # Không được ném ngoại lệ
+        registry.assert_training_allowed()
+
     def test_registry_file_structure(self):
         assert EXCLUSION_PATH.exists()
         data = json.loads(EXCLUSION_PATH.read_text(encoding="utf-8"))
@@ -55,10 +84,10 @@ class TestExclusionRegistry:
         assert excl["mapping_status"] == "unresolved_source_mapping"
         assert excl["rows_api_revision_pinned"] is False
         assert len(excl["samples"]) == 20
-        # Đảm bảo mỗi mẫu có sample_content_hash
+        # Đảm bảo mỗi mẫu có summary_fingerprint_hash
         for s in excl["samples"]:
-            assert "sample_content_hash" in s
-            assert len(s["sample_content_hash"]) == 64
+            assert "summary_fingerprint_hash" in s
+            assert len(s["summary_fingerprint_hash"]) == 64
 
     def test_all_20_pilot_samples_are_blocked_by_default_registry(self):
         """Chứng minh toàn bộ 20 mẫu trong pilot_summary.json đều bị nhận diện và chặn bởi default registry."""
@@ -72,8 +101,8 @@ class TestExclusionRegistry:
         for row in pilot_rows:
             assert registry.is_excluded(row) is True, f"Mẫu pilot row_idx={row.get('row_idx')} không bị chặn!"
 
-    def test_matching_by_sample_content_hash(self):
-        """Kiểm tra nhận diện mẫu thông qua mã băm nội dung ổn định."""
+    def test_matching_by_summary_fingerprint_hash(self):
+        """Kiểm tra nhận diện mẫu thông qua mã băm fingerprint cấu trúc tóm tắt."""
         registry = ExclusionRegistry()
         pilot_sample = {
             "pilot_row_idx": 0,
@@ -85,8 +114,12 @@ class TestExclusionRegistry:
             "inputs": 14,
             "password_inputs": 0,
         }
-        h = compute_sample_fingerprint_hash(pilot_sample)
+        h = compute_summary_fingerprint_hash(pilot_sample)
+        assert registry.is_excluded({"summary_fingerprint_hash": h}) is True
+        # Tương thích ngược với khóa sample_content_hash
         assert registry.is_excluded({"sample_content_hash": h}) is True
+        # Alias compute_sample_fingerprint_hash cho cùng kết quả
+        assert compute_sample_fingerprint_hash(pilot_sample) == h
 
     def test_benign_non_pilot_samples_pass(self):
         """Mẫu mới không trùng fingerprint với pilot phải được giữ lại bình thường."""
