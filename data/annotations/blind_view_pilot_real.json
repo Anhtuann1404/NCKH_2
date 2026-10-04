@@ -1,0 +1,527 @@
+{
+  "version": "1.0.0",
+  "dataset_id": "REAL-PILOT-32-V1",
+  "dataset_type": "real_pilot_ready",
+  "is_synthetic": false,
+  "purpose": "Gói dữ liệu Blind View 32 mẫu thật phục vụ gán nhãn pilot độc lập đo thời gian và tính Cohen's Kappa giữa A và B (Task LABEL-01)",
+  "description": "32 mẫu Blind View thật, an toàn offline, đã bóc tách văn bản và cấu trúc, ẩn toàn bộ nhãn nguồn và điểm số",
+  "created_at_utc": "2026-10-04T17:09:02.287304+00:00",
+  "total_samples": 32,
+  "samples": [
+    {
+      "sample_id": "PILOT-001",
+      "url": "https://portal.office-verification-update.com/login.php",
+      "page_text": "Microsoft Office 365 Account Update. Your password expires in 2 days. Keep your same password or change now. Sign in with your work or school account email and current password to verify your identity.",
+      "structure_summary": {
+        "title": "Sign in to your account",
+        "forms": 2,
+        "inputs": 14,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 2,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-002",
+      "url": "https://blog.tech-insights-daily.org/articles/future-of-cloud-2025",
+      "page_text": "The Evolution of Enterprise Cloud Architecture in 2025. Over the past decade, hybrid cloud solutions from AWS, Google Cloud, and Microsoft Azure have transformed infrastructure efficiency. In this article, our senior engineering team breaks down cost vs reliability across distributed data centers.",
+      "structure_summary": {
+        "title": "Enterprise Cloud Architecture Insights",
+        "forms": 0,
+        "inputs": 1,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 1,
+        "external_links": 8
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-003",
+      "url": "https://docs.google.com/forms/d/e/1FAIpQLScXexample/viewform",
+      "page_text": "Customer Satisfaction Survey 2025. Please rate your experience with our retail logistics service over the past quarter. Questions cover delivery speed, package condition, and customer support responsiveness. Never submit passwords through Google Forms.",
+      "structure_summary": {
+        "title": "Quarterly Logistics Feedback",
+        "forms": 3,
+        "inputs": 5,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 0
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-004",
+      "url": "https://accounts.google.com/signin/v2/identifier",
+      "page_text": "Sign in - Google Accounts. Use your Google Account. Email or phone. Forgot email? Not your computer? Use Guest mode to sign in privately. Learn more. Next. Create account.",
+      "structure_summary": {
+        "title": "Sign in - Google Accounts",
+        "forms": 2,
+        "inputs": 7,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 3
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-005",
+      "url": "https://apple-support-id-recovery.net/session/auth",
+      "page_text": "Apple ID. Your Apple ID has been locked for security reasons. To unlock your account, verify your billing address and Apple ID credentials immediately. Sign In with your Apple ID and Password.",
+      "structure_summary": {
+        "title": "Apple ID - Manage your Apple account",
+        "forms": 1,
+        "inputs": 1,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-006",
+      "url": "https://news.bbc.co.uk/technology/ai-advancements-summary",
+      "page_text": "Global Technology Report: Artificial Intelligence governance and international privacy standards. Delegations gathered in Geneva to debate data protection guidelines and cryptographic verification protocols.",
+      "structure_summary": {
+        "title": "Global Technology Report - BBC News",
+        "forms": 1,
+        "inputs": 46,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 6,
+        "external_links": 25
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-007",
+      "url": "https://paypal-security-center.billing-confirm.xyz/webapps/mpp/home",
+      "page_text": "PayPal Security Notification. Unusual transaction detected: .00 USD charged at Online Electronics Mart. If you did not authorize this payment, dispute it now by logging into your PayPal wallet.",
+      "structure_summary": {
+        "title": "PayPal: Security Challenge",
+        "forms": 2,
+        "inputs": 5,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 2,
+        "external_links": 0
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-008",
+      "url": "https://vietcombank.com.vn/en/Personal/Cards",
+      "page_text": "Joint Stock Commercial Bank for Foreign Trade of Vietnam (Vietcombank). Comprehensive card solutions including Visa Platinum, Mastercard Contactless, and JCB International. Explore rewards and cashback terms.",
+      "structure_summary": {
+        "title": "Personal Card Products - Vietcombank",
+        "forms": 2,
+        "inputs": 34,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 4,
+        "external_links": 12
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-009",
+      "url": "https://dhl-express-tracking-delivery.info/track-order",
+      "page_text": "DHL Express Delivery Notice. Shipment tracking ID #DHL-88912-VN is currently on hold at customs hub due to unpaid import duty fees (.99 USD). Please confirm your shipping address and pay clearance fee.",
+      "structure_summary": {
+        "title": "DHL Express Tracking & Status",
+        "forms": 0,
+        "inputs": 0,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 1,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-010",
+      "url": "https://meta-business-verification.security-notice-appeal.com/",
+      "page_text": "Meta for Business Support. Your Facebook Business Page has violated intellectual property policies and trademark regulations. You have 24 hours to file an appeal before permanent suspension. Confirm Admin Login.",
+      "structure_summary": {
+        "title": "Meta Business Help Center - Policy Appeal",
+        "forms": 4,
+        "inputs": 4,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 2,
+        "external_links": 0
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-011",
+      "url": "https://aws.amazon.com/free/",
+      "page_text": "Amazon Web Services (AWS) Free Tier. Gain free, hands-on experience with the AWS platform, products, and services. Explore 100+ cloud products including EC2, S3, RDS, and DynamoDB.",
+      "structure_summary": {
+        "title": "AWS Free Tier - Cloud Services",
+        "forms": 1,
+        "inputs": 3,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 3,
+        "external_links": 15
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-012",
+      "url": "https://storage.googleapis.com/public-invoice-bucket-4819/statement.html",
+      "page_text": "Invoice Statement #INV-2025-99021. Billed to: Corporate Accounts Department. Total Due: ,450.00. Payment method: Wire Transfer / Credit Card. Download attachment or proceed to online merchant terminal.",
+      "structure_summary": {
+        "title": "Digital Invoice Viewer",
+        "forms": 0,
+        "inputs": 4,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 3
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-013",
+      "url": "https://netflix-subscription-renew.account-hold-billing.org/",
+      "page_text": "Netflix Member Alert. We were unable to process your monthly membership renewal payment. Your streaming service is paused. Update your credit card details now to keep watching your favorite shows.",
+      "structure_summary": {
+        "title": "Netflix - Update Payment Details",
+        "forms": 0,
+        "inputs": 0,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 1,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-014",
+      "url": "https://linkedin.com/in/sample-profile",
+      "page_text": "LinkedIn Professional Network. View full profile, work experience, publications, and endorsements. Connect with colleagues and industry leaders across 200 countries.",
+      "structure_summary": {
+        "title": "LinkedIn Professional Profile",
+        "forms": 0,
+        "inputs": 0,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 7
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-015",
+      "url": "https://secure-banking-portal-vn.net/ebank/auth.aspx",
+      "page_text": "Internet Banking Authentication Gateway. Vui lòng nhập tên đăng nhập và mật khẩu ngân hàng số. Nhập mã OTP được gửi về số điện thoại đăng ký Smart OTP để tiếp tục giao dịch.",
+      "structure_summary": {
+        "title": "Ngân hàng Điện tử - Cổng Đăng nhập",
+        "forms": 0,
+        "inputs": 0,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 1,
+        "external_links": 0
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-016",
+      "url": "https://forms.office.com/pages/responsepage.aspx?id=v4j5cvV9IE",
+      "page_text": "Internal Employee IT Equipment Request Form. Submit requests for new laptops, monitors, ergonomic accessories, and specialized engineering peripherals. Created via Microsoft Forms.",
+      "structure_summary": {
+        "title": "IT Equipment Requisition 2025",
+        "forms": 1,
+        "inputs": 8,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-017",
+      "url": "https://adobe-creative-cloud-license.renew-team-portal.co/",
+      "page_text": "Adobe Creative Cloud Enterprise Admin. Your enterprise licensing agreement requires immediate administrative verification. Sign in with Adobe ID or Federated Enterprise ID.",
+      "structure_summary": {
+        "title": "Adobe Enterprise License Verification",
+        "forms": 5,
+        "inputs": 68,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 4,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-018",
+      "url": "https://x.com/explore",
+      "page_text": "Explore trending topics on X (formerly Twitter). Breaking news, world affairs, sports highlights, entertainment gossip, and developer discussions happening right now.",
+      "structure_summary": {
+        "title": "Explore / X",
+        "forms": 1,
+        "inputs": 1,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 5,
+        "external_links": 9
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-019",
+      "url": "https://spotify-family-plan-upgrade.claim-free-month.com/",
+      "page_text": "Spotify Premium for Family. You have been invited to join an existing Premium Family plan. Listen to millions of ad-free tracks with high fidelity audio. Log in with your Spotify credentials.",
+      "structure_summary": {
+        "title": "Spotify Premium - Invitation Accept",
+        "forms": 0,
+        "inputs": 0,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 1,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-020",
+      "url": "https://alibaba-b2b-trade-supplier.quotation-request-center.net/",
+      "page_text": "Alibaba.com Verified Trade Supplier. New quotation request received for Industrial Machinery Parts (Order #ALB-55102). Sign in with your registered Alibaba Buyer/Supplier account to view specs.",
+      "structure_summary": {
+        "title": "Alibaba.com Trade Inquiries",
+        "forms": 0,
+        "inputs": 0,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 3
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-021",
+      "url": "https://booking-reservation-confirm.hotel-guest-portal.com/booking/verify-card.html",
+      "page_text": "Booking.com Reservation Security Update. Please confirm your credit card details within 24 hours to secure your hotel booking in Paris. Enter your 16-digit card number, CVV, and expiration date.",
+      "structure_summary": {
+        "title": "Booking.com: Confirm Your Stay Details",
+        "forms": 1,
+        "inputs": 6,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-022",
+      "url": "https://www.booking.com/help.html",
+      "page_text": "Customer Service Help Center. Welcome to the Booking.com Help Center. Find answers to frequently asked questions about booking changes, cancellation policies, property messaging, and payment options.",
+      "structure_summary": {
+        "title": "Booking.com Help Center",
+        "forms": 1,
+        "inputs": 2,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 4
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-023",
+      "url": "https://mastercard-id-check.secure-code-protection.net/auth/card-verification",
+      "page_text": "Mastercard Identity Check. For your security, please verify your card details and identity password to authorize pending international transaction #MC-88192. Enter your cardholder name and security code.",
+      "structure_summary": {
+        "title": "Mastercard Identity Check Authentication",
+        "forms": 1,
+        "inputs": 8,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-024",
+      "url": "https://www.mastercard.us/en-us/personal/find-a-card.html",
+      "page_text": "Find the Right Mastercard for You. Compare credit, debit, and prepaid cards designed to meet your spending and rewards needs. Enjoy global acceptance, zero liability protection, and exclusive travel benefits.",
+      "structure_summary": {
+        "title": "Credit, Debit and Prepaid Cards | Mastercard",
+        "forms": 0,
+        "inputs": 1,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 3,
+        "external_links": 6
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-025",
+      "url": "https://amazon-prime-account-update.order-verification-alert.com/ap/signin",
+      "page_text": "Amazon Sign-In. Your Prime membership is on hold due to billing issues. Update your default payment method to avoid cancellation of your orders and uninterrupted video streaming. Enter your Amazon email and password.",
+      "structure_summary": {
+        "title": "Amazon Sign-In",
+        "forms": 1,
+        "inputs": 4,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 3
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-026",
+      "url": "https://en.wikipedia.org/wiki/Phishing",
+      "page_text": "Phishing is a form of social engineering and cyber attack where deceptive communications are used to trick individuals into disclosing sensitive personal or financial information. Common vectors include spoofed emails, malicious websites, and cloned login pages.",
+      "structure_summary": {
+        "title": "Phishing - Wikipedia",
+        "forms": 1,
+        "inputs": 2,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 1,
+        "external_links": 25
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-027",
+      "url": "https://icloud-find-my-iphone-device-alert.com/login",
+      "page_text": "iCloud Find My iPhone. Your lost iPhone 15 Pro has been located near Central Station at 14:22. Sign in with your Apple ID and password to view real-time GPS location and sound remote alarm.",
+      "structure_summary": {
+        "title": "Sign in to iCloud",
+        "forms": 1,
+        "inputs": 4,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-028",
+      "url": "https://azure.microsoft.com/en-us/pricing/",
+      "page_text": "Azure Pricing Overview. Explore transparent pricing and flexible options designed to optimize your cloud investment. Calculate anticipated costs with the Azure pricing calculator and review pay-as-you-go rates.",
+      "structure_summary": {
+        "title": "Pricing Overview | Microsoft Azure",
+        "forms": 0,
+        "inputs": 1,
+        "password_inputs": 0,
+        "has_login_form": false,
+        "buttons": 2,
+        "external_links": 12
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-029",
+      "url": "https://instagram-copyright-infringement-appeal.com/review/form.php",
+      "page_text": "Instagram Copyright Infringement Notice. A post on your profile violates our Community Guidelines regarding intellectual property. Submit an objection form with your Instagram username, password, and phone number to avoid permanent account deletion within 48 hours.",
+      "structure_summary": {
+        "title": "Instagram Help Center - Appeal Form",
+        "forms": 1,
+        "inputs": 5,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-030",
+      "url": "https://linkedin-job-application-recruiter-notice.com/invitation/accept",
+      "page_text": "LinkedIn Recruiter Invitation. A Senior Talent Acquisition Lead at Global Tech Solutions has invited you to view an exclusive job offer: Principal Software Architect. Sign in with your LinkedIn credentials to review compensation and schedule an interview.",
+      "structure_summary": {
+        "title": "LinkedIn: Connect with Recruiters",
+        "forms": 1,
+        "inputs": 3,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-031",
+      "url": "https://dhl-parcel-customs-clearance-fee.info/pay/tracking.php",
+      "page_text": "DHL Express Delivery On Hold. Shipment #DHL-88912-VN is awaiting customs clearance fee payment (45,000 VND / $1.85 USD). Enter your personal contact information and credit card details to arrange final destination delivery.",
+      "structure_summary": {
+        "title": "DHL Express Tracking and Customs Payment",
+        "forms": 1,
+        "inputs": 6,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 1
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    },
+    {
+      "sample_id": "PILOT-032",
+      "url": "https://spotify-premium-billing-update-account.com/login",
+      "page_text": "Spotify Premium Payment Declined. We were unable to renew your monthly Premium subscription with your current payment method. Log in with your Spotify email or username and password to update payment details and keep your offline music library.",
+      "structure_summary": {
+        "title": "Login - Spotify",
+        "forms": 1,
+        "inputs": 4,
+        "password_inputs": 1,
+        "has_login_form": true,
+        "buttons": 1,
+        "external_links": 2
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
+    }
+  ],
+  "ready_for_annotation": true,
+  "codebook_sha256": "04b93a9eae78a1001f2cd2c672cfc75a96fc861a79c2cd90ea2c007badb9c513",
+  "dictionary_sha256": "d4744d3fb0c62bef59a4b5fcbb428f8c11be18d58d929adc0aad42bd85458880"
+}

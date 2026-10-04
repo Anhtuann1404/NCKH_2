@@ -82,6 +82,16 @@ def test_real_pilot_pending_review_cannot_create_human_labels(tmp_path):
     assert not output.exists()
 
 
+def test_real_pilot_ready_allows_session_init(tmp_path, capsys):
+    input_path = tmp_path / "ready.json"
+    export_blind_view([], input_path, dataset_type="real_pilot_ready")
+    output = tmp_path / "A.jsonl"
+    # Với gói rỗng nhưng ready, session khởi động thành công và báo đã hoàn thành (không bị chặn nghiệm thu)
+    cli.annotate_interactive_session("A", input_path, output)
+    out = capsys.readouterr().out
+    assert "hoàn thành toàn bộ các mẫu" in out
+
+
 def test_real_pilot_builder_rejects_changed_original_bytes(tmp_path):
     spec = importlib.util.spec_from_file_location("build_real_pilot", ROOT / "scripts/data/build_real_pilot.py")
     builder = importlib.util.module_from_spec(spec)

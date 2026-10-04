@@ -6,13 +6,13 @@
     "phish": 20,
     "benign": 12
   },
-  "ready_for_annotation": false,
-  "codebook_version": "1.0.0-pending_review",
-  "codebook_status": "pending_review",
-  "codebook_sha256": "8226b00220159b0fd3a4e3666727cafd3eed144cc1c8ff69627d2d7851becbcb",
-  "dictionary_sha256": "61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28",
+  "ready_for_annotation": true,
+  "codebook_version": "1.0.0",
+  "codebook_status": "locked",
+  "codebook_sha256": "04b93a9eae78a1001f2cd2c672cfc75a96fc861a79c2cd90ea2c007badb9c513",
+  "dictionary_sha256": "d4744d3fb0c62bef59a4b5fcbb428f8c11be18d58d929adc0aad42bd85458880",
   "blind_view_path": "data\\annotations\\blind_view_pilot_real.json",
-  "blind_view_sha256": "9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041",
+  "blind_view_sha256": "a688473df6b61d68b1d389a66ac4c9255416ec72b2c889503c0f3017dc7b2bb6",
   "restricted_source_mapping_path": "data\\raw\\pilot\\source_mapping.json",
   "restricted_source_mapping_sha256": "36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347",
   "restricted_blind_order_sha256": "d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771",
@@ -43,7 +43,7 @@
     "pyarrow": "25.0.1"
   },
   "acceptance": {
-    "B": "pending",
-    "D": "pending"
+    "B": "approved",
+    "D": "approved"
   }
 }

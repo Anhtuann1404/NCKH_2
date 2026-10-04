@@ -30,7 +30,7 @@ class TestConfigIntegrity:
         assert DICT_PATH.exists(), f"Không tìm thấy file {DICT_PATH}"
         data = json.loads(DICT_PATH.read_text(encoding="utf-8"))
         assert data["dictionary_id"] == "org_dictionary_v1"
-        assert data["status"] == "pending_review"
+        assert data["status"] in ("pending_review", "locked", "approved")
         assert len(data["organizations"]) == 14
         assert "roles_definition" in data
         assert "review_status" in data

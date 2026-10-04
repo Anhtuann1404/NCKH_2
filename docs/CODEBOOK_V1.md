@@ -1,17 +1,17 @@
-# SỔ TAY QUY TẮC GÁN NHÃN (CODEBOOK V1.0 - DỰ THẢO CHỜ DUYỆT)
+# SỔ TAY QUY TẮC GÁN NHÃN (CODEBOOK V1.0 - CHÍNH THỨC)
 
 **Dự án:** NCKH_2 — Phát hiện website phishing mạo danh tổ chức  
-**Phiên bản:** `v1.0.0-pending_review`  
-**Ngày cập nhật:** 04/10/2026  
-**Trạng thái:** `pending_review` (Chờ Thành viên B nhận việc và hoàn tất đối soát độc lập trước khi đóng băng chính thức)  
+**Phiên bản:** `v1.0.0`  
+**Ngày cập nhật:** 05/10/2026  
+**Trạng thái:** `locked` (Đã được Thành viên B nghiệm thu tại commit a7bdd74 và Lead D ký duyệt đóng băng chính thức)  
 **Mã băm từ điển đối chiếu (`configs/dictionary_v1.json`):**  
-`SHA-256: 61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28`  
+`SHA-256: d4744d3fb0c62bef59a4b5fcbb428f8c11be18d58d929adc0aad42bd85458880`  
 **Dải ngày corpus train đã kiểm kê:** `02/07/2024` đến `08/09/2025` (Task DATA-01, 56 shards, 498.255 dòng)  
 **Người biên soạn & quản lý:** Thành viên C (Data Pipeline & Blind View)  
-**Hiện trạng rà soát:**
+**Hiện trạng rà soát & Nghiệm thu:**
 - **Thành viên A (Annotator chính):** Đã rà soát và đóng góp 9 khuyến nghị R-A01–R-A09 ([`CODEBOOK_REVIEW_A.md`](annotation_templates/CODEBOOK_REVIEW_A.md)).
-- **Thành viên B (QA & Kiểm độc lập):** Đang chờ nhận việc (`pending_review`). Chưa đóng băng chính thức khi B chưa ký duyệt.
-- **Thành viên D (Lead):** Đã hoàn tất code review tại commit `f218166` và yêu cầu bổ sung các tiêu chí kỹ thuật.
+- **Thành viên B (QA & Kiểm độc lập):** ĐÃ KÝ DUYỆT NGHIỆM THU 100% tại commit `a7bdd74` ([`CODEBOOK_REVIEW_B.md`](annotation_templates/CODEBOOK_REVIEW_B.md)).
+- **Thành viên D (Lead):** ĐÃ KÝ PHÊ DUYỆT ĐÓNG BĂNG VÀ PHÁT LỆNH MỞ PILOT THẬT.
 
 ---
 

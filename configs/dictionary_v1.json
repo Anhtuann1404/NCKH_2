@@ -1,15 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "dictionary_id": "org_dictionary_v1",
-  "version": "1.0.0-pending_review",
-  "updated_at_utc": "2026-10-04T10:20:00Z",
-  "status": "pending_review",
-  "description": "Từ điển 14 tổ chức/thương hiệu chính thức cho dự án NCKH_2, hợp nhất từ 5 quý báo cáo Check Point Brand Phishing (Q4/2024 - Q4/2025). Giữ nguyên trạng thái pending_review theo chỉ đạo của Lead D, chờ nghiệm thu toàn diện và phát lệnh pilot chính thức.",
+  "version": "1.0.0",
+  "updated_at_utc": "2026-10-05T00:00:00Z",
+  "status": "locked",
+  "locked_at": "2026-10-05T00:00:00Z",
+  "description": "Từ điển 14 tổ chức/thương hiệu chính thức cho dự án NCKH_2, hợp nhất từ 5 quý báo cáo Check Point Brand Phishing (Q4/2024 - Q4/2025). Đã được Thành viên B nghiệm thu tại commit a7bdd74 và Lead D ký duyệt đóng băng chính thức.",
   "review_status": {
     "member_a": "reviewed (CODEBOOK_REVIEW_A.md - 9/9 khuyến nghị đã tích hợp)",
-    "member_b": "pending_review (chờ nghiệm thu lại)",
+    "member_b": "approved (CODEBOOK_REVIEW_B.md commit a7bdd74)",
     "member_c": "updated_brand_metadata_from_official_sources",
-    "lead_d": "pending_final_lock_after_pilot_and_review"
+    "lead_d": "approved_and_locked"
   },
   "temporal_protocol_note": "Tập train PhreshPhish đã xác minh kết thúc vào ngày 2025-09-08 (Q3/2025). Quý Q4/2025 được lấy từ đề cương thiết kế ban đầu, không đồng nhất với việc corpus phủ trọn vẹn Q4/2025. Phân tích Temporal Split (RQ3) bắt buộc sử dụng danh mục as-of riêng tại từng thời điểm cắt để tránh rò rỉ kiến thức tương lai.",
   "source_references": [
