@@ -983,23 +983,52 @@ class TestResumeStrictProvenanceAndManifestChecks:
                 )
 
     def test_resume_rejects_empty_or_mismatched_when_expected_is_set(self, tmp_path, cli_module):
-        """Khi giá trị kỳ vọng đã được xác định, bản ghi thiếu, rỗng hoặc khác giá trị đều phải báo lỗi."""
-        out_file = tmp_path / "resume_empty_expected.jsonl"
-        rec = {
-            "annotator_id": "A",
-            "sample_id": "SMP-01",
-            "pass_id": 1,
-            "is_dry_run": False,
-            "dataset_hash": "",  # Rỗng
-        }
-        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
-        with pytest.raises(ValueError, match="MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO"):
-            cli_module.load_already_annotated_sample_ids(
-                out_file,
-                expected_annotator_id="A",
-                expected_pass_id=1,
-                expected_dataset_hash="hash_actual_v1",
-            )
+        """Khi giá trị kỳ vọng đã được xác định, bản ghi thiếu, rỗng hoặc khác giá trị đều phải báo lỗi cho cả 6 trường."""
+        cases = [
+            ("dataset_hash", "expected_dataset_hash", "hash_actual_v1", "hash_wrong_v2", "MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO"),
+            ("dataset_id", "expected_dataset_id", "REAL-PILOT-32-V1", "WRONG-ID", "MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO"),
+            ("codebook_hash", "expected_codebook_hash", "cb_hash_1", "cb_hash_wrong", "MÂU THUẪN CODEBOOK HASH"),
+            ("codebook_version", "expected_codebook_version", "1.0.0", "9.9.9", "MÂU THUẪN PHIÊN BẢN CODEBOOK"),
+            ("sampling_plan_version", "expected_sampling_plan_version", "PILOT-PLAN-V1-FULL-OVERLAP", "WRONG-PLAN", "MÂU THUẪN SAMPLING PLAN"),
+        ]
+        for field, kwarg, expected_val, wrong_val, err_pattern in cases:
+            # 1. Trường hợp rỗng
+            out_empty = tmp_path / f"resume_empty_{field}.jsonl"
+            rec_empty = {
+                "annotator_id": "A",
+                "sample_id": "SMP-01",
+                "pass_id": 1,
+                "is_dry_run": False,
+                field: "",
+            }
+            out_empty.write_text(json.dumps(rec_empty) + "\n", encoding="utf-8")
+            with pytest.raises(ValueError, match=err_pattern):
+                kwargs = {kwarg: expected_val}
+                cli_module.load_already_annotated_sample_ids(
+                    out_empty,
+                    expected_annotator_id="A",
+                    expected_pass_id=1,
+                    **kwargs,
+                )
+
+            # 2. Trường hợp sai khác giá trị
+            out_wrong = tmp_path / f"resume_wrong_{field}.jsonl"
+            rec_wrong = {
+                "annotator_id": "A",
+                "sample_id": "SMP-01",
+                "pass_id": 1,
+                "is_dry_run": False,
+                field: wrong_val,
+            }
+            out_wrong.write_text(json.dumps(rec_wrong) + "\n", encoding="utf-8")
+            with pytest.raises(ValueError, match=err_pattern):
+                kwargs = {kwarg: expected_val}
+                cli_module.load_already_annotated_sample_ids(
+                    out_wrong,
+                    expected_annotator_id="A",
+                    expected_pass_id=1,
+                    **kwargs,
+                )
 
     def test_resume_rejects_unknown_sample_id_not_in_current_package(self, tmp_path, cli_module):
         """CLI từ chối file resume chứa sample_id không thuộc gói dữ liệu đầu vào hiện tại."""
