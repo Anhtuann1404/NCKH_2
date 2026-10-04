@@ -912,6 +912,92 @@ class TestProvenanceAndKappaPairing:
         with pytest.raises(ValueError, match="MÂU THUẪN NỘI DUNG MẪU"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
+    def test_kappa_rejects_missing_sample_id_when_provenance_present(self):
+        """compute_cohens_kappa từ chối khi bản ghi có provenance nhưng không có sample_id."""
+        r1 = [{"class_label": "phishing", "dataset_id": "ds_pilot"}]
+        r2 = [{"class_label": "phishing", "dataset_id": "ds_pilot"}]
+        with pytest.raises(ValueError, match="thiếu 'sample_id'"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_partial_missing_or_empty_sample_id(self):
+        """compute_cohens_kappa từ chối khi có bản ghi thiếu hoặc rỗng sample_id."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing"},
+            {"sample_id": "", "class_label": "benign"},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing"},
+            {"sample_id": "S02", "class_label": "benign"},
+        ]
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE: Tập nhãn của rater1 có bản ghi thiếu hoặc rỗng 'sample_id'"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_intra_batch_missing_provenance_field(self):
+        """compute_cohens_kappa yêu cầu mọi bản ghi trong tập phải có đầy đủ trường provenance."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_1", "codebook_version": "1.0.0"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_1", "codebook_version": ""},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_1", "codebook_version": "1.0.0"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_1", "codebook_version": "1.0.0"},
+        ]
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE.*codebook_version"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_when_one_rater_completely_lacks_provenance_field(self):
+        """compute_cohens_kappa từ chối khi rater1 có provenance nhưng rater2 không có."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_pilot"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_pilot"},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing"},
+            {"sample_id": "S02", "class_label": "benign"},
+        ]
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE.*rater2.*dataset_id"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_missing_content_hash_on_one_record(self):
+        """compute_cohens_kappa yêu cầu sample_content_hash đầy đủ trên toàn bộ bản ghi nếu có khai báo."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "sample_content_hash": "h1"},
+            {"sample_id": "S02", "class_label": "benign", "sample_content_hash": None},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "sample_content_hash": "h1"},
+            {"sample_id": "S02", "class_label": "benign", "sample_content_hash": "h2"},
+        ]
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE.*sample_content_hash"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_pairwise_provenance_mismatch(self):
+        """compute_cohens_kappa đối chiếu từng cặp phát hiện mâu thuẫn codebook_version."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_A", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c2"},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_B", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_B", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c2"},
+        ]
+        with pytest.raises(ValueError, match="mâu thuẫn provenance 'dataset_id'"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_passes_when_all_provenance_and_content_hashes_match_strictly(self):
+        """compute_cohens_kappa tính toán thành công khi provenance đồng nhất và nội dung khớp hoàn toàn."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_A", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c2"},
+        ]
+        r2 = [
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_A", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c2"},
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "h_pkg", "codebook_hash": "cb_h", "codebook_version": "1.0.0", "sampling_plan_version": "1.0.0", "sample_content_hash": "c1"},
+        ]
+        res = compute_cohens_kappa(r1, r2, label_field="class_label")
+        assert res.sample_count == 2
+        assert res.kappa == 1.0
+
     def test_kappa_stable_deterministic_sort_matches_different_order(self):
         """compute_cohens_kappa tự động sắp xếp theo sample_id bảo đảm kết quả độc lập với thứ tự nhập liệu."""
         r1 = [

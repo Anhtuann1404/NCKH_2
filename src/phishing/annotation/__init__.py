@@ -59,22 +59,51 @@ def compute_cohens_kappa(
     if label_field not in {"class_label", "primary_org"}:
         raise ValueError("label_field phải là class_label hoặc primary_org.")
 
-    # Ghép cặp nhãn giữa A và B bằng từ điển theo sample_id nếu có để tránh lệch thứ tự dòng
-    has_sid1 = len(rater1) > 0 and all(isinstance(r, dict) and "sample_id" in r or hasattr(r, "sample_id") for r in rater1)
-    has_sid2 = len(rater2) > 0 and all(isinstance(r, dict) and "sample_id" in r or hasattr(r, "sample_id") for r in rater2)
+    def _extract_sid(r):
+        if isinstance(r, dict):
+            return r.get("sample_id")
+        return getattr(r, "sample_id", None)
 
-    if has_sid1 and has_sid2:
-        dict2 = {getattr(r, "sample_id", None) or r["sample_id"]: r for r in rater2}
+    provenance_check_fields = [
+        "dataset_id",
+        "dataset_hash",
+        "codebook_hash",
+        "codebook_version",
+        "sampling_plan_version",
+        "sample_content_hash",
+    ]
+    has_any_prov = any(
+        any(
+            (getattr(r, pf, None) if not isinstance(r, dict) else r.get(pf)) is not None
+            and str(getattr(r, pf, None) if not isinstance(r, dict) else r.get(pf)).strip() != ""
+            for pf in provenance_check_fields
+        )
+        for r in rater1 + rater2
+    )
+
+    has_any_sid1 = any(_extract_sid(r) is not None and str(_extract_sid(r)).strip() != "" for r in rater1)
+    has_any_sid2 = any(_extract_sid(r) is not None and str(_extract_sid(r)).strip() != "" for r in rater2)
+
+    if has_any_prov and not (has_any_sid1 and has_any_sid2):
+        raise ValueError("Tập dữ liệu có thông tin provenance nhưng thiếu 'sample_id' để đối chiếu từng cặp.")
+
+    if has_any_sid1 or has_any_sid2:
+        if not all(_extract_sid(r) is not None and str(_extract_sid(r)).strip() != "" for r in rater1):
+            raise ValueError("THIẾU PROVENANCE: Tập nhãn của rater1 có bản ghi thiếu hoặc rỗng 'sample_id'.")
+        if not all(_extract_sid(r) is not None and str(_extract_sid(r)).strip() != "" for r in rater2):
+            raise ValueError("THIẾU PROVENANCE: Tập nhãn của rater2 có bản ghi thiếu hoặc rỗng 'sample_id'.")
+
+        dict2 = {str(_extract_sid(r)).strip(): r for r in rater2}
         if len(dict2) != len(rater2):
             raise ValueError("Phát hiện sample_id trùng lặp trong danh sách rater2.")
-        dict1 = {getattr(r, "sample_id", None) or r["sample_id"]: r for r in rater1}
+        dict1 = {str(_extract_sid(r)).strip(): r for r in rater1}
         if len(dict1) != len(rater1):
             raise ValueError("Phát hiện sample_id trùng lặp trong danh sách rater1.")
         if set(dict1.keys()) != set(dict2.keys()):
             raise ValueError("Danh sách sample_id giữa hai đánh giá viên không khớp nhau.")
 
         # Sắp xếp ổn định tất định theo sample_id
-        orig_sids = [getattr(r, "sample_id", None) or r["sample_id"] for r in rater1]
+        orig_sids = [str(_extract_sid(r)).strip() for r in rater1]
         sorted_sids = sorted(list(dict1.keys()))
         orig_indices = {sid: idx for idx, sid in enumerate(orig_sids)}
 
@@ -96,8 +125,8 @@ def compute_cohens_kappa(
             "is_synthetic",
         ]
         for field in provenance_fields:
-            vals1 = {getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater1}
-            vals2 = {getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater2}
+            vals1 = [getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater1]
+            vals2 = [getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater2]
             clean_v1 = {v for v in vals1 if v is not None and str(v).strip() != ""}
             clean_v2 = {v for v in vals2 if v is not None and str(v).strip() != ""}
             if len(clean_v1) > 1 or len(clean_v2) > 1:
@@ -105,17 +134,44 @@ def compute_cohens_kappa(
                     f"LỖI ĐA GÓI: Tập dữ liệu tính Kappa chứa bản ghi từ nhiều '{field}' khác nhau "
                     f"(rater1: {clean_v1}, rater2: {clean_v2}). Mỗi lần tính chỉ được chạy trên duy nhất một gói."
                 )
-            if clean_v1 and clean_v2 and clean_v1 != clean_v2:
+            # Yêu cầu provenance đầy đủ và thống nhất trong toàn tập: không cho phép bản ghi bị thiếu khi tập có khai báo
+            if clean_v1 or clean_v2:
+                if any(v is None or str(v).strip() == "" for v in vals1):
+                    raise ValueError(
+                        f"THIẾU PROVENANCE: Tập nhãn của rater1 có bản ghi thiếu hoặc rỗng trường '{field}'."
+                    )
+                if any(v is None or str(v).strip() == "" for v in vals2):
+                    raise ValueError(
+                        f"THIẾU PROVENANCE: Tập nhãn của rater2 có bản ghi thiếu hoặc rỗng trường '{field}'."
+                    )
+                if clean_v1 != clean_v2:
+                    raise ValueError(
+                        f"Không thể tính Kappa: mâu thuẫn provenance '{field}' giữa hai đánh giá viên "
+                        f"({clean_v1} vs {clean_v2})."
+                    )
+
+        # Kiểm tra tính đầy đủ và thống nhất của sample_content_hash
+        sh1 = [getattr(r, "sample_content_hash", None) if not isinstance(r, dict) else r.get("sample_content_hash") for r in rater1]
+        sh2 = [getattr(r, "sample_content_hash", None) if not isinstance(r, dict) else r.get("sample_content_hash") for r in rater2]
+        has_hash1 = any(h is not None and str(h).strip() != "" for h in sh1)
+        has_hash2 = any(h is not None and str(h).strip() != "" for h in sh2)
+        if has_hash1 or has_hash2:
+            if any(h is None or str(h).strip() == "" for h in sh1):
                 raise ValueError(
-                    f"Không thể tính Kappa: mâu thuẫn provenance '{field}' giữa hai đánh giá viên "
-                    f"({clean_v1} vs {clean_v2})."
+                    "THIẾU PROVENANCE: Tập nhãn của rater1 có bản ghi thiếu hoặc rỗng trường 'sample_content_hash'."
+                )
+            if any(h is None or str(h).strip() == "" for h in sh2):
+                raise ValueError(
+                    "THIẾU PROVENANCE: Tập nhãn của rater2 có bản ghi thiếu hoặc rỗng trường 'sample_content_hash'."
                 )
 
-        # Kiểm tra từng cặp nhãn khớp đúng provenance và sample_content_hash
+        # Kiểm tra từng cặp nhãn khớp đúng provenance và sample_content_hash theo sample_id
         for sid, r1, r2 in zip(sorted_sids, rater1, rater2):
             h1 = getattr(r1, "sample_content_hash", None) if not isinstance(r1, dict) else r1.get("sample_content_hash")
             h2 = getattr(r2, "sample_content_hash", None) if not isinstance(r2, dict) else r2.get("sample_content_hash")
-            if h1 and h2 and h1 != h2:
+            h1_str = str(h1).strip() if h1 is not None else ""
+            h2_str = str(h2).strip() if h2 is not None else ""
+            if (h1_str or h2_str) and h1_str != h2_str:
                 raise ValueError(
                     f"MÂU THUẪN NỘI DUNG MẪU: Cặp mẫu '{sid}' có sample_content_hash không khớp giữa hai đánh giá viên "
                     f"('{h1}' vs '{h2}')."
@@ -123,7 +179,9 @@ def compute_cohens_kappa(
             for pf in provenance_fields:
                 v1 = getattr(r1, pf, None) if not isinstance(r1, dict) else r1.get(pf)
                 v2 = getattr(r2, pf, None) if not isinstance(r2, dict) else r2.get(pf)
-                if v1 is not None and v2 is not None and str(v1).strip() != str(v2).strip():
+                v1_str = str(v1).strip() if v1 is not None else ""
+                v2_str = str(v2).strip() if v2 is not None else ""
+                if (v1_str or v2_str) and v1_str != v2_str:
                     raise ValueError(
                         f"MÂU THUẪN PROVENANCE: Cặp mẫu '{sid}' có '{pf}' không khớp giữa A và B "
                         f"('{v1}' vs '{v2}')."
