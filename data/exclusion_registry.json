@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0",
+  "created_at_utc": "2026-10-04T09:10:00Z",
+  "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
+  "total_excluded_entries": 1,
+  "exclusions": [
+    {
+      "exclusion_id": "EXCL-PILOT-01",
+      "reason": "Mẫu kỹ thuật pilot 20 dòng ban đầu (8 phish, 12 benign) đã được mở kiểm tra cấu trúc.",
+      "source": "phreshphish",
+      "split": "train",
+      "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "batch_sha256": "738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f",
+      "n_samples": 20,
+      "reference_summary": "data/source_audit/phreshphish/pilot_summary.json",
+      "action": "permanently_exclude_from_train_val_test"
+    }
+  ]
+}

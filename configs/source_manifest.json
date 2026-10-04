@@ -1,0 +1,22 @@
+{
+  "status": "verified_pinned_source",
+  "source_id": "phreshphish",
+  "source_url": "https://huggingface.co/datasets/phreshphish/phreshphish",
+  "revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+  "retrieved_at_utc": "2026-10-04T09:09:36Z",
+  "reviewer": "Member C (AI Data Pipeline Owner)",
+  "license_declaration": "cc-by-4.0",
+  "usage_conditions": "Anti-phishing research only as stated by dataset card and authors",
+  "permission_evidence_url": "https://huggingface.co/datasets/phreshphish/phreshphish",
+  "redistribution_status": "restricted_to_features_and_indices",
+  "source_split": "train",
+  "capture_mode": "raw_html_url_pairs",
+  "total_records": 498255,
+  "date_audit_path": "data/source_audit/phreshphish/date_audit_report.json",
+  "date_range": {
+    "min": "2024-07-02",
+    "max": "2025-09-08"
+  },
+  "dictionary_lock_path": "configs/dictionary_v1.json",
+  "notes": "Verified through column projection across all 56 parquet files without reading labels, URLs, or HTML content. Official test set is strictly reserved and isolated."
+}

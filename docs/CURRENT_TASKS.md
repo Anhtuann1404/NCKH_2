@@ -24,9 +24,8 @@ Status: TODO. Owner: D — lead. Phụ thuộc: không.
 
 ### DATA-01 — Khóa nguồn và audit riêng date
 
-Status: TODO. Owner: C. Phụ thuộc: START-01 để xác định người thực hiện.
-
-Lấy revision và tệp có checksum; đọc riêng date từ nguồn pinned, min/max, counts tháng, thiếu/sai ngày và split. Không dựa API statistics hiện tại để nói đã có date toàn corpus. Giữ official test riêng. Done khi có manifest xác minh và audit date tái lập; lấy mẫu pilot đã mở phải nằm trong exclusion registry.
+Status: DONE. Owner: C.
+Bằng chứng: [date_audit_report.json](../data/source_audit/phreshphish/date_audit_report.json), [source_manifest.json](../configs/source_manifest.json), [exclusion_registry.json](../data/exclusion_registry.json). Script tái lập: [scripts/data/audit_date_phreshphish.py](../scripts/data/audit_date_phreshphish.py). Đã kiểm kê toàn bộ 498.255 dòng train qua column projection, dải ngày 02/07/2024 đến 08/09/2025 (100% hợp lệ, 0 missing). Cửa sổ dự kiến 01/10/2024–31/12/2025 chiếm 240.704 mẫu (48,31%).
 
 ### DATA-02 — Khóa danh mục và codebook
 
@@ -83,3 +82,4 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 04/10/2026 — chốt ownership 4 vai trò: A nhãn, B kiểm độc lập/QA, C pipeline dữ liệu/view mù, D người dùng/lead + model + API–extension. Các task triển khai vẫn TODO; chưa huấn luyện hoặc chạy API.
 
 04/10/2026 — đưa phân công TEAM vào mục 6.1, bảng tiến độ mục 8 và bảng thông tin bốn thành viên của đề cương theo yêu cầu. D nhận trực tiếp model/API–extension và lead; họ tên A/B/C và giờ tuần chưa chốt.
+04/10/2026 — C hoàn thành DATA-01: quét 100% cột date của 498.255 dòng train PhreshPhish (rev eabec4b7a66324b79cc8a0ad856d1731dc26fe1a) qua 56 file parquet không đọc URL/HTML/target. Dải ngày thực tế 02/07/2024 đến 08/09/2025, 0 missing. Khóa source_manifest.json, tạo exclusion_registry.json và date_audit_report.json.

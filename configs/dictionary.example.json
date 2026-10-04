@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "v1.0-draft",
+  "created_at_utc": "2026-10-04T00:00:00Z",
+  "status": "draft_template_not_frozen",
+  "description": "Từ điển 14 tổ chức/thương hiệu dự kiến cho NCKH_2 (kết hợp từ 5 quý báo cáo Check Point Q4/2024 - Q4/2025). Khóa chính thức sau khi hoàn tất DATA-01.",
+  "roles_definition": {
+    "first_party_identity": "Tên miền xác thực danh tính trực tiếp của tổ chức (đăng nhập, trang chủ, dịch vụ chính)",
+    "first_party_content": "Tên miền phân phối nội dung tĩnh/tài nguyên thuộc quyền kiểm soát của tổ chức (CDN, assets)",
+    "user_content_hosting": "Nền tảng hạ tầng dùng chung / người dùng tự tạo nội dung (Google Sites, SharePoint, Azure Blob, S3, Firebase). KHÔNG được suy thành first-party identity",
+    "authorized_service": "Dịch vụ đối tác bên thứ ba được ủy quyền có bằng chứng văn bản",
+    "unverified": "Quan hệ chưa được xác minh hoặc không rõ ràng"
+  },
+  "organizations": [
+    {
+      "org_id": "microsoft",
+      "display_name": "Microsoft",
+      "aliases": ["MSFT", "Microsoft Corporation"],
+      "service_names": ["Outlook", "Office 365", "Microsoft 365", "OneDrive", "SharePoint", "Azure", "Teams"],
+      "domain_rules": [
+        {"pattern": "^microsoft\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.microsoft\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^(live|outlook|office|office365|sharepoint|azure)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(live|outlook|office|office365|sharepoint|azure)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^msftauth\\.net$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.blob\\.core\\.windows\\.net$", "match_type": "suffix_boundary", "role": "user_content_hosting"}
+      ]
+    },
+    {
+      "org_id": "google",
+      "display_name": "Google",
+      "aliases": ["Alphabet", "Google LLC"],
+      "service_names": ["Gmail", "Google Drive", "Google Docs", "Google Sheets", "Google Forms", "Google Sites", "YouTube", "Google Workspace"],
+      "domain_rules": [
+        {"pattern": "^google\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.google\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^(gmail|youtube)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(gmail|youtube)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^sites\\.google\\.com$", "match_type": "exact_hostname", "role": "user_content_hosting"},
+        {"pattern": "^docs\\.google\\.com$", "match_type": "exact_hostname", "role": "user_content_hosting"},
+        {"pattern": "\\.firebaseapp\\.com$", "match_type": "suffix_boundary", "role": "user_content_hosting"},
+        {"pattern": "\\.web\\.app$", "match_type": "suffix_boundary", "role": "user_content_hosting"}
+      ]
+    },
+    {
+      "org_id": "meta",
+      "display_name": "Meta",
+      "aliases": ["Facebook", "Meta Platforms Inc."],
+      "service_names": ["Facebook", "Instagram", "WhatsApp", "Messenger", "Threads"],
+      "domain_rules": [
+        {"pattern": "^(meta|facebook|instagram|whatsapp|messenger)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(meta|facebook|instagram|whatsapp|messenger)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^fb\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "apple",
+      "display_name": "Apple",
+      "aliases": ["Apple Inc."],
+      "service_names": ["iCloud", "Apple ID", "App Store", "Apple Pay"],
+      "domain_rules": [
+        {"pattern": "^(apple|icloud)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(apple|icloud)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "amazon",
+      "display_name": "Amazon",
+      "aliases": ["Amazon.com Inc."],
+      "service_names": ["Amazon Store", "AWS", "Amazon Web Services", "Prime Video"],
+      "domain_rules": [
+        {"pattern": "^(amazon|aws)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(amazon|aws)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.amazonaws\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.s3\\.amazonaws\\.com$", "match_type": "suffix_boundary", "role": "user_content_hosting"}
+      ]
+    },
+    {
+      "org_id": "linkedin",
+      "display_name": "LinkedIn",
+      "aliases": ["LinkedIn Corporation"],
+      "service_names": ["LinkedIn", "LinkedIn Learning"],
+      "domain_rules": [
+        {"pattern": "^linkedin\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.linkedin\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^licdn\\.com$", "match_type": "exact_hostname", "role": "first_party_content"}
+      ]
+    },
+    {
+      "org_id": "x_twitter",
+      "display_name": "X (Twitter)",
+      "aliases": ["Twitter", "X Corp."],
+      "service_names": ["X", "Twitter"],
+      "domain_rules": [
+        {"pattern": "^(twitter|x)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(twitter|x)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^t\\.co$", "match_type": "exact_hostname", "role": "first_party_content"}
+      ]
+    },
+    {
+      "org_id": "paypal",
+      "display_name": "PayPal",
+      "aliases": ["PayPal Holdings Inc."],
+      "service_names": ["PayPal"],
+      "domain_rules": [
+        {"pattern": "^paypal\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.paypal\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "adobe",
+      "display_name": "Adobe",
+      "aliases": ["Adobe Systems", "Adobe Inc."],
+      "service_names": ["Adobe Creative Cloud", "Acrobat", "Photoshop", "Adobe Document Cloud"],
+      "domain_rules": [
+        {"pattern": "^adobe\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.adobe\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "booking",
+      "display_name": "Booking.com",
+      "aliases": ["Booking Holdings"],
+      "service_names": ["Booking.com", "Agoda", "Priceline", "Kayak"],
+      "domain_rules": [
+        {"pattern": "^booking\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.booking\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "dhl",
+      "display_name": "DHL",
+      "aliases": ["Deutsche Post DHL Group"],
+      "service_names": ["DHL Express", "DHL Tracking", "DHL Global Forwarding"],
+      "domain_rules": [
+        {"pattern": "^dhl\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.dhl\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"},
+        {"pattern": "^dhl-express\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "spotify",
+      "display_name": "Spotify",
+      "aliases": ["Spotify Technology S.A."],
+      "service_names": ["Spotify Music", "Spotify Premium"],
+      "domain_rules": [
+        {"pattern": "^spotify\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.spotify\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "alibaba",
+      "display_name": "Alibaba",
+      "aliases": ["Alibaba Group"],
+      "service_names": ["Alibaba.com", "AliExpress", "Taobao", "Alipay"],
+      "domain_rules": [
+        {"pattern": "^(alibaba|aliexpress|taobao|alipay)\\.com$", "match_type": "regex_boundary", "role": "first_party_identity"},
+        {"pattern": "\\.(alibaba|aliexpress|taobao|alipay)\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    },
+    {
+      "org_id": "mastercard",
+      "display_name": "Mastercard",
+      "aliases": ["Mastercard Incorporated"],
+      "service_names": ["Mastercard", "Mastercard Identity Check"],
+      "domain_rules": [
+        {"pattern": "^mastercard\\.com$", "match_type": "exact_hostname", "role": "first_party_identity"},
+        {"pattern": "\\.mastercard\\.com$", "match_type": "suffix_boundary", "role": "first_party_identity"}
+      ]
+    }
+  ]
+}

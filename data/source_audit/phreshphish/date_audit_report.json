@@ -1,0 +1,46 @@
+{
+  "dataset_id": "phreshphish/phreshphish",
+  "pinned_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+  "split": "train",
+  "audited_at_utc": "2026-10-04T09:09:36.585412Z",
+  "parquet_files_audited": 56,
+  "total_rows": 498255,
+  "valid_dates_count": 498255,
+  "missing_date_count": 0,
+  "invalid_date_count": 0,
+  "min_date": "2024-07-02",
+  "max_date": "2025-09-08",
+  "monthly_distribution": {
+    "2024-07": 53556,
+    "2024-08": 99991,
+    "2024-09": 104004,
+    "2024-10": 39086,
+    "2024-11": 15585,
+    "2024-12": 7868,
+    "2025-01": 23004,
+    "2025-02": 9324,
+    "2025-03": 5678,
+    "2025-04": 2800,
+    "2025-06": 11485,
+    "2025-07": 58372,
+    "2025-08": 55348,
+    "2025-09": 12154
+  },
+  "proposed_window": {
+    "start": "2024-10-01",
+    "end": "2025-12-31",
+    "samples_in_window": 240704,
+    "samples_before_window": 257551,
+    "samples_after_window": 0,
+    "window_coverage_ratio": 0.4831
+  },
+  "anti_leakage_compliance": {
+    "columns_read": [
+      "date"
+    ],
+    "url_read": false,
+    "html_read": false,
+    "labels_read": false,
+    "targets_read": false
+  }
+}

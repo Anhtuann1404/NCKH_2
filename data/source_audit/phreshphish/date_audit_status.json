@@ -1,9 +1,13 @@
 {
-  "purpose": "Date availability only; not full-corpus temporal audit",
-  "pilot_n": 20,
-  "pilot_min": "2024-07-10",
-  "pilot_max": "2025-09-02",
-  "statistics_api_has_date": false,
-  "full_corpus_min_max_verified": false,
-  "label_target_statistics_used_for_dictionary_selection": false
+  "purpose": "Full-corpus temporal date audit verified via column projection across all 56 train parquet files",
+  "audited_at_utc": "2026-10-04T09:09:36Z",
+  "pinned_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+  "total_train_rows": 498255,
+  "full_corpus_min": "2024-07-02",
+  "full_corpus_max": "2025-09-08",
+  "missing_date_count": 0,
+  "full_corpus_min_max_verified": true,
+  "report_path": "data/source_audit/phreshphish/date_audit_report.json",
+  "label_target_statistics_used_for_dictionary_selection": false,
+  "anti_leakage_verified": true
 }
