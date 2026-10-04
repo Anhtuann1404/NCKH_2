@@ -6,13 +6,13 @@
     "phish": 20,
     "benign": 12
   },
-  "ready_for_annotation": true,
-  "codebook_version": "1.0.0",
-  "codebook_status": "locked",
-  "codebook_sha256": "04b93a9eae78a1001f2cd2c672cfc75a96fc861a79c2cd90ea2c007badb9c513",
-  "dictionary_sha256": "d4744d3fb0c62bef59a4b5fcbb428f8c11be18d58d929adc0aad42bd85458880",
+  "ready_for_annotation": false,
+  "codebook_version": "1.0.0-pending_review",
+  "codebook_status": "pending_review",
+  "codebook_sha256": "b963492722f21f76874010670c33bdcc851ef16ed2088c1e3ddd9a41834c5858",
+  "dictionary_sha256": "0546c37668f66fa995ff677920fb50c8fcd1fadf67c931286f5870d18283293e",
   "blind_view_path": "data\\annotations\\blind_view_pilot_real.json",
-  "blind_view_sha256": "a688473df6b61d68b1d389a66ac4c9255416ec72b2c889503c0f3017dc7b2bb6",
+  "blind_view_sha256": "cca2382278fd650d147a1b59a969d83a1100f7e4246a9f9fb9f5cd2ea6bd6899",
   "restricted_source_mapping_path": "data\\raw\\pilot\\source_mapping.json",
   "restricted_source_mapping_sha256": "36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347",
   "restricted_blind_order_sha256": "d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771",
@@ -44,6 +44,6 @@
   },
   "acceptance": {
     "B": "approved",
-    "D": "approved"
+    "D": "pending"
   }
 }

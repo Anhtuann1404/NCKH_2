@@ -25,7 +25,6 @@ data/labels/
 data/features/
 data/annotations/*
 !data/annotations/blind_view_pilot.json
-!data/annotations/blind_view_pilot_real.json
 !data/annotations/templates/
 !data/annotations/templates/*
 artifacts/models/
