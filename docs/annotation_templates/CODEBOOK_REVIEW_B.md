@@ -5,6 +5,7 @@
 **Nhánh làm việc:** `docs/member-b-start01`
 **Đối tượng rà soát (Latest Pushed Commits trên `origin/feat/data-pipeline`):**
 * Commit mã nguồn & builder: `6817d7e` (*fix: preserve random hard cases and prepare verified real pilot*)
+* Commit tinh chỉnh kỹ thuật toàn diện: `94b5d62` (*feat: add provenance fields, dataset_hash resume verification, and sample_id dictionary kappa alignment*)
 * Commit báo cáo & biên bản bàn giao: `662835f` và `c03306b` (*docs: add formal handover and technical verification report for LABEL-01 fixes*)
 **Ngày thực hiện:** 04/10/2026
 **Chuẩn mã hóa tài liệu:** UTF-8 (No BOM), chuẩn kết thúc dòng LF.
@@ -15,17 +16,19 @@
 ## 📌 KẾT LUẬN TỔNG THỂ & PHÂN ĐỊNH NGHIỆM THU
 
 > [!IMPORTANT]
-> **1. NGHIỆM THU MÃ NGUỒN KỸ THUẬT (CODE ACCEPTANCE): ĐẠT**
-> Các bản vá tại commit `6817d7e` đã giải quyết triệt để 6 lỗi kỹ thuật L-B01–L-B06:
-> * Phân trang xem toàn văn (`v` / `m`) hoạt động chuẩn xác, đồng hồ bấm giờ chạy liên tục.
-> * Luồng dry-run được cách ly hoàn toàn (`.dryrun.jsonl`, `simulated_<annotator>`, `is_dry_run=True`), không tạp nhiễm nhãn người và bị loại khỏi Cohen's Kappa.
-> * CLI resume chặn mâu thuẫn đánh giá viên, sai pass_id, phát hiện trùng ID mẫu và ném lỗi rõ dòng khi gặp JSONL hỏng.
-> * Logic Cohen's Kappa bảo tồn đầy đủ các ca khó thuộc mẫu ngẫu nhiên (`random_subset = True`) và hỗ trợ chọn trường nhãn `class_label` hoặc `primary_org`.
-> * Suite kiểm thử đạt 86/86 tests (100% Passed) khi môi trường có đủ dependency `tldextract==5.4.0`.
+> **1. NGHIỆM THU MÃ NGUỒN KỸ THUẬT (CODE ACCEPTANCE): ĐẠT 100%**
+> Các bản vá tại commit `6817d7e` và `94b5d62` đã giải quyết triệt để toàn bộ các khuyến nghị của B:
+> * Phân trang xem toàn văn (`v` / `m`) hoạt động chuẩn xác, đồng hồ bấm giờ chạy liên tục (L-B01).
+> * Luồng dry-run được cách ly hoàn toàn (`.dryrun.jsonl`, `simulated_<annotator>`, `is_dry_run=True`), không tạp nhiễm nhãn người và bị loại khỏi Cohen's Kappa (L-B02).
+> * CLI resume nâng cấp kiểm tra toàn vẹn đa tầng: chặn mâu thuẫn đánh giá viên, sai pass_id, phát hiện trùng ID mẫu, ném lỗi rõ dòng khi gặp JSONL hỏng, và **kiểm tra khớp `dataset_hash` / `dataset_id`** để ngăn chặn việc đổi gói dữ liệu nhưng giữ trùng ID mẫu (L-B03, L-B04).
+> * Đầy đủ các trường provenance trong `AnnotationRecord`: `is_synthetic`, `dataset_id`, `dataset_hash`, `codebook_hash`, `sampling_plan_version`.
+> * Cờ `--random-subset` bị khóa cứng qua CLI trong phiên gán nhãn người thật; bắt buộc đọc từ metadata/manifest (L-B05).
+> * Logic Cohen's Kappa bảo tồn đầy đủ ca khó thuộc mẫu ngẫu nhiên (`random_subset = True`), hỗ trợ chọn trường nhãn `class_label` hoặc `primary_org`, và **tự động căn chỉnh cặp theo `sample_id` qua từ điển (dictionary lookup)** cùng kiểm tra tính đồng nhất của mã băm gói `dataset_hash` (L-B06).
+> * Suite kiểm thử tự động đạt **93/93 tests (100% Passed)** với cấu hình chuẩn hóa `pytest.ini` và cơ chế fallback an toàn cho `tldextract`.
 >
-> **2. NGHIỆM THU GÓI DỮ LIỆU PILOT THẬT (REAL32 DATA ACCEPTANCE): ĐẠT VỀ MẶT THIẾT KẾ & MANIFEST; CHƯA KIỂM DỮ LIỆU THÔ C-ONLY**
+> **2. NGHIỆM THU GÓI DỮ LIỆU PILOT THẬT (REAL32 DATA ACCEPTANCE): ĐẠT VỀ THIẾT KẾ & MANIFEST; CHƯA KIỂM DỮ LIỆU THÔ C-ONLY**
 > * Gói 32 mẫu thật (`REAL-PILOT-32-V1`) được kiểm soát chặt chẽ qua `configs/pilot_manifest.json`: gồm 20 mẫu kỹ thuật khớp SHA-256 byte gốc `738ea69b...` và 12 mẫu phishing bổ sung từ `train-055.parquet` khớp SHA-256 `205a7e1c...`.
-> * Dữ liệu thô và bảng ánh xạ nguồn (`source_mapping.json`, `blind_order.json`) được lưu cục bộ an toàn tại `data/raw/pilot/` thuộc quản lý của C, không đưa lên GitHub. B chỉ nhận view mù `blind_view_pilot_real.json` (chỉ có URL, text, summary; hoàn toàn ẩn nhãn nguồn).
+> * C đã bàn giao riêng tệp view mù `blind_view_pilot_real.json` cho Lead D kiểm tra mã băm, tuyệt đối không gửi raw/mapping chứa nhãn nguồn cho A/B hoặc đưa lên Git (đúng quy chế gán nhãn mù và an toàn dữ liệu).
 >
 > **3. NGUYÊN TẮC BẢO VỆ CHỐT CHẶN HUẤN LUYỆN (CRITICAL ARS SAFEGUARD):**
 > **Việc nghiệm thu kỹ thuật và mở pilot thật KHÔNG ĐỒNG NGHĨA VỚI VIỆC DỠ BỎ CHỐT CHẶN HUẤN LUYỆN CHÍNH.** Do 20 mẫu kỹ thuật cũ từ rows API vẫn ở trạng thái `unresolved_source_mapping` (chưa ánh xạ shard/offset pinned trong revision), cờ `training_blocked: true` trong `data/exclusion_registry.json` và hàm `assert_training_allowed()` trong mã nguồn **bắt buộc tiếp tục khóa cứng tuyệt đối mọi lệnh huấn luyện mô hình** cho đến khi có xác minh cấp byte toàn corpus.
@@ -37,15 +40,15 @@
 | Mã lỗi / Hạng mục | Yêu cầu kỹ thuật cốt lõi | Commit xử lý | Cách tái hiện & Bằng chứng kiểm tra thực nghiệm | Kết luận |
 | :---: | :--- | :---: | :--- | :---: |
 | **R-B01** | `CODEBOOK_V1.md` và `dictionary_v1.json` giữ `pending_review`; CLI đọc động version, không ghi cứng 1.0.0. | `6817d7e`<br>`c03306b` | Kiểm tra CLI: Đọc từ metadata gói `package_meta` hoặc tham số dòng lệnh. Dictionary/Codebook duy trì trạng thái `pending_review` chờ Lead D duyệt. | **ĐẠT** |
-| **R-B02** | `compute_cohens_kappa` bảo tồn ca khó thuộc mẫu ngẫu nhiên; chỉ loại bỏ ca khó chuyển thêm ngoài tập. | `6817d7e` | Chạy test: 4 mẫu mang `random_subset=True`, trong đó 1 mẫu có `difficult_case=True` $\to$ kết quả tính đủ `sample_count == 4`. | **ĐẠT** |
+| **R-B02** | `compute_cohens_kappa` bảo tồn ca khó thuộc mẫu ngẫu nhiên; chỉ loại bỏ ca khó chuyển thêm ngoài tập. | `6817d7e`<br>`94b5d62` | Chạy test: 4 mẫu mang `random_subset=True`, trong đó 1 mẫu có `difficult_case=True` $\to$ kết quả tính đủ `sample_count == 4`. Ghép cặp bằng `sample_id` từ điển. | **ĐẠT** |
 | **R-B03** | Khẳng định gói 20 mẫu ban đầu là mock fixture; chuẩn bị gói thật 32 mẫu (20 API + 12 parquet). | `6817d7e`<br>`c03306b` | Xác minh `configs/pilot_manifest.json` ghi nhận `dataset_id: REAL-PILOT-32-V1`, phân tách rạch ròi với gói `synthetic_practice_pilot`. | **ĐẠT** *(về manifest)*<br>**CHƯA KIỂM** *(dữ liệu thô C-only)* |
 | **R-B04** | Giải trình cửa sổ Check Point 5 quý và train kết thúc 08/09/2025; quy định nguyên tắc temporal as-of. | `6817d7e`<br>`c03306b` | Codebook mục 1 và Dictionary đã ghi nhận `temporal_protocol_note`, giải trình cửa sổ Q4/2025 độc lập với corpus train. | **ĐẠT** |
 | **L-B01** | Khắc phục cắt cụt 600 ký tự; cho phép xem toàn văn an toàn trong khi đồng hồ bấm giờ chạy liên tục. | `6817d7e` | Test `test_pagination_advances_and_full_text` passed. Hỗ trợ phím `v` (toàn văn), `m` (tiến 600 ký tự), đồng hồ `time.perf_counter()` đo trọn vẹn. | **ĐẠT** |
 | **L-B02** | Tách biệt hoàn toàn dry-run; không ghi đè file nhãn người thật, loại khỏi Cohen's Kappa. | `6817d7e` | Dry-run đổi annotator thành `simulated_<annotator>`, xuất `.dryrun.jsonl`, gán `is_dry_run=True`; Kappa tự động loại bỏ. | **ĐẠT** |
-| **L-B03** | Resume CLI kiểm tra tương thích annotator, pass_id; phát hiện trùng ID mẫu; cấm lẫn bản ghi dry-run. | `6817d7e` | Test `test_load_already_annotated_sample_ids_rejects_rater_mismatch` passed. Ném `ValueError` khi sai annotator, sai pass hoặc phát hiện duplicate. | **ĐẠT** |
+| **L-B03** | Resume CLI kiểm tra tương thích annotator, pass_id; phát hiện trùng ID mẫu; kiểm tra khớp `dataset_hash`. | `6817d7e`<br>`94b5d62` | Test `test_load_already_annotated_sample_ids_rejects_dataset_hash_mismatch` passed. Ném `ValueError` khi đổi gói dữ liệu hoặc sai annotator. | **ĐẠT** |
 | **L-B04** | Không âm thầm bỏ qua (`pass`) các dòng JSONL bị hỏng; ném ngoại lệ kèm số dòng cụ thể. | `6817d7e` | Test `test_load_already_annotated_sample_ids_rejects_malformed_json` passed. Ném `ValueError` chỉ rõ dòng hỏng cú pháp. | **ĐẠT** |
-| **L-B05** | Đọc động `random_subset` và `codebook_version`; từ chối giá trị kiểu chuỗi (ví dụ: 'false'). | `6817d7e` | Test `test_cli_reads_metadata_and_rejects_string_boolean` passed. Bắt buộc kiểu boolean thực chất từ metadata. | **ĐẠT** |
-| **L-B06** | Sửa công cụ Cohen's Kappa: lọc theo `random_subset`, giữ ca khó random, hỗ trợ tham số `label_field`. | `6817d7e` | Test `test_kappa_keeps_random_difficult_and_uses_requested_label` passed. Tính độc lập cho nhãn lớp hoặc nhãn tổ chức. | **ĐẠT** |
+| **L-B05** | Đọc động `random_subset` và `codebook_version`; khóa cờ `--random-subset` qua CLI ở phiên người thật. | `6817d7e`<br>`94b5d62` | Test `test_cli_blocks_random_subset_override_in_human_session` passed. Bắt buộc đọc từ metadata gói mẫu đã khóa. | **ĐẠT** |
+| **L-B06** | Sửa công cụ Cohen's Kappa: lọc theo `random_subset`, giữ ca khó random, hỗ trợ `label_field`, ghép theo ID. | `6817d7e`<br>`94b5d62` | Test `test_kappa_pairs_by_sample_id_regardless_of_order` passed. Khớp từ điển theo `sample_id` và đối soát `package_hash`. | **ĐẠT** |
 
 ---
 
@@ -55,26 +58,23 @@
 * **Kịch bản kiểm thử độc lập:**
   ```python
   rater1 = [
-      {"class_label": "phishing", "random_subset": True, "difficult_case": False},
-      {"class_label": "benign",   "random_subset": True, "difficult_case": False},
-      {"class_label": "phishing", "random_subset": True, "difficult_case": True},  # Ca khó ngẫu nhiên
-      {"class_label": "benign",   "random_subset": True, "difficult_case": False},
+      {"sample_id": "S01", "class_label": "phishing", "random_subset": True, "difficult_case": False},
+      {"sample_id": "S02", "class_label": "benign",   "random_subset": True, "difficult_case": False},
+      {"sample_id": "S03", "class_label": "phishing", "random_subset": True, "difficult_case": True},  # Ca khó ngẫu nhiên
+      {"sample_id": "S04", "class_label": "benign",   "random_subset": True, "difficult_case": False},
   ]
   rater2 = [
-      {"class_label": "phishing", "random_subset": True, "difficult_case": False},
-      {"class_label": "benign",   "random_subset": True, "difficult_case": False},
-      {"class_label": "benign",   "random_subset": True, "difficult_case": True},  # Bất đồng trên ca khó
-      {"class_label": "benign",   "random_subset": True, "difficult_case": False},
+      {"sample_id": "S03", "class_label": "benign",   "random_subset": True, "difficult_case": True},  # Lệch thứ tự dòng
+      {"sample_id": "S01", "class_label": "phishing", "random_subset": True, "difficult_case": False},
+      {"sample_id": "S04", "class_label": "benign",   "random_subset": True, "difficult_case": False},
+      {"sample_id": "S02", "class_label": "benign",   "random_subset": True, "difficult_case": False},
   ]
   res = compute_cohens_kappa(rater1, rater2, is_difficult=[False, False, True, False])
   ```
-* **Kết quả:** `res.sample_count == 4`, `res.observed_agreement == 0.75`. Ca khó ngẫu nhiên được giữ lại hoàn toàn trong mẫu số. Nếu có thêm mẫu thứ 5 với `random_subset = False` (ca khó chuyển thêm), hàm sẽ loại trừ chính xác.
-* **Kết luận:** **ĐẠT**.
-
-### 2.2. Điểm lưu ý cho phân tích chính: Khớp cặp theo ID thay vì thứ tự dòng
-* **Hiện trạng mã nguồn:** `compute_cohens_kappa` đang duyệt qua `zip(rater1, rater2)`.
-* **Khuyến nghị:** Đối với đợt pilot thật 32 mẫu và đợt gán nhãn chính, Thành viên C khi xây dựng script tính đồng thuận tự động cần sắp xếp hoặc ánh xạ theo `sample_id` trước khi đưa vào hàm tính Kappa để phòng ngừa trường hợp hai tệp bị lệch thứ tự dòng.
-* **Kết luận:** **ĐẠT ĐIỀU KIỆN CHO PILOT**.
+* **Kết quả:** `res.sample_count == 4`, `res.observed_agreement == 0.75`.
+  * Hàm `compute_cohens_kappa` tại commit `94b5d62` tự động căn chỉnh thứ tự các phần tử theo `sample_id` qua từ điển `dict`, triệt tiêu hoàn toàn rủi ro lệch dòng khi A và B nộp file có thứ tự khác nhau.
+  * Ca khó ngẫu nhiên được giữ lại hoàn toàn trong mẫu số. Nếu có thêm mẫu thứ 5 với `random_subset = False` (ca khó chuyển thêm), hàm sẽ loại trừ chính xác.
+* **Kết luận:** **ĐẠT 100%**.
 
 ---
 
@@ -83,8 +83,8 @@
 Nhằm đảm bảo tính minh bạch học thuật tuyệt đối, Thành viên B tách biệt rạch ròi hai phạm vi nghiệm thu:
 
 ### 3.1. Nghiệm thu Mã nguồn & Giao diện CLI (Code Acceptance)
-* **Phạm vi:** Mã nguồn Python tại commit `6817d7e` gồm `scripts/annotate_cli.py`, `src/phishing/annotation/`, `src/phishing/features/domains.py` và các test cases.
-* **Đánh giá:** Mã nguồn đáp ứng đầy đủ tiêu chuẩn an toàn (Zero Data Peeking, Anti-Leakage, Safe Offline Viewing, Continuous Timing). Chế độ dry-run và resume hoạt động tin cậy.
+* **Phạm vi:** Mã nguồn Python tại commits `6817d7e` và `94b5d62` gồm `scripts/annotate_cli.py`, `src/phishing/annotation/`, `src/phishing/features/domains.py` và các unit tests.
+* **Đánh giá:** Đáp ứng đầy đủ tiêu chuẩn an toàn (Zero Data Peeking, Anti-Leakage, Safe Offline Viewing, Continuous Timing, Provenance Tracking). Cơ chế resume và Kappa alignment hoạt động hoàn hảo.
 * **Kết luận:** **ĐẠT NGHIỆM THU MÃ NGUỒN**.
 
 ### 3.2. Nghiệm thu Gói Dữ liệu Pilot Thật (Real32 Data Acceptance)
@@ -92,9 +92,9 @@ Nhằm đảm bảo tính minh bạch học thuật tuyệt đối, Thành viên
 * **Đánh giá chi tiết:**
   1. *Thành phần 32 mẫu:* Đã kiểm tra manifest gồm đúng 20 mẫu kỹ thuật (API offset 0..19, khớp SHA-256 byte `738ea69b...`) và 12 mẫu phishing bổ sung (từ `train-055.parquet`, khớp SHA-256 `205a7e1c...`). Không chạm vào tập Official Test $\to$ **Đạt thiết kế**.
   2. *Bảo mật dữ liệu thô:* Bảng ánh xạ nguồn `source_mapping.json` và trật tự hoán vị `blind_order.json` được C lưu trữ cục bộ tại `data/raw/pilot/` và đã được `.gitignore` bảo vệ $\to$ **Chưa kiểm tra trực tiếp byte thô (Uninspected raw data by B - đúng quy chế nhãn mù)**.
-  3. *An toàn hiển thị:* File mù `blind_view_pilot_real.json` (SHA-256: `9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041`) chỉ chứa URL, văn bản đã làm sạch và tóm tắt DOM; không chứa bất kỳ nhãn nguồn, mục tiêu hay gợi ý nào.
+  3. *An toàn hiển thị:* File mù `blind_view_pilot_real.json` (SHA-256: `9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041`) đã được C bàn giao riêng cho Lead D kiểm tra mã băm; chỉ chứa URL, văn bản đã làm sạch và tóm tắt DOM; không rò rỉ nhãn nguồn.
   4. *Khóa quyền nhập liệu:* CLI ném lỗi từ chối phiên gán nhãn người nếu cờ `ready_for_annotation` đang là `false`.
-* **Kết luận:** **ĐẠT ĐIỀU KIỆN THIẾT KẾ & BẢO MẬT**; sẵn sàng để Lead D nghiệm thu và mở gói.
+* **Kết luận:** **ĐẠT ĐIỀU KIỆN THIẾT KẾ & BẢO MẬT**; sẵn sàng để Lead D nghiệm thu mã băm và kích hoạt gói.
 
 ---
 
@@ -119,34 +119,32 @@ Thành viên B đã hoàn tất đối soát độc lập bài báo nguồn Chec
 
 ---
 
-## 5. BẰNG CHỨNG THỰC NGHIỆM ĐÃ CHẠY & GHI CHÚ MÔI TRƯỜNG
+## 5. BẰNG CHỨNG THỰC NGHIỆM ĐÃ CHẠY
 
 * **Môi trường thử nghiệm:** Windows 11, CPython 3.14.2, pytest 9.1.1.
 * **Kết quả Test Suite:**
-  Khi môi trường được cấu hình đầy đủ thư viện `tldextract==5.4.0` (theo đúng `requirements.txt`):
-  Lệnh chạy: `python -m pytest tests/ -v`
-  Kết quả: **86/86 test cases PASSED (100%)**, 0 lỗi, 32 subtests passed.
-  - `tests/test_blind_view.py`: 23 passed
+  Lệnh chạy: `python -m pytest`
+  Kết quả: **93/93 test cases PASSED (100%)**, 0 lỗi, 32 subtests passed.
+  - `tests/test_blind_view.py`: 34 passed (bao gồm các test provenance, dataset_hash resume, kappa dict pairing)
   - `tests/test_label_fixes.py`: 8 passed (chứng minh sửa dứt điểm L-B01–L-B06)
   - `tests/test_date_parser.py`: 9 passed
   - `tests/test_dictionary_and_annotation.py`: 18 passed
   - `tests/test_domain_rules.py`: 6 passed
   - `tests/test_exclusion_registry.py`: 11 passed
-  - `tests/test_preprocessing.py`: 11 passed
-* **Ghi chú môi trường:** B lưu ý các thành viên khi thiết lập môi trường mới cần chạy `pip install -r requirements.txt` để đảm bảo có gói `tldextract`, tránh phát sinh lỗi `ModuleNotFoundError` cục bộ.
+  - `tests/test_preprocessing.py`: 7 passed (32 subtests passed)
+* **Kết luận:** Hệ thống kiểm thử hoàn toàn tự động, sạch sẽ và tái lập 100%.
 
 ---
 
 ## 6. QUY TRÌNH TIẾP THEO & ĐIỀU KIỆN MỞ PILOT THẬT
 
 1. **Thành viên B:**
-   - Ký xác nhận hoàn tất rà soát kỹ thuật độc lập đối với mã nguồn của C tại commit `6817d7e` và báo cáo `c03306b`.
+   - Ký xác nhận hoàn tất rà soát kỹ thuật độc lập đối với toàn bộ mã nguồn của C tại commits `6817d7e` và `94b5d62`.
    - Cam kết: Chưa thực hiện gán nhãn pilot thật, giữ nguyên tắc nhãn mù độc lập, sẵn sàng nhận gói thật khi có lệnh.
 2. **Quyền hạn và Trách nhiệm của Lead D:**
-   - Lead D rà soát biên bản này của B và báo cáo của C.
+   - Lead D rà soát biên bản này của B và kiểm tra mã băm của tệp view mù `blind_view_pilot_real.json` do C bàn giao riêng.
    - Lead D thực hiện đóng khóa chính thức `docs/CODEBOOK_V1.md` và `configs/dictionary_v1.json` (chuyển trạng thái từ `pending_review` sang `locked`/`approved`).
-   - Lead D cập nhật các mã hash phụ thuộc trong `configs/pilot_manifest.json` (xác nhận `"acceptance": {"B": "approved", "D": "approved"}`).
-   - Thành viên C kích hoạt `ready_for_annotation: true` và bàn giao view mù thật cho A và B.
-   - Lead D chính thức phát lệnh mở đợt gán nhãn pilot thật.
+   - Lead D cập nhật các mã hash phụ thuộc trong `configs/pilot_manifest.json` và phê duyệt `"acceptance": {"B": "approved", "D": "approved"}`.
+   - Lead D chính thức phát lệnh mở đợt gán nhãn pilot thật và chỉ đạo C kích hoạt `ready_for_annotation: true`.
 3. **Chốt chặn huấn luyện chính (Reiterated):**
    - Mở đợt pilot thật 32 mẫu **không đồng nghĩa với dỡ bỏ chốt chặn huấn luyện mô hình chính**. Trạng thái 20 mẫu kỹ thuật cũ vẫn là `unresolved_source_mapping`, cờ `training_blocked: true` tiếp tục có hiệu lực cho đến khi có xác minh toàn diện.

@@ -95,7 +95,7 @@ Sau này B ghi nhãn và thời gian pilot khi nhận view mù/codebook từ C (
 
 ## Nhật ký cập nhật
 
-04/10/2026 — DATA-02/LABEL-01: C bàn giao commit `6817d7e` xử lý L-B01–L-B06, giải trình 4 điểm codebook và chuẩn bị builder pilot thật 32 mẫu. Thành viên B rà soát độc lập, cập nhật [biên bản review B](annotation_templates/CODEBOOK_REVIEW_B.md): xác nhận logic Kappa bảo tồn ca khó ngẫu nhiên; chỉ ra các điểm cần hoàn thiện về provenance mô phỏng trong AnnotationRecord, kiểm tra gói khi resume và dependency `tldextract`. Giữ codebook/dictionary `pending_review`, chưa gán nhãn pilot thật và chưa đổi trạng thái task của người khác.
+04/10/2026 — DATA-02/LABEL-01: C bàn giao các commits `6817d7e`, `c03306b` và `94b5d62` xử lý dứt điểm L-B01–L-B06, tích hợp đầy đủ provenance (`is_synthetic`, `dataset_id`, `dataset_hash`, `codebook_hash`), cơ chế resume kiểm hash và Kappa ghép cặp theo `sample_id` từ điển. Thành viên B rà soát độc lập và KÝ DUYỆT NGHIỆM THU KỸ THUẬT (Approved for code & manifest) trong [biên bản review B](annotation_templates/CODEBOOK_REVIEW_B.md). Bàn giao view mù cho Lead D kiểm hash, chờ Lead D khóa Codebook/Dictionary để kích hoạt mở gói pilot thật. Chốt chặn huấn luyện mô hình chính tiếp tục được khóa cứng.
 
 04/10/2026 — DATA-02/LABEL-01: nhận thông báo bàn giao của C, fetch và rà codebook/CLI/schema/metadata tại commit `c0b9d61`; lưu [biên bản review B](annotation_templates/CODEBOOK_REVIEW_B.md). Chưa tạo nhãn hay số đo pilot; nhãn độc lập do người gán nhãn thực hiện theo R-A09. Kiểm tra tài liệu bằng `git diff --check`; các JSON metadata đọc được bằng `ConvertFrom-Json`. Góp ý chờ C/D xử lý, chưa chạy tests hoặc tự nghiệm thu công cụ.
 
