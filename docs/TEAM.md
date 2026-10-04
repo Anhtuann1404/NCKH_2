@@ -1,6 +1,6 @@
 # Phân công và quyền sở hữu công việc — 4 người
 
-Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, mô hình và API–extension. A/B/C chưa chốt họ tên. Phân công này cụ thể hóa triển khai trong hướng đề cương đã duyệt; không thay RQ hoặc giao thức nghiên cứu.
+Cập nhật 04/10/2026. D là chủ nhiệm đã nhận lead, mô hình và API–extension. B là Phùng Tấn Minh, đã xác nhận 5–10 giờ/tuần trong đợt gán nhãn; A/C/D chưa điền họ tên chính thức. Phân công này cụ thể hóa triển khai trong hướng đề cương đã duyệt; không thay RQ hoặc giao thức nghiên cứu.
 
 “Owner” là người chịu trách nhiệm hoàn thành, giải thích quyết định, lưu bằng chứng và bàn giao phần việc; không có nghĩa chỉ người đó được sửa code. Reviewer kiểm độc lập trước bàn giao. File code bên dưới là vị trí dự kiến khi scaffold, chưa phải module đã có.
 
@@ -16,13 +16,15 @@ Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, m�
 
 ## B — Owner kiểm nhãn độc lập và QA
 
+**Thành viên nhận vai trò:** Phùng Tấn Minh, MSSV 3120225092. Hồ sơ tại bảng thành viên trong [đề cương](De_cuong_NCKH_Phishing_Mau_2.md); tiến độ chốt nhóm theo [START-01](CURRENT_TASKS.md#start-01--chốt-người-và-ngân-sách-giờ).
+
 **Trách nhiệm:** kiểm 30% random cùng ca khó; ghi lượt riêng trước xem A; cùng phân xử. Sau khóa nhãn, chạy lại cấu hình D đã bàn giao, kiểm bảng/counts và kiểm thử extension bằng fixture/kịch bản; không dùng prediction để sửa lượt nhãn cũ.
 
 **Sở hữu:** annotation B, biên bản QA, kiểm counts/đồng thuận, báo cáo tái lập và lỗi demo; `data/annotations/B/`, `tests/` và báo cáo QA dự kiến. Công cụ tính kappa do C chuẩn bị, B kiểm đúng subset trước phân xử.
 
 **Bàn giao:** mẫu random đủ, ca khó thêm được tách, bất đồng có lý do; sau thực nghiệm có kết quả chạy lại theo hướng dẫn hoặc danh sách lỗi có thể tái hiện. A review quy tắc nhãn, C hỗ trợ dữ liệu, D sửa lỗi mô hình/API/extension.
 
-**Mức giờ tham chiếu:** 5–10 giờ/tuần đợt nhãn; đợt QA sau đó dự trù 4–6 giờ/tuần. Lịch thay đổi theo pilot.
+**Ngân sách đã xác nhận:** 5–10 giờ/tuần trong đợt gán nhãn 6–8 tuần (B xác nhận ngày 04/10/2026). Đợt QA sau đó dự trù 4–6 giờ/tuần, chưa chốt riêng. Quy mô và lịch làm được nhóm chốt sau pilot theo ngân sách thực có.
 
 ## C — Owner nguồn, pipeline dữ liệu và view mù
 
@@ -34,7 +36,7 @@ Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, m�
 
 **Mức giờ tham chiếu:** 8–12 giờ/tuần tập trung T1–T2, còn hỗ trợ dữ liệu/tái lập về sau.
 
-## D — Cậu: lead và owner model, API, extension
+## D — Chủ nhiệm: lead và owner model, API, extension
 
 **Lead:** điều phối nhiệm vụ/phụ thuộc, tổng hợp báo cáo, review tích hợp, quản lý version/release và trao đổi với GVHD. Mỗi người vẫn viết và kiểm phần mình; lead không làm thay toàn bộ báo cáo.
 

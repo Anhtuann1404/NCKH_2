@@ -34,7 +34,7 @@ API chỉ phân tích đầu vào gửi đến; không tự truy cập URL hoặ
 
 ## Ownership
 
-Theo [TEAM](TEAM.md): C sở hữu data/annotation tooling; A/B sở hữu lượt nhãn độc lập; D (người dùng/lead) sở hữu preprocessing/features/training/evaluation/serving và extension. B kiểm tái lập/chức năng sau khóa nhãn, C kiểm dữ liệu/split.
+Theo [TEAM](TEAM.md): C sở hữu data/annotation tooling; A/B sở hữu lượt nhãn độc lập; D (chủ nhiệm/lead) sở hữu preprocessing/features/training/evaluation/serving và extension. B kiểm tái lập/chức năng sau khóa nhãn, C kiểm dữ liệu/split.
 
 ## Module và hợp đồng nội bộ
 

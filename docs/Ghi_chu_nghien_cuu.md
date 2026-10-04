@@ -1,6 +1,10 @@
 # Ghi chú nghiên cứu
 
-Tài liệu làm việc đi kèm [đề cương hiện hành](/Users/yingjunn_/Study_/NCKH_2/docs/De_cuong_NCKH_Phishing_Mau_2.md). Cập nhật ngày 03/10/2026.
+Tài liệu làm việc đi kèm [đề cương hiện hành](De_cuong_NCKH_Phishing_Mau_2.md). Cập nhật ngày 04/10/2026.
+
+## Cập nhật hồ sơ thành viên B — 04/10/2026
+
+START-01: B xác nhận là Phùng Tấn Minh, MSSV 3120225092, ngân sách 5–10 giờ/tuần trong đợt gán nhãn 6–8 tuần. Đã điền hồ sơ theo thông tin B cung cấp trong bảng thành viên và mục 6.1 của đề cương; trạng thái nhóm theo [CURRENT_TASKS](CURRENT_TASKS.md). Kinh nghiệm/kỹ năng B chưa cung cấp; A/C/D và thông tin chung còn chờ nhóm. Các xác nhận cũ bên dưới là lịch sử. Rà tài liệu và cập nhật hồ sơ có AI hỗ trợ; không tạo nhãn, số đo hoặc kết quả thực nghiệm.
 
 ## Phân công được đưa vào đề cương — 04/10/2026
 
@@ -70,7 +74,7 @@ Người dùng đồng ý làm lại đề cương theo góp ý mở rộng củ
 - **Khả năng kiểm chứng:** grouped 5-fold lặp 3 seed, chọn ngưỡng nội bộ, kiểm soát miền/template gần trùng; báo cáo FPR thực đo tại mục tiêu 1%/5%, bootstrap ghép cặp theo nhóm và dao động giữa fold/seed.
 - **Ưu tiên 6–7 tháng:** dữ liệu và đối chứng trước, extension/độ trễ sau; encoder, nhóm Việt Nam và ad block tùy nguồn lực. OCR và khảo sát người dùng để hướng mở rộng.
 
-Bản phạm vi Việt Nam trước sửa đã lưu trong [archive](/Users/yingjunn_/Study_/NCKH_2/docs/archive/De_cuong_NCKH_Phishing_Mau_2_Pham_vi_Viet_Nam.md). Chưa chạy crawler, huấn luyện hoặc thực nghiệm hiệu năng; phần nội dung chính đã viết lại theo mẫu chín mục, còn thông tin hành chính do nhóm bổ sung.
+Bản phạm vi Việt Nam trước sửa đã lưu trong [archive](archive/De_cuong_NCKH_Phishing_Mau_2_Pham_vi_Viet_Nam.md). Chưa chạy crawler, huấn luyện hoặc thực nghiệm hiệu năng; phần nội dung chính đã viết lại theo mẫu chín mục, còn thông tin hành chính do nhóm bổ sung.
 
 **Quy tắc bronze hiện hành (nguồn Việt Nam bổ sung):** một người kiểm tra toàn bộ ứng viên mạo danh tổ chức Việt Nam được sử dụng; người thứ hai kiểm độc lập mẫu con ngẫu nhiên phân tầng 30% và các trường hợp khó. Độ đồng thuận tính trên mẫu con ngẫu nhiên. Những đoạn mô tả quy tắc cũ bên dưới được giữ để lưu lịch sử, đã được thay bằng quy tắc này.
 
@@ -152,7 +156,7 @@ Tên trường/khoa, thông tin giảng viên và thành viên; lịch chính th
 5. Bổ sung sáu nghiên cứu: Phishpedia (2021), PhishIntention (2022), KnowPhish (2024), Linh et al. về extension URL + fuzzy matching (2025), Nguyen và Nguyen về phishing website tiếng Việt (online 2026, năm trích dẫn Springer 2027), và preprint URL–text tiếng Việt của Vu (2026). Có tổng cộng 11 công trình nghiên cứu và 3 tài liệu Chrome. Khoảng trống đã thu hẹp theo tiền lệ mới tìm được.
 6. Nhóm chính xác định theo tổ chức Việt Nam bị mạo danh, không theo ngôn ngữ. Trang tiếng Anh mạo danh ngân hàng Việt Nam được giữ; ngôn ngữ chỉ là thuộc tính phân nhóm. Nhãn tham chiếu độc lập với danh mục/đầu ra mô hình.
 
-Bản trước sửa được lưu trong [De_cuong_NCKH_Phishing_Mau_2_Truoc_ra_soat_6_diem.md](/Users/yingjunn_/Study_/NCKH_2/docs/archive/De_cuong_NCKH_Phishing_Mau_2_Truoc_ra_soat_6_diem.md). Bản dùng tiếp là [đề cương hiện hành](/Users/yingjunn_/Study_/NCKH_2/docs/De_cuong_NCKH_Phishing_Mau_2.md).
+Bản trước sửa được lưu trong [De_cuong_NCKH_Phishing_Mau_2_Truoc_ra_soat_6_diem.md](archive/De_cuong_NCKH_Phishing_Mau_2_Truoc_ra_soat_6_diem.md). Bản dùng tiếp là [đề cương hiện hành](De_cuong_NCKH_Phishing_Mau_2.md).
 
 ### 7. Đợt rà soát nguồn và rủi ro bổ sung
 

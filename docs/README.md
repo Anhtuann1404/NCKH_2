@@ -43,7 +43,7 @@ Lõi là URL + nội dung + tín hiệu tổ chức–miền–ý định; tập
 
 Đã có đề cương, ghi chú, kiểm kê URL PhishVN và thử tải 20 dòng PhreshPhish. Đã xác nhận nhóm từ 4 người trở lên. Chưa kiểm kê date toàn revision, chưa khóa tập thực nghiệm/danh mục cuối, chưa đo pilot nhãn, chưa huấn luyện, chưa có API hoặc extension.
 
-Vai trò A gán nhãn, B kiểm độc lập và QA, C quản lý dữ liệu/giao diện mù. D là cậu: lead, owner xây dựng–huấn luyện–đánh giá model và API–extension. A/B/C phải là ba người khác nhau; họ tên A/B/C và ngân sách giờ chưa chốt. B hỗ trợ tái lập sau khóa nhãn, C bàn giao pipeline dữ liệu; D chịu trách nhiệm model. Chi tiết ở TEAM.
+Vai trò A gán nhãn, B kiểm độc lập và QA, C quản lý dữ liệu/giao diện mù. D là chủ nhiệm/lead, owner xây dựng–huấn luyện–đánh giá model và API–extension. A/B/C phải là ba người khác nhau. B là Phùng Tấn Minh, đã xác nhận 5–10 giờ/tuần trong đợt gán nhãn; hồ sơ B đã điền trong đề cương, kinh nghiệm/kỹ năng chưa cung cấp. Họ tên chính thức và ngân sách giờ A/C/D còn chờ. B hỗ trợ tái lập sau khóa nhãn, C bàn giao pipeline dữ liệu; D chịu trách nhiệm model. Chi tiết ở TEAM và CURRENT_TASKS.
 
 ## Các file cấu hình mẫu
 

@@ -27,7 +27,7 @@ Khi bắt đầu code: môi trường Python riêng, TypeScript/Node riêng cho 
 
 ## Ownership
 
-Theo [TEAM](TEAM.md): A sở hữu nhãn/evidence, B lượt kiểm độc lập và QA, C nguồn/dictionary/annotation tooling/groups/splits; D là người dùng, lead và owner preprocessing/features/training/evaluation/serving/extension. Model do D trực tiếp xây dựng và huấn luyện, B hỗ trợ chạy lại sau khóa nhãn; C không là owner model.
+Theo [TEAM](TEAM.md): A sở hữu nhãn/evidence, B lượt kiểm độc lập và QA, C nguồn/dictionary/annotation tooling/groups/splits; D là chủ nhiệm/lead và owner preprocessing/features/training/evaluation/serving/extension. Model do D trực tiếp xây dựng và huấn luyện, B hỗ trợ chạy lại sau khóa nhãn; C không là owner model.
 
 ## Mỗi thay đổi
 
