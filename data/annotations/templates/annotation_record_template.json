@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "template_version": "1.0.0",
+  "description": "Mẫu bản ghi gán nhãn độc lập chuẩn hóa theo docs/CODEBOOK_V1.md phục vụ Thành viên A và B",
+  "fields_documentation": {
+    "annotator_id": "Mã người gán nhãn: 'A', 'B' hoặc 'adjudicator'",
+    "sample_id": "Mã định danh mẫu lấy từ blind_view_pilot.json (ví dụ: 'PILOT-001')",
+    "pass_id": "Lượt gán nhãn: 1 (lượt độc lập ban đầu), 2 (lượt phân xử nếu có)",
+    "class_label": "Nhãn phân loại: 'phishing' | 'benign' | 'insufficient_evidence'",
+    "primary_org_status": "Trạng thái tổ chức mục tiêu: 'identified' | 'unknown' | 'no_clear_target' | 'multi_target'",
+    "catalog_status": "Tình trạng so với từ điển: 'in_catalog' (14 tổ chức) | 'outside_catalog' | 'unresolved'",
+    "observed_service": "Tên thương hiệu / dịch vụ quan sát tự do (ví dụ: 'Microsoft 365', 'Vietcombank', 'None')",
+    "org_targets": "Danh sách các mã tổ chức bị mạo danh quan sát được (mảng chuỗi)",
+    "primary_org": "Mã tổ chức mục tiêu chính (ví dụ: 'microsoft', 'google', hoặc 'unknown')",
+    "identity_role": "Vai trò danh tính trên trang: 'identity_claim' | 'mention_only' | 'unclear'",
+    "domain_role": "Vai trò tên miền: 'first_party_identity' | 'first_party_content' | 'user_content_hosting' | 'authorized_service' | 'unverified'",
+    "evidence_note": "Ghi chú bằng chứng văn bản/form dẫn đến quyết định phân loại",
+    "seconds_spent": "Thời gian gán nhãn thực tế đo bằng giây (>= 0.0)",
+    "random_subset": "true nếu thuộc mẫu ngẫu nhiên đo Cohen's Kappa, false nếu là ca khó chuyển thêm",
+    "difficult_case": "true nếu mẫu là ca khó gây phân vân cần lưu ý trong phiên phân xử",
+    "codebook_version": "Phiên bản sổ tay codebook áp dụng (mặc định: '1.0.0')",
+    "timestamp_utc": "Thời điểm hoàn thành (ISO 8601 UTC)"
+  },
+  "sample_example": {
+    "annotator_id": "A",
+    "sample_id": "PILOT-001",
+    "pass_id": 1,
+    "class_label": "phishing",
+    "primary_org_status": "identified",
+    "catalog_status": "in_catalog",
+    "observed_service": "Microsoft 365",
+    "org_targets": [
+      "microsoft"
+    ],
+    "primary_org": "microsoft",
+    "identity_role": "identity_claim",
+    "domain_role": "unverified",
+    "evidence_note": "Tiêu đề 'Sign in to Office 365' kèm form đăng nhập mật khẩu trên tên miền lạ not-microsoft.xyz",
+    "seconds_spent": 125.4,
+    "random_subset": true,
+    "difficult_case": false,
+    "codebook_version": "1.0.0",
+    "timestamp_utc": "2026-10-04T12:00:00Z"
+  }
+}

@@ -23,7 +23,10 @@ data/raw/
 data/processed/
 data/labels/
 data/features/
-data/annotations/
+data/annotations/*
+!data/annotations/blind_view_pilot.json
+!data/annotations/templates/
+!data/annotations/templates/*
 artifacts/models/
 artifacts/runs/
 data/source_audit/*.zip

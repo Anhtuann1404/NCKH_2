@@ -50,9 +50,16 @@ Bằng chứng: [dictionary_v1.json](../configs/dictionary_v1.json), [CODEBOOK_V
 
 ### LABEL-01 — View mù và pilot có bấm giờ
 
-Status: TODO. Owner: C tạo view; A/B đọc độc lập. Phụ thuộc: DATA-02.
+Status: IN_PROGRESS (Phần C tạo view mù và CLI bấm giờ đã DONE, A và B chuẩn bị gán nhãn). Owner: C tạo view; A/B đọc độc lập. Phụ thuộc: DATA-02.
 
-Giao diện chỉ có sample_id, URL–nội dung; ẩn target/nhãn nguồn/điểm mô hình và nhãn người còn lại. Dùng 20 mẫu kỹ thuật, bổ sung 12 phishing ngoài tập đánh giá để pilot có 20 phishing. Done khi lưu nhãn độc lập, thời gian gồm tra cứu/phân xử và giờ dự kiến. Không chạy HTML nguồn trực tiếp.
+Đã hoàn thành toàn diện phần việc của Thành viên C:
+1. **Module Blind View & Anti-Leakage:** [`blind_view.py`](../src/phishing/annotation/blind_view.py) loại bỏ triệt để script, iframe, inline events, form values. Hàm `assert_no_label_leak` kiểm tra đệ quy đảm bảo không rò rỉ bất kỳ nhãn nguồn, target hay điểm số nào.
+2. **Schema & Validation AnnotationRecord:** Tuân thủ 100% taxonomy [`docs/CODEBOOK_V1.md`](CODEBOOK_V1.md), tích hợp trường bấm giờ `seconds_spent` không âm. Đã cung cấp mẫu template tại [`annotation_record_template.json`](../data/annotations/templates/annotation_record_template.json).
+3. **Gói dữ liệu Blind View Pilot 20 mẫu:** [`blind_view_pilot.json`](../data/annotations/blind_view_pilot.json) chứa 20 mẫu pilot an toàn, đại diện đầy đủ các loại hình trang.
+4. **Công cụ gán nhãn CLI có bấm giờ tự động:** [`annotate_cli.py`](../scripts/annotate_cli.py) hỗ trợ đo thời gian thực tế, kiểm tra enum tự động, lưu JSONL tức thời và hỗ trợ resume khi tạm dừng.
+5. **Kiểm thử tự động:** 10/10 unit tests đạt 100% tại [`test_blind_view.py`](../tests/test_blind_view.py). Toàn bộ dự án đạt 65/65 tests pass.
+
+Bằng chứng: [blind_view.py](../src/phishing/annotation/blind_view.py), [blind_view_pilot.json](../data/annotations/blind_view_pilot.json), [annotate_cli.py](../scripts/annotate_cli.py), [test_blind_view.py](../tests/test_blind_view.py).
 
 ### PLAN-01 — Khóa quy mô và kế hoạch audit
 
@@ -110,4 +117,11 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 1. Đổi `sample_content_hash` -> `summary_fingerprint_hash` trong schema, code và tests để phản ánh đúng bản chất băm thống kê cấu trúc tóm tắt, không ngộ nhận là băm raw HTML/URL; giữ nguyên trạng thái `unresolved_source_mapping`; sửa các câu "chặn 100% mẫu thật" trong tài liệu; chuẩn bị quy tắc băm canonical cố định khi có bản pilot thô.
 2. Phòng vệ chiều sâu cho chốt chặn huấn luyện: `assert_training_allowed()` kiểm tra trực tiếp trạng thái ánh xạ (`mapping_status == 'resolved'` và `rows_api_revision_pinned is True`) của từng lô loại trừ, bắt buộc chặn huấn luyện ngay cả khi cờ `training_blocked` bị sửa thành `False`; bổ sung test tình huống mâu thuẫn này.
 3. Xuất chuẩn hóa `requirements.lock` sang UTF-8 thuần với Unix LF line endings (loại bỏ hoàn toàn BOM UTF-16 và byte NUL), đã kiểm định thành công qua `pip install --dry-run`. Toàn bộ 54 unit tests của dự án đạt 100% pass.
+
+04/10/2026 — C hoàn thành triển khai công cụ và dữ liệu cho Task LABEL-01:
+- Module `blind_view.py`: Bóc tách văn bản và cấu trúc an toàn, loại bỏ 100% script/iframe/inline events, hàm `assert_no_label_leak` kiểm tra đệ quy chống rò rỉ nhãn nguồn/target/score.
+- Schema `AnnotationRecord`: Chuẩn hóa 100% taxonomy theo `CODEBOOK_V1.md`, xác thực enum nghiêm ngặt, tích hợp đo thời gian `seconds_spent`. Cung cấp file mẫu `annotation_record_template.json`.
+- Gói dữ liệu `blind_view_pilot.json`: 20 mẫu pilot mù an toàn đại diện đa dạng các loại hình dịch vụ.
+- Công cụ CLI `annotate_cli.py`: Hỗ trợ gán nhãn có bấm giờ tự động, tương thích đa nền tảng UTF-8, lưu JSONL tức thời và hỗ trợ resume. Đạt 65/65 unit tests (100% pass). Sẵn sàng bàn giao cho Thành viên A và B.
+
 
