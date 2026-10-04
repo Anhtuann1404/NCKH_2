@@ -5,11 +5,15 @@ from typing import Dict, Any
 __all__ = ["verify_sha256"]
 
 
-def verify_sha256(file_path: str, expected_hash: str) -> bool:
-    """Xác thực mã băm SHA-256 của một file dữ liệu."""
+def verify_sha256(file_path: str, expected_hash: str, *, normalize_newlines: bool = True) -> bool:
+    """Xác thực mã băm SHA-256 của một file dữ liệu.
+
+    Với các tệp cấu hình JSON/văn bản, chuẩn hóa ký tự xuống dòng (LF) để đảm bảo
+    mã băm bất biến trên đa nền tảng (Windows CRLF vs Linux/macOS LF).
+    """
     import hashlib
-    sha256 = hashlib.sha256()
     with open(file_path, "rb") as f:
-        while chunk := f.read(8192):
-            sha256.update(chunk)
-    return sha256.hexdigest().lower() == expected_hash.lower()
+        data = f.read()
+    if normalize_newlines and file_path.endswith((".json", ".txt", ".md", ".py")):
+        data = data.replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest().lower() == expected_hash.lower()

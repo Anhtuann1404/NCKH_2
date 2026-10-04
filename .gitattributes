@@ -1,0 +1,7 @@
+# Enforce LF for cross-platform checksum reproducibility
+* text=auto eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.lock text eol=lf
+*.parquet binary
