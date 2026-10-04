@@ -7,74 +7,118 @@ Ngày gửi: 05/10/2026
 
 Kính gửi Lead D (Anh Tuấn),
 
-Thành viên C xin gửi thông tin chi tiết phục vụ Lead D đối soát và nghiệm thu kỹ thuật:
+Thành viên C xin cảm ơn Lead D đã kiểm tra và phản hồi. Các điểm Lead D nêu
+trong đợt kiểm tra commit 6c0492d đã được Thành viên C khắc phục triệt để và
+đầy đủ tại commit 9fcaea0 (hiện nhánh feat/data-pipeline đang ở HEAD 59b7e41).
+
+Dưới đây là thông tin chi tiết phục vụ Lead D đối soát mã nguồn, mã băm, số byte
+và schema của gói dữ liệu:
 
 --------------------------------------------------------------------------------
 1. THÔNG TIN COMMIT TRÊN NHÁNH feat/data-pipeline
 --------------------------------------------------------------------------------
-- Commit HEAD hiện tại: dc2e8b020ab22c3cee3e8f0fbb00d1f2be545415 (ngắn gọn: dc2e8b0)
+- Commit HEAD hiện tại: 59b7e411b0e52701046927d7c67566cf2c2a0d78 (ngắn gọn: 59b7e41)
   (Duy trì nghiêm ngặt trạng thái pending_review, ready_for_annotation=false, acceptance.D=pending)
-- Commit cài đặt 7 điểm kỹ thuật: 9fcaea0ae9f45140468e2a8169419f0276c3d8eb (ngắn gọn: 9fcaea0)
-- Nhánh: feat/data-pipeline (đã push đồng bộ lên GitHub remote origin/feat/data-pipeline)
+- Commit cài đặt toàn diện 7 điểm kỹ thuật: 9fcaea0ae9f45140468e2a8169419f0276c3d8eb (ngắn gọn: 9fcaea0)
+- Nhánh Git: feat/data-pipeline (đã đẩy sạch sẽ lên origin/feat/data-pipeline)
 
 --------------------------------------------------------------------------------
-2. ĐƯỜNG DẪN BÁO CÁO KỸ THUẬT & BẢNG ĐỐI CHIẾU 7 MỤC
+2. GIẢI TRÌNH ĐỐI SOÁT 4 ĐIỂM SỬA CHỮA MÃ NGUỒN THEO PHẢN HỒI CỦA LEAD D
 --------------------------------------------------------------------------------
-- Tệp báo cáo chi tiết: docs/BAO_CAO_BAN_GIAO_RIENG_VIEW_MU_LEAD_D.txt
 
-Bảng đối chiếu 7 mục yêu cầu kỹ thuật:
-+ Mục 1: Resume nghiêm ngặt provenance & hash nội dung (URL + text + DOM structure_summary)
-  * File sửa: src/phishing/annotation/blind_view.py, scripts/annotate_cli.py
-  * Tests: test_resume_rejects_missing_provenance_field_in_real_session,
-           test_resume_rejects_empty_or_mismatched_when_expected_is_set,
-           test_resume_rejects_unknown_sample_id_not_in_current_package,
-           test_resume_content_hash_includes_structure_summary,
-           test_resume_rejects_dataset_hash_mismatch
-+ Mục 2: Kappa kiểm soát đơn gói & Ghép cặp tất định theo sample_id
-  * File sửa: src/phishing/annotation/__init__.py
-  * Tests: test_kappa_rejects_mixed_batch_multiple_packages,
-           test_kappa_rejects_pairwise_content_hash_mismatch,
-           test_kappa_stable_deterministic_sort_matches_different_order,
-           test_kappa_keeps_difficult_cases_in_random_subset
-+ Mục 3: Rào chắn manifest và khóa ghi đè CLI (--codebook-version, --random-subset)
-  * File sửa: scripts/annotate_cli.py
-  * Tests: test_cli_blocks_codebook_version_override_in_human_session,
-           test_cli_blocks_random_subset_override_in_human_session,
-           test_cli_manifest_preflight_blocks_unapproved_or_pending
-+ Mục 4: Khai báo sampling plan version ("PILOT-PLAN-V1-FULL-OVERLAP")
-  * File sửa: configs/pilot_manifest.json, data/annotations/blind_view_pilot_real.json
-  * Tests: test_annotation_record_provenance_roundtrip,
-           test_kappa_rejects_codebook_and_plan_provenance_mismatch
-+ Mục 5: Xóa bỏ hostname fallback parts[-2:], bắt buộc tldextract với PSL offline
-  * File sửa: src/phishing/data/exclusion.py
-  * Tests: test_domain_group_exclusion_multi_part_tld,
-           test_missing_tldextract_raises_import_error_without_fallback
-+ Mục 6: Đính chính metadata Check Point Research (Q1 & Q3/2025) & chứng minh toán học
-  * File sửa: configs/dictionary_v1.json, docs/CODEBOOK_V1.md
-  * Tests: test_dictionary_v1_json_valid & script kiểm tra hợp 15 brand -> 14 tổ chức
-+ Mục 7: Bàn giao riêng & Lưu vết Git minh bạch (không force push, giữ view ngoài git)
-  * File sửa: .gitignore, docs/BAO_CAO_BAN_GIAO_RIENG_VIEW_MU_LEAD_D.txt
-  * Tests: test_real_pilot_pending_review_cannot_create_human_labels,
-           test_exclusion_hashes_and_domain_do_not_exclude_unrelated_records
+[Điểm 1 - Resume nghiêm ngặt provenance & hash nội dung]:
+- Mã nguồn: scripts/annotate_cli.py (hàm load_already_annotated_sample_ids)
+- Giải pháp:
+  + Trong phiên gán nhãn người thật, bắt buộc bản ghi cũ phải có đủ 6 trường:
+    dataset_id, dataset_hash, codebook_version, codebook_hash,
+    sampling_plan_version, sample_content_hash.
+  + Nếu trường kỳ vọng đã xác định mà bản ghi cũ thiếu, rỗng hoặc khác giá trị
+    đều ném ValueError từ chối ngay lập tức (không bỏ qua).
+  + Từ chối bản ghi có sample_id không thuộc gói hiện tại.
+  + So khớp hash nội dung bằng chính hàm canonical compute_sample_content_hash()
+    (tính hash trên url, page_text và structure_summary).
+- Test cases:
+  * test_resume_rejects_missing_provenance_field_in_real_session
+  * test_resume_rejects_empty_or_mismatched_when_expected_is_set
+  * test_resume_rejects_unknown_sample_id_not_in_current_package
+  * test_resume_content_hash_includes_structure_summary
+  * test_resume_rejects_dataset_hash_mismatch
 
-- Kết quả chạy test: 111/111 test cases ĐẠT 100% (pytest passed in 3.02s).
+[Điểm 2 - Kappa kiểm soát đơn gói & Ghép cặp theo sample_id]:
+- Mã nguồn: src/phishing/annotation/__init__.py (hàm compute_cohens_kappa)
+- Giải pháp:
+  + Cấm tuyệt đối tính Kappa trên tập dữ liệu lẫn lộn nhiều gói, nhiều codebook
+    hoặc sampling plan khác nhau (len(clean_v1) > 1 hoặc len(clean_v2) > 1 ném
+    ValueError("LỖI ĐA GÓI...")).
+  + Ghép cặp hai bên theo sample_id và sắp xếp tất định (sorted(common_ids)).
+  + Đối chiếu từng cặp phải trùng khớp provenance và sample_content_hash.
+  + Bảo toàn các ca khó trong random_subset; loại bỏ dữ liệu synthetic/dry-run.
+- Test cases:
+  * test_kappa_rejects_mixed_batch_multiple_packages
+  * test_kappa_rejects_pairwise_content_hash_mismatch
+  * test_kappa_stable_deterministic_sort_matches_different_order
+  * test_kappa_keeps_difficult_cases_in_random_subset
+
+[Điểm 3 - Xóa bỏ Fallback eTLD+1 nguy hiểm]:
+- Mã nguồn: src/phishing/data/exclusion.py
+- Giải pháp:
+  + Đã XÓA BỎ HOÀN TOÀN đoạn mã cắt 2 phần cuối tên miền (parts[-2:]).
+  + Bắt buộc sử dụng thư viện tldextract cùng danh sách Public Suffix List (PSL)
+    đóng gói offline kèm private suffixes.
+  + Nếu môi trường thiếu tldextract, hệ thống lập tức ném ImportError, ngăn
+    chặn triệt để nguy cơ phân nhóm sai eTLD+1 đa thành phần (.co.uk, .edu.vn).
+- Test cases:
+  * test_domain_group_exclusion_multi_part_tld
+  * test_missing_tldextract_raises_import_error_without_fallback
+
+[Điểm 4 - Đính chính Metadata Check Point Research & Chứng minh toán học]:
+- Tệp cấu hình: configs/dictionary_v1.json, docs/CODEBOOK_V1.md
+- Giải pháp:
+  + Q1/2025: Đã loại bỏ PayPal, bổ sung WhatsApp theo đúng báo cáo gốc ngày 21/04/2025.
+  + Q3/2025: Đã loại bỏ Facebook và Alibaba; bổ sung Spotify và Booking theo đúng
+    báo cáo gốc ngày 16/10/2025.
+  + Chứng minh toán học: Hợp của tất cả 15 thương hiệu xuất hiện trong Top 10 của
+    5 quý CPR ánh xạ chính xác 100% về đúng 14 tổ chức cơ sở trong từ điển.
+- Test cases:
+  * test_dictionary_v1_json_valid
+  * Script kiểm định toán học độc lập hợp đủ 14 tổ chức đạt 100%.
+
+- Kết quả kiểm thử toàn hệ thống: 111/111 test cases ĐẠT 100% (pytest passed in 3.02s).
+- Văn bản báo cáo kỹ thuật: docs/BAO_CAO_BAN_GIAO_RIENG_VIEW_MU_LEAD_D.txt
 
 --------------------------------------------------------------------------------
-3. THÔNG SỐ GÓI VIEW MÙ REAL32 & MANIFEST BÀN GIAO CHO LEAD D
+3. BÀN GIAO THỰC TẾ FILE VIEW MÙ REAL32 & THÔNG SỐ ĐỐI SOÁT SCHEMA/BYTES
 --------------------------------------------------------------------------------
-A. Tệp View Mù 32 mẫu thật (Kênh cục bộ an toàn, không đẩy lên Git):
-- Đường dẫn: data/annotations/blind_view_pilot_real.json
+
+A. Tệp View Mù 32 mẫu thật (Kênh cục bộ an toàn, không đưa lên Git):
+- Đường dẫn truy cập trên máy Lead D:
+  data/annotations/blind_view_pilot_real.json
+  (Đường dẫn tuyệt đối: D:\nguyen thang\NCKH\NCKH_2\data\annotations\blind_view_pilot_real.json)
+- Kích thước tệp thực tế: Đúng 22.449 bytes
 - Định danh gói: REAL-PILOT-32-V1
 - Kiểu gói: real_pilot_pending_review
 - Trạng thái mở nhập liệu: ready_for_annotation: false
 - Thuộc tính mô phỏng: is_synthetic: false (Dữ liệu thực tế 32 mẫu)
-- Quy mô: Đúng 32 mẫu (20 phishing + 12 benign theo nhãn nguồn)
-- Sampling plan version: "PILOT-PLAN-V1-FULL-OVERLAP"
+- Quy mô mẫu: Đúng 32 mẫu (20 mẫu phishing + 12 mẫu benign theo nhãn nguồn)
+- Phiên bản sampling plan: "PILOT-PLAN-V1-FULL-OVERLAP"
 - Mã băm SHA-256 tệp View Mù:
   08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
 
-B. Tệp Manifest kiểm định đối chiếu:
+B. Cấu trúc Schema gói dữ liệu View Mù (Đã đối soát kiểm tra Zero Leakage):
+- Các khóa cấp Root (15 trường):
+  ['version', 'dataset_id', 'dataset_type', 'is_synthetic', 'purpose',
+   'description', 'created_at_utc', 'total_samples', 'samples',
+   'ready_for_annotation', 'codebook_sha256', 'dictionary_sha256',
+   'sampling_plan_version', 'sampling_plan_note', 'codebook_version']
+- Cấu trúc từng mẫu trong danh sách samples (Đúng 6 trường trung lập):
+  ['sample_id', 'url', 'page_text', 'structure_summary', 'random_subset', 'codebook_version']
+- Cấu trúc của structure_summary (Đúng 7 trường DOM tóm tắt an toàn):
+  ['title', 'forms', 'inputs', 'password_inputs', 'has_login_form', 'buttons', 'external_links']
+- Cam kết bảo mật: 100% không chứa các trường rò rỉ (phish, benign, label, score, target).
+
+C. Tệp Manifest kiểm định đối chiếu tương ứng:
 - Đường dẫn: configs/pilot_manifest.json
+- Kích thước tệp: 2.219 bytes
 - Mã băm SHA-256 tệp Manifest:
   6d250bb5fbc2fb00f11d6809dd5f7e9c957decbfd66a0fbe3ebf9a451feb1f6b
 - Các mã băm tham chiếu đồng bộ 100% trên đĩa:
@@ -83,19 +127,19 @@ B. Tệp Manifest kiểm định đối chiếu:
   * blind_view_sha256: 08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
 
 * Cam kết bảo mật ARS: Toàn bộ dữ liệu thô và bảng ánh xạ có nhãn (source_mapping.json)
-  được lưu giữ cách ly tại máy cục bộ (data/raw/pilot/), không đưa lên Git và không gửi cho A/B.
+  tiếp tục được lưu giữ cách ly tại máy cục bộ (data/raw/pilot/), không đưa lên Git và không gửi cho A/B.
 
 --------------------------------------------------------------------------------
-4. DUY TRÌ TRẠNG THÁI PENDING & CHỐT CHẶN AN TOÀN
+4. DUY TRÌ TRẠNG THÁI PENDING, CHƯA MỞ PILOT & CHẶN TRAINING
 --------------------------------------------------------------------------------
-Tiểu ban C cam kết duy trì nghiêm ngặt:
-- ready_for_annotation: false
+Tiểu ban C cam kết duy trì nghiêm ngặt các chốt chặn an toàn:
+- ready_for_annotation: false (trong cả manifest và view mù)
 - dictionary_v1.json & CODEBOOK_V1.md: status = "pending_review"
 - configs/pilot_manifest.json: acceptance = {"B": "approved", "D": "pending"}
 - data/exclusion_registry.json: training_blocked = true
 
 Chốt chặn CLI đang kích hoạt đầy đủ: Mọi phiên gán nhãn người thật sẽ tự động bị từ chối
-cho đến khi có lệnh nghiệm thu chính thức từ Lead D.
+cho đến khi Lead D chính thức nghiệm thu byte/schema và phát lệnh duyệt.
 
-Kính mời Lead D kiểm tra đối soát!
+Kính mời Lead D kiểm tra đối soát trực tiếp trên tệp blind_view_pilot_real.json!
 ================================================================================
