@@ -52,12 +52,17 @@ Bằng chứng: [dictionary_v1.json](../configs/dictionary_v1.json), [CODEBOOK_V
 
 Status: IN_PROGRESS (Phần C tạo view mù và CLI bấm giờ đã DONE, A và B chuẩn bị gán nhãn). Owner: C tạo view; A/B đọc độc lập. Phụ thuộc: DATA-02.
 
-Đã hoàn thành toàn diện phần việc của Thành viên C:
-1. **Module Blind View & Anti-Leakage:** [`blind_view.py`](../src/phishing/annotation/blind_view.py) loại bỏ triệt để script, iframe, inline events, form values. Hàm `assert_no_label_leak` kiểm tra đệ quy đảm bảo không rò rỉ bất kỳ nhãn nguồn, target hay điểm số nào.
-2. **Schema & Validation AnnotationRecord:** Tuân thủ 100% taxonomy [`docs/CODEBOOK_V1.md`](CODEBOOK_V1.md), tích hợp trường bấm giờ `seconds_spent` không âm. Đã cung cấp mẫu template tại [`annotation_record_template.json`](../data/annotations/templates/annotation_record_template.json).
-3. **Gói dữ liệu Blind View Pilot 20 mẫu:** [`blind_view_pilot.json`](../data/annotations/blind_view_pilot.json) chứa 20 mẫu pilot an toàn, đại diện đầy đủ các loại hình trang.
-4. **Công cụ gán nhãn CLI có bấm giờ tự động:** [`annotate_cli.py`](../scripts/annotate_cli.py) hỗ trợ đo thời gian thực tế, kiểm tra enum tự động, lưu JSONL tức thời và hỗ trợ resume khi tạm dừng.
-5. **Kiểm thử tự động:** 10/10 unit tests đạt 100% tại [`test_blind_view.py`](../tests/test_blind_view.py). Toàn bộ dự án đạt 65/65 tests pass.
+Đã hoàn thành toàn diện phần việc của Thành viên C (bao gồm giải quyết 6 điểm review của Lead D):
+1. **Module Blind View & Anti-Leakage:** [`blind_view.py`](../src/phishing/annotation/blind_view.py) loại bỏ triệt để script, iframe, inline events, form values. Triển khai cơ chế Allowlist chặt chẽ (`ALLOWED_BLIND_SAMPLE_KEYS`, `ALLOWED_STRUCTURE_SUMMARY_KEYS`), kiểm tra ID mẫu trung tính (`assert_neutral_sample_id` từ chối các chuỗi chứa nhãn như phish/benign hay tên thương hiệu 14 tổ chức), và cấm tiền tố/hậu tố rò rỉ (`annotation_`, `rater_`, `model_`, `_label`, `_score`).
+2. **Schema & Validation AnnotationRecord:** Tuân thủ 100% taxonomy [`docs/CODEBOOK_V1.md`](CODEBOOK_V1.md), tích hợp trường bấm giờ `seconds_spent` không âm, bổ sung trường phân định mô phỏng `is_dry_run: bool = False`. Đã cung cấp mẫu template tại [`annotation_record_template.json`](../data/annotations/templates/annotation_record_template.json).
+3. **Gói dữ liệu Blind View Pilot 20 mẫu:** [`blind_view_pilot.json`](../data/annotations/blind_view_pilot.json) xác nhận rõ xuất xứ `dataset_type: "synthetic_practice_pilot"`, `is_synthetic: true`, mục đích mô phỏng thao tác kỹ thuật; ghi chú rõ ràng không dùng thời gian từ tập này để tính cỡ mẫu cho PLAN-01. ID 20 mẫu được chuẩn hóa trung tính `PILOT-001` đến `PILOT-020`.
+4. **Công cụ gán nhãn CLI có bấm giờ tự động:** [`annotate_cli.py`](../scripts/annotate_cli.py) hỗ trợ:
+   - Đồng hồ bấm giờ tính cả thời gian đọc toàn văn và phân trang văn bản (lệnh `v`/`m` trong console không làm ngắt đồng hồ).
+   - Đọc động `codebook_version` và `random_subset` từ tệp dữ liệu hoặc cờ CLI, không hardcode.
+   - Cách ly tuyệt đối chế độ dry-run: tự động lưu vào file `.dryrun.jsonl`, gán `is_dry_run=True` và `annotator_id="simulated_<ID>"`.
+   - Cơ chế resume an toàn: đối chiếu `annotator_id`, `pass_id`, loại trừ tạp nhiễm dry-run và ném lỗi toàn vẹn đối với dòng JSON hỏng (không âm thầm bỏ qua).
+5. **Đo đạc Cohen's Kappa:** [`annotation/__init__.py`](../src/phishing/annotation/__init__.py) hàm `compute_cohens_kappa` tự động loại bỏ các bản ghi mô phỏng `is_dry_run=True` khỏi thống kê thỏa thuận liên đánh giá viên.
+6. **Kiểm thử tự động:** 23/23 unit tests đạt 100% tại [`test_blind_view.py`](../tests/test_blind_view.py). Toàn bộ dự án đạt 78/78 tests pass.
 
 Bằng chứng: [blind_view.py](../src/phishing/annotation/blind_view.py), [blind_view_pilot.json](../data/annotations/blind_view_pilot.json), [annotate_cli.py](../scripts/annotate_cli.py), [test_blind_view.py](../tests/test_blind_view.py).
 

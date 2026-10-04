@@ -5,11 +5,14 @@ Quy chuẩn ARS bắt buộc:
    - Ẩn hoàn toàn nhãn gốc (source_label, label), mục tiêu (target), điểm mô hình (score),
      và kết quả của đánh giá viên còn lại.
    - Kiểm tra rò rỉ dữ liệu triệt để (assert_no_label_leak) trước khi xuất view.
+   - Bắt buộc kiểm tra allowlist chặt chẽ cho gói dữ liệu mù, ID mẫu trung tính do C cấp,
+     cấm mọi tiền tố/hậu tố liên quan đến nhãn hoặc kết quả của người khác.
 2. Safety First:
    - Không bao giờ thực thi JavaScript hoặc render HTML sống của trang phishing.
    - Loại bỏ toàn bộ script, iframe, inline event handlers, form prefilled values.
 3. Codebook v1 Compliance:
    - Chuẩn hóa cấu trúc bản ghi gán nhãn (AnnotationRecord) với đầy đủ taxonomy và trường bấm giờ seconds_spent.
+   - Tách biệt rạch ròi các bản ghi mô phỏng/dry-run qua cờ is_dry_run, cấm lẫn vào nhãn thật.
 """
 
 from dataclasses import asdict, dataclass
@@ -25,6 +28,27 @@ from urllib.parse import urljoin, urlparse
 from phishing.preprocessing.html import clean_html
 from phishing.preprocessing.urls import normalize_url
 
+
+# Danh mục các trường được phép xuất hiện trong một mẫu BlindSample (Allowlist)
+ALLOWED_BLIND_SAMPLE_KEYS: Set[str] = frozenset({
+    "sample_id",
+    "url",
+    "page_text",
+    "structure_summary",
+    "random_subset",
+    "codebook_version",
+})
+
+# Danh mục các trường được phép trong structure_summary (Allowlist)
+ALLOWED_STRUCTURE_SUMMARY_KEYS: Set[str] = frozenset({
+    "title",
+    "forms",
+    "inputs",
+    "password_inputs",
+    "has_login_form",
+    "buttons",
+    "external_links",
+})
 
 # Danh mục các trường cấm tuyệt đối xuất hiện trong Blind View (Chống rò rỉ nhãn)
 FORBIDDEN_LEAK_KEYS: Set[str] = frozenset({
@@ -46,6 +70,41 @@ FORBIDDEN_LEAK_KEYS: Set[str] = frozenset({
     "pilot_row_idx",
 })
 
+# Các tiền tố bị cấm tuyệt đối (Chống rò rỉ kết quả của người khác hoặc nguồn)
+FORBIDDEN_PREFIXES: Tuple[str, ...] = (
+    "annotation_",
+    "annotation.",
+    "rater_",
+    "rater.",
+    "pass_",
+    "label_",
+    "result_",
+    "source_",
+    "annotator_",
+    "review_",
+    "model_",
+)
+
+# Các hậu tố bị cấm
+FORBIDDEN_SUFFIXES: Tuple[str, ...] = (
+    "_label",
+    ".class_label",
+    ".label",
+    "_target",
+    ".target",
+    "_score",
+    ".score",
+    "_verdict",
+)
+
+# Danh mục từ khóa nhãn và thương hiệu nhạy cảm bị cấm trong sample_id (Bắt buộc ID trung tính)
+SENSITIVE_BRAND_AND_LABEL_TERMS: Set[str] = frozenset({
+    "phish", "phishing", "benign", "malicious", "clean", "ham", "suspicious",
+    "microsoft", "google", "meta", "facebook", "apple", "amazon",
+    "linkedin", "x_twitter", "twitter", "paypal", "adobe",
+    "booking", "dhl", "spotify", "alibaba", "mastercard",
+})
+
 # Bộ giá trị enum chuẩn hóa theo docs/CODEBOOK_V1.md
 VALID_CLASS_LABELS = frozenset({"phishing", "benign", "insufficient_evidence"})
 VALID_PRIMARY_ORG_STATUSES = frozenset({"identified", "unknown", "no_clear_target", "multi_target"})
@@ -60,9 +119,44 @@ VALID_DOMAIN_ROLES = frozenset({
 })
 
 
+def assert_neutral_sample_id(sample_id: Any) -> None:
+    """Kiểm tra mã định danh mẫu phải là ID trung tính do C cấp, cấm chứa nhãn hay tên tổ chức."""
+    sid_str = str(sample_id).strip()
+    if not sid_str:
+        raise ValueError("sample_id không được để rỗng.")
+
+    sid_lower = sid_str.lower()
+    tokens = set(re.findall(r"[a-z0-9]+", sid_lower))
+    matched_terms = [t for t in sorted(list(SENSITIVE_BRAND_AND_LABEL_TERMS)) if t in tokens or t in sid_lower]
+    if matched_terms:
+        raise ValueError(
+            f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: sample_id '{sample_id}' chứa từ khóa định danh/nhãn nhạy cảm {matched_terms}. "
+            f"sample_id phải là mã trung tính do C cấp (ví dụ: PILOT-001, SMP-101)."
+        )
+
+
 def assert_no_label_leak(data: Any, path: str = "root") -> None:
     """Kiểm tra đệ quy đảm bảo không có bất kỳ trường nhãn hoặc metadata cấm nào xuất hiện trong Blind View."""
     if isinstance(data, dict):
+        # 1. Nếu là từ điển của một mẫu (chứa sample_id và url), áp dụng Allowlist chặt chẽ
+        if "sample_id" in data and "url" in data:
+            extra_keys = set(data.keys()) - ALLOWED_BLIND_SAMPLE_KEYS
+            if extra_keys:
+                raise ValueError(
+                    f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: Mẫu tại '{path}' chứa các khóa ngoài allowlist: {sorted(list(extra_keys))}! "
+                    f"Blind sample chỉ được phép chứa: {sorted(list(ALLOWED_BLIND_SAMPLE_KEYS))}."
+                )
+            assert_neutral_sample_id(data["sample_id"])
+
+            summary = data.get("structure_summary")
+            if isinstance(summary, dict):
+                summary_extra = set(summary.keys()) - ALLOWED_STRUCTURE_SUMMARY_KEYS
+                if summary_extra:
+                    raise ValueError(
+                        f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: structure_summary tại '{path}' chứa khóa ngoài allowlist: {sorted(list(summary_extra))}."
+                    )
+
+        # 2. Kiểm tra từng cặp khóa-giá trị
         for key, value in data.items():
             k_lower = str(key).lower()
             if k_lower in FORBIDDEN_LEAK_KEYS:
@@ -70,6 +164,23 @@ def assert_no_label_leak(data: Any, path: str = "root") -> None:
                     f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: Khóa cấm '{key}' xuất hiện tại vị trí '{path}.{key}'! "
                     f"Quy chuẩn Blind View cấm hoàn toàn nhãn nguồn, target hoặc điểm mô hình."
                 )
+
+            for pfx in FORBIDDEN_PREFIXES:
+                if k_lower.startswith(pfx):
+                    raise ValueError(
+                        f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: Khóa '{key}' mang tiền tố cấm '{pfx}' tại '{path}.{key}'! "
+                        f"Không được để lộ kết quả của người khác hoặc thông tin nguồn."
+                    )
+
+            for sfx in FORBIDDEN_SUFFIXES:
+                if k_lower.endswith(sfx) or sfx in k_lower:
+                    raise ValueError(
+                        f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: Khóa '{key}' chứa hậu tố nhãn/mô hình '{sfx}' tại '{path}.{key}'!"
+                    )
+
+            if k_lower == "sample_id":
+                assert_neutral_sample_id(value)
+
             assert_no_label_leak(value, path=f"{path}.{key}")
     elif isinstance(data, (list, tuple)):
         for idx, item in enumerate(data):
@@ -153,7 +264,6 @@ class _SafeContentExtractor(HTMLParser):
             self._text_chunks.append(cleaned)
 
     def get_clean_text(self) -> str:
-        # Nối văn bản và chuẩn hóa khoảng trắng thừa
         raw_text = " ".join(self._text_chunks)
         return re.sub(r"\s+", " ", raw_text).strip()
 
@@ -185,7 +295,6 @@ def extract_safe_view_content(html_content: str | None, page_url: str) -> Tuple[
             "external_links": 0,
         }
 
-    # Tiền xử lý chuẩn qua clean_html để loại bỏ prefilled values và inline event handlers
     pre_cleaned = clean_html(html_content, page_url)
     parser = _SafeContentExtractor(page_url)
     parser.feed(pre_cleaned)
@@ -200,6 +309,8 @@ class BlindSample:
     url: str
     page_text: str
     structure_summary: Dict[str, Any]
+    random_subset: bool = True
+    codebook_version: str = "1.0.0"
 
     def to_dict(self) -> Dict[str, Any]:
         d = {
@@ -207,14 +318,23 @@ class BlindSample:
             "url": self.url,
             "page_text": self.page_text,
             "structure_summary": self.structure_summary,
+            "random_subset": self.random_subset,
+            "codebook_version": self.codebook_version,
         }
         assert_no_label_leak(d)
         return d
 
 
-def create_blind_sample(raw_sample: Dict[str, Any], sample_id: str | None = None) -> BlindSample:
+def create_blind_sample(
+    raw_sample: Dict[str, Any],
+    sample_id: str | None = None,
+    random_subset: bool = True,
+    codebook_version: str = "1.0.0",
+) -> BlindSample:
     """Tạo mẫu BlindSample an toàn từ bản ghi thô, loại bỏ triệt để mọi nhãn nguồn."""
-    sid = sample_id or raw_sample.get("sample_id") or raw_sample.get("id") or str(raw_sample.get("row_idx", "S000"))
+    sid = sample_id or raw_sample.get("sample_id") or raw_sample.get("id") or str(raw_sample.get("row_idx", "SMP-001"))
+    assert_neutral_sample_id(sid)
+
     url = raw_sample.get("url", "https://unknown.local/")
     try:
         norm_url = normalize_url(url)
@@ -240,13 +360,17 @@ def create_blind_sample(raw_sample: Dict[str, Any], sample_id: str | None = None
             "external_links": 0,
         }
 
+    is_random = raw_sample.get("random_subset", random_subset)
+    cb_ver = raw_sample.get("codebook_version", codebook_version)
+
     blind = BlindSample(
         sample_id=str(sid),
         url=norm_url,
         page_text=extracted_text,
         structure_summary=summary,
+        random_subset=bool(is_random),
+        codebook_version=str(cb_ver),
     )
-    # Tự kiểm tra không rò rỉ nhãn
     assert_no_label_leak(blind.to_dict())
     return blind
 
@@ -270,6 +394,7 @@ class AnnotationRecord:
     random_subset: bool
     difficult_case: bool
     codebook_version: str = "1.0.0"
+    is_dry_run: bool = False
     timestamp_utc: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -290,6 +415,7 @@ class AnnotationRecord:
             "random_subset": bool(self.random_subset),
             "difficult_case": bool(self.difficult_case),
             "codebook_version": self.codebook_version,
+            "is_dry_run": bool(self.is_dry_run),
             "timestamp_utc": self.timestamp_utc or datetime.now(timezone.utc).isoformat(),
         }
 
@@ -306,7 +432,6 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
     if missing:
         raise ValueError(f"Bản ghi gán nhãn thiếu các trường bắt buộc: {sorted(list(missing))}")
 
-    # Kiểm tra enum
     class_label = data["class_label"]
     if class_label not in VALID_CLASS_LABELS:
         raise ValueError(f"class_label '{class_label}' không hợp lệ. Phải thuộc: {sorted(list(VALID_CLASS_LABELS))}")
@@ -336,6 +461,7 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
         raise TypeError("org_targets phải là danh sách (list) các chuỗi tổ chức.")
 
     timestamp = data.get("timestamp_utc") or datetime.now(timezone.utc).isoformat()
+    is_dry = bool(data.get("is_dry_run", False))
 
     return AnnotationRecord(
         annotator_id=str(data["annotator_id"]),
@@ -354,6 +480,7 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
         random_subset=bool(data["random_subset"]),
         difficult_case=bool(data["difficult_case"]),
         codebook_version=str(data.get("codebook_version", "1.0.0")),
+        is_dry_run=is_dry,
         timestamp_utc=str(timestamp),
     )
 
@@ -363,7 +490,11 @@ def export_blind_view(
     output_path: Path | str,
     *,
     version: str = "1.0.0",
-    description: str = "Gói dữ liệu Blind View phục vụ gán nhãn mù độc lập (Task LABEL-01)",
+    dataset_id: str = "BLIND-VIEW-V1",
+    dataset_type: str = "blind_view",
+    is_synthetic: bool = False,
+    purpose: str = "Gói dữ liệu Blind View phục vụ gán nhãn mù độc lập (Task LABEL-01)",
+    description: str = "",
 ) -> Dict[str, Any]:
     """Xuất danh sách mẫu thành gói JSON Blind View an toàn cho A và B."""
     out_file = Path(output_path)
@@ -379,11 +510,14 @@ def export_blind_view(
         else:
             raise TypeError(f"Mẫu không hợp lệ: kiểu {type(item)}")
 
-    # Kiểm tra tổng thể toàn bộ gói dữ liệu không được rò rỉ nhãn
     payload = {
         "version": version,
+        "dataset_id": dataset_id,
+        "dataset_type": dataset_type,
+        "is_synthetic": is_synthetic,
+        "purpose": purpose,
+        "description": description or purpose,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "description": description,
         "total_samples": len(clean_samples),
         "samples": clean_samples,
     }

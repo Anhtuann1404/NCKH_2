@@ -1,7 +1,11 @@
 {
   "version": "1.0.0",
-  "created_at_utc": "2026-10-04T11:12:09.152567+00:00",
-  "description": "Gói 20 mẫu Blind View kỹ thuật phục vụ lượt gán nhãn pilot có bấm giờ (Task LABEL-01)",
+  "dataset_id": "SYNTHETIC-PILOT-PRACTICE-V1",
+  "dataset_type": "synthetic_practice_pilot",
+  "is_synthetic": true,
+  "purpose": "Tập dữ liệu mô phỏng kỹ thuật phục vụ tập dượt thao tác quy trình cho Thành viên A và B. KHÔNG dùng số liệu bấm giờ của tập này để ước lượng công sức gán nhãn thực tế cho PLAN-01.",
+  "description": "Gói 20 mẫu Blind View kỹ thuật mô phỏng phục vụ tập dượt quy trình gán nhãn cho A và B",
+  "created_at_utc": "2026-10-04T12:11:22.991437+00:00",
   "total_samples": 20,
   "samples": [
     {
@@ -16,7 +20,9 @@
         "has_login_form": true,
         "buttons": 2,
         "external_links": 1
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-002",
@@ -30,7 +36,9 @@
         "has_login_form": false,
         "buttons": 1,
         "external_links": 8
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-003",
@@ -44,7 +52,9 @@
         "has_login_form": false,
         "buttons": 2,
         "external_links": 0
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-004",
@@ -58,7 +68,9 @@
         "has_login_form": false,
         "buttons": 2,
         "external_links": 3
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-005",
@@ -72,7 +84,9 @@
         "has_login_form": true,
         "buttons": 1,
         "external_links": 2
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-006",
@@ -86,7 +100,9 @@
         "has_login_form": false,
         "buttons": 6,
         "external_links": 25
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-007",
@@ -100,7 +116,9 @@
         "has_login_form": true,
         "buttons": 2,
         "external_links": 0
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-008",
@@ -114,7 +132,9 @@
         "has_login_form": false,
         "buttons": 4,
         "external_links": 12
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-009",
@@ -128,7 +148,9 @@
         "has_login_form": false,
         "buttons": 1,
         "external_links": 1
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-010",
@@ -142,7 +164,9 @@
         "has_login_form": true,
         "buttons": 2,
         "external_links": 0
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-011",
@@ -156,7 +180,9 @@
         "has_login_form": false,
         "buttons": 3,
         "external_links": 15
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-012",
@@ -170,7 +196,9 @@
         "has_login_form": false,
         "buttons": 2,
         "external_links": 3
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-013",
@@ -184,7 +212,9 @@
         "has_login_form": false,
         "buttons": 1,
         "external_links": 1
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-014",
@@ -198,7 +228,9 @@
         "has_login_form": false,
         "buttons": 2,
         "external_links": 7
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-015",
@@ -212,7 +244,9 @@
         "has_login_form": false,
         "buttons": 1,
         "external_links": 0
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-016",
@@ -226,7 +260,9 @@
         "has_login_form": false,
         "buttons": 2,
         "external_links": 2
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-017",
@@ -240,7 +276,9 @@
         "has_login_form": true,
         "buttons": 4,
         "external_links": 2
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-018",
@@ -254,7 +292,9 @@
         "has_login_form": false,
         "buttons": 5,
         "external_links": 9
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-019",
@@ -268,7 +308,9 @@
         "has_login_form": false,
         "buttons": 1,
         "external_links": 1
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     },
     {
       "sample_id": "PILOT-020",
@@ -282,7 +324,9 @@
         "has_login_form": false,
         "buttons": 2,
         "external_links": 3
-      }
+      },
+      "random_subset": true,
+      "codebook_version": "1.0.0"
     }
   ]
 }
