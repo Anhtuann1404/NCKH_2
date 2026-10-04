@@ -34,6 +34,7 @@ def compute_cohens_kappa(
     random_subset: Sequence[bool] | None = None,
     label_field: Literal["class_label", "primary_org"] = "class_label",
     allow_dry_run: bool = False,
+    allow_synthetic: bool = False,
 ) -> KappaResult:
     """Tính chỉ số thỏa thuận liên đánh giá viên Cohen's Kappa giữa A và B trên mẫu ngẫu nhiên.
 
@@ -41,7 +42,8 @@ def compute_cohens_kappa(
     1. Chọn theo random_subset, giữ cả ca khó vốn nằm trong random. is_difficult
        chỉ là metadata, không quyết định loại mẫu. Chuỗi nhãn không metadata được
        xem là đầu vào đã lọc random; khi truyền is_difficult phải truyền membership.
-    2. Loại bỏ triệt để các bản ghi mô phỏng/dry-run (is_dry_run=True) để không làm sai lệch thống kê.
+    2. Loại bỏ triệt để các bản ghi mô phỏng/dry-run (is_dry_run=True) và dữ liệu mô phỏng (is_synthetic=True)
+       để không làm sai lệch thống kê nghiên cứu.
     3. Khi Pe = 1.0 (hoặc toàn bộ dữ liệu chỉ có duy nhất 1 danh mục), hệ số Kappa không xác định (0/0).
        Hàm trả về kappa = None, status = 'undefined_single_class', và ghi nhận P_o riêng biệt.
     4. Kiểm tra tính toàn vẹn dữ liệu: phát hiện thiếu nhãn (None, rỗng, whitespace).
@@ -63,15 +65,25 @@ def compute_cohens_kappa(
         if set(dict1_sids) != set(dict2.keys()):
             raise ValueError("Danh sách sample_id giữa hai đánh giá viên không khớp nhau.")
 
-        def _get_pkg_hash(item: Any) -> str | None:
-            if isinstance(item, dict):
-                return item.get("dataset_hash") or item.get("package_hash")
-            return getattr(item, "dataset_hash", None) or getattr(item, "package_hash", None)
-
-        hashes1 = {h for r in rater1 if (h := _get_pkg_hash(r))}
-        hashes2 = {h for r in rater2 if (h := _get_pkg_hash(r))}
-        if hashes1 and hashes2 and hashes1 != hashes2:
-            raise ValueError(f"Không thể tính Kappa: hai đánh giá viên gán trên gói dữ liệu khác nhau (hash: {hashes1} vs {hashes2}).")
+        # Kiểm tra tính đồng nhất về provenance giữa rater1 và rater2
+        provenance_fields = [
+            "dataset_id",
+            "dataset_hash",
+            "codebook_hash",
+            "codebook_version",
+            "sampling_plan_version",
+            "is_synthetic",
+        ]
+        for field in provenance_fields:
+            vals1 = {getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater1}
+            vals2 = {getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater2}
+            clean_v1 = {v for v in vals1 if v is not None and v != ""}
+            clean_v2 = {v for v in vals2 if v is not None and v != ""}
+            if clean_v1 and clean_v2 and clean_v1 != clean_v2:
+                raise ValueError(
+                    f"Không thể tính Kappa: mâu thuẫn provenance '{field}' giữa hai đánh giá viên "
+                    f"({clean_v1} vs {clean_v2})."
+                )
 
         rater2 = [dict2[sid] for sid in dict1_sids]
 
@@ -82,12 +94,17 @@ def compute_cohens_kappa(
     if label_field not in {"class_label", "primary_org"}:
         raise ValueError("label_field phải là class_label hoặc primary_org.")
 
-    # Lọc bỏ các ca khó và bản ghi dry-run mô phỏng
+    # Lọc bỏ các ca khó, bản ghi dry-run và dữ liệu mô phỏng
     clean_pairs = []
     for index, (r1, r2) in enumerate(zip(rater1, rater2)):
         is_dr1 = getattr(r1, "is_dry_run", False) or (isinstance(r1, dict) and r1.get("is_dry_run", False))
         is_dr2 = getattr(r2, "is_dry_run", False) or (isinstance(r2, dict) and r2.get("is_dry_run", False))
         if not allow_dry_run and (is_dr1 or is_dr2):
+            continue
+
+        is_syn1 = getattr(r1, "is_synthetic", False) or (isinstance(r1, dict) and r1.get("is_synthetic", False))
+        is_syn2 = getattr(r2, "is_synthetic", False) or (isinstance(r2, dict) and r2.get("is_synthetic", False))
+        if not allow_synthetic and (is_syn1 or is_syn2):
             continue
 
         membership1 = r1.get("random_subset") if isinstance(r1, dict) else getattr(r1, "random_subset", None)
@@ -114,7 +131,7 @@ def compute_cohens_kappa(
         clean_pairs.append((val1, val2))
 
     if not clean_pairs:
-        raise ValueError("Không còn mẫu ngẫu nhiên hợp lệ nào sau khi loại bỏ ca khó và bản ghi dry-run.")
+        raise ValueError("Không còn mẫu ngẫu nhiên hợp lệ nào sau khi loại bỏ ca khó, bản ghi dry-run và dữ liệu mô phỏng.")
 
     r1_list, r2_list = zip(*clean_pairs)
 
@@ -171,3 +188,23 @@ def compute_cohens_kappa(
         sample_count=n,
         categories=categories,
     )
+
+
+def filter_research_annotations(
+    records: Sequence[Any],
+    *,
+    allow_synthetic: bool = False,
+    allow_dry_run: bool = False,
+) -> List[Any]:
+    """Lọc các bản ghi dùng cho thống kê nghiên cứu khoa học, loại bỏ dữ liệu mô phỏng và dry-run."""
+    filtered = []
+    for r in records:
+        is_dry = getattr(r, "is_dry_run", False) or (isinstance(r, dict) and r.get("is_dry_run", False))
+        is_synth = getattr(r, "is_synthetic", False) or (isinstance(r, dict) and r.get("is_synthetic", False))
+        if not allow_dry_run and is_dry:
+            continue
+        if not allow_synthetic and is_synth:
+            continue
+        filtered.append(r)
+    return filtered
+

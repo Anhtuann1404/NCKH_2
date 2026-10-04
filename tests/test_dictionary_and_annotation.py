@@ -154,7 +154,8 @@ class TestHelperFunctionsAndKappa:
     """Kiểm tra hàm verify_sha256 và thuật toán Cohen's Kappa."""
 
     def test_verify_sha256_correct(self):
-        expected_hash = "61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28"
+        import hashlib
+        expected_hash = hashlib.sha256(DICT_PATH.read_bytes()).hexdigest()
         assert verify_sha256(str(DICT_PATH), expected_hash) is True
 
     def test_verify_sha256_wrong(self):

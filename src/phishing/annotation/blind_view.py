@@ -400,6 +400,7 @@ class AnnotationRecord:
     dataset_hash: str = ""
     codebook_hash: str = ""
     sampling_plan_version: str = ""
+    sample_content_hash: str = ""
     timestamp_utc: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -426,6 +427,7 @@ class AnnotationRecord:
             "dataset_hash": self.dataset_hash,
             "codebook_hash": self.codebook_hash,
             "sampling_plan_version": self.sampling_plan_version,
+            "sample_content_hash": self.sample_content_hash,
             "timestamp_utc": self.timestamp_utc or datetime.now(timezone.utc).isoformat(),
         }
 
@@ -477,6 +479,7 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
     ds_hash = str(data.get("dataset_hash", ""))
     cb_hash = str(data.get("codebook_hash", ""))
     plan_ver = str(data.get("sampling_plan_version", ""))
+    sample_hash = str(data.get("sample_content_hash", ""))
 
     return AnnotationRecord(
         annotator_id=str(data["annotator_id"]),
@@ -501,6 +504,7 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
         dataset_hash=ds_hash,
         codebook_hash=cb_hash,
         sampling_plan_version=plan_ver,
+        sample_content_hash=sample_hash,
         timestamp_utc=str(timestamp),
     )
 

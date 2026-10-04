@@ -1,0 +1,146 @@
+================================================================================
+BÁO CÁO PHẢN HỒI CHỈ ĐẠO CỦA LEAD D & BÀN GIAO KỸ THUẬT (THÀNH VIÊN C)
+TIỂU BAN DỮ LIỆU & GÁN NHÃN MÙ (DATA PIPELINE & BLIND VIEW)
+================================================================================
+
+Kính gửi: Lead D (Anh Tuấn)
+Đồng kính gửi: Thành viên B (QA / Kiểm nhãn độc lập), Thành viên A (Trần Hồng Khải)
+Người lập: Thành viên C (Data Pipeline & Blind View)
+Ngày lập: 04/10/2026
+Căn cứ: Ý kiến chỉ đạo của Lead D sau khi đối chiếu commit 662835f và báo cáo B ef9409f
+Nhánh Git: feat/data-pipeline
+Trạng thái kiểm thử hệ thống: 98/98 test cases đạt (100% Passed)
+
+--------------------------------------------------------------------------------
+I. NGUYÊN TẮC THỰC THI & PHÂN ĐỊNH RANH GIỚI TRÁCH NHIỆM
+--------------------------------------------------------------------------------
+
+Tiểu ban Dữ liệu (Thành viên C) quán triệt sâu sắc chỉ đạo của Lead D và quy định
+về phân định vai trò trong dự án NCKH_2:
+- Thành viên C tập trung 100% trách nhiệm vào đường ống dữ liệu, cấu trúc bản ghi,
+  view mù, kiểm tra toàn vẹn provenance, thuật toán ghép cặp và chống rò rỉ dữ liệu.
+- Tuyệt đối không can thiệp vào thẩm quyền của Thành viên B (rà soát độc lập, sửa lỗi
+  encoding báo cáo, đánh giá đạt/chưa đạt từng mục).
+- Tuyệt đối không tự ý khóa từ điển hay codebook khi chưa có lệnh chính thức từ Lead D.
+
+--------------------------------------------------------------------------------
+II. BÁO CÁO CHI TIẾT 06 NỘI DUNG THÀNH VIÊN C ĐÃ HOÀN TẤT
+--------------------------------------------------------------------------------
+
+1. Lưu trữ Xuất xứ (Provenance) & Loại dữ liệu mô phỏng khỏi thống kê nghiên cứu:
+   - Tệp sửa đổi:
+     + src/phishing/annotation/blind_view.py: Cập nhật `AnnotationRecord` lưu trữ đầy
+       đủ `is_synthetic: bool`, `dataset_id: str`, `dataset_hash: str`,
+       `codebook_hash: str`, `sampling_plan_version: str` và `sample_content_hash: str`.
+     + src/phishing/annotation/__init__.py: Hàm `compute_cohens_kappa()` bổ sung tham
+       số `allow_synthetic: bool = False`. Mặc định, toàn bộ bản ghi mô phỏng
+       (`is_synthetic=True`) và dry-run (`is_dry_run=True`) đều bị tự động loại bỏ
+       khỏi thống kê thỏa thuận liên đánh giá viên, tránh làm sai lệch đo đạc.
+     + Hàm tiện ích nghiên cứu: Xuất hàm `filter_research_annotations()` giúp lọc
+       sạch các bản ghi mô phỏng/thử nghiệm trước khi tính toán các số liệu thống kê
+       công sức (thời gian gán nhãn `seconds_spent`) phục vụ chốt kế hoạch PLAN-01.
+
+2. Nâng cấp Resume CLI: Kiểm tra Người / Pass / Gói / Hash / Codebook & Chặn đổi nội dung cùng ID:
+   - Tệp sửa đổi: scripts/annotate_cli.py (hàm `load_already_annotated_sample_ids`).
+   - Kiểm tra đa tầng tính toàn vẹn khi tiếp tục phiên làm việc:
+     + Đúng người: `rec.annotator_id == expected_annotator_id`.
+     + Đúng pass: `rec.pass_id == expected_pass_id`.
+     + Đúng gói: `rec.dataset_id == expected_dataset_id`.
+     + Đúng hash gói: `rec.dataset_hash == expected_dataset_hash`.
+     + Đúng hash codebook: `rec.codebook_hash == expected_codebook_hash`.
+     + Đúng phiên bản codebook: `rec.codebook_version == expected_codebook_version`.
+   - Chặn tuyệt đối hành vi đổi nội dung cùng ID:
+     + Khi người gán nhãn tiếp tục phiên trên tệp output cũ, CLI đối chiếu mã băm nội dung
+       từng mẫu `sample_content_hash = SHA256(url + '\0' + page_text)` giữa bản ghi cũ và
+       mẫu trong gói đầu vào hiện tại.
+     + Nếu cùng `sample_id` nhưng nội dung trang/URL đã bị thay đổi, CLI lập tức dừng và
+       ném lỗi: "MÂU THUẪN NỘI DUNG MẪU: Mẫu X có hash nội dung cũ khác với gói hiện tại.
+       Không được đổi nội dung cùng ID!".
+
+3. Ghép cặp Annotation A/B theo Sample ID & Đồng nhất Provenance trước khi tính Kappa:
+   - Tệp sửa đổi: src/phishing/annotation/__init__.py (hàm `compute_cohens_kappa`).
+   - Cơ chế đối soát:
+     + Ghép cặp bản ghi giữa A và B bằng bảng tra cứu từ điển theo `sample_id`.
+     + Phát hiện và ném lỗi nếu xuất hiện ID trùng lặp trong danh sách của từng người.
+     + Kiểm tra tập hợp `sample_id` giữa A và B: Bắt buộc khớp nhau 100%, ném lỗi nếu
+       phát hiện thiếu mẫu hoặc dư mẫu không tương thích.
+     + Đối soát Provenance toàn diện: Xác minh sự đồng nhất giữa hai đánh giá viên trên
+       mọi trường xuất xứ (`dataset_id`, `dataset_hash`, `codebook_hash`,
+       `codebook_version`, `sampling_plan_version`, `is_synthetic`). Bất kỳ mâu thuẫn
+       nào về nguồn gốc dữ liệu đều lập tức bị từ chối tính toán.
+
+4. Khóa cờ `--random-subset` qua CLI trong phiên thật & Kế thừa từ Manifest:
+   - Tệp sửa đổi: scripts/annotate_cli.py (hàm `annotate_interactive_session`).
+   - Thực thi nghiêm ngặt:
+     + Nếu không phải chế độ `--dry-run` mà người dùng cố tình truyền cờ `--random-subset`
+       trên dòng lệnh, CLI ném ngoại lệ: "CỜ BỊ KHÓA: Không được ghi đè --random-subset
+       qua CLI trong phiên gán nhãn người thật. Giá trị random_subset phải lấy từ
+       metadata/manifest đã khóa."
+     + Thuộc tính `random_subset` bắt buộc được đọc động từ dữ liệu mẫu đã niêm phong trong gói.
+
+5. Bàn giao gói View Mù REAL-PILOT-32-V1 qua kênh hạn chế cho Lead D:
+   - Thông số gói dữ liệu:
+     + Mã định chế: `REAL-PILOT-32-V1` (is_synthetic: false).
+     + Quy mô: Đúng 32 mẫu thực tế (20 mẫu phishing + 12 mẫu benign theo nhãn nguồn).
+     + Mã băm gói View Mù: `9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041`
+     + Đường dẫn cục bộ hạn chế: `data/annotations/blind_view_pilot_real.json`
+     + Mã băm tệp Mapping nguồn hạn chế: `36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347`
+     + Đường dẫn cục bộ hạn chế: `data/raw/pilot/source_mapping.json`
+     + Mã băm hoán vị ngẫu nhiên mù: `d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771`
+   - Bảo mật & Cách ly (Anti-Leakage):
+     + Toàn bộ thư mục `data/raw/` và các tệp kết quả/mapping nguồn đều nằm trong `.gitignore`,
+       tuyệt đối không đưa lên Git repository và không gửi cho A/B.
+     + Gói view mù tuân thủ cơ chế Allowlist nghiêm ngặt, ẩn 100% nhãn nguồn, mục tiêu và điểm số.
+     + Cơ chế khóa `real_pilot_pending_review` trong CLI ngăn chặn mọi hành vi mở phiên gán nhãn
+       người thật trước khi có lệnh phát động chính thức từ Lead D.
+
+6. Rà soát Metadata thương hiệu theo nguồn chính thức Check Point Research:
+   - Tệp sửa đổi: configs/dictionary_v1.json.
+   - Kết quả đối soát với các ấn phẩm chính thức của Check Point Research (Q4/2024 - Q4/2025):
+     + Đã sửa đổi và chuẩn hóa đầy đủ danh sách top thương hiệu tại bảng `source_references`
+       cho cả 5 quý, loại bỏ sai sót đưa Twitter vào Q4/2025.
+     + Quý Q4/2025 (công bố 15/01/2026) được ghi nhận chính xác 10 thương hiệu hàng đầu:
+       Microsoft (22%), Google (13%), Amazon (9%), Apple (8%), Facebook (Meta) (3%),
+       PayPal (2%), Adobe (2%), Booking (2%), DHL (1%), LinkedIn (1%).
+     + Hợp nhất 5 quý qua quy tắc chuẩn hóa thương hiệu con tạo thành danh mục 14 tổ chức cơ sở:
+       Microsoft, Google, Meta, Apple, Amazon, LinkedIn, X/Twitter, PayPal, Adobe, Booking,
+       DHL, Spotify, Alibaba, Mastercard.
+   - Duy trì trạng thái chưa khóa:
+     + Tệp `configs/dictionary_v1.json` và `docs/CODEBOOK_V1.md` tiếp tục được giữ nguyên ở trạng
+       thái `status: "pending_review"` theo đúng chỉ đạo của Lead D.
+     + Khi Lead D nghiệm thu toàn diện, Lead D sẽ là người trực tiếp chốt khóa phiên bản chính
+       thức và cập nhật các mã băm phụ thuộc trong toàn hệ sinh thái.
+   - Nhắc lại chốt chặn huấn luyện chính:
+     + Chốt chặn `training_blocked: true` trong `data/exclusion_registry.json` tiếp tục được
+       giữ nguyên để bảo vệ tính toàn vẹn của mô hình chính M0–M3 cho tới khi Lead D hoàn tất
+       việc ánh xạ revision của 20 mẫu pilot cũ.
+
+--------------------------------------------------------------------------------
+III. BẰNG CHỨNG THỰC NGHIỆM VÀ KẾT QUẢ KIỂM THỬ TỰ ĐỘNG
+--------------------------------------------------------------------------------
+
+* Lệnh thực thi: python -m pytest
+* Kết quả tổng thể: 98/98 test cases ĐẠT 100% (Thời gian: 4.71 giây)
+* Các bài kiểm thử bổ sung xác thực chỉ đạo của Lead D:
+  1. `test_resume_rejects_codebook_hash_mismatch`: ĐẠT (CLI từ chối resume khi codebook bị đổi).
+  2. `test_resume_rejects_content_change_for_same_sample_id`: ĐẠT (CLI từ chối resume khi mẫu cùng ID bị đổi nội dung).
+  3. `test_kappa_rejects_codebook_and_plan_provenance_mismatch`: ĐẠT (Kappa từ chối khi lệch provenance).
+  4. `test_kappa_excludes_synthetic_records_from_research_statistics`: ĐẠT (Loại bỏ dữ liệu mô phỏng khỏi thống kê).
+  5. `test_filter_research_annotations_excludes_simulation_and_dry_run`: ĐẠT (Hàm lọc dữ liệu nghiên cứu chuẩn xác).
+
+--------------------------------------------------------------------------------
+IV. KẾT LUẬN & ĐỀ NGHỊ
+--------------------------------------------------------------------------------
+
+Tiểu ban Dữ liệu (Thành viên C) đã hoàn thành 100% các yêu cầu kỹ thuật thuộc phạm
+vi của mình. Mã nguồn, giao diện mù và công cụ gán nhãn đã sẵn sàng.
+
+Kính đề nghị Lead D:
+1. Kiểm tra nghiệm thu gói View Mù `REAL-PILOT-32-V1` theo các mã băm đã cung cấp.
+2. Đợi Thành viên B rà soát lại đúng commit cuối và đính chính văn bản báo cáo.
+3. Chính thức phê duyệt khóa `dictionary_v1.json`, `CODEBOOK_V1.md`, cập nhật mã băm
+   phụ thuộc và phát lệnh mở phiên gán nhãn pilot thực tế.
+
+================================================================================
+HẾT VĂN BẢN BÁO CÁO
+================================================================================

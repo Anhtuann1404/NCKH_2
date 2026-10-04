@@ -99,6 +99,9 @@ def load_already_annotated_sample_ids(
     is_dry_run_session: bool = False,
     expected_dataset_hash: str | None = None,
     expected_dataset_id: str | None = None,
+    expected_codebook_hash: str | None = None,
+    expected_codebook_version: str | None = None,
+    current_samples_by_id: Dict[str, Dict[str, Any]] | None = None,
 ) -> Set[str]:
     """Đọc các sample_id đã hoàn thành trước đó từ file output JSONL với kiểm tra toàn vẹn nghiêm ngặt."""
     if not output_path.exists():
@@ -127,6 +130,8 @@ def load_already_annotated_sample_ids(
             rec_is_dry = rec.get("is_dry_run", False)
             rec_dataset_hash = rec.get("dataset_hash")
             rec_dataset_id = rec.get("dataset_id")
+            rec_codebook_hash = rec.get("codebook_hash")
+            rec_codebook_version = rec.get("codebook_version")
 
             # Kiểm tra không dùng nhầm file khi đổi gói dữ liệu đầu vào
             if expected_dataset_hash and rec_dataset_hash and rec_dataset_hash != expected_dataset_hash:
@@ -139,6 +144,20 @@ def load_already_annotated_sample_ids(
                 raise ValueError(
                     f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc dataset_id "
                     f"'{rec_dataset_id}', trong khi phiên hiện tại đang chạy dataset_id '{expected_dataset_id}'."
+                )
+
+            # Kiểm tra codebook_hash
+            if expected_codebook_hash and rec_codebook_hash and rec_codebook_hash != expected_codebook_hash:
+                raise ValueError(
+                    f"MÂU THUẪN CODEBOOK HASH: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc codebook_hash "
+                    f"'{rec_codebook_hash}', trong khi phiên hiện tại đang chạy codebook_hash '{expected_codebook_hash}'."
+                )
+
+            # Kiểm tra codebook_version
+            if expected_codebook_version and rec_codebook_version and rec_codebook_version != expected_codebook_version:
+                raise ValueError(
+                    f"MÂU THUẪN PHIÊN BẢN CODEBOOK: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc phiên bản "
+                    f"'{rec_codebook_version}', trong khi phiên hiện tại đang chạy '{expected_codebook_version}'."
                 )
 
             # Kiểm tra không dùng nhầm file của người khác
@@ -165,6 +184,20 @@ def load_already_annotated_sample_ids(
 
             sid = rec.get("sample_id")
             if sid:
+                # Đổi nội dung cùng ID phải bị từ chối
+                rec_sample_hash = rec.get("sample_content_hash")
+                if current_samples_by_id and sid in current_samples_by_id:
+                    curr_s = current_samples_by_id[sid]
+                    curr_content_hash = hashlib.sha256(
+                        (str(curr_s.get("url", "")) + "\0" + str(curr_s.get("page_text", ""))).encode("utf-8")
+                    ).hexdigest()
+                    if rec_sample_hash and rec_sample_hash != curr_content_hash:
+                        raise ValueError(
+                            f"MÂU THUẪN NỘI DUNG MẪU: Mẫu '{sid}' trong '{output_path}' tại dòng {line_no} có hash nội dung "
+                            f"'{rec_sample_hash}', khác với nội dung của mẫu cùng ID trong gói đầu vào hiện tại "
+                            f"('{curr_content_hash}'). Không được đổi nội dung cùng ID!"
+                        )
+
                 if sid in annotated:
                     raise ValueError(f"LỖI TOÀN VẸN TỆP: sample_id trùng tại dòng {line_no}.")
                 annotated.add(sid)
@@ -266,6 +299,7 @@ def annotate_interactive_session(
         actual_output_path = output_path.with_name(f"{output_path.stem}.dryrun.jsonl")
 
     actual_output_path.parent.mkdir(parents=True, exist_ok=True)
+    samples_by_id = {s.get("sample_id"): s for s in samples if isinstance(s, dict) and s.get("sample_id")}
     done_ids = load_already_annotated_sample_ids(
         actual_output_path,
         expected_annotator_id=f"simulated_{annotator_id}" if dry_run else annotator_id,
@@ -273,6 +307,9 @@ def annotate_interactive_session(
         is_dry_run_session=dry_run,
         expected_dataset_hash=dataset_hash,
         expected_dataset_id=dataset_id if dataset_id != "UNKNOWN" else None,
+        expected_codebook_hash=codebook_hash or None,
+        expected_codebook_version=data.get("codebook_version") or cli_codebook_version or None,
+        current_samples_by_id=samples_by_id,
     )
 
     remaining_samples = [s for s in samples if s.get("sample_id") not in done_ids]
@@ -296,6 +333,11 @@ def annotate_interactive_session(
         # Hiển thị mẫu và cho phép đọc toàn văn
         display_sample_and_allow_reading(sample, idx, total_samples, interactive=not dry_run)
 
+        # Tính hash nội dung của mẫu hiện tại để chống hoán đổi nội dung cùng ID
+        sample_content_hash = hashlib.sha256(
+            (str(sample.get("url", "")) + "\0" + str(sample.get("page_text", ""))).encode("utf-8")
+        ).hexdigest()
+
         # Đọc động codebook_version và random_subset
         codebook_version = (
             cli_codebook_version
@@ -306,7 +348,7 @@ def annotate_interactive_session(
             raise ValueError("Thiếu codebook_version trong metadata hoặc tham số CLI.")
         if cli_random_subset is not None:
             if not dry_run:
-                raise ValueError("CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật.")
+                raise ValueError("CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật. Giá trị random_subset phải lấy từ metadata/manifest đã khóa.")
             random_subset = cli_random_subset
         elif "random_subset" in sample:
             random_subset = sample["random_subset"]
@@ -343,6 +385,7 @@ def annotate_interactive_session(
                 "dataset_hash": dataset_hash,
                 "codebook_hash": codebook_hash,
                 "sampling_plan_version": sampling_plan_version,
+                "sample_content_hash": sample_content_hash,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
             validated_record = validate_annotation_record(record_dict)
@@ -400,6 +443,7 @@ def annotate_interactive_session(
                 "dataset_hash": dataset_hash,
                 "codebook_hash": codebook_hash,
                 "sampling_plan_version": sampling_plan_version,
+                "sample_content_hash": sample_content_hash,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
 

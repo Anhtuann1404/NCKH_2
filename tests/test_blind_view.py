@@ -23,6 +23,7 @@ from phishing.annotation import (
     create_blind_sample,
     export_blind_view,
     extract_safe_view_content,
+    filter_research_annotations,
     validate_annotation_record,
 )
 
@@ -710,6 +711,61 @@ class TestCLIResumeAndIsolation:
                 cli_random_subset=True,
             )
 
+    def test_resume_rejects_codebook_hash_mismatch(self, tmp_path, cli_module):
+        """CLI từ chối resume khi codebook_hash trong file kết quả khác codebook hiện tại."""
+        out_file = tmp_path / "resume_cb_mismatch.jsonl"
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "PILOT-001",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "codebook_hash": "cb_old_hash",
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="MÂU THUẪN CODEBOOK HASH"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                expected_codebook_hash="cb_new_hash",
+            )
+
+    def test_resume_rejects_content_change_for_same_sample_id(self, tmp_path, cli_module):
+        """CLI từ chối resume khi mẫu cùng ID bị đổi nội dung (URL hoặc page_text)."""
+        import hashlib
+        out_file = tmp_path / "resume_content_changed.jsonl"
+        old_url = "https://login.example.com/"
+        old_text = "Original login prompt text"
+        old_hash = hashlib.sha256((old_url + "\0" + old_text).encode("utf-8")).hexdigest()
+
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "PILOT-001",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "sample_content_hash": old_hash,
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+
+        # Gói đầu vào hiện tại chứa PILOT-001 nhưng nội dung đã bị sửa đổi
+        new_samples = {
+            "PILOT-001": {
+                "sample_id": "PILOT-001",
+                "url": "https://tampered-login.example.com/",
+                "page_text": "Different content under same ID",
+            }
+        }
+
+        with pytest.raises(ValueError, match="MÂU THUẪN NỘI DUNG MẪU"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                current_samples_by_id=new_samples,
+            )
+
+
 
 class TestProvenanceAndKappaPairing:
     """Kiểm thử các trường provenance và thuật toán ghép cặp sample_id trong Cohen's Kappa."""
@@ -777,6 +833,47 @@ class TestProvenanceAndKappaPairing:
         """compute_cohens_kappa ném lỗi khi rater1 và rater2 gán trên hai gói dữ liệu khác nhau."""
         r1 = [{"sample_id": "S01", "class_label": "phishing", "dataset_hash": "hash_A"}]
         r2 = [{"sample_id": "S01", "class_label": "phishing", "dataset_hash": "hash_B"}]
-        with pytest.raises(ValueError, match="khác nhau"):
+        with pytest.raises(ValueError, match="mâu thuẫn provenance"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_codebook_and_plan_provenance_mismatch(self):
+        """compute_cohens_kappa phát hiện mâu thuẫn codebook_hash hoặc sampling_plan_version."""
+        r1 = [{"sample_id": "S01", "class_label": "phishing", "codebook_hash": "cb_v1"}]
+        r2 = [{"sample_id": "S01", "class_label": "phishing", "codebook_hash": "cb_v2"}]
+        with pytest.raises(ValueError, match="mâu thuẫn provenance 'codebook_hash'"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_excludes_synthetic_records_from_research_statistics(self):
+        """Dữ liệu mô phỏng (is_synthetic=True) bị loại bỏ khỏi thống kê Cohen's Kappa theo quy tắc Lead D."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "is_synthetic": True, "random_subset": True},
+            {"sample_id": "S02", "class_label": "benign", "is_synthetic": True, "random_subset": True},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "is_synthetic": True, "random_subset": True},
+            {"sample_id": "S02", "class_label": "benign", "is_synthetic": True, "random_subset": True},
+        ]
+        # Mặc định allow_synthetic=False: ném lỗi vì toàn bộ mẫu bị loại bỏ
+        with pytest.raises(ValueError, match="dữ liệu mô phỏng"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+        # Cho phép rõ ràng qua tham số allow_synthetic=True
+        res = compute_cohens_kappa(r1, r2, label_field="class_label", allow_synthetic=True)
+        assert res.sample_count == 2
+        assert res.observed_agreement == 1.0
+
+    def test_filter_research_annotations_excludes_simulation_and_dry_run(self):
+        """filter_research_annotations loại bỏ hoàn toàn các bản ghi mô phỏng và dry-run khỏi tập thống kê."""
+        records = [
+            {"sample_id": "REAL-1", "is_synthetic": False, "is_dry_run": False},
+            {"sample_id": "SYNTH-1", "is_synthetic": True, "is_dry_run": False},
+            {"sample_id": "DRY-1", "is_synthetic": False, "is_dry_run": True},
+            {"sample_id": "REAL-2", "is_synthetic": False, "is_dry_run": False},
+        ]
+        filtered = filter_research_annotations(records)
+        assert len(filtered) == 2
+        assert [r["sample_id"] for r in filtered] == ["REAL-1", "REAL-2"]
+
+
+
 
