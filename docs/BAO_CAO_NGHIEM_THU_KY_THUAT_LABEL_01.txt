@@ -1,0 +1,158 @@
+================================================================================
+BÁO CÁO NGHIỆM THU KỸ THUẬT & BÀN GIAO SỬA ĐỔI TASK LABEL-01
+TIỂU BAN DỮ LIỆU & GÁN NHÃN MÙ (THÀNH VIÊN C)
+================================================================================
+
+Kính gửi: Thành viên B (QA / Kiểm nhãn độc lập), Lead D (Anh Tuấn)
+Đồng kính gửi: Thành viên A (Trần Hồng Khải)
+Người lập: Thành viên C (Data Pipeline & Blind View)
+Ngày lập: 04/10/2026
+Mã nhiệm vụ: LABEL-01 (Hoàn thiện View Mù, Codebook và Công cụ Gán nhãn có Bấm giờ)
+Nhánh Git: feat/data-pipeline
+Commit xác thực: 662835f (kế thừa và tích hợp đầy đủ 6817d7e)
+Trạng thái kiểm thử: 86/86 test cases đạt (100% Passed)
+
+--------------------------------------------------------------------------------
+I. TỔNG HỢP KẾT QUẢ SỬA ĐỔI 06 LỖI KỸ THUẬT TRONG MÃ NGUỒN
+--------------------------------------------------------------------------------
+
+1. L-B01 — Cơ chế xem toàn văn và phân trang không ngắt đồng hồ:
+   - Tệp sửa đổi: scripts/annotate_cli.py (hàm display_sample_and_allow_reading).
+   - Nội dung kỹ thuật: Cung cấp tùy chọn tương tác 'v' để hiển thị toàn bộ nội
+     dung văn bản an toàn; sửa lệnh 'm' để tiến dần từng đoạn 600 ký tự (offset
+     động 600 -> 1200 -> 1800...), khắc phục hoàn toàn lỗi lặp lại đoạn 600-1200.
+   - Tính liên tục của bấm giờ: Đồng hồ `time.perf_counter()` khởi động trước khi
+     bắt đầu đọc và duy trì xuyên suốt các lệnh phân trang cho đến khi lưu bản ghi.
+
+2. L-B02 — Cách ly tuyệt đối chế độ Dry-Run & Kiểm tra hai chiều:
+   - Tệp sửa đổi: scripts/annotate_cli.py.
+   - Nội dung kỹ thuật:
+     + Khi bật `--dry-run`, tệp kết quả tự động chuyển hướng sang đuôi `.dryrun.jsonl`,
+       định danh annotator đổi thành `simulated_<annotator_id>`, cờ `is_dry_run = True`.
+     + Cơ chế resume kiểm tra hai chiều: Phiên chạy người thật từ chối tải file có
+       chứa bản ghi dry-run; ngược lại phiên dry-run từ chối tải file của người thật.
+
+3. L-B03 — Đối soát toàn vẹn Annotator, Pass ID và Phát hiện ID trùng lặp:
+   - Tệp sửa đổi: scripts/annotate_cli.py (hàm load_already_annotated_sample_ids).
+   - Nội dung kỹ thuật: Kiểm tra khớp 100% giữa `annotator_id` và `pass_id` trong
+     tệp kết quả với tham số CLI đang chạy. Bổ sung cơ chế phát hiện sample_id
+     bị trùng lặp trong tệp JSONL trước khi cho phép tiếp tục phiên gán nhãn.
+
+4. L-B04 — Xử lý nghiêm ngặt lỗi định dạng JSONL (Loại bỏ Silent Pass):
+   - Tệp sửa đổi: scripts/annotate_cli.py.
+   - Nội dung kỹ thuật: Bắt buộc dừng và ném `ValueError` kèm số dòng cụ thể khi
+     gặp dòng không phải JSON hợp lệ, dòng không phải kiểu từ điển (object), hoặc
+     bản ghi thiếu khóa `sample_id`. Tuyệt đối không âm thầm bỏ qua (no silent skip).
+
+5. L-B05 — Đọc động Metadata và Xác thực kiểu dữ liệu nghiêm ngặt:
+   - Tệp sửa đổi: scripts/annotate_cli.py.
+   - Nội dung kỹ thuật: Đọc động `codebook_version` và `random_subset` từ metadata
+     của gói dữ liệu hoặc tham số dòng lệnh. Từ chối giá trị kiểu chuỗi (ví dụ: "true",
+     "false") đối với cờ boolean `random_subset`; bắt buộc kiểu bool thực chất.
+
+6. L-B06 — Giữ lại ca khó thuộc mẫu ngẫu nhiên và Tách biệt Kappa tổ chức/lớp:
+   - Tệp sửa đổi: src/phishing/annotation/__init__.py (hàm compute_cohens_kappa).
+   - Nội dung kỹ thuật:
+     + Tuân thủ Mục 5 Codebook: `random_subset` quyết định mẫu số tính Kappa. Mẫu ca
+       khó (`difficult_case = True`) nhưng vốn thuộc 30% ngẫu nhiên (`random_subset = True`)
+       bắt buộc được giữ lại; chỉ loại bỏ các ca khó được thêm ngoài mẫu ngẫu nhiên.
+     + Bổ sung tham số `label_field`: Cho phép tính Cohen's Kappa độc lập cho nhãn lớp
+       (`class_label`) hoặc nhãn tổ chức (`primary_org`), bảo đảm tính trong sáng thống kê.
+
+--------------------------------------------------------------------------------
+II. CẬP NHẬT TÀI LIỆU CODEBOOK (LÀM RÕ 04 ĐIỂM MƠ HỒ)
+--------------------------------------------------------------------------------
+Tệp sửa đổi: docs/CODEBOOK_V1.md (Mục 6 - "Làm rõ bốn tình huống"):
+
+1. Mục tiêu và nhãn lớp là hai quyết định độc lập:
+   - `unknown`: Thiếu nội dung nhận diện tên tổ chức.
+   - `no_clear_target`: Đủ nội dung để quan sát nhưng không phát hiện mục tiêu tổ chức rõ ràng.
+   - `multi_target`: Có từ hai tổ chức ngang hàng mà không có luồng form ưu tiên rõ rệt.
+   - Khẳng định: Việc nhận diện được mục tiêu không tự chứng minh trang là phishing hay benign.
+     Nếu trang lỗi/thiếu bằng chứng thì ghi nhãn lớp là `insufficient_evidence`.
+
+2. Xử lý mục tiêu ngoài danh mục (outside_catalog):
+   - Một tổ chức ngoài danh mục 14 đơn vị vẫn có thể là mục tiêu đã nhận diện (`identified`
+     đồng thời `outside_catalog`).
+   - Đánh giá viên ghi tên dịch vụ và tên tổ chức tự do vào `observed_service`; không ép
+     thành `unknown` và không tự tiện bổ sung vào dictionary mô hình.
+
+3. Xử lý đăng nhập OAuth / Single Sign-On (SSO):
+   - Nút đăng nhập bên thứ ba (Google/Microsoft/Apple sign-in) phản ánh dịch vụ ủy quyền,
+     không tự động coi nhà cung cấp OAuth là chủ thể bị mạo danh hay chủ quản trang.
+   - Nếu snapshot không đủ bằng chứng về luồng ủy quyền, giữ quan hệ tên miền là `unverified`,
+     tuyệt đối không suy đoán thành benign hoặc phishing.
+
+4. Xử lý dịch vụ lưu trữ người dùng (UGC / Shared Hosting):
+   - Phân biệt rõ nhà cung cấp hạ tầng lưu trữ (SharePoint, Forms, S3, Firebase...) với chủ
+     nội dung/thương hiệu tự nhận trên trang.
+   - Bảng quy tắc miền ưu tiên tuyệt đối cho `user_content_hosting`. Logo hoặc tên tenant
+     không cấu thành quan hệ sở hữu hợp pháp. Trường hợp thiếu phạm vi ghi `unverified` và
+     chuyển ca khó.
+
+Trạng thái văn bản: docs/CODEBOOK_V1.md và configs/dictionary_v1.json hiện ở trạng thái
+`pending_review`, chờ chữ ký nghiệm thu chính thức của Thành viên B và Lead D.
+
+--------------------------------------------------------------------------------
+III. CHUẨN BỊ GÓI DỮ LIỆU PILOT CHUẨN (REAL-PILOT-32-V1)
+--------------------------------------------------------------------------------
+
+1. Công cụ xây dựng và Nguồn gốc dữ liệu:
+   - Script xây dựng: scripts/data/build_real_pilot.py
+   - Nguồn dữ liệu thực nghiệm (32 mẫu):
+     + 20 mẫu kỹ thuật: Khôi phục từ API cũ (offset 0, length 20), SHA-256 byte khớp
+       100% bản lưu trữ gốc: `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`.
+     + 12 mẫu source-phish bổ sung: Trích xuất từ shard `train-055.parquet` thuộc pinned
+       revision `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a` (SHA-256 xác minh cục bộ khớp
+       Git-LFS metadata: `205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0`).
+     + Tuyệt đối không chạm vào tập Official Test.
+
+2. Manifest kiểm soát (configs/pilot_manifest.json):
+   - dataset_id: "REAL-PILOT-32-V1"
+   - is_synthetic: false (tập pilot thực nghiệm thật)
+   - sample_count: 32 (20 phish, 12 benign)
+   - codebook_sha256: 8226b00220159b0fd3a4e3666727cafd3eed144cc1c8ff69627d2d7851becbcb
+   - dictionary_sha256: 61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28
+   - blind_view_sha256: 9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041
+   - PSL_snapshot_sha256: b69315c085d53972724b8f2df111ffc329b0c84fe0a47d62c8c91655cc774a38
+   - ready_for_annotation: false (khóa quyền nhập liệu của người gán cho đến khi B/D nghiệm thu)
+   - acceptance: {"B": "pending", "D": "pending"}
+
+3. Bảo vệ dữ liệu nhạy cảm & Exclusion Registry:
+   - Bảng ánh xạ nguồn (`source_mapping.json`) và trật tự hoán vị (`blind_order.json`) được
+     lưu tại thư mục hạn chế `data/raw/pilot/` và đã được `.gitignore` bảo vệ tuyệt đối.
+   - Toàn bộ 32 mẫu đã được cập nhật vào tệp đăng ký loại trừ công khai data/exclusion_registry.json.
+   - Hàm `assert_training_allowed()` trong src/phishing/data/exclusion.py duy trì cơ chế
+     hard-block chặn cứng mọi lệnh huấn luyện mô hình của Lead D khi mapping chưa hoàn tất.
+
+4. Phân định với gói mô phỏng 20 mẫu:
+   - Gói data/annotations/blind_view_pilot.json là gói mô phỏng (`is_synthetic: true`)
+     đang dùng cho Thành viên A tập dượt CLI; thời gian từ gói này không dùng cho PLAN-01.
+
+--------------------------------------------------------------------------------
+IV. BẰNG CHỨNG THỰC NGHIỆM ĐỊNH LƯỢNG (AUTOMATED TEST MATRIX)
+--------------------------------------------------------------------------------
+Lệnh thực thi kiểm thử:
+python -c "import sys, pytest; sys.path.insert(0, 'src'); sys.exit(pytest.main(['tests/', '-v']))"
+
+Kết quả: **86/86 test cases PASSED (100%)**:
+- tests/test_blind_view.py: 23 passed (kiểm soát rò rỉ, ID trung tính, allowlist, dry-run, resume)
+- tests/test_label_fixes.py: 8 passed (chứng minh sửa dứt điểm các lỗi L-B01 đến L-B06)
+- tests/test_date_parser.py: 9 passed
+- tests/test_dictionary_and_annotation.py: 18 passed
+- tests/test_domain_rules.py: 6 passed
+- tests/test_exclusion_registry.py: 11 passed
+- tests/test_preprocessing.py: 11 passed
+
+--------------------------------------------------------------------------------
+V. KIẾN NGHỊ VÀ BƯỚC TIẾP THEO
+--------------------------------------------------------------------------------
+1. Thành viên C đã chuẩn bị đầy đủ 100% mã nguồn, tài liệu và dữ liệu kỹ thuật.
+2. Đề nghị Thành viên B và Lead D thực hiện rà soát và ký nghiệm thu trên tệp
+   configs/pilot_manifest.json (chuyển trạng thái acceptance B và D sang "approved").
+3. Ngay sau khi có biên bản nghiệm thu, Thành viên C sẽ đóng khóa codebook và kích hoạt
+   `ready_for_annotation: true` để bàn giao gói 32 mẫu thật cho A và B gán nhãn độc lập.
+
+================================================================================
+HẾT BÁO CÁO
+================================================================================
