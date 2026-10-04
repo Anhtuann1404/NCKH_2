@@ -643,5 +643,140 @@ class TestCLIResumeAndIsolation:
             assert r["annotator_id"] == "simulated_A"
             assert r["is_dry_run"] is True
             assert r["seconds_spent"] == 0.5
+            assert "is_synthetic" in r
+            assert "dataset_id" in r
+            assert "dataset_hash" in r
+            assert "codebook_hash" in r
+            assert "sampling_plan_version" in r
             validated = validate_annotation_record(r)
             assert validated.is_dry_run is True
+
+    def test_load_already_annotated_sample_ids_rejects_dataset_hash_mismatch(self, tmp_path, cli_module):
+        """CLI từ chối resume khi dataset_hash của tệp output không khớp gói input hiện tại."""
+        out_file = tmp_path / "resume_hash_mismatch.jsonl"
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "PILOT-001",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "dataset_hash": "hash_package_v1",
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                expected_dataset_hash="hash_package_v2",
+            )
+
+    def test_load_already_annotated_sample_ids_rejects_dataset_id_mismatch(self, tmp_path, cli_module):
+        """CLI từ chối resume khi dataset_id của tệp output không khớp dataset_id hiện tại."""
+        out_file = tmp_path / "resume_ds_mismatch.jsonl"
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "PILOT-001",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "dataset_id": "REAL-PILOT-32-V1",
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                expected_dataset_id="SYNTHETIC-20-V1",
+            )
+
+    def test_cli_blocks_random_subset_override_in_human_session(self, tmp_path, cli_module):
+        """CLI khóa cờ --random-subset khi gán nhãn người thật."""
+        input_blind = tmp_path / "test_blind.json"
+        export_blind_view(
+            [{"sample_id": "SMP-001", "url": "https://test.invalid/", "html": "<p>Hello</p>"}],
+            input_blind,
+            dataset_id="TEST-OVERRIDE",
+        )
+        out_file = tmp_path / "A_override.jsonl"
+        with pytest.raises(ValueError, match="CỜ BỊ KHÓA"):
+            cli_module.annotate_interactive_session(
+                annotator_id="A",
+                input_path=input_blind,
+                output_path=out_file,
+                pass_id=1,
+                dry_run=False,
+                cli_random_subset=True,
+            )
+
+
+class TestProvenanceAndKappaPairing:
+    """Kiểm thử các trường provenance và thuật toán ghép cặp sample_id trong Cohen's Kappa."""
+
+    def test_annotation_record_provenance_roundtrip(self):
+        """AnnotationRecord lưu trữ và khôi phục đầy đủ các trường provenance."""
+        data = {
+            "annotator_id": "B",
+            "sample_id": "PILOT-005",
+            "pass_id": 1,
+            "class_label": "phishing",
+            "primary_org_status": "identified",
+            "catalog_status": "in_catalog",
+            "observed_service": "Office 365",
+            "org_targets": ["microsoft"],
+            "primary_org": "microsoft",
+            "identity_role": "identity_claim",
+            "domain_role": "unverified",
+            "evidence_note": "Fake login form",
+            "seconds_spent": 42.5,
+            "random_subset": True,
+            "difficult_case": False,
+            "codebook_version": "1.0.0",
+            "is_dry_run": False,
+            "is_synthetic": False,
+            "dataset_id": "REAL-PILOT-32-V1",
+            "dataset_hash": "abc123hash",
+            "codebook_hash": "def456hash",
+            "sampling_plan_version": "PLAN-01",
+        }
+        rec = validate_annotation_record(data)
+        d = rec.to_dict()
+        assert d["is_synthetic"] is False
+        assert d["dataset_id"] == "REAL-PILOT-32-V1"
+        assert d["dataset_hash"] == "abc123hash"
+        assert d["codebook_hash"] == "def456hash"
+        assert d["sampling_plan_version"] == "PLAN-01"
+
+    def test_kappa_pairs_by_sample_id_regardless_of_order(self):
+        """compute_cohens_kappa tự sắp xếp ghép cặp theo sample_id khi thứ tự dòng khác nhau."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "random_subset": True},
+            {"sample_id": "S02", "class_label": "benign", "random_subset": True},
+            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
+        ]
+        # r2 bị xáo trộn thứ tự dòng: S03, S01, S02
+        r2 = [
+            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
+            {"sample_id": "S01", "class_label": "phishing", "random_subset": True},
+            {"sample_id": "S02", "class_label": "benign", "random_subset": True},
+        ]
+        res = compute_cohens_kappa(r1, r2, label_field="class_label")
+        assert res.sample_count == 3
+        assert res.observed_agreement == 1.0
+        assert res.kappa == 1.0
+
+    def test_kappa_rejects_sample_id_mismatch(self):
+        """compute_cohens_kappa ném lỗi khi tập hợp sample_id giữa hai người gán không trùng khớp."""
+        r1 = [{"sample_id": "S01", "class_label": "phishing"}, {"sample_id": "S02", "class_label": "benign"}]
+        r2 = [{"sample_id": "S01", "class_label": "phishing"}, {"sample_id": "S99", "class_label": "benign"}]
+        with pytest.raises(ValueError, match="không khớp nhau"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_package_hash_mismatch(self):
+        """compute_cohens_kappa ném lỗi khi rater1 và rater2 gán trên hai gói dữ liệu khác nhau."""
+        r1 = [{"sample_id": "S01", "class_label": "phishing", "dataset_hash": "hash_A"}]
+        r2 = [{"sample_id": "S01", "class_label": "phishing", "dataset_hash": "hash_B"}]
+        with pytest.raises(ValueError, match="khác nhau"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+

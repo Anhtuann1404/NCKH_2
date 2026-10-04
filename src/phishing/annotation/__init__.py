@@ -49,6 +49,32 @@ def compute_cohens_kappa(
     if len(rater1) != len(rater2) or len(rater1) == 0:
         raise ValueError("Hai danh sách nhãn phải có cùng độ dài và không được rỗng.")
 
+    # Ghép cặp nhãn giữa A và B bằng từ điển theo sample_id nếu có để tránh lệch thứ tự dòng
+    has_sid1 = len(rater1) > 0 and all(isinstance(r, dict) and "sample_id" in r or hasattr(r, "sample_id") for r in rater1)
+    has_sid2 = len(rater2) > 0 and all(isinstance(r, dict) and "sample_id" in r or hasattr(r, "sample_id") for r in rater2)
+
+    if has_sid1 and has_sid2:
+        dict2 = {getattr(r, "sample_id", None) or r["sample_id"]: r for r in rater2}
+        if len(dict2) != len(rater2):
+            raise ValueError("Phát hiện sample_id trùng lặp trong danh sách rater2.")
+        dict1_sids = [getattr(r, "sample_id", None) or r["sample_id"] for r in rater1]
+        if len(set(dict1_sids)) != len(rater1):
+            raise ValueError("Phát hiện sample_id trùng lặp trong danh sách rater1.")
+        if set(dict1_sids) != set(dict2.keys()):
+            raise ValueError("Danh sách sample_id giữa hai đánh giá viên không khớp nhau.")
+
+        def _get_pkg_hash(item: Any) -> str | None:
+            if isinstance(item, dict):
+                return item.get("dataset_hash") or item.get("package_hash")
+            return getattr(item, "dataset_hash", None) or getattr(item, "package_hash", None)
+
+        hashes1 = {h for r in rater1 if (h := _get_pkg_hash(r))}
+        hashes2 = {h for r in rater2 if (h := _get_pkg_hash(r))}
+        if hashes1 and hashes2 and hashes1 != hashes2:
+            raise ValueError(f"Không thể tính Kappa: hai đánh giá viên gán trên gói dữ liệu khác nhau (hash: {hashes1} vs {hashes2}).")
+
+        rater2 = [dict2[sid] for sid in dict1_sids]
+
     if is_difficult is not None and len(is_difficult) != len(rater1):
         raise ValueError("Độ dài mảng is_difficult phải khớp với độ dài danh sách nhãn.")
     if random_subset is not None and len(random_subset) != len(rater1):

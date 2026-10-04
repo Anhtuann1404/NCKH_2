@@ -395,6 +395,11 @@ class AnnotationRecord:
     difficult_case: bool
     codebook_version: str = "1.0.0"
     is_dry_run: bool = False
+    is_synthetic: bool = False
+    dataset_id: str = ""
+    dataset_hash: str = ""
+    codebook_hash: str = ""
+    sampling_plan_version: str = ""
     timestamp_utc: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -416,6 +421,11 @@ class AnnotationRecord:
             "difficult_case": bool(self.difficult_case),
             "codebook_version": self.codebook_version,
             "is_dry_run": bool(self.is_dry_run),
+            "is_synthetic": bool(self.is_synthetic),
+            "dataset_id": self.dataset_id,
+            "dataset_hash": self.dataset_hash,
+            "codebook_hash": self.codebook_hash,
+            "sampling_plan_version": self.sampling_plan_version,
             "timestamp_utc": self.timestamp_utc or datetime.now(timezone.utc).isoformat(),
         }
 
@@ -462,6 +472,11 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
 
     timestamp = data.get("timestamp_utc") or datetime.now(timezone.utc).isoformat()
     is_dry = bool(data.get("is_dry_run", False))
+    is_synth = bool(data.get("is_synthetic", False))
+    ds_id = str(data.get("dataset_id", ""))
+    ds_hash = str(data.get("dataset_hash", ""))
+    cb_hash = str(data.get("codebook_hash", ""))
+    plan_ver = str(data.get("sampling_plan_version", ""))
 
     return AnnotationRecord(
         annotator_id=str(data["annotator_id"]),
@@ -481,6 +496,11 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
         difficult_case=bool(data["difficult_case"]),
         codebook_version=str(data.get("codebook_version", "1.0.0")),
         is_dry_run=is_dry,
+        is_synthetic=is_synth,
+        dataset_id=ds_id,
+        dataset_hash=ds_hash,
+        codebook_hash=cb_hash,
+        sampling_plan_version=plan_ver,
         timestamp_utc=str(timestamp),
     )
 

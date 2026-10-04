@@ -15,6 +15,7 @@ Cách sử dụng:
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -96,6 +97,8 @@ def load_already_annotated_sample_ids(
     expected_annotator_id: str,
     expected_pass_id: int,
     is_dry_run_session: bool = False,
+    expected_dataset_hash: str | None = None,
+    expected_dataset_id: str | None = None,
 ) -> Set[str]:
     """Đọc các sample_id đã hoàn thành trước đó từ file output JSONL với kiểm tra toàn vẹn nghiêm ngặt."""
     if not output_path.exists():
@@ -122,6 +125,21 @@ def load_already_annotated_sample_ids(
             rec_annotator = rec.get("annotator_id")
             rec_pass = rec.get("pass_id")
             rec_is_dry = rec.get("is_dry_run", False)
+            rec_dataset_hash = rec.get("dataset_hash")
+            rec_dataset_id = rec.get("dataset_id")
+
+            # Kiểm tra không dùng nhầm file khi đổi gói dữ liệu đầu vào
+            if expected_dataset_hash and rec_dataset_hash and rec_dataset_hash != expected_dataset_hash:
+                raise ValueError(
+                    f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc gói dữ liệu "
+                    f"có hash '{rec_dataset_hash}', trong khi phiên hiện tại đang chạy gói có hash '{expected_dataset_hash}'. "
+                    f"Tránh dùng nhầm tệp kết quả khi đổi gói dữ liệu!"
+                )
+            if expected_dataset_id and rec_dataset_id and rec_dataset_id != expected_dataset_id:
+                raise ValueError(
+                    f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc dataset_id "
+                    f"'{rec_dataset_id}', trong khi phiên hiện tại đang chạy dataset_id '{expected_dataset_id}'."
+                )
 
             # Kiểm tra không dùng nhầm file của người khác
             if rec_annotator != expected_annotator_id:
@@ -227,6 +245,19 @@ def annotate_interactive_session(
     samples = data.get("samples", [])
     total_samples = len(samples)
 
+    # Trích xuất thông tin xuất xứ (provenance) của gói dữ liệu
+    input_bytes = input_path.read_bytes()
+    dataset_hash = hashlib.sha256(input_bytes).hexdigest()
+    dataset_id = str(data.get("dataset_id", "UNKNOWN"))
+    is_synthetic = bool(data.get("is_synthetic", False))
+    sampling_plan_version = str(data.get("sampling_plan_version", ""))
+
+    codebook_hash = str(data.get("codebook_sha256") or data.get("codebook_hash") or "")
+    if not codebook_hash:
+        cb_path = Path("docs/CODEBOOK_V1.md")
+        if cb_path.exists():
+            codebook_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
+
     # Nếu chạy dry-run và output không được chỉ định tên riêng, dùng file dry-run để cách ly
     actual_output_path = output_path
     if not dry_run and output_path.name.endswith(".dryrun.jsonl"):
@@ -240,12 +271,14 @@ def annotate_interactive_session(
         expected_annotator_id=f"simulated_{annotator_id}" if dry_run else annotator_id,
         expected_pass_id=pass_id,
         is_dry_run_session=dry_run,
+        expected_dataset_hash=dataset_hash,
+        expected_dataset_id=dataset_id if dataset_id != "UNKNOWN" else None,
     )
 
     remaining_samples = [s for s in samples if s.get("sample_id") not in done_ids]
     print(f"\n[START] Khởi động phiên gán nhãn cho Thành viên: {annotator_id}")
-    print(f"[PACKAGE] Dataset ID: {data.get('dataset_id', 'UNKNOWN')} | Type: {data.get('dataset_type', 'blind_view')}")
-    if data.get("is_synthetic"):
+    print(f"[PACKAGE] Dataset ID: {dataset_id} | Type: {data.get('dataset_type', 'blind_view')}")
+    if is_synthetic:
         print(f"[CHÚ Ý] Đây là gói dữ liệu MÔ PHỎNG ({data.get('purpose', '')})")
     print(f"[SAMPLES] Tổng số mẫu: {total_samples} | Đã hoàn thành: {len(done_ids)} | Còn lại: {len(remaining_samples)}")
     print(f"[OUTPUT] Tệp kết quả: {actual_output_path}")
@@ -272,6 +305,8 @@ def annotate_interactive_session(
         if not isinstance(codebook_version, str) or not codebook_version.strip():
             raise ValueError("Thiếu codebook_version trong metadata hoặc tham số CLI.")
         if cli_random_subset is not None:
+            if not dry_run:
+                raise ValueError("CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật.")
             random_subset = cli_random_subset
         elif "random_subset" in sample:
             random_subset = sample["random_subset"]
@@ -303,6 +338,11 @@ def annotate_interactive_session(
                 "difficult_case": False,
                 "codebook_version": codebook_version,
                 "is_dry_run": True,
+                "is_synthetic": is_synthetic,
+                "dataset_id": dataset_id,
+                "dataset_hash": dataset_hash,
+                "codebook_hash": codebook_hash,
+                "sampling_plan_version": sampling_plan_version,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
             validated_record = validate_annotation_record(record_dict)
@@ -355,6 +395,11 @@ def annotate_interactive_session(
                 "difficult_case": is_diff,
                 "codebook_version": codebook_version,
                 "is_dry_run": False,
+                "is_synthetic": is_synthetic,
+                "dataset_id": dataset_id,
+                "dataset_hash": dataset_hash,
+                "codebook_hash": codebook_hash,
+                "sampling_plan_version": sampling_plan_version,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
 

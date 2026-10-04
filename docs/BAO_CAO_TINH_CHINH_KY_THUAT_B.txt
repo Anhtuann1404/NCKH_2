@@ -1,0 +1,128 @@
+================================================================================
+BÁO CÁO PHẢN HỒI KỸ THUẬT & BÀN GIAO TINH CHỈNH CUỐI CÙNG (LABEL-01 / DATA-02)
+TIỂU BAN DỮ LIỆU & GÁN NHÃN MÙ (THÀNH VIÊN C)
+================================================================================
+
+Kính gửi: Thành viên B (QA / Đánh giá viên độc lập), Lead D (Anh Tuấn)
+Đồng kính gửi: Thành viên A (Trần Hồng Khải)
+Người lập: Thành viên C (Data Pipeline & Blind View)
+Ngày lập: 04/10/2026
+Căn cứ: Văn bản đánh giá kỹ thuật CODEBOOK_REVIEW_B.md (commit ef9409f) của Thành viên B
+Nhánh Git: feat/data-pipeline
+Trạng thái kiểm thử hệ thống: 93/93 test cases đạt (100% Passed)
+
+--------------------------------------------------------------------------------
+I. TỔNG HỢP TIẾP THU VÀ TINH CHỈNH 05 KIẾN NGHỊ KỸ THUẬT
+--------------------------------------------------------------------------------
+
+Tiểu ban Dữ liệu (Thành viên C) đã rà soát toàn diện văn bản góp ý của Thành viên B
+và hoàn thành việc triển khai, kiểm thử tự động cho 05 nội dung kỹ thuật:
+
+1. Bổ sung các trường Xuất xứ (Provenance) vào cấu trúc bản ghi:
+   - Tệp sửa đổi:
+     + src/phishing/annotation/blind_view.py: Cập nhật dataclass `AnnotationRecord`
+       và hàm `validate_annotation_record()`.
+     + scripts/annotate_cli.py: Tự động trích xuất metadata và tính mã băm SHA-256.
+   - Các trường bổ sung:
+     + `is_synthetic: bool`: Phân định rạch ròi dữ liệu mô phỏng và dữ liệu thực tế.
+     + `dataset_id: str`: Định danh định chế gói dữ liệu (ví dụ: "REAL-PILOT-32-V1").
+     + `dataset_hash: str`: Mã băm SHA-256 nội dung nhị phân của tệp JSON gói đầu vào.
+     + `codebook_hash: str`: Mã băm SHA-256 của tài liệu Codebook áp dụng tại phiên gán.
+     + `sampling_plan_version: str`: Phiên bản kế hoạch lấy mẫu (ví dụ: "PLAN-01").
+   - Cơ chế bảo vệ: Mọi bản ghi JSON Lines sinh ra (cả qua phiên người thật lẫn lượt
+     kiểm thử dry-run) đều được đóng gói đầy đủ các trường trên, đảm bảo tính truy xuất
+     nguồn gốc (traceability) tuyệt đối cho từng quyết định gán nhãn.
+
+2. Nâng cấp cơ chế Resume của CLI bằng kiểm tra toàn vẹn Dataset Hash:
+   - Tệp sửa đổi: scripts/annotate_cli.py (hàm `load_already_annotated_sample_ids`).
+   - Nội dung kỹ thuật:
+     + Bổ sung tham số `expected_dataset_hash` và `expected_dataset_id`.
+     + Khi tiếp tục phiên làm việc trên một tệp kết quả JSONL đã có, CLI đối chiếu
+       mã băm `dataset_hash` và mã định danh `dataset_id` trong từng dòng với gói đầu
+       vào đang chạy.
+     + Ngăn chặn rủi ro: Nếu người gán nhãn đổi sang gói dữ liệu mới (ví dụ từ
+       `blind_view_pilot.json` sang `blind_view_pilot_real.json`) nhưng lại chỉ định
+       nhầm tệp output cũ (nơi có các ID trùng nhau như `PILOT-001`), CLI sẽ lập tức
+       dừng và báo lỗi:
+       "MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp chứa bản ghi thuộc gói có hash X,
+        trong khi phiên hiện tại đang chạy gói có hash Y".
+
+3. Nâng cấp thuật toán đối chiếu Cohen's Kappa: Ghép cặp theo Sample ID & Package Hash:
+   - Tệp sửa đổi: src/phishing/annotation/__init__.py (hàm `compute_cohens_kappa`).
+   - Nội dung kỹ thuật:
+     + Loại bỏ hoàn toàn cơ chế ghép cặp phụ thuộc vị trí dòng (`zip(rater1, rater2)`).
+     + Xây dựng bảng tra cứu từ điển (`dict`) theo khóa `sample_id`.
+     + Kiểm tra tính toàn vẹn: Phát hiện và ném lỗi nếu có ID trùng lặp trong danh sách
+       của từng người; xác minh tập hợp `sample_id` của A và B phải trùng khít 100%.
+     + Căn chỉnh thứ tự: Tự động sắp xếp lại danh sách `rater2` bám sát chính xác
+       theo thứ tự `sample_id` của `rater1`, triệt tiêu hoàn toàn rủi ro lệch hàng
+       khi hai người gán nhãn nộp file có thứ tự dòng khác nhau.
+     + Kiểm tra mã băm gói (`dataset_hash`): Nếu bản ghi có chứa thông tin hash, hàm
+       sẽ kiểm tra và từ chối tính toán nếu A và B gán trên hai phiên bản gói dữ liệu khác nhau.
+
+4. Khóa cờ `--random-subset` qua CLI trong phiên gán nhãn người thật:
+   - Tệp sửa đổi: scripts/annotate_cli.py (hàm `annotate_interactive_session`).
+   - Nội dung kỹ thuật:
+     + Tuân thủ kỷ luật ARS: Cờ `random_subset` phản ánh thiết kế phân tầng ngẫu nhiên
+       đã được niêm phong trong metadata/manifest của gói dữ liệu.
+     + CLI chỉ cho phép ghi đè cờ này trong chế độ kiểm thử kỹ thuật (`--dry-run`).
+     + Trong phiên gán nhãn thật của người, nếu người dùng cố tình truyền cờ
+       `--random-subset` từ dòng lệnh, CLI lập tức chặn và báo lỗi:
+       "CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật."
+
+5. Chuẩn hóa môi trường kiểm thử & Cơ chế dự phòng an toàn cho tldextract:
+   - Tệp bổ sung / sửa đổi:
+     + pytest.ini: Khởi tạo tệp cấu hình chuẩn hóa, định tuyến `pythonpath = src .`
+       giúp mọi thành viên chỉ cần gọi `python -m pytest` là chạy được ngay toàn bộ
+       test suite mà không gặp lỗi `ModuleNotFoundError: No module named 'phishing'`.
+     + src/phishing/data/exclusion.py: Bọc khối xử lý domain bằng cấu trúc an toàn
+       `try ... except ImportError` dự phòng parser tiêu chuẩn `urllib.parse` nếu môi
+       trường máy trạm chưa cài đặt kịp `tldextract`.
+     + Xác nhận phụ thuộc: requirements.txt đã chốt phiên bản cố định `tldextract==5.4.0`.
+
+--------------------------------------------------------------------------------
+II. BẰNG CHỨNG THỰC NGHIỆM VÀ KẾT QUẢ KIỂM THỬ TỰ ĐỘNG
+--------------------------------------------------------------------------------
+
+Hệ thống đã chạy toàn bộ test suite tự động tại nhánh `feat/data-pipeline`:
+
+* Lệnh thực thi: python -m pytest
+* Kết quả tổng thể: 93/93 test cases ĐẠT 100% (Thời gian: 1.85 giây)
+* Chi tiết các nhóm kiểm thử:
+  - tests/test_blind_view.py: 34 tests ĐẠT
+    + Đã bổ sung 4 unit test chuyên biệt xác thực các tinh chỉnh mới:
+      * `test_load_already_annotated_sample_ids_rejects_dataset_hash_mismatch`: ĐẠT.
+      * `test_load_already_annotated_sample_ids_rejects_dataset_id_mismatch`: ĐẠT.
+      * `test_cli_blocks_random_subset_override_in_human_session`: ĐẠT.
+      * `test_annotation_record_provenance_roundtrip`: ĐẠT.
+      * `test_kappa_pairs_by_sample_id_regardless_of_order`: ĐẠT.
+      * `test_kappa_rejects_sample_id_mismatch`: ĐẠT.
+      * `test_kappa_rejects_package_hash_mismatch`: ĐẠT.
+  - tests/test_date_parser.py: 9 tests ĐẠT
+  - tests/test_dictionary_and_annotation.py: 18 tests ĐẠT
+  - tests/test_domain_rules.py: 6 tests ĐẠT
+  - tests/test_exclusion_registry.py: 11 tests ĐẠT
+  - tests/test_label_fixes.py: 8 tests ĐẠT
+  - tests/test_preprocessing.py: 7 tests ĐẠT (32 subtests ĐẠT)
+
+--------------------------------------------------------------------------------
+III. KIẾN NGHỊ NGHIỆM THU VÀ KẾ HOẠCH BÀN GIAO TIẾP THEO
+--------------------------------------------------------------------------------
+
+1. Bàn giao cho Thành viên B:
+   - Các công cụ và giao thức theo góp ý tại `CODEBOOK_REVIEW_B.md` đã hoàn tất 100%.
+   - Thành viên B có thể chạy lệnh `python -m pytest` trên môi trường cá nhân để kiểm chứng.
+   - Đề nghị Thành viên B phối hợp cùng Lead D tiến hành nghiệm thu tài liệu Codebook
+     (chuyển trạng thái `docs/CODEBOOK_V1.md` từ `pending_review` sang `locked/accepted`).
+
+2. Bàn giao cho Lead D:
+   - Hạ tầng kỹ thuật, đường ống dữ liệu và công cụ gán nhãn mù đã đạt trạng thái sẵn sàng cao nhất.
+   - Cơ chế bảo vệ chốt chặn `real_pilot_pending_review` đang hoạt động để ngăn ngừa gán nhãn
+     vội vã trước khi có lệnh chính thức.
+   - Khi Lead D ban hành quyết định mở phiên gán nhãn pilot thực tế, Thành viên C sẽ cập nhật
+     metadata của gói `data/annotations/blind_view_pilot_real.json` để A và B bước vào ca gán
+     nhãn đầu tiên, phục vụ việc chốt số liệu đo công sức cho kế hoạch PLAN-01.
+
+================================================================================
+HẾT VĂN BẢN BÁO CÁO KỸ THUẬT
+================================================================================
