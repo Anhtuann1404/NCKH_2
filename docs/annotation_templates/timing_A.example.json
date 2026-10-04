@@ -1,0 +1,33 @@
+{
+  "template_only": true,
+  "template_version": "a-prep-0.1",
+  "timing_record": {
+    "timing_record_id": null,
+    "annotator_id": "A",
+    "sample_id": null,
+    "pass_id": null,
+    "pilot_batch_id": null,
+    "started_at": null,
+    "finished_at": null,
+    "measurement_kind": null,
+    "completed": null,
+    "phases": {
+      "reading_seconds": null,
+      "reference_lookup_seconds": null,
+      "normalization_seconds": null,
+      "adjudication_seconds": null,
+      "active_total_seconds": null,
+      "break_seconds": null
+    },
+    "interruption_note": null,
+    "adjudication_event_id": null
+  },
+  "instructions": {
+    "measurement_kind_values_proposed_for_review": ["human", "human_with_ai", "ai_only"],
+    "active_total_seconds": "Tổng đọc + tra cứu + chuẩn hóa + phân xử thực của người; không cộng break_seconds, không điền 0 cho thời gian chưa đo.",
+    "pilot_summary": "C xác nhận tập 20 phishing pilot sau khóa lượt. Báo N hoàn thành/thiếu và trung bình riêng phishing/benign; phân xử phát sinh ghi sự kiện riêng để không cộng trùng.",
+    "AI": "ai_only không ước lượng giờ người; human_with_ai cần báo riêng điều kiện đo và công sức người kiểm. Không dùng tốc độ AI để giảm quy mô dự trù người.",
+    "timestamp": "ISO 8601 có offset, ví dụ offset địa phương +07:00; không bịa thời điểm hoặc thời lượng.",
+    "write_records": "Mỗi dòng timing.jsonl là một timing_record thực đã điền; tệp template không phải dữ liệu pilot."
+  }
+}

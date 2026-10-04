@@ -13,7 +13,7 @@ git clone --branch main https://github.com/Anhtuann1404/NCKH_2.git
 cd NCKH_2
 ```
 
-Đọc `docs/TEAM.md` để xác định vai trò, sau đó đọc `docs/CURRENT_TASKS.md` và `docs/DEVELOPMENT.md` để nhận việc và thống nhất cách bàn giao. Điền họ tên và thời gian có thể dành mỗi tuần trước khi chốt người nhận nhiệm vụ. Tài liệu hiện là khung triển khai; mô hình, API và extension chưa được xây dựng.
+Đọc `docs/TEAM.md` để xác định vai trò, sau đó đọc `docs/CURRENT_TASKS.md` và `docs/DEVELOPMENT.md` để nhận việc và thống nhất cách bàn giao. Thành viên A — Trần Hồng Khải bắt đầu từ [hồ sơ MEMBER_A](MEMBER_A.md). Điền họ tên và thời gian có thể dành mỗi tuần trước khi chốt người nhận nhiệm vụ. Tài liệu hiện là khung triển khai; mô hình, API và extension chưa được xây dựng.
 
 Khi bắt đầu viết mã, tạo nhánh riêng từ `main` đã cập nhật và gửi pull request để nhóm rà soát trước khi gộp. Không commit khóa API, dữ liệu bị hạn chế chia sẻ hoặc HTML thu thập vào repo.
 
@@ -43,7 +43,7 @@ Lõi là URL + nội dung + tín hiệu tổ chức–miền–ý định; tập
 
 Đã có đề cương, ghi chú, kiểm kê URL PhishVN và thử tải 20 dòng PhreshPhish. Đã xác nhận nhóm từ 4 người trở lên. Chưa kiểm kê date toàn revision, chưa khóa tập thực nghiệm/danh mục cuối, chưa đo pilot nhãn, chưa huấn luyện, chưa có API hoặc extension.
 
-Vai trò A gán nhãn, B kiểm độc lập và QA, C quản lý dữ liệu/giao diện mù. D là cậu: lead, owner xây dựng–huấn luyện–đánh giá model và API–extension. A/B/C phải là ba người khác nhau; họ tên A/B/C và ngân sách giờ chưa chốt. B hỗ trợ tái lập sau khóa nhãn, C bàn giao pipeline dữ liệu; D chịu trách nhiệm model. Chi tiết ở TEAM.
+Vai trò A gán nhãn, B kiểm độc lập và QA, C quản lý dữ liệu/giao diện mù. D là lead, owner xây dựng–huấn luyện–đánh giá model và API–extension. A/B/C phải là ba người khác nhau; A đã xác nhận tên Trần Hồng Khải và 49 giờ/tuần; họ tên B/C và ngân sách giờ nhóm chưa chốt. B hỗ trợ tái lập sau khóa nhãn, C bàn giao pipeline dữ liệu; D chịu trách nhiệm model. Chi tiết ở TEAM.
 
 ## Các file cấu hình mẫu
 

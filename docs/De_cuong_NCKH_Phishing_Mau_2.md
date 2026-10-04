@@ -13,7 +13,7 @@
 | Vai trò và phần việc phụ trách | Họ và tên | MSSV | Lớp | Khoa | Email | SĐT |
 | --- | --- | --- | --- | --- | --- | --- |
 | **Sinh viên chủ nhiệm (D)** — điều phối; xây dựng, huấn luyện và đánh giá mô hình; API và tiện ích trình duyệt | [Bổ sung họ tên chủ nhiệm] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] |
-| **Thành viên A** — gán nhãn tổ chức, bằng chứng nội dung và kiểm tra trang hợp lệ khó | [Bổ sung họ tên] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] |
+| **Thành viên A** — gán nhãn tổ chức, bằng chứng nội dung và kiểm tra trang hợp lệ khó | Trần Hồng Khải | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] |
 | **Thành viên B** — kiểm nhãn độc lập; kiểm chứng thực nghiệm, tái lập và kiểm thử hệ thống | [Bổ sung họ tên] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] |
 | **Thành viên C** — nguồn dữ liệu, danh mục tổ chức, công cụ gán nhãn mù, xử lý dữ liệu và chia tập | [Bổ sung họ tên] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] | [Bổ sung] |
 
@@ -249,7 +249,7 @@ Nhóm có nền tảng Python/học máy và web/JavaScript, phát triển thêm
 
 **Nguyên tắc phối hợp:** A, B và C là ba người khác nhau; lượt gán nhãn độc lập được khóa trước khi tiếp cận đầu ra mô hình. C bàn giao dữ liệu/danh mục/groups/splits có checksum cho D; D trực tiếp xây dựng và huấn luyện mô hình, B hỗ trợ kiểm chứng/tái lập sau khóa nhãn. Bất đồng nhãn được phân xử theo bằng chứng, giữ lịch sử; không tự thay nhãn/danh mục/ngưỡng sau xem test để tăng kết quả. D tổng hợp báo cáo, còn từng thành viên viết và kiểm phần mình.
 
-[Bổ sung họ tên, MSSV, kinh nghiệm và giờ/tuần của từng thành viên; nếu có người hỗ trợ thêm, ghi nhiệm vụ dưới người phụ trách tương ứng]. Phần phishing và kiểm chéo cần khoảng 130–217 giờ người ở mốc 2.000 hoặc 78–130 giờ người ở mốc 1.200 theo giả định 3–5 phút/trang, cộng công sức benign/phân xử; đo lại bằng pilot tại mục 5.2b trước chốt quy mô. Ngân sách giờ của D phải tính cả mô hình, API–extension và điều phối; B/C hỗ trợ kiểm thử/tái lập nhưng không thay trách nhiệm chính. Triển khai ưu tiên mô hình ở T2–T4, tích hợp thật ở T4–T5; khung demo mô phỏng có thể chuẩn bị sớm.
+A là Trần Hồng Khải theo xác nhận 04/10/2026, ngân sách 49 giờ/tuần; số tuần thực có chưa chốt. [Bổ sung họ tên các thành viên còn lại, MSSV, kinh nghiệm và giờ/tuần của từng thành viên; nếu có người hỗ trợ thêm, ghi nhiệm vụ dưới người phụ trách tương ứng]. Phần phishing và kiểm chéo cần khoảng 130–217 giờ người ở mốc 2.000 hoặc 78–130 giờ người ở mốc 1.200 theo giả định 3–5 phút/trang, cộng công sức benign/phân xử; đo lại bằng pilot tại mục 5.2b trước chốt quy mô. Ngân sách giờ của D phải tính cả mô hình, API–extension và điều phối; B/C hỗ trợ kiểm thử/tái lập nhưng không thay trách nhiệm chính. Triển khai ưu tiên mô hình ở T2–T4, tích hợp thật ở T4–T5; khung demo mô phỏng có thể chuẩn bị sớm.
 
 GPU không bắt buộc cho lõi TF-IDF; cần máy chạy trình duyệt và sandbox nếu thu trang sống. Encoder trên Colab/Kaggle là tùy chọn.
 

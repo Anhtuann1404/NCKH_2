@@ -9,7 +9,8 @@ Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày 
 - DONE — kiểm kê URL PhishVN: [kết quả](../data/source_audit/PhishVN_kiem_ke.json), [script](../data/source_audit/kiem_ke_phishvn.py).
 - DONE — thử kỹ thuật 20 PhreshPhish: [summary](../data/source_audit/phreshphish/pilot_summary.json). Không phải tập thực nghiệm đã xác minh.
 - DONE — bộ tài liệu khởi động và hợp đồng API v0.1.
-- DONE — D là người dùng/lead, nhận model và API–extension; phân công owner A/B/C/D ở [TEAM](TEAM.md). A/B/C chưa có họ tên.
+- DONE — D là lead, nhận model và API–extension theo xác nhận trước; phân công owner A/B/C/D ở [TEAM](TEAM.md). A là Trần Hồng Khải theo xác nhận 04/10/2026; B/C chưa có họ tên.
+- DONE — A-PREP: hồ sơ làm việc, biểu mẫu và bản thảo phương pháp của A ở [MEMBER_A](MEMBER_A.md). Chưa có nhãn mẫu thật hoặc giờ pilot.
 - TODO — date toàn nguồn, freeze danh mục/codebook, pilot nhãn, dữ liệu chính, mô hình, API và extension.
 
 `TODO` chưa làm; `IN_PROGRESS` đang có công việc thực; `BLOCKED` có phụ thuộc cụ thể; `DONE` có sản phẩm kiểm tra được. Không đánh dấu DONE chỉ vì đã có mô tả.
@@ -18,7 +19,7 @@ Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày 
 
 ### START-01 — Chốt người và ngân sách giờ
 
-Status: TODO. Owner: D — lead. Phụ thuộc: không.
+Status: IN_PROGRESS. Owner: D — lead. Phụ thuộc: không. A đã xác nhận họ tên Trần Hồng Khải và 49 giờ/tuần; số tuần thực có của A, người/giờ B/C/D và nơi giữ dữ liệu chưa đủ để nghiệm thu.
 
 Điền tên A/B/C/D, giờ mỗi tuần trong 6–8 tuần gán nhãn, xác nhận D phụ trách model/API–extension và nơi giữ dữ liệu. A/B/C là người khác nhau. Done khi cả nhóm xác nhận phân công và tổng giờ; cập nhật mục đội nhóm trong file này, không sửa đề cương để thay lõi.
 
@@ -58,12 +59,30 @@ Status: TODO. Owner: D. Phụ thuộc: đọc API_SPEC; có thể làm song song
 
 Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Done khi chuyển trang không nhận kết quả cũ, service offline hiện chưa đánh giá được. Mock luôn có nhãn rõ; không ghi số đo mock thành hiệu năng mô hình.
 
+## Phần việc A — Trần Hồng Khải
+
+Các mục dưới cụ thể hóa nhiệm vụ nhãn của A; không đổi trạng thái DONE của DATA-02/LABEL-01 khi mới có biểu mẫu. Chi tiết và điều kiện nghiệm thu tại [MEMBER_A](MEMBER_A.md).
+
+| Task | Status | Sản phẩm/bằng chứng và phụ thuộc |
+| --- | --- | --- |
+| A-PREP — chuẩn bị hồ sơ | DONE | Quy trình A, biểu mẫu annotation/time, phiếu bàn giao; JSON đọc được, liên kết kiểm tra được |
+| A-RULE — rà codebook cho DATA-02 | IN_PROGRESS | [Góp ý cụ thể cho 9 điểm](annotation_templates/CODEBOOK_REVIEW_A.md); chờ A/B/C rà và C khóa version/hash |
+| A-PILOT — lượt A của LABEL-01 | BLOCKED | Chưa có codebook khóa/view mù/exclusion registry từ C; 0 lượt thật, chưa đo giờ |
+| A-LABEL — toàn bộ phishing giữ lại | BLOCKED | Chờ pilot, quy mô/sampling plan và view chính; không dùng source target để gán |
+| A-BENIGN — kiểm hard benign | BLOCKED | Chờ tiêu chí/danh sách/view được chọn từ C |
+| A-RESOLVE — phân xử và kiểm đầy đủ nhãn cuối | BLOCKED | Chờ lượt độc lập B, đồng thuận random trước phân xử và quyết định nhóm |
+| A-REPORT — phần phương pháp/kết quả nhãn | IN_PROGRESS | [Phương pháp dự kiến đã viết](REPORT_LABELING_A.md); số liệu kết quả chờ dữ liệu thật |
+
+Hồ sơ local `data/annotations/A/` đã khởi tạo với sổ JSONL trống và trạng thái, được Git ignore. Hỗ trợ AI hiện chỉ là rà tài liệu/soạn hồ sơ; không tính là annotation độc lập hoặc giờ người pilot.
+
+Phần A làm được trước bàn giao đã chuẩn bị thêm: [6 bài tập mô phỏng có giải thích](annotation_templates/PRACTICE_A.md), [tin nhắn đề nghị C bàn giao](annotation_templates/REQUEST_PILOT_C.md) (người dùng xác nhận đã gửi cho C) và [bảng ước lượng giờ theo giả định đề cương](annotation_templates/TIME_PLAN_A.md). Chưa chứng nhận A đã thực hành hoặc duyệt góp ý; ngân sách A đã xác nhận 49 giờ/tuần. Chưa nhận phản hồi/gói C trong phiên này.
+
 ## Đội nhóm cần điền
 
-- A — họ tên: chưa điền; giờ/tuần: chưa điền.
+- A — họ tên: Trần Hồng Khải (người dùng xác nhận 04/10/2026); giờ/tuần: 49; số tuần thực có chưa chốt.
 - B — họ tên: chưa điền; giờ/tuần: chưa điền.
 - C — họ tên: chưa điền; giờ/tuần: chưa điền.
-- D — người dùng, lead + model + API–extension; họ tên chính thức/giờ tuần: chưa điền.
+- D — lead + model + API–extension; họ tên chính thức/giờ tuần: chưa điền. Người dùng phiên hiện tại là A, không đổi vai trò D.
 - Owner model: D; C bàn giao dữ liệu, B kiểm tái lập sau khóa nhãn.
 - GVHD và thành viên thêm: chưa điền.
 
@@ -83,3 +102,9 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 04/10/2026 — chốt ownership 4 vai trò: A nhãn, B kiểm độc lập/QA, C pipeline dữ liệu/view mù, D người dùng/lead + model + API–extension. Các task triển khai vẫn TODO; chưa huấn luyện hoặc chạy API.
 
 04/10/2026 — đưa phân công TEAM vào mục 6.1, bảng tiến độ mục 8 và bảng thông tin bốn thành viên của đề cương theo yêu cầu. D nhận trực tiếp model/API–extension và lead; họ tên A/B/C và giờ tuần chưa chốt.
+
+04/10/2026 — người dùng phiên hiện tại xác nhận là A, tên Trần Hồng Khải, giờ/tuần chưa xác nhận. Hoàn thành A-PREP: quy trình, biểu mẫu JSON, phiếu bàn giao và bản thảo phương pháp; khởi tạo sổ A local trống. A-RULE/A-REPORT còn chờ rà và số liệu; lượt nhãn thật chờ C bàn giao codebook khóa/view mù. Không đọc raw pilot có target/label, không tạo nhãn hoặc thời gian giả và không đổi nhiệm vụ D. Kiểm JSON, liên kết mới, Git ignore và whitespace; chưa có kiểm chứng nhãn/đồng thuận từ A/B.
+
+04/10/2026 — theo yêu cầu làm tiếp của A, bổ sung phương án cụ thể R-A01–R-A09, 6 tình huống mô phỏng có cách ghi, bản đề nghị bàn giao pilot cho C chưa gửi và bảng giờ 1.200/2.000 mẫu theo giả định 3–5 phút. Không thay codebook chính thức, không ghi bài tập thành nhãn thật hoặc đo thời gian thay người dùng.
+
+04/10/2026 — A xác nhận đã gửi đề nghị cho C và có ngân sách 49 giờ/tuần. Cập nhật hồ sơ hiện hành và trạng thái local; ngân sách điều kiện cho 6/7/8 tuần lần lượt 294/343/392 giờ, số tuần cụ thể chưa chốt. START-01 vẫn IN_PROGRESS, PLAN-01 chưa chốt: cần ngân sách B và pilot thực; gói C chưa được bàn giao trong phiên này. Lượt nhãn và thời gian pilot vẫn chưa có.

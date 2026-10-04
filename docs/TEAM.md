@@ -1,10 +1,12 @@
 # Phân công và quyền sở hữu công việc — 4 người
 
-Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, mô hình và API–extension. A/B/C chưa chốt họ tên. Phân công này cụ thể hóa triển khai trong hướng đề cương đã duyệt; không thay RQ hoặc giao thức nghiên cứu.
+Cập nhật 04/10/2026. D là chủ nhiệm đã nhận lead, mô hình và API–extension theo phiên xác nhận trước. Người dùng phiên hiện tại là A — Trần Hồng Khải, xác nhận 49 giờ/tuần; B/C chưa chốt họ tên. Phân công này cụ thể hóa triển khai trong hướng đề cương đã duyệt; không thay RQ hoặc giao thức nghiên cứu.
 
 “Owner” là người chịu trách nhiệm hoàn thành, giải thích quyết định, lưu bằng chứng và bàn giao phần việc; không có nghĩa chỉ người đó được sửa code. Reviewer kiểm độc lập trước bàn giao. File code bên dưới là vị trí dự kiến khi scaffold, chưa phải module đã có.
 
 ## A — Owner nhãn và bằng chứng nội dung
+
+**Thành viên:** Trần Hồng Khải (xác nhận 04/10/2026); ngân sách 49 giờ/tuần theo người dùng, số tuần/khung giờ cụ thể chưa chốt. Hồ sơ triển khai: [MEMBER_A](MEMBER_A.md).
 
 **Trách nhiệm:** gán nhãn tổ chức cho toàn bộ phishing giữ lại; ghi tên dịch vụ, mục tiêu, vai trò, bằng chứng và thời gian; kiểm hard benign; viết phần mô tả nhãn/phân tích nội dung cho báo cáo. A/B dùng codebook chung, không nhìn target nguồn hoặc prediction trong lượt nhãn độc lập.
 
@@ -34,7 +36,7 @@ Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, m�
 
 **Mức giờ tham chiếu:** 8–12 giờ/tuần tập trung T1–T2, còn hỗ trợ dữ liệu/tái lập về sau.
 
-## D — Cậu: lead và owner model, API, extension
+## D — Lead và owner model, API, extension
 
 **Lead:** điều phối nhiệm vụ/phụ thuộc, tổng hợp báo cáo, review tích hợp, quản lý version/release và trao đổi với GVHD. Mỗi người vẫn viết và kiểm phần mình; lead không làm thay toàn bộ báo cáo.
 
