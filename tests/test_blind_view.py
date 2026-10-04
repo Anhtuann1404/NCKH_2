@@ -1029,6 +1029,69 @@ class TestProvenanceAndKappaPairing:
         assert res.sample_count == 2
         assert res.observed_agreement == 1.0
 
+    def test_kappa_rejects_mixed_packages_even_when_both_raters_have_same_hash_set(self):
+        """Cùng tập hash {hash_A, hash_B} nhưng trộn hai gói trong cùng batch phải ném lỗi LỖI ĐA GÓI."""
+        # Cả rater1 và rater2 cùng chứa các mẫu từ 2 gói dữ liệu hash_pkg_A và hash_pkg_B
+        # Tập hợp hash của rater1: {hash_pkg_A, hash_pkg_B}
+        # Tập hợp hash của rater2: {hash_pkg_A, hash_pkg_B}
+        # Thuật toán cũ: clean_v1 != clean_v2 -> False (bỏ lọt lỗi trộn gói)
+        # Thuật toán mới: len(clean_v1) > 1 -> ném ValueError("LỖI ĐA GÓI...")
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "hash_pkg_A", "codebook_version": "1.0.0", "codebook_hash": "cb_1", "sampling_plan_version": "v1", "sample_content_hash": "c1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_B", "dataset_hash": "hash_pkg_B", "codebook_version": "1.0.0", "codebook_hash": "cb_1", "sampling_plan_version": "v1", "sample_content_hash": "c2"},
+            {"sample_id": "S03", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "hash_pkg_A", "codebook_version": "1.0.0", "codebook_hash": "cb_1", "sampling_plan_version": "v1", "sample_content_hash": "c3"},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "hash_pkg_A", "codebook_version": "1.0.0", "codebook_hash": "cb_1", "sampling_plan_version": "v1", "sample_content_hash": "c1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_B", "dataset_hash": "hash_pkg_B", "codebook_version": "1.0.0", "codebook_hash": "cb_1", "sampling_plan_version": "v1", "sample_content_hash": "c2"},
+            {"sample_id": "S03", "class_label": "phishing", "dataset_id": "ds_A", "dataset_hash": "hash_pkg_A", "codebook_version": "1.0.0", "codebook_hash": "cb_1", "sampling_plan_version": "v1", "sample_content_hash": "c3"},
+        ]
+        with pytest.raises(ValueError, match="LỖI ĐA GÓI"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_shuffled_row_order_same_package_produces_identical_correct_result(self):
+        """Đảo thứ tự dòng của cùng gói dữ liệu phải đối chiếu đúng theo sample_id và cho kết quả chuẩn xác."""
+        common_prov = {
+            "dataset_id": "REAL-PILOT-32-V1",
+            "dataset_hash": "pilot_pkg_sha256_abcdef",
+            "codebook_version": "1.0.0",
+            "codebook_hash": "codebook_sha256_123456",
+            "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
+            "random_subset": True,
+        }
+        # Thứ tự chuẩn gốc theo sample_id (4 khớp, 1 lệch)
+        r1_ordered = [
+            {**common_prov, "sample_id": "S01", "class_label": "phishing", "sample_content_hash": "cnt_01"},
+            {**common_prov, "sample_id": "S02", "class_label": "benign", "sample_content_hash": "cnt_02"},
+            {**common_prov, "sample_id": "S03", "class_label": "phishing", "sample_content_hash": "cnt_03"},
+            {**common_prov, "sample_id": "S04", "class_label": "benign", "sample_content_hash": "cnt_04"},
+            {**common_prov, "sample_id": "S05", "class_label": "phishing", "sample_content_hash": "cnt_05"},
+        ]
+        r2_ordered = [
+            {**common_prov, "sample_id": "S01", "class_label": "phishing", "sample_content_hash": "cnt_01"},  # Agree (phish)
+            {**common_prov, "sample_id": "S02", "class_label": "benign", "sample_content_hash": "cnt_02"},    # Agree (benign)
+            {**common_prov, "sample_id": "S03", "class_label": "benign", "sample_content_hash": "cnt_03"},    # Disagree
+            {**common_prov, "sample_id": "S04", "class_label": "benign", "sample_content_hash": "cnt_04"},    # Agree (benign)
+            {**common_prov, "sample_id": "S05", "class_label": "phishing", "sample_content_hash": "cnt_05"},  # Agree (phish)
+        ]
+        res_baseline = compute_cohens_kappa(r1_ordered, r2_ordered, label_field="class_label")
+        assert res_baseline.sample_count == 5
+        assert res_baseline.observed_agreement == 0.8  # 4/5
+
+        # Đảo thứ tự dòng ở rater1 và xáo trộn hoàn toàn ở rater2
+        r1_shuffled = [r1_ordered[4], r1_ordered[0], r1_ordered[2], r1_ordered[1], r1_ordered[3]]
+        r2_shuffled = [r2_ordered[1], r2_ordered[3], r2_ordered[4], r2_ordered[0], r2_ordered[2]]
+
+        res_shuffled = compute_cohens_kappa(r1_shuffled, r2_shuffled, label_field="class_label")
+
+        # Kết quả tính toán phải độc lập thứ tự dòng và chuẩn xác 100% với baseline
+        assert res_shuffled.status == res_baseline.status == "valid"
+        assert res_shuffled.sample_count == res_baseline.sample_count == 5
+        assert res_shuffled.observed_agreement == res_baseline.observed_agreement == 0.8
+        assert res_shuffled.expected_agreement == res_baseline.expected_agreement
+        assert res_shuffled.kappa == res_baseline.kappa
+
+
 
 class TestResumeStrictProvenanceAndManifestChecks:
     """Kiểm thử cơ chế kiểm tra Resume nghiêm ngặt và rào chắn Manifest kiểm định."""
