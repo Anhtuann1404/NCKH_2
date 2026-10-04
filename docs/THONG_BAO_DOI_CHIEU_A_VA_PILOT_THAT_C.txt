@@ -1,0 +1,149 @@
+================================================================================
+BÁO CÁO ĐỐI SOÁT KỸ THUẬT & THÔNG BÁO TIẾN ĐỘ BÀN GIAO PILOT THẬT (TASK LABEL-01)
+TIỂU BAN DỮ LIỆU & GÁN NHÃN MÙ (THÀNH VIÊN C)
+================================================================================
+
+Kính gửi: Thành viên A (Trần Hồng Khải), Thành viên B, Lead D (Anh Tuấn)
+Người lập: Thành viên C (Data Pipeline & Blind View)
+Ngày lập: 04/10/2026
+Mã nhiệm vụ: LABEL-01 (Hoàn thiện view mù và công cụ gán nhãn có bấm giờ)
+Nhánh làm việc C: feat/data-pipeline (Commit xác thực mới nhất: 6817d7e)
+Nhánh đối chiếu A: codex/member-a-preparation (Commit xác thực mới nhất: c528ea3)
+Trạng thái kiểm thử hệ thống: 86/86 test cases đạt (100% Passed)
+
+--------------------------------------------------------------------------------
+I. GHI NHẬN HỒ SƠ VÀ NGÂN SÁCH THỜI GIAN CỦA THÀNH VIÊN A
+--------------------------------------------------------------------------------
+Thành viên C xác nhận đã đối soát hồ sơ của Thành viên A trên nhánh
+`codex/member-a-preparation` (commit c528ea3):
+1. Nhân sự & Ngân sách:
+   - Họ tên: Trần Hồng Khải (Thành viên A - Owner nhãn và bằng chứng nội dung).
+   - Ngân sách thời gian cam kết: 49 giờ/tuần trong đợt gán nhãn (vượt mức tham
+     chiếu 15-25 giờ/tuần theo kế hoạch ban đầu, bảo đảm đầy đủ nguồn lực hoàn
+     thành đợt gán nhãn chính).
+   - Đã cập nhật chính thức thông tin ngân sách của Thành viên A vào tệp quản lý
+     tiến độ chung docs/CURRENT_TASKS.md (mục START-01 và Đội nhóm).
+2. Tình trạng chuẩn bị quy trình của A:
+   - Đã hoàn tất các biểu mẫu chuẩn bị: annotation_A.example.json, timing_A.example.json,
+     HANDOFF_A.md, PRACTICE_A.md, TIME_PLAN_A.md.
+   - Thư mục dữ liệu cục bộ data/annotations/A/ đang để trống, đúng nguyên tắc
+     ARS (0 nhãn thật, 0 thời gian thực tế đo được khi chưa nhận bàn giao).
+
+--------------------------------------------------------------------------------
+II. ĐỐI SOÁT VÀ TIẾP THU GÓP Ý CODEBOOK (R-A01 ĐẾN R-A09)
+--------------------------------------------------------------------------------
+Thành viên C và Lead D đã rà soát toàn bộ 09 góp ý của A (docs/annotation_templates/CODEBOOK_REVIEW_A.md)
+và đồng bộ vào mã nguồn tại commit 6817d7e:
+
+1. R-A01 & R-A02 (Tách mục tiêu chính khỏi danh mục, ghi vai trò theo từng tên):
+   - Đã chuẩn hóa trong docs/CODEBOOK_V1.md (Mục 6) và src/phishing/annotation/blind_view.py:
+     + `primary_org_status` phản ánh khả năng xác định mục tiêu trên trang:
+       'identified', 'unknown', 'no_clear_target', 'multi_target'.
+     + `catalog_status` phản ánh mối quan hệ với danh mục 14 tổ chức:
+       'in_catalog', 'outside_catalog', 'unresolved'.
+     + Phân biệt rõ `identity_role` (tuyên bố danh tính trên trang: 'identity_claim',
+       'mention_only', 'unclear') với `domain_role` (quan hệ kỹ thuật tên miền:
+       'first_party_identity', 'first_party_content', 'user_content_hosting',
+       'authorized_service', 'unverified'). Không suy diễn trường này từ trường kia.
+2. R-A03 & R-A04 (Quy tắc chọn chính theo luồng form, tách nhãn lớp và nhãn tổ chức):
+   - Quy tắc đọc ưu tiên: (1) Form/vùng nhập liệu đang tự nhận đại diện; (2) Lời dẫn/heading
+     gắn trực tiếp với form; (3) Tuyên bố khác.
+   - Nhãn lớp ('phishing', 'benign', 'insufficient_evidence') được quyết định độc lập
+     với nhãn tổ chức. Trang thiếu nội dung/lỗi hiển thị ghi 'insufficient_evidence',
+     tuyệt đối không ép thành benign.
+3. R-A06 & R-A07 (Quy chuẩn tra cứu và hình ảnh):
+   - Nghiêm cấm mở URL sống ra Internet hoặc thực thi JavaScript. Đánh giá viên chỉ
+     dựa vào nội dung văn bản và cấu trúc an toàn được C bóc tách trong Blind View.
+   - Logo đơn lẻ không quyết định nhãn lớp hay quyền sở hữu; chỉ là bằng chứng hỗ trợ tên.
+4. R-A08 & R-A09 (Bảo vệ toàn vẹn khi lộ nhãn & quy chế hỗ trợ AI):
+   - Nếu xảy ra sự cố lộ nhãn, lập tức dừng batch, lưu vết incident và chuyển C/D xử lý.
+   - Tuyệt đối không coi gợi ý của AI là lượt gán nhãn người độc lập. Đồng hồ bấm giờ
+     phải đo lường 100% thời gian thao tác/đọc thực tế của con người.
+5. Trạng thái phê duyệt Codebook & Dictionary:
+   - Tệp docs/CODEBOOK_V1.md và configs/dictionary_v1.json hiện vẫn ở trạng thái
+     `pending_review` (chưa khóa chính thức).
+   - Checksum hiện hành:
+     + Codebook SHA-256: 8226b00220159b0fd3a4e3666727cafd3eed144cc1c8ff69627d2d7851becbcb
+     + Dictionary SHA-256: 61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28
+   - Theo đúng quy chuẩn, bản khóa chính thức sẽ được ban hành ngay khi Thành viên B
+     và Lead D hoàn tất ký duyệt nghiệm thu.
+
+--------------------------------------------------------------------------------
+III. PHÂN ĐỊNH RẠCH RÒI: GÓI MÔ PHỎNG (20 MẪU) VS. GÓI PILOT THẬT (32 MẪU)
+--------------------------------------------------------------------------------
+1. Gói mô phỏng hiện hành (20 mẫu - Dành cho tập dượt kỹ thuật):
+   - Đường dẫn: data/annotations/blind_view_pilot.json
+   - Phân loại: `synthetic_practice_pilot` (cờ `is_synthetic: true`).
+   - Mục đích: Dành riêng cho Thành viên A và B chạy thử nghiệm scripts/annotate_cli.py,
+     làm quen với quy trình phân trang xem toàn văn ('v', 'm'), các menu enum và
+     cơ chế tự động lưu file JSONL.
+   - CẢNH BÁO PHƯƠNG PHÁP LUẬN: Thời gian đo đạc trên 20 mẫu mô phỏng này chỉ mang tính
+     kiểm thử công cụ; TUYỆT ĐỐI KHÔNG DÙNG để tính năng suất hoặc ước lượng cỡ mẫu
+     cho PLAN-01.
+
+2. Gói pilot thật chuẩn bị bàn giao (32 mẫu - REAL-PILOT-32-V1):
+   - Manifest kỹ thuật: configs/pilot_manifest.json
+   - Thành phần tập mẫu (32 mẫu thật):
+     + 20 mẫu kỹ thuật: Khôi phục từ train offset 0, length 20 (SHA-256 toàn bộ byte
+       khớp chính xác bản lưu trữ gốc: 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f).
+     + 12 mẫu source-phish bổ sung: Lấy từ data/train-055.parquet thuộc pinned revision
+       eabec4b7a66324b79cc8a0ad856d1731dc26fe1a (xác minh SHA-256 cục bộ khớp
+       Git-LFS metadata: 205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0).
+       Quy tắc chọn: 12 dòng đầu theo shard row order, URL+HTML không trùng, HTML <= 2.000.000 ký tự.
+     + Tuyệt đối không sử dụng tập Official Test.
+   - Cơ chế bảo mật và chống rò rỉ:
+     + Tệp blind view thật: data/annotations/blind_view_pilot_real.json (SHA-256:
+       9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041).
+     + Dữ liệu hạn chế C-only: data/raw/pilot/source_mapping.json và blind_order.json
+       được lưu riêng biệt ở local C và đưa vào .gitignore. A và B không nhận thông tin này.
+   - Chốt chặn an toàn: Trong configs/pilot_manifest.json, cờ `ready_for_annotation`
+     đang đặt là `false`. CLI scripts/annotate_cli.py chủ động chặn người gán nhãn
+     thao tác trên gói thật cho đến khi có nghiệm thu chính thức từ B và D.
+
+--------------------------------------------------------------------------------
+IV. XÁC NHẬN EXCLUSION REGISTRY VÀ CHỐT CHẶN HUẤN LUYỆN
+--------------------------------------------------------------------------------
+1. Toàn bộ 32 mẫu của gói pilot thật đã được nạp mã băm vào tệp đăng ký loại trừ
+   data/exclusion_registry.json (gồm union hash của raw URL, raw HTML và nhóm miền PSL).
+2. Do 20 mẫu cũ chưa có vị trí shard/offset pinned trong revision, trạng thái ánh xạ
+   vẫn được giữ nguyên là `unresolved_source_mapping`.
+3. Chốt chặn huấn luyện chính: Hàm `assert_training_allowed()` trong module
+   src/phishing/data/exclusion.py duy trì cơ chế hard-block độc lập. Nếu Lead D gọi
+   lệnh fit mô hình trước khi hoàn tất nghiệm thu và khóa ánh xạ, hệ thống sẽ lập
+   tức ném `RuntimeError` dừng chương trình.
+
+--------------------------------------------------------------------------------
+V. KẾT QUẢ KIỂM THỬ TỰ ĐỘNG TOÀN HỆ THỐNG
+--------------------------------------------------------------------------------
+Sau khi tích hợp các bản sửa lỗi L-B01 đến L-B06 và kịch bản tạo pilot thật:
+- Lệnh chạy: python -c "import sys, pytest; sys.path.insert(0, 'src'); sys.exit(pytest.main(['tests/', '-v']))"
+- Kết quả: 86/86 test cases PASSED (100%), gồm:
+  + tests/test_blind_view.py: 23 passed
+  + tests/test_date_parser.py: 9 passed
+  + tests/test_dictionary_and_annotation.py: 18 passed
+  + tests/test_domain_rules.py: 6 passed
+  + tests/test_exclusion_registry.py: 11 passed
+  + tests/test_label_fixes.py: 8 passed (chứng minh sửa dứt điểm L-B01–L-B06)
+  + tests/test_preprocessing.py: 11 passed
+
+--------------------------------------------------------------------------------
+VI. HƯỚNG DẪN THỰC HÀNH VÀ QUY TRÌNH BÀN GIAO TIẾP THEO
+--------------------------------------------------------------------------------
+1. Thành viên A thực hành ngay trên gói mô phỏng:
+   Thành viên A có thể bắt đầu tập dượt thao tác trên nhánh feat/data-pipeline bằng lệnh:
+   ```powershell
+   python scripts/annotate_cli.py --annotator A --input data/annotations/blind_view_pilot.json --output data/annotations/A/pilot_practice.jsonl
+   ```
+   Lưu ý: Quá trình tập dượt có thể thử nghiệm lệnh 'v' (xem toàn bộ văn bản), 'm'
+   (phân trang 600 ký tự tiếp theo), và kiểm tra tính năng lưu tự động khi ấn Ctrl+C.
+
+2. Điều kiện mở gói pilot thật (32 mẫu):
+   Thành viên C sẽ chính thức mở gói 32 mẫu thật ngay khi:
+   - Thành viên B và Lead D hoàn tất rà soát 4 quy tắc và xác nhận nghiệm thu
+     trong configs/pilot_manifest.json (chuyển "acceptance": {"B": "approved", "D": "approved"}).
+   - Thành viên C chuyển codebook_status sang "locked", kích hoạt `ready_for_annotation: true`,
+     và xuất bản bàn giao chính thức cho A và B thực hiện gán nhãn độc lập.
+
+================================================================================
+HẾT BÁO CÁO
+================================================================================

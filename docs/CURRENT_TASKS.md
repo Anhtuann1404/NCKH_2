@@ -90,7 +90,7 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 
 ## Đội nhóm cần điền
 
-- A — họ tên: chưa điền; giờ/tuần: chưa điền.
+- A — họ tên: Trần Hồng Khải (nhánh codex/member-a-preparation); giờ/tuần: 49 giờ/tuần (đã xác nhận trong docs/MEMBER_A.md).
 - B — họ tên: chưa điền; giờ/tuần: chưa điền.
 - C — họ tên: chưa điền; giờ/tuần: chưa điền.
 - D — người dùng, lead + model + API–extension; họ tên chính thức/giờ tuần: chưa điền.
