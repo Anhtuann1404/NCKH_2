@@ -286,6 +286,108 @@ def display_sample_and_allow_reading(sample: Dict[str, Any], current_idx: int, t
     print("-" * 80)
 
 
+def validate_manifest_preflight(
+    manifest_path: Path,
+    input_path: Path,
+    dataset_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Kiểm tra toàn bộ điều kiện tiên quyết của Manifest trước khi bắt đầu phiên hoặc hiển thị bất kỳ mẫu nào."""
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            f"LỖI MANIFEST: Không tìm thấy tệp manifest tại '{manifest_path}'."
+        )
+
+    with open(manifest_path, "r", encoding="utf-8") as mf:
+        manifest_data = json.load(mf)
+
+    # 1. B và D đã duyệt (acceptance)
+    acceptance = manifest_data.get("acceptance", {})
+    if acceptance.get("B") != "approved" or acceptance.get("D") != "approved":
+        raise ValueError(
+            f"CHƯA NGHIỆM THU: Manifest '{manifest_path}' chưa được nghiệm thu đầy đủ bởi cả B và D "
+            f"(B: '{acceptance.get('B')}', D: '{acceptance.get('D')}'). Chưa được phép mở phiên gán nhãn!"
+        )
+
+    # 2. ready_for_annotation == True
+    if manifest_data.get("ready_for_annotation") is not True:
+        raise ValueError(
+            f"CHƯA SẴN SÀNG: Manifest '{manifest_path}' có ready_for_annotation=false. "
+            f"Đợt gán nhãn chưa được mở chính thức!"
+        )
+
+    # 3. Trạng thái locked
+    cb_status = manifest_data.get("codebook_status")
+    if cb_status != "locked":
+        raise ValueError(
+            f"CODEBOOK CHƯA KHÓA: Manifest '{manifest_path}' có codebook_status='{cb_status}' (chưa locked)."
+        )
+
+    if manifest_data.get("dictionary_status") and manifest_data["dictionary_status"] != "locked":
+        raise ValueError(
+            f"DICTIONARY CHƯA KHÓA: Manifest '{manifest_path}' có dictionary_status='{manifest_data['dictionary_status']}' (chưa locked)."
+        )
+
+    # 4. Hash view/codebook/dictionary khớp tệp đĩa
+    dataset_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    manifest_view_hash = manifest_data.get("blind_view_sha256")
+    if manifest_view_hash and dataset_hash != manifest_view_hash:
+        raise ValueError(
+            f"SAI KHÁC MÃ BĂM VIEW: Gói view '{input_path}' có hash '{dataset_hash}', "
+            f"không khớp với manifest ('{manifest_view_hash}')."
+        )
+
+    cb_path = PROJECT_ROOT / "docs" / "CODEBOOK_V1.md"
+    if cb_path.exists():
+        computed_cb_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
+        manifest_cb_hash = manifest_data.get("codebook_sha256")
+        if manifest_cb_hash and computed_cb_hash != manifest_cb_hash:
+            raise ValueError(
+                f"SAI KHÁC MÃ BĂM CODEBOOK: docs/CODEBOOK_V1.md có hash '{computed_cb_hash}', "
+                f"không khớp manifest ('{manifest_cb_hash}')."
+            )
+
+    dict_path = PROJECT_ROOT / "configs" / "dictionary_v1.json"
+    manifest_dict_hash = manifest_data.get("dictionary_sha256")
+    if manifest_dict_hash and dict_path.exists():
+        computed_dict_hash = hashlib.sha256(dict_path.read_bytes()).hexdigest()
+        if computed_dict_hash != manifest_dict_hash:
+            raise ValueError(
+                f"SAI KHÁC MÃ BĂM DICTIONARY: configs/dictionary_v1.json có hash '{computed_dict_hash}', "
+                f"không khớp manifest ('{manifest_dict_hash}')."
+            )
+
+    # 5. Số mẫu khớp dữ liệu
+    samples = dataset_data.get("samples", [])
+    total_samples = len(samples)
+    manifest_total = (
+        manifest_data.get("sample_count")
+        or manifest_data.get("total_samples")
+        or (manifest_data.get("sample_counts", {}).get("total"))
+    )
+    if manifest_total is not None and total_samples != int(manifest_total):
+        raise ValueError(
+            f"SAI KHÁC SỐ MẪU: Gói view có {total_samples} mẫu, "
+            f"nhưng manifest khai báo {manifest_total} mẫu."
+        )
+
+    # 6. Dataset ID và sampling plan version khớp manifest
+    dataset_id = str(dataset_data.get("dataset_id", "UNKNOWN"))
+    if manifest_data.get("dataset_id") and dataset_id != manifest_data["dataset_id"]:
+        raise ValueError(
+            f"SAI KHÁC DATASET_ID: Gói view có dataset_id='{dataset_id}', "
+            f"không khớp manifest ('{manifest_data['dataset_id']}')."
+        )
+    manifest_sp = manifest_data.get("sampling_plan_version")
+    sampling_plan_version = str(dataset_data.get("sampling_plan_version", "") or "")
+    if manifest_sp and sampling_plan_version != manifest_sp:
+        raise ValueError(
+            f"SAI KHÁC SAMPLING_PLAN: Gói view có sampling_plan_version='{sampling_plan_version}', "
+            f"không khớp manifest ('{manifest_sp}')."
+        )
+
+    return manifest_data
+
+
 def annotate_interactive_session(
     annotator_id: str,
     input_path: Path,
@@ -319,8 +421,6 @@ def annotate_interactive_session(
 
     # Đảm bảo gói dữ liệu đầu vào không rò rỉ nhãn
     assert_no_label_leak(data)
-    if data.get("dataset_type") == "real_pilot_pending_review" and not dry_run:
-        raise ValueError("Gói pilot thật chưa được B/D nghiệm thu và khóa codebook; chỉ cho phép kiểm kỹ thuật dry-run.")
     samples = data.get("samples", [])
     total_samples = len(samples)
 
@@ -328,97 +428,24 @@ def annotate_interactive_session(
     input_bytes = input_path.read_bytes()
     dataset_hash = hashlib.sha256(input_bytes).hexdigest()
     dataset_id = str(data.get("dataset_id", "UNKNOWN"))
+    dataset_type = str(data.get("dataset_type", "blind_view"))
     is_synthetic = bool(data.get("is_synthetic", False))
     sampling_plan_version = str(data.get("sampling_plan_version", "") or "")
 
     is_real_session = (not dry_run) and (not is_synthetic)
 
-    # RÀO CHẮN MANIFEST TOÀN DIỆN CHO PHIÊN GÁN NHÃN NGƯỜI THẬT
-    if is_real_session:
+    # RÀO CHẮN MANIFEST TOÀN DIỆN: Bắt buộc kiểm tra manifest trước khi hiển thị bất kỳ mẫu nào
+    requires_manifest = (
+        manifest_path is not None
+        or dataset_id == "REAL-PILOT-32-V1"
+        or dataset_type in {"real_pilot_ready", "real_pilot_pending_review"}
+        or sampling_plan_version == "PILOT-PLAN-V1-FULL-OVERLAP"
+        or is_real_session
+    )
+
+    if requires_manifest:
         actual_manifest_path = manifest_path or (PROJECT_ROOT / "configs" / "pilot_manifest.json")
-        if not actual_manifest_path.exists():
-            raise FileNotFoundError(
-                f"LỖI MANIFEST: Không tìm thấy tệp manifest tại '{actual_manifest_path}' cho phiên gán nhãn người thật."
-            )
-
-        with open(actual_manifest_path, "r", encoding="utf-8") as mf:
-            manifest_data = json.load(mf)
-
-        # 1. B và D đã duyệt (acceptance)
-        acceptance = manifest_data.get("acceptance", {})
-        if acceptance.get("B") != "approved" or acceptance.get("D") != "approved":
-            raise ValueError(
-                f"CHƯA NGHIỆM THU: Manifest '{actual_manifest_path}' chưa được nghiệm thu đầy đủ bởi cả B và D "
-                f"(B: '{acceptance.get('B')}', D: '{acceptance.get('D')}'). Chưa được phép mở phiên người thật!"
-            )
-
-        # 2. ready_for_annotation == True
-        if manifest_data.get("ready_for_annotation") is not True:
-            raise ValueError(
-                f"CHƯA SẴN SÀNG: Manifest '{actual_manifest_path}' có ready_for_annotation=false. "
-                f"Đợt gán nhãn chưa được mở chính thức!"
-            )
-
-        # 3. Trạng thái locked
-        cb_status = manifest_data.get("codebook_status")
-        if cb_status != "locked":
-            raise ValueError(
-                f"CODEBOOK CHƯA KHÓA: Manifest '{actual_manifest_path}' có codebook_status='{cb_status}' (chưa locked)."
-            )
-
-        if manifest_data.get("dictionary_status") and manifest_data["dictionary_status"] != "locked":
-            raise ValueError(
-                f"DICTIONARY CHƯA KHÓA: Manifest '{actual_manifest_path}' có dictionary_status='{manifest_data['dictionary_status']}' (chưa locked)."
-            )
-
-        # 4. Hash view/codebook/dictionary khớp tệp đĩa
-        manifest_view_hash = manifest_data.get("blind_view_sha256")
-        if manifest_view_hash and dataset_hash != manifest_view_hash:
-            raise ValueError(
-                f"SAI KHÁC MÃ BĂM VIEW: Gói view '{input_path}' có hash '{dataset_hash}', "
-                f"không khớp với manifest ('{manifest_view_hash}')."
-            )
-
-        cb_path = PROJECT_ROOT / "docs" / "CODEBOOK_V1.md"
-        if cb_path.exists():
-            computed_cb_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
-            manifest_cb_hash = manifest_data.get("codebook_sha256")
-            if manifest_cb_hash and computed_cb_hash != manifest_cb_hash:
-                raise ValueError(
-                    f"SAI KHÁC MÃ BĂM CODEBOOK: docs/CODEBOOK_V1.md có hash '{computed_cb_hash}', "
-                    f"không khớp manifest ('{manifest_cb_hash}')."
-                )
-
-        dict_path = PROJECT_ROOT / "configs" / "dictionary_v1.json"
-        manifest_dict_hash = manifest_data.get("dictionary_sha256")
-        if manifest_dict_hash and dict_path.exists():
-            computed_dict_hash = hashlib.sha256(dict_path.read_bytes()).hexdigest()
-            if computed_dict_hash != manifest_dict_hash:
-                raise ValueError(
-                    f"SAI KHÁC MÃ BĂM DICTIONARY: configs/dictionary_v1.json có hash '{computed_dict_hash}', "
-                    f"không khớp manifest ('{manifest_dict_hash}')."
-                )
-
-        # 5. Số mẫu khớp dữ liệu
-        manifest_total = manifest_data.get("sample_count") or manifest_data.get("total_samples") or (manifest_data.get("sample_counts", {}).get("total"))
-        if manifest_total is not None and total_samples != int(manifest_total):
-            raise ValueError(
-                f"SAI KHÁC SỐ MẪU: Gói view có {total_samples} mẫu, "
-                f"nhưng manifest khai báo {manifest_total} mẫu."
-            )
-
-        # 6. Dataset ID và sampling plan version khớp manifest
-        if manifest_data.get("dataset_id") and dataset_id != manifest_data["dataset_id"]:
-            raise ValueError(
-                f"SAI KHÁC DATASET_ID: Gói view có dataset_id='{dataset_id}', "
-                f"không khớp manifest ('{manifest_data['dataset_id']}')."
-            )
-        manifest_sp = manifest_data.get("sampling_plan_version")
-        if manifest_sp and sampling_plan_version != manifest_sp:
-            raise ValueError(
-                f"SAI KHÁC SAMPLING_PLAN: Gói view có sampling_plan_version='{sampling_plan_version}', "
-                f"không khớp manifest ('{manifest_sp}')."
-            )
+        validate_manifest_preflight(actual_manifest_path, input_path, data)
 
     codebook_hash = str(data.get("codebook_sha256") or data.get("codebook_hash") or "")
     if not codebook_hash:

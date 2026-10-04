@@ -1450,6 +1450,71 @@ class TestResumeStrictProvenanceAndManifestChecks:
         with pytest.raises(ValueError, match="SAI KHÁC SỐ MẪU"):
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m5)
 
+    def test_cli_manifest_checked_before_displaying_any_sample(self, tmp_path, cli_module):
+        """CLI bắt buộc kiểm tra manifest trước khi hiển thị bất kỳ mẫu nào; không được lộ mẫu khi manifest chưa duyệt."""
+        from unittest.mock import patch
+
+        input_blind = tmp_path / "real_view_display_check.json"
+        export_blind_view(
+            [
+                {"sample_id": "SMP-001", "url": "https://secret-phish-domain.test/login", "html": "<p>Secret Phish Content</p>"},
+                {"sample_id": "SMP-002", "url": "https://secret-bank-domain.test/auth", "html": "<p>Secret Bank Content</p>"},
+            ],
+            input_blind,
+            dataset_id="REAL-PILOT-32-V1",
+            dataset_type="real_pilot_ready",
+        )
+        out_file = tmp_path / "A_display_check.jsonl"
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+
+        # Manifest chưa được Lead D nghiệm thu
+        unapproved_manifest = tmp_path / "unapproved_manifest.json"
+        unapproved_manifest.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "pending"},
+            "ready_for_annotation": False,
+            "codebook_status": "pending_review",
+            "sample_count": 2,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with patch.object(cli_module, "display_sample_and_allow_reading") as mock_display:
+            with pytest.raises(ValueError, match="CHƯA NGHIỆM THU"):
+                cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=unapproved_manifest)
+            # Khẳng định tuyệt đối: hàm hiển thị mẫu KHÔNG BAO GIỜ được gọi
+            assert mock_display.call_count == 0
+
+    def test_cli_manifest_checked_even_in_dry_run_for_real_pilot(self, tmp_path, cli_module):
+        """CLI vẫn kiểm tra manifest ngay cả khi có cờ --dry-run nếu là gói pilot thật; tuyệt đối không bỏ qua manifest."""
+        from unittest.mock import patch
+
+        input_blind = tmp_path / "real_view_dryrun_check.json"
+        export_blind_view(
+            [{"sample_id": "SMP-001", "url": "https://confidential.test/", "html": "<p>Confidential</p>"}],
+            input_blind,
+            dataset_id="REAL-PILOT-32-V1",
+            dataset_type="real_pilot_pending_review",
+        )
+        out_file = tmp_path / "A_dryrun_check.jsonl"
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+
+        # Manifest có ready_for_annotation=false
+        unready_manifest = tmp_path / "unready_manifest.json"
+        unready_manifest.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": False,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with patch.object(cli_module, "display_sample_and_allow_reading") as mock_display:
+            with pytest.raises(ValueError, match="CHƯA SẴN SÀNG"):
+                cli_module.annotate_interactive_session(
+                    "A", input_blind, out_file, manifest_path=unready_manifest, dry_run=True
+                )
+            assert mock_display.call_count == 0
+
+
 
 
 
