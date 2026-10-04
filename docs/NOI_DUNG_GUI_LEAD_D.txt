@@ -17,7 +17,7 @@ và schema của gói dữ liệu:
 --------------------------------------------------------------------------------
 1. THÔNG TIN COMMIT TRÊN NHÁNH feat/data-pipeline
 --------------------------------------------------------------------------------
-- Commit HEAD hiện tại: 59b7e411b0e52701046927d7c67566cf2c2a0d78 (ngắn gọn: 59b7e41)
+- Commit HEAD hiện tại: 2148683 (ngắn gọn: 2148683)
   (Duy trì nghiêm ngặt trạng thái pending_review, ready_for_annotation=false, acceptance.D=pending)
 - Commit cài đặt toàn diện 7 điểm kỹ thuật: 9fcaea0ae9f45140468e2a8169419f0276c3d8eb (ngắn gọn: 9fcaea0)
 - Nhánh Git: feat/data-pipeline (đã đẩy sạch sẽ lên origin/feat/data-pipeline)
