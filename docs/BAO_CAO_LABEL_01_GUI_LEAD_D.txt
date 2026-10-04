@@ -1,0 +1,151 @@
+================================================================================
+BÁO CÁO KỸ THUẬT TIẾN ĐỘ DỰ ÁN NCKH_2
+TIỂU BAN DỮ LIỆU & GÁN NHÃN MÙ (THÀNH VIÊN C)
+================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và Nhóm nghiên cứu NCKH_2
+Người lập: Thành viên C (Data Pipeline & Blind View)
+Ngày lập: 04/10/2026
+Mã nhiệm vụ: LABEL-01 (Hoàn thiện view mù và công cụ gán nhãn có bấm giờ)
+Nhánh Git: feat/data-pipeline
+Commit xác thực: 7fe0239 (kế thừa và cập nhật từ c0b9d61)
+Trạng thái kiểm thử: 78/78 test cases đạt (100% Passed)
+
+--------------------------------------------------------------------------------
+I. TỔNG QUAN VÀ MỤC ĐÍCH BÁO CÁO
+--------------------------------------------------------------------------------
+Báo cáo này trình bày kết quả giải quyết toàn diện 06 điểm phản biện/rà soát kỹ
+thuật của Lead D đối với Task LABEL-01, nhằm bảo đảm dữ liệu đầu vào và công cụ
+gán nhãn độc lập tuân thủ nghiêm ngặt:
+1. Kỷ luật nghiên cứu khoa học hàn lâm (Academic Research Skills - ARS): Loại
+   bỏ rò rỉ dữ liệu (Anti-Leakage Protocols), không nhìn trước nhãn nguồn, đo
+   lường thời gian thực chất và phân định rạch ròi dữ liệu mô phỏng.
+2. Kỷ luật kỹ thuật tối giản (Ponytail Engineering Discipline): Sửa lỗi tận gốc,
+   không tạo abstraction dư thừa, xử lý dứt điểm các trường hợp lỗi dữ liệu.
+
+--------------------------------------------------------------------------------
+II. KẾT QUẢ XỬ LÝ CHI TIẾT 06 YÊU CẦU CỦA LEAD D
+--------------------------------------------------------------------------------
+
+1. Minh bạch xuất xứ gói 20 mẫu pilot (Dataset Provenance)
+   - Tệp dữ liệu: data/annotations/blind_view_pilot.json
+   - Khóa metadata cấp tệp:
+     + dataset_id: "PILOT-PRACTICE-20"
+     + dataset_type: "synthetic_practice_pilot"
+     + is_synthetic: true
+     + purpose: "Gói dữ liệu mô phỏng phục vụ đánh giá viên thực hành thao tác CLI và kiểm thử kỹ thuật."
+   - Định danh mẫu: Chuyển toàn bộ 20 mẫu sang mã trung tính PILOT-001 đến PILOT-020.
+   - Cam kết phương pháp luận: Bổ sung cảnh báo minh thị rằng số liệu thời gian
+     thao tác trên tập mô phỏng này chỉ có giá trị kiểm thử luồng kỹ thuật; tuyệt
+     đối KHÔNG dùng để tính toán năng suất hoặc ước lượng cỡ mẫu cho PLAN-01.
+
+2. Cách ly tuyệt đối dữ liệu Dry-Run (Dry-run Isolation)
+   - Lớp dữ liệu: Bổ sung thuộc tính `is_dry_run: bool = False` vào AnnotationRecord.
+   - Luồng thực thi: Khi chạy scripts/annotate_cli.py với cờ `--dry-run`:
+     + Tự động đổi annotator_id thành `simulated_<annotator_id>`.
+     + Ghi nhận `is_dry_run = True` và thời gian tượng trưng 0.5s.
+     + Cách ly tệp đầu ra sang định dạng riêng: `<tên_gốc>.dryrun.jsonl`, không
+       cho phép ghi lẫn vào tệp dữ liệu của người gán thật.
+   - Thống kê liên đánh giá viên: Hàm `compute_cohens_kappa()` trong module
+     phishing.annotation tự động loại bỏ các bản ghi có `is_dry_run=True`, bảo đảm
+     chỉ số Kappa và thống kê thời gian phản ánh đúng 100% dữ liệu con người.
+
+3. Kiểm tra tính toàn vẹn khi Resume CLI (Resume Integrity & Validation)
+   - Hàm xử lý: `load_already_annotated_sample_ids()` trong scripts/annotate_cli.py.
+   - Cơ chế phòng thủ chiều sâu:
+     + Đối chiếu annotator: Ném `ValueError: MÂU THUẪN ĐÁNH GIÁ VIÊN` nếu phát hiện
+       kết quả của người khác (ví dụ: chạy B nhưng trỏ vào file của A).
+     + Đối chiếu pass_id: Ném `ValueError: MÂU THUẪN LƯỢT GÁN` nếu phát hiện sai lượt gán.
+     + Chống tạp nhiễm mô phỏng: Ném `ValueError: LỖI TẠP NHIỄM DỮ LIỆU` nếu phát hiện
+       bản ghi dry-run trong tệp của phiên gán nhãn thật.
+     + Loại bỏ nuốt lỗi (No silent pass): Mọi dòng JSON hỏng cấu trúc đều lập tức ném
+       `ValueError: LỖI TOÀN VẸN TỆP` kèm số dòng cụ thể để người vận hành xử lý.
+
+4. Khả năng đọc toàn văn không ngắt quãng bấm giờ (Full Text Inspection & Continuous Timing)
+   - Giao diện console: Hiển thị 600 ký tự đầu của văn bản trang; nếu độ dài vượt quá
+     600 ký tự, CLI cho phép người gán nhãn nhập lệnh:
+     + 'v': Xem toàn bộ văn bản an toàn.
+     + 'm': Xem tiếp 600 ký tự tiếp theo.
+     + Enter: Bắt đầu nhập các trường phân loại.
+   - Tính liên tục của đồng hồ đo: Hàm `time.perf_counter()` được kích hoạt ngay
+     trước khi hiển thị nội dung mẫu và chỉ dừng lại sau khi người gán hoàn thành
+     bước nhập liệu cuối cùng. Toàn bộ thời gian đọc văn bản được tính vào seconds_spent.
+
+5. Quy chuẩn an toàn và cơ chế Allowlist chặt chẽ (Anti-Leakage Protocols)
+   - Tệp module: src/phishing/annotation/blind_view.py
+   - Cơ chế Allowlist:
+     + Khóa mẫu cấp 1: Giới hạn nghiêm ngặt trong `ALLOWED_BLIND_SAMPLE_KEYS` (chỉ gồm
+       sample_id, url, page_text, structure_summary, random_subset, codebook_version).
+       Mọi khóa lạ (ví dụ: annotation_a, rater_b, model_score...) đều bị chặn ngay lập tức.
+     + Khóa cấu trúc: Giới hạn trong `ALLOWED_STRUCTURE_SUMMARY_KEYS`.
+   - ID mẫu trung tính: Hàm `assert_neutral_sample_id()` quét token và chuỗi con,
+     chặn hoàn toàn các từ khóa phân loại (phish, phishing, benign, malicious, suspicious...)
+     và tên thương hiệu của 14 tổ chức trong từ điển (microsoft, google, paypal...).
+   - Chặn tiền tố và hậu tố: Cấm triệt để tiền tố `annotation_`, `rater_`, `model_`,
+     `source_` và các hậu tố `_label`, `_score`, `_target`.
+
+6. Xử lý Metadata động (Dynamic Metadata Resolution)
+   - Loại bỏ hoàn toàn việc gán cứng `codebook_version="1.0.0"` và `random_subset=True`.
+   - Scripts CLI ưu tiên độ phân giải động theo thứ tự:
+     Tham số dòng lệnh (`--codebook-version`, `--random-subset`)
+     -> Metadata của từng mẫu trong gói
+     -> Metadata chung của tệp gói mù
+     -> Giá trị mặc định an toàn.
+
+--------------------------------------------------------------------------------
+III. BẰNG CHỨNG THỰC NGHIỆM ĐỊNH LƯỢNG (AUTOMATED TEST VERIFICATION)
+--------------------------------------------------------------------------------
+Toàn bộ hệ thống kiểm thử tự động của dự án đã được chạy kiểm chứng trong môi
+trường Windows / CPython 3.13:
+Lệnh thực thi: python -c "import sys, pytest; sys.path.insert(0, 'src'); sys.exit(pytest.main(['tests/', '-v']))"
+
+Kết quả: 78/78 tests đạt (100% Passed), 0 lỗi, 0 cảnh báo hồi quy:
+1. tests/test_blind_view.py: 23/23 tests PASSED
+   - test_assert_no_label_leak_detects_forbidden_keys: PASSED
+   - test_assert_no_label_leak_passes_clean_data: PASSED
+   - test_extract_safe_view_content_strips_scripts_and_events: PASSED
+   - test_create_blind_sample_drops_labels_completely: PASSED
+   - test_assert_neutral_sample_id: PASSED
+   - test_assert_no_label_leak_enforces_allowlist_on_blind_samples: PASSED
+   - test_assert_no_label_leak_enforces_allowlist_on_structure_summary: PASSED
+   - test_assert_no_label_leak_rejects_forbidden_prefixes_and_suffixes: PASSED
+   - test_valid_annotation_record_passes: PASSED
+   - test_annotation_record_is_dry_run_flag: PASSED
+   - test_invalid_class_label_rejected: PASSED
+   - test_invalid_identity_role_rejected: PASSED
+   - test_negative_seconds_spent_rejected: PASSED
+   - test_export_blind_view_writes_json_and_preserves_metadata: PASSED
+   - test_pilot_practice_package_file_integrity: PASSED
+   - test_kappa_integration_from_annotation_records: PASSED
+   - test_cohens_kappa_filters_dry_run_records: PASSED
+   - test_load_already_annotated_sample_ids_rejects_rater_mismatch: PASSED
+   - test_load_already_annotated_sample_ids_rejects_pass_mismatch: PASSED
+   - test_load_already_annotated_sample_ids_rejects_malformed_json: PASSED
+   - test_load_already_annotated_sample_ids_rejects_dry_run_contamination: PASSED
+   - test_load_already_annotated_sample_ids_happy_path: PASSED
+   - test_cli_dry_run_executes_isolated_session: PASSED
+2. tests/test_date_parser.py: 9/9 tests PASSED
+3. tests/test_dictionary_and_annotation.py: 18/18 tests PASSED
+4. tests/test_domain_rules.py: 6/6 tests PASSED
+5. tests/test_exclusion_registry.py: 11/11 tests PASSED
+6. tests/test_preprocessing.py: 11/11 tests PASSED
+
+--------------------------------------------------------------------------------
+IV. CAM KẾT VÀ RANH GIỚI TRÁCH NHIỆM CỦA THÀNH VIÊN C
+--------------------------------------------------------------------------------
+1. Chốt chặn huấn luyện chính:
+   - Thành viên C duy trì cờ `training_blocked: true` và trạng thái
+     `unresolved_source_mapping` trong data/exclusion_registry.json đối với 20 mẫu
+     pilot thô cho đến khi có dữ liệu đối soát băm cấp byte.
+   - Module src/phishing/data/exclusion.py duy trì cơ chế hard-block độc lập trước
+     mọi hàm fit mô hình. Thành viên C không tham gia huấn luyện mô hình M0-M3
+     (thuộc quyền của Lead D).
+2. Sẵn sàng bàn giao cho Thành viên A và B:
+   - Gói blind view mô phỏng và công cụ CLI đã sẵn sàng 100% để A và B thực hành
+     thao tác dòng lệnh, làm quen với bảng mã phân loại theo CODEBOOK_V1.md.
+   - Đề nghị Lead D phê duyệt nghiệm thu kỹ thuật cho Task LABEL-01 trên nhánh
+     feat/data-pipeline (Commit 7fe0239).
+
+================================================================================
+HẾT BÁO CÁO
+================================================================================
