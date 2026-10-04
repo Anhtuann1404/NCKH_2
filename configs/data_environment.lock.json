@@ -1,0 +1,31 @@
+{
+  "scope": "DATA-01 and DATA-02 data audit, source manifest, and annotation view pipeline",
+  "verified_on": "2026-10-04",
+  "python": "3.13.14",
+  "implementation": "CPython",
+  "platform": "win32",
+  "machine": "AMD64",
+  "direct_runtime_dependencies": {
+    "pyarrow": "25.0.1",
+    "huggingface_hub": "2.1.1",
+    "fsspec": "2026.9.0",
+    "tldextract": "5.4.0",
+    "pytest": "7.4.0",
+    "anyio": "4.14.2",
+    "requests": "2.31.0",
+    "urllib3": "2.7.0"
+  },
+  "environment_tools": {
+    "pip": "26.1.2"
+  },
+  "verification_commands": [
+    "python scripts/data/audit_date_phreshphish.py",
+    "$env:PYTHONPATH=\"src\"; python -m pytest tests/ -v"
+  ],
+  "coordination_notes": [
+    "Complements configs/dev_environment.lock.json (Lead D's dev fixture scaffold on macOS/Python 3.14).",
+    "Locks exact runtime versions used by Member C to ensure reproducible parquet column projection and date parsing.",
+    "No external HTTP network calls are made during inference or test execution; HF access is confined exclusively to pinned dataset revision metadata and date column projection.",
+    "Does not conflict with dev scaffold or production API dependencies."
+  ]
+}
