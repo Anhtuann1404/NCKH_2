@@ -344,6 +344,13 @@ def validate_manifest_preflight(
             f"DICTIONARY CHƯA KHÓA: Manifest '{manifest_path}' có dictionary_status='{manifest_data['dictionary_status']}' (yêu cầu 'locked')."
         )
 
+    # 6. Phiên bản Từ điển (dictionary_version) không được ở trạng thái pending
+    manifest_dict_ver = str(manifest_data.get("dictionary_version", ""))
+    if manifest_dict_ver and "pending" in manifest_dict_ver.lower():
+        raise ValueError(
+            f"DICTIONARY CHƯA KHÓA: Manifest '{manifest_path}' khai báo dictionary_version='{manifest_dict_ver}' đang ở trạng thái pending."
+        )
+
     # =========================================================================
     # B. XÁC MINH TOÀN DIỆN CÁC MÃ BĂM (HASHES) VÀ ĐỐI CHIẾU ĐĨA
     # =========================================================================

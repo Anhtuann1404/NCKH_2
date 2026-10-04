@@ -98,6 +98,7 @@ def build(technical_path, extra_path):
     manifest = {"dataset_id": "REAL-PILOT-32-V1", "is_synthetic": False, "sample_count": 32,
                 "source_class_counts": {"phish": 20, "benign": 12}, "ready_for_annotation": False,
                 "codebook_version": dictionary["version"], "codebook_status": dictionary["status"],
+                "dictionary_version": dictionary["version"], "dictionary_status": dictionary["status"],
                 "codebook_sha256": sha((ROOT / "docs/CODEBOOK_V1.md").read_bytes()),
                 "dictionary_sha256": sha((ROOT / "configs/dictionary_v1.json").read_bytes()),
                 "blind_view_path": str(output.relative_to(ROOT)), "blind_view_sha256": sha(output.read_bytes()),

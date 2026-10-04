@@ -1581,6 +1581,30 @@ class TestResumeStrictProvenanceAndManifestChecks:
         with pytest.raises(ValueError, match="DICTIONARY CHƯA KHÓA"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
 
+    def test_manifest_preflight_rejects_pending_dictionary_version(self, tmp_path, cli_module):
+        """Preflight từ chối nếu dictionary_version trong manifest khai báo trạng thái pending."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-DS",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+        m_file = tmp_path / "m_dict_ver_pending.json"
+        m_file.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "dictionary_status": "locked",
+            "dictionary_version": "1.0.0-pending_review",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="DICTIONARY CHƯA KHÓA"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
     def test_manifest_preflight_rejects_codebook_disk_hash_mismatch(self, tmp_path, cli_module):
         """Preflight từ chối nếu codebook_sha256 trong manifest không khớp mã băm docs/CODEBOOK_V1.md trên đĩa."""
         input_blind = tmp_path / "view.json"

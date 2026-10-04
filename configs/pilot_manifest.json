@@ -9,6 +9,8 @@
   "ready_for_annotation": false,
   "codebook_version": "1.0.0-pending_review",
   "codebook_status": "pending_review",
+  "dictionary_version": "1.0.0-pending_review",
+  "dictionary_status": "pending_review",
   "codebook_sha256": "fc89f7704fd8fcc2ebe26f135a780dcd2d5464958150abe9b5888aeeecd92c2e",
   "dictionary_sha256": "a7403a79531b0e5f13884fa4e4d431876f34e3277a3112577a3ff2275703ff2d",
   "blind_view_path": "data\\annotations\\blind_view_pilot_real.json",
