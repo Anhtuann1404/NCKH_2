@@ -139,7 +139,7 @@ Tiểu ban C cam kết duy trì nghiêm ngặt các chốt chặn an toàn:
 - data/exclusion_registry.json: training_blocked = true
 
 Chốt chặn CLI đang kích hoạt đầy đủ: Mọi phiên gán nhãn người thật sẽ tự động bị từ chối
-cho đến khi Lead D chính thức nghiệm thu byte/schema và phát lệnh duyệt.
+cho đến khi Lead D hoàn tất nghiệm thu byte/schema và xác nhận chính thức.
 
 Kính mời Lead D kiểm tra đối soát trực tiếp trên tệp blind_view_pilot_real.json!
 ================================================================================

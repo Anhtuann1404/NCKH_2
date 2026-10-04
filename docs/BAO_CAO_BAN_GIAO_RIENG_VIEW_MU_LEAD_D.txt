@@ -18,7 +18,7 @@ I. NGUYÊN TẮC THỰC THI & TUÂN THỦ RANH GIỚI TRÁCH NHIỆM
 Tiểu ban Dữ liệu (Thành viên C) nghiêm túc tuân thủ chỉ đạo của Lead D:
 1. Tiếp tục giữ nguyên trạng thái chưa mở đợt gán nhãn pilot (ready_for_annotation: false).
 2. Tiếp tục giữ nguyên trạng thái chờ duyệt (status: "pending_review") cho cả configs/dictionary_v1.json
-   và docs/CODEBOOK_V1.md. Thẩm quyền quyết định khóa chính thức và phát lệnh pilot thuộc về Lead D.
+   và docs/CODEBOOK_V1.md. Quyền nghiệm thu và quyết định khóa chính thức thuộc về Lead D.
 3. Tiếp tục giữ nguyên chốt chặn huấn luyện chính (training_blocked: true) trong data/exclusion_registry.json.
 4. Bàn giao riêng tệp View Mù REAL-PILOT-32-V1 qua kênh nội bộ hạn chế để Lead D kiểm hash và
    schema; tuyệt đối không đưa tệp dữ liệu thô (raw) hay bảng ánh xạ có nhãn (source_mapping.json)
@@ -154,11 +154,11 @@ VI. KẾ HOẠCH BÀN GIAO VÀ KHUYẾN NGHỊ TIẾP THEO
 --------------------------------------------------------------------------------
 
 1. Lead D tiến hành kiểm tra nghiệm thu mã băm tệp View Mù và đối chiếu với manifest.
-2. Sau khi Lead D nghiệm thu và ký duyệt chính thức:
-   - Lead D cập nhật trạng thái configs/dictionary_v1.json và docs/CODEBOOK_V1.md sang "locked".
-   - Lead D cập nhật acceptance.D sang "approved", ready_for_annotation sang true.
+2. Sau khi Lead D hoàn tất nghiệm thu:
+   - Cập nhật trạng thái configs/dictionary_v1.json và docs/CODEBOOK_V1.md sang "locked".
+   - Cập nhật acceptance.D sang "approved", ready_for_annotation sang true.
    - Chuyển dataset_type của blind view sang "real_pilot_ready".
-   - Chính thức phát lệnh mở đợt gán nhãn pilot thật cho Thành viên A và B.
+   - Mở đợt gán nhãn pilot thật cho Thành viên A và B.
 
 ===============================================================================
 HẾT VĂN BẢN BÁO CÁO
