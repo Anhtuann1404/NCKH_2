@@ -1,0 +1,101 @@
+================================================================================
+BÁO CÁO NGHIỆM THU & BÀN GIAO VIEW MÙ REAL-PILOT-32-V1 GỬI LEAD D
+Người gửi: Thành viên C (Data Pipeline & Blind View)
+Người nhận: Lead D (Anh Tuấn)
+Ngày gửi: 05/10/2026
+================================================================================
+
+Kính gửi Lead D (Anh Tuấn),
+
+Thành viên C xin gửi thông tin chi tiết phục vụ Lead D đối soát và nghiệm thu kỹ thuật:
+
+--------------------------------------------------------------------------------
+1. THÔNG TIN COMMIT TRÊN NHÁNH feat/data-pipeline
+--------------------------------------------------------------------------------
+- Commit HEAD hiện tại: dc2e8b020ab22c3cee3e8f0fbb00d1f2be545415 (ngắn gọn: dc2e8b0)
+  (Duy trì nghiêm ngặt trạng thái pending_review, ready_for_annotation=false, acceptance.D=pending)
+- Commit cài đặt 7 điểm kỹ thuật: 9fcaea0ae9f45140468e2a8169419f0276c3d8eb (ngắn gọn: 9fcaea0)
+- Nhánh: feat/data-pipeline (đã push đồng bộ lên GitHub remote origin/feat/data-pipeline)
+
+--------------------------------------------------------------------------------
+2. ĐƯỜNG DẪN BÁO CÁO KỸ THUẬT & BẢNG ĐỐI CHIẾU 7 MỤC
+--------------------------------------------------------------------------------
+- Tệp báo cáo chi tiết: docs/BAO_CAO_BAN_GIAO_RIENG_VIEW_MU_LEAD_D.txt
+
+Bảng đối chiếu 7 mục yêu cầu kỹ thuật:
++ Mục 1: Resume nghiêm ngặt provenance & hash nội dung (URL + text + DOM structure_summary)
+  * File sửa: src/phishing/annotation/blind_view.py, scripts/annotate_cli.py
+  * Tests: test_resume_rejects_missing_provenance_field_in_real_session,
+           test_resume_rejects_empty_or_mismatched_when_expected_is_set,
+           test_resume_rejects_unknown_sample_id_not_in_current_package,
+           test_resume_content_hash_includes_structure_summary,
+           test_resume_rejects_dataset_hash_mismatch
++ Mục 2: Kappa kiểm soát đơn gói & Ghép cặp tất định theo sample_id
+  * File sửa: src/phishing/annotation/__init__.py
+  * Tests: test_kappa_rejects_mixed_batch_multiple_packages,
+           test_kappa_rejects_pairwise_content_hash_mismatch,
+           test_kappa_stable_deterministic_sort_matches_different_order,
+           test_kappa_keeps_difficult_cases_in_random_subset
++ Mục 3: Rào chắn manifest và khóa ghi đè CLI (--codebook-version, --random-subset)
+  * File sửa: scripts/annotate_cli.py
+  * Tests: test_cli_blocks_codebook_version_override_in_human_session,
+           test_cli_blocks_random_subset_override_in_human_session,
+           test_cli_manifest_preflight_blocks_unapproved_or_pending
++ Mục 4: Khai báo sampling plan version ("PILOT-PLAN-V1-FULL-OVERLAP")
+  * File sửa: configs/pilot_manifest.json, data/annotations/blind_view_pilot_real.json
+  * Tests: test_annotation_record_provenance_roundtrip,
+           test_kappa_rejects_codebook_and_plan_provenance_mismatch
++ Mục 5: Xóa bỏ hostname fallback parts[-2:], bắt buộc tldextract với PSL offline
+  * File sửa: src/phishing/data/exclusion.py
+  * Tests: test_domain_group_exclusion_multi_part_tld,
+           test_missing_tldextract_raises_import_error_without_fallback
++ Mục 6: Đính chính metadata Check Point Research (Q1 & Q3/2025) & chứng minh toán học
+  * File sửa: configs/dictionary_v1.json, docs/CODEBOOK_V1.md
+  * Tests: test_dictionary_v1_json_valid & script kiểm tra hợp 15 brand -> 14 tổ chức
++ Mục 7: Bàn giao riêng & Lưu vết Git minh bạch (không force push, giữ view ngoài git)
+  * File sửa: .gitignore, docs/BAO_CAO_BAN_GIAO_RIENG_VIEW_MU_LEAD_D.txt
+  * Tests: test_real_pilot_pending_review_cannot_create_human_labels,
+           test_exclusion_hashes_and_domain_do_not_exclude_unrelated_records
+
+- Kết quả chạy test: 111/111 test cases ĐẠT 100% (pytest passed in 3.02s).
+
+--------------------------------------------------------------------------------
+3. THÔNG SỐ GÓI VIEW MÙ REAL32 & MANIFEST BÀN GIAO CHO LEAD D
+--------------------------------------------------------------------------------
+A. Tệp View Mù 32 mẫu thật (Kênh cục bộ an toàn, không đẩy lên Git):
+- Đường dẫn: data/annotations/blind_view_pilot_real.json
+- Định danh gói: REAL-PILOT-32-V1
+- Kiểu gói: real_pilot_pending_review
+- Trạng thái mở nhập liệu: ready_for_annotation: false
+- Thuộc tính mô phỏng: is_synthetic: false (Dữ liệu thực tế 32 mẫu)
+- Quy mô: Đúng 32 mẫu (20 phishing + 12 benign theo nhãn nguồn)
+- Sampling plan version: "PILOT-PLAN-V1-FULL-OVERLAP"
+- Mã băm SHA-256 tệp View Mù:
+  08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
+
+B. Tệp Manifest kiểm định đối chiếu:
+- Đường dẫn: configs/pilot_manifest.json
+- Mã băm SHA-256 tệp Manifest:
+  6d250bb5fbc2fb00f11d6809dd5f7e9c957decbfd66a0fbe3ebf9a451feb1f6b
+- Các mã băm tham chiếu đồng bộ 100% trên đĩa:
+  * codebook_sha256: fc89f7704fd8fcc2ebe26f135a780dcd2d5464958150abe9b5888aeeecd92c2e
+  * dictionary_sha256: a7403a79531b0e5f13884fa4e4d431876f34e3277a3112577a3ff2275703ff2d
+  * blind_view_sha256: 08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
+
+* Cam kết bảo mật ARS: Toàn bộ dữ liệu thô và bảng ánh xạ có nhãn (source_mapping.json)
+  được lưu giữ cách ly tại máy cục bộ (data/raw/pilot/), không đưa lên Git và không gửi cho A/B.
+
+--------------------------------------------------------------------------------
+4. DUY TRÌ TRẠNG THÁI PENDING & CHỐT CHẶN AN TOÀN
+--------------------------------------------------------------------------------
+Tiểu ban C cam kết duy trì nghiêm ngặt:
+- ready_for_annotation: false
+- dictionary_v1.json & CODEBOOK_V1.md: status = "pending_review"
+- configs/pilot_manifest.json: acceptance = {"B": "approved", "D": "pending"}
+- data/exclusion_registry.json: training_blocked = true
+
+Chốt chặn CLI đang kích hoạt đầy đủ: Mọi phiên gán nhãn người thật sẽ tự động bị từ chối
+cho đến khi có lệnh nghiệm thu chính thức từ Lead D.
+
+Kính mời Lead D kiểm tra đối soát!
+================================================================================
