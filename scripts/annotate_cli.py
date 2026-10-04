@@ -38,6 +38,7 @@ if str(SRC_DIR) not in sys.path:
 from phishing.annotation import (
     AnnotationRecord,
     assert_no_label_leak,
+    compute_sample_content_hash,
     validate_annotation_record,
 )
 
@@ -101,7 +102,9 @@ def load_already_annotated_sample_ids(
     expected_dataset_id: str | None = None,
     expected_codebook_hash: str | None = None,
     expected_codebook_version: str | None = None,
+    expected_sampling_plan_version: str | None = None,
     current_samples_by_id: Dict[str, Dict[str, Any]] | None = None,
+    is_real_session: bool = False,
 ) -> Set[str]:
     """Đọc các sample_id đã hoàn thành trước đó từ file output JSONL với kiểm tra toàn vẹn nghiêm ngặt."""
     if not output_path.exists():
@@ -125,6 +128,15 @@ def load_already_annotated_sample_ids(
             if not isinstance(rec, dict) or not isinstance(rec.get("sample_id"), str) or not rec["sample_id"].strip():
                 raise ValueError(f"LỖI TOÀN VẸN TỆP: Dòng {line_no} phải là object có sample_id không rỗng.")
 
+            sid = rec["sample_id"].strip()
+
+            # Từ chối bản ghi có sample_id không thuộc gói hiện tại
+            if current_samples_by_id is not None and sid not in current_samples_by_id:
+                raise ValueError(
+                    f"SAMPLE_ID LẠ: Bản ghi tại dòng {line_no} trong '{output_path}' có sample_id='{sid}' "
+                    f"không thuộc gói dữ liệu đầu vào hiện tại. Không được dùng tệp kết quả chứa mẫu lạ!"
+                )
+
             rec_annotator = rec.get("annotator_id")
             rec_pass = rec.get("pass_id")
             rec_is_dry = rec.get("is_dry_run", False)
@@ -132,33 +144,8 @@ def load_already_annotated_sample_ids(
             rec_dataset_id = rec.get("dataset_id")
             rec_codebook_hash = rec.get("codebook_hash")
             rec_codebook_version = rec.get("codebook_version")
-
-            # Kiểm tra không dùng nhầm file khi đổi gói dữ liệu đầu vào
-            if expected_dataset_hash and rec_dataset_hash and rec_dataset_hash != expected_dataset_hash:
-                raise ValueError(
-                    f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc gói dữ liệu "
-                    f"có hash '{rec_dataset_hash}', trong khi phiên hiện tại đang chạy gói có hash '{expected_dataset_hash}'. "
-                    f"Tránh dùng nhầm tệp kết quả khi đổi gói dữ liệu!"
-                )
-            if expected_dataset_id and rec_dataset_id and rec_dataset_id != expected_dataset_id:
-                raise ValueError(
-                    f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc dataset_id "
-                    f"'{rec_dataset_id}', trong khi phiên hiện tại đang chạy dataset_id '{expected_dataset_id}'."
-                )
-
-            # Kiểm tra codebook_hash
-            if expected_codebook_hash and rec_codebook_hash and rec_codebook_hash != expected_codebook_hash:
-                raise ValueError(
-                    f"MÂU THUẪN CODEBOOK HASH: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc codebook_hash "
-                    f"'{rec_codebook_hash}', trong khi phiên hiện tại đang chạy codebook_hash '{expected_codebook_hash}'."
-                )
-
-            # Kiểm tra codebook_version
-            if expected_codebook_version and rec_codebook_version and rec_codebook_version != expected_codebook_version:
-                raise ValueError(
-                    f"MÂU THUẪN PHIÊN BẢN CODEBOOK: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc phiên bản "
-                    f"'{rec_codebook_version}', trong khi phiên hiện tại đang chạy '{expected_codebook_version}'."
-                )
+            rec_sampling_plan_version = rec.get("sampling_plan_version")
+            rec_sample_hash = rec.get("sample_content_hash")
 
             # Kiểm tra không dùng nhầm file của người khác
             if rec_annotator != expected_annotator_id:
@@ -182,25 +169,70 @@ def load_already_annotated_sample_ids(
                     f"(is_dry_run=True). Tuyệt đối không được ghi lẫn nhãn mô phỏng vào nhãn thật của người gán."
                 )
 
-            sid = rec.get("sample_id")
-            if sid:
-                # Đổi nội dung cùng ID phải bị từ chối
-                rec_sample_hash = rec.get("sample_content_hash")
-                if current_samples_by_id and sid in current_samples_by_id:
-                    curr_s = current_samples_by_id[sid]
-                    curr_content_hash = hashlib.sha256(
-                        (str(curr_s.get("url", "")) + "\0" + str(curr_s.get("page_text", ""))).encode("utf-8")
-                    ).hexdigest()
-                    if rec_sample_hash and rec_sample_hash != curr_content_hash:
+            # Với phiên thật, yêu cầu đầy đủ các trường provenance
+            if is_real_session:
+                required_provenance = {
+                    "dataset_id": rec_dataset_id,
+                    "dataset_hash": rec_dataset_hash,
+                    "codebook_version": rec_codebook_version,
+                    "codebook_hash": rec_codebook_hash,
+                    "sampling_plan_version": rec_sampling_plan_version,
+                    "sample_content_hash": rec_sample_hash,
+                }
+                for p_field, p_val in required_provenance.items():
+                    if p_val is None or not str(p_val).strip():
                         raise ValueError(
-                            f"MÂU THUẪN NỘI DUNG MẪU: Mẫu '{sid}' trong '{output_path}' tại dòng {line_no} có hash nội dung "
-                            f"'{rec_sample_hash}', khác với nội dung của mẫu cùng ID trong gói đầu vào hiện tại "
-                            f"('{curr_content_hash}'). Không được đổi nội dung cùng ID!"
+                            f"THIẾU PROVENANCE: Bản ghi tại dòng {line_no} trong '{output_path}' thiếu trường "
+                            f"provenance bắt buộc '{p_field}' cho phiên gán nhãn thực tế."
                         )
 
-                if sid in annotated:
-                    raise ValueError(f"LỖI TOÀN VẸN TỆP: sample_id trùng tại dòng {line_no}.")
-                annotated.add(sid)
+            # Khi giá trị kỳ vọng đã xác định, bản ghi thiếu, rỗng hoặc khác giá trị đều phải báo lỗi
+            if expected_dataset_hash is not None:
+                if rec_dataset_hash is None or str(rec_dataset_hash).strip() != expected_dataset_hash:
+                    raise ValueError(
+                        f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc gói dữ liệu "
+                        f"có hash '{rec_dataset_hash}', trong khi phiên hiện tại đang chạy gói có hash '{expected_dataset_hash}'. "
+                        f"Tránh dùng nhầm tệp kết quả khi đổi gói dữ liệu!"
+                    )
+            if expected_dataset_id is not None:
+                if rec_dataset_id is None or str(rec_dataset_id).strip() != expected_dataset_id:
+                    raise ValueError(
+                        f"MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc dataset_id "
+                        f"'{rec_dataset_id}', trong khi phiên hiện tại đang chạy dataset_id '{expected_dataset_id}'."
+                    )
+            if expected_codebook_hash is not None:
+                if rec_codebook_hash is None or str(rec_codebook_hash).strip() != expected_codebook_hash:
+                    raise ValueError(
+                        f"MÂU THUẪN CODEBOOK HASH: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc codebook_hash "
+                        f"'{rec_codebook_hash}', trong khi phiên hiện tại đang chạy codebook_hash '{expected_codebook_hash}'."
+                    )
+            if expected_codebook_version is not None:
+                if rec_codebook_version is None or str(rec_codebook_version).strip() != expected_codebook_version:
+                    raise ValueError(
+                        f"MÂU THUẪN PHIÊN BẢN CODEBOOK: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc phiên bản "
+                        f"'{rec_codebook_version}', trong khi phiên hiện tại đang chạy '{expected_codebook_version}'."
+                    )
+            if expected_sampling_plan_version is not None:
+                if rec_sampling_plan_version is None or str(rec_sampling_plan_version).strip() != expected_sampling_plan_version:
+                    raise ValueError(
+                        f"MÂU THUẪN SAMPLING PLAN: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi thuộc sampling_plan_version "
+                        f"'{rec_sampling_plan_version}', trong khi phiên hiện tại đang chạy '{expected_sampling_plan_version}'."
+                    )
+
+            # Đổi nội dung cùng ID phải bị từ chối; kiểm tra bằng hàm canonical compute_sample_content_hash
+            if current_samples_by_id and sid in current_samples_by_id:
+                curr_s = current_samples_by_id[sid]
+                curr_content_hash = compute_sample_content_hash(curr_s)
+                if rec_sample_hash and rec_sample_hash != curr_content_hash:
+                    raise ValueError(
+                        f"MÂU THUẪN NỘI DUNG MẪU: Mẫu '{sid}' trong '{output_path}' tại dòng {line_no} có hash nội dung "
+                        f"'{rec_sample_hash}', khác với nội dung của mẫu cùng ID trong gói đầu vào hiện tại "
+                        f"('{curr_content_hash}'). Không được đổi nội dung cùng ID!"
+                    )
+
+            if sid in annotated:
+                raise ValueError(f"LỖI TOÀN VẸN TỆP: sample_id trùng tại dòng {line_no}.")
+            annotated.add(sid)
 
     return annotated
 
@@ -258,12 +290,26 @@ def annotate_interactive_session(
     annotator_id: str,
     input_path: Path,
     output_path: Path,
+    manifest_path: Path | None = None,
     pass_id: int = 1,
     dry_run: bool = False,
     cli_codebook_version: str | None = None,
     cli_random_subset: bool | None = None,
 ) -> None:
     """Phiên làm việc gán nhãn có bấm giờ tương tác."""
+    # Khóa cờ ghi đè qua CLI trong phiên gán nhãn người thật
+    if not dry_run:
+        if cli_codebook_version is not None:
+            raise ValueError(
+                "CỜ BỊ KHÓA: Không được ghi đè --codebook-version qua CLI trong phiên gán nhãn người thật. "
+                "Phiên bản codebook phải lấy từ manifest/gói đã khóa."
+            )
+        if cli_random_subset is not None:
+            raise ValueError(
+                "CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật. "
+                "Giá trị random_subset phải lấy từ metadata/manifest đã khóa."
+            )
+
     if not input_path.exists():
         print(f"LỖI: Không tìm thấy gói dữ liệu mù tại: {input_path}")
         sys.exit(1)
@@ -283,11 +329,100 @@ def annotate_interactive_session(
     dataset_hash = hashlib.sha256(input_bytes).hexdigest()
     dataset_id = str(data.get("dataset_id", "UNKNOWN"))
     is_synthetic = bool(data.get("is_synthetic", False))
-    sampling_plan_version = str(data.get("sampling_plan_version", ""))
+    sampling_plan_version = str(data.get("sampling_plan_version", "") or "")
+
+    is_real_session = (not dry_run) and (not is_synthetic)
+
+    # RÀO CHẮN MANIFEST TOÀN DIỆN CHO PHIÊN GÁN NHÃN NGƯỜI THẬT
+    if is_real_session:
+        actual_manifest_path = manifest_path or (PROJECT_ROOT / "configs" / "pilot_manifest.json")
+        if not actual_manifest_path.exists():
+            raise FileNotFoundError(
+                f"LỖI MANIFEST: Không tìm thấy tệp manifest tại '{actual_manifest_path}' cho phiên gán nhãn người thật."
+            )
+
+        with open(actual_manifest_path, "r", encoding="utf-8") as mf:
+            manifest_data = json.load(mf)
+
+        # 1. B và D đã duyệt (acceptance)
+        acceptance = manifest_data.get("acceptance", {})
+        if acceptance.get("B") != "approved" or acceptance.get("D") != "approved":
+            raise ValueError(
+                f"CHƯA NGHIỆM THU: Manifest '{actual_manifest_path}' chưa được nghiệm thu đầy đủ bởi cả B và D "
+                f"(B: '{acceptance.get('B')}', D: '{acceptance.get('D')}'). Chưa được phép mở phiên người thật!"
+            )
+
+        # 2. ready_for_annotation == True
+        if manifest_data.get("ready_for_annotation") is not True:
+            raise ValueError(
+                f"CHƯA SẴN SÀNG: Manifest '{actual_manifest_path}' có ready_for_annotation=false. "
+                f"Đợt gán nhãn chưa được mở chính thức!"
+            )
+
+        # 3. Trạng thái locked
+        cb_status = manifest_data.get("codebook_status")
+        if cb_status != "locked":
+            raise ValueError(
+                f"CODEBOOK CHƯA KHÓA: Manifest '{actual_manifest_path}' có codebook_status='{cb_status}' (chưa locked)."
+            )
+
+        if manifest_data.get("dictionary_status") and manifest_data["dictionary_status"] != "locked":
+            raise ValueError(
+                f"DICTIONARY CHƯA KHÓA: Manifest '{actual_manifest_path}' có dictionary_status='{manifest_data['dictionary_status']}' (chưa locked)."
+            )
+
+        # 4. Hash view/codebook/dictionary khớp tệp đĩa
+        manifest_view_hash = manifest_data.get("blind_view_sha256")
+        if manifest_view_hash and dataset_hash != manifest_view_hash:
+            raise ValueError(
+                f"SAI KHÁC MÃ BĂM VIEW: Gói view '{input_path}' có hash '{dataset_hash}', "
+                f"không khớp với manifest ('{manifest_view_hash}')."
+            )
+
+        cb_path = PROJECT_ROOT / "docs" / "CODEBOOK_V1.md"
+        if cb_path.exists():
+            computed_cb_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
+            manifest_cb_hash = manifest_data.get("codebook_sha256")
+            if manifest_cb_hash and computed_cb_hash != manifest_cb_hash:
+                raise ValueError(
+                    f"SAI KHÁC MÃ BĂM CODEBOOK: docs/CODEBOOK_V1.md có hash '{computed_cb_hash}', "
+                    f"không khớp manifest ('{manifest_cb_hash}')."
+                )
+
+        dict_path = PROJECT_ROOT / "configs" / "dictionary_v1.json"
+        manifest_dict_hash = manifest_data.get("dictionary_sha256")
+        if manifest_dict_hash and dict_path.exists():
+            computed_dict_hash = hashlib.sha256(dict_path.read_bytes()).hexdigest()
+            if computed_dict_hash != manifest_dict_hash:
+                raise ValueError(
+                    f"SAI KHÁC MÃ BĂM DICTIONARY: configs/dictionary_v1.json có hash '{computed_dict_hash}', "
+                    f"không khớp manifest ('{manifest_dict_hash}')."
+                )
+
+        # 5. Số mẫu khớp dữ liệu
+        manifest_total = manifest_data.get("sample_count") or manifest_data.get("total_samples") or (manifest_data.get("sample_counts", {}).get("total"))
+        if manifest_total is not None and total_samples != int(manifest_total):
+            raise ValueError(
+                f"SAI KHÁC SỐ MẪU: Gói view có {total_samples} mẫu, "
+                f"nhưng manifest khai báo {manifest_total} mẫu."
+            )
+
+        # 6. Dataset ID và sampling plan version khớp manifest
+        if manifest_data.get("dataset_id") and dataset_id != manifest_data["dataset_id"]:
+            raise ValueError(
+                f"SAI KHÁC DATASET_ID: Gói view có dataset_id='{dataset_id}', "
+                f"không khớp manifest ('{manifest_data['dataset_id']}')."
+            )
+        manifest_sp = manifest_data.get("sampling_plan_version")
+        if manifest_sp and sampling_plan_version != manifest_sp:
+            raise ValueError(
+                f"SAI KHÁC SAMPLING_PLAN: Gói view có sampling_plan_version='{sampling_plan_version}', "
+                f"không khớp manifest ('{manifest_sp}')."
+            )
 
     codebook_hash = str(data.get("codebook_sha256") or data.get("codebook_hash") or "")
     if not codebook_hash:
-        cb_path = Path("docs/CODEBOOK_V1.md")
+        cb_path = PROJECT_ROOT / "docs" / "CODEBOOK_V1.md"
         if cb_path.exists():
             codebook_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
 
@@ -309,7 +444,9 @@ def annotate_interactive_session(
         expected_dataset_id=dataset_id if dataset_id != "UNKNOWN" else None,
         expected_codebook_hash=codebook_hash or None,
         expected_codebook_version=data.get("codebook_version") or cli_codebook_version or None,
+        expected_sampling_plan_version=sampling_plan_version or None,
         current_samples_by_id=samples_by_id,
+        is_real_session=is_real_session,
     )
 
     remaining_samples = [s for s in samples if s.get("sample_id") not in done_ids]
@@ -333,10 +470,8 @@ def annotate_interactive_session(
         # Hiển thị mẫu và cho phép đọc toàn văn
         display_sample_and_allow_reading(sample, idx, total_samples, interactive=not dry_run)
 
-        # Tính hash nội dung của mẫu hiện tại để chống hoán đổi nội dung cùng ID
-        sample_content_hash = hashlib.sha256(
-            (str(sample.get("url", "")) + "\0" + str(sample.get("page_text", ""))).encode("utf-8")
-        ).hexdigest()
+        # Tính hash nội dung của mẫu hiện tại bằng hàm canonical compute_sample_content_hash
+        sample_content_hash = compute_sample_content_hash(sample)
 
         # Đọc động codebook_version và random_subset
         codebook_version = (
@@ -470,12 +605,14 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="Chạy tự động không chờ nhập liệu bàn phím (dùng cho CI/test)")
     parser.add_argument("--codebook-version", default=None, help="Phiên bản Codebook áp dụng (mặc định lấy từ metadata tệp mẫu)")
     parser.add_argument("--random-subset", default=None, type=lambda x: (str(x).lower() in ['true','1', 'yes']), help="Chỉ định mẫu thuộc random subset")
+    parser.add_argument("--manifest", default=None, type=Path, help="Đường dẫn tệp Manifest kiểm định")
 
     args = parser.parse_args()
     annotate_interactive_session(
         annotator_id=args.annotator,
         input_path=args.input,
         output_path=args.output,
+        manifest_path=args.manifest,
         pass_id=args.pass_id,
         dry_run=args.dry_run,
         cli_codebook_version=args.codebook_version,

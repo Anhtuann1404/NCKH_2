@@ -8,6 +8,7 @@ from .blind_view import (
     BlindSample,
     assert_neutral_sample_id,
     assert_no_label_leak,
+    compute_sample_content_hash,
     create_blind_sample,
     export_blind_view,
     extract_safe_view_content,
@@ -51,6 +52,13 @@ def compute_cohens_kappa(
     if len(rater1) != len(rater2) or len(rater1) == 0:
         raise ValueError("Hai danh sách nhãn phải có cùng độ dài và không được rỗng.")
 
+    if is_difficult is not None and len(is_difficult) != len(rater1):
+        raise ValueError("Độ dài mảng is_difficult phải khớp với độ dài danh sách nhãn.")
+    if random_subset is not None and len(random_subset) != len(rater1):
+        raise ValueError("Độ dài random_subset phải khớp danh sách nhãn.")
+    if label_field not in {"class_label", "primary_org"}:
+        raise ValueError("label_field phải là class_label hoặc primary_org.")
+
     # Ghép cặp nhãn giữa A và B bằng từ điển theo sample_id nếu có để tránh lệch thứ tự dòng
     has_sid1 = len(rater1) > 0 and all(isinstance(r, dict) and "sample_id" in r or hasattr(r, "sample_id") for r in rater1)
     has_sid2 = len(rater2) > 0 and all(isinstance(r, dict) and "sample_id" in r or hasattr(r, "sample_id") for r in rater2)
@@ -59,13 +67,26 @@ def compute_cohens_kappa(
         dict2 = {getattr(r, "sample_id", None) or r["sample_id"]: r for r in rater2}
         if len(dict2) != len(rater2):
             raise ValueError("Phát hiện sample_id trùng lặp trong danh sách rater2.")
-        dict1_sids = [getattr(r, "sample_id", None) or r["sample_id"] for r in rater1]
-        if len(set(dict1_sids)) != len(rater1):
+        dict1 = {getattr(r, "sample_id", None) or r["sample_id"]: r for r in rater1}
+        if len(dict1) != len(rater1):
             raise ValueError("Phát hiện sample_id trùng lặp trong danh sách rater1.")
-        if set(dict1_sids) != set(dict2.keys()):
+        if set(dict1.keys()) != set(dict2.keys()):
             raise ValueError("Danh sách sample_id giữa hai đánh giá viên không khớp nhau.")
 
-        # Kiểm tra tính đồng nhất về provenance giữa rater1 và rater2
+        # Sắp xếp ổn định tất định theo sample_id
+        orig_sids = [getattr(r, "sample_id", None) or r["sample_id"] for r in rater1]
+        sorted_sids = sorted(list(dict1.keys()))
+        orig_indices = {sid: idx for idx, sid in enumerate(orig_sids)}
+
+        rater1 = [dict1[sid] for sid in sorted_sids]
+        rater2 = [dict2[sid] for sid in sorted_sids]
+
+        if random_subset is not None:
+            random_subset = [random_subset[orig_indices[sid]] for sid in sorted_sids]
+        if is_difficult is not None:
+            is_difficult = [is_difficult[orig_indices[sid]] for sid in sorted_sids]
+
+        # Kiểm tra tính đồng nhất về provenance: Cấm đa gói / đa codebook / đa sampling-plan
         provenance_fields = [
             "dataset_id",
             "dataset_hash",
@@ -77,22 +98,36 @@ def compute_cohens_kappa(
         for field in provenance_fields:
             vals1 = {getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater1}
             vals2 = {getattr(r, field, None) if not isinstance(r, dict) else r.get(field) for r in rater2}
-            clean_v1 = {v for v in vals1 if v is not None and v != ""}
-            clean_v2 = {v for v in vals2 if v is not None and v != ""}
+            clean_v1 = {v for v in vals1 if v is not None and str(v).strip() != ""}
+            clean_v2 = {v for v in vals2 if v is not None and str(v).strip() != ""}
+            if len(clean_v1) > 1 or len(clean_v2) > 1:
+                raise ValueError(
+                    f"LỖI ĐA GÓI: Tập dữ liệu tính Kappa chứa bản ghi từ nhiều '{field}' khác nhau "
+                    f"(rater1: {clean_v1}, rater2: {clean_v2}). Mỗi lần tính chỉ được chạy trên duy nhất một gói."
+                )
             if clean_v1 and clean_v2 and clean_v1 != clean_v2:
                 raise ValueError(
                     f"Không thể tính Kappa: mâu thuẫn provenance '{field}' giữa hai đánh giá viên "
                     f"({clean_v1} vs {clean_v2})."
                 )
 
-        rater2 = [dict2[sid] for sid in dict1_sids]
-
-    if is_difficult is not None and len(is_difficult) != len(rater1):
-        raise ValueError("Độ dài mảng is_difficult phải khớp với độ dài danh sách nhãn.")
-    if random_subset is not None and len(random_subset) != len(rater1):
-        raise ValueError("Độ dài random_subset phải khớp danh sách nhãn.")
-    if label_field not in {"class_label", "primary_org"}:
-        raise ValueError("label_field phải là class_label hoặc primary_org.")
+        # Kiểm tra từng cặp nhãn khớp đúng provenance và sample_content_hash
+        for sid, r1, r2 in zip(sorted_sids, rater1, rater2):
+            h1 = getattr(r1, "sample_content_hash", None) if not isinstance(r1, dict) else r1.get("sample_content_hash")
+            h2 = getattr(r2, "sample_content_hash", None) if not isinstance(r2, dict) else r2.get("sample_content_hash")
+            if h1 and h2 and h1 != h2:
+                raise ValueError(
+                    f"MÂU THUẪN NỘI DUNG MẪU: Cặp mẫu '{sid}' có sample_content_hash không khớp giữa hai đánh giá viên "
+                    f"('{h1}' vs '{h2}')."
+                )
+            for pf in provenance_fields:
+                v1 = getattr(r1, pf, None) if not isinstance(r1, dict) else r1.get(pf)
+                v2 = getattr(r2, pf, None) if not isinstance(r2, dict) else r2.get(pf)
+                if v1 is not None and v2 is not None and str(v1).strip() != str(v2).strip():
+                    raise ValueError(
+                        f"MÂU THUẪN PROVENANCE: Cặp mẫu '{sid}' có '{pf}' không khớp giữa A và B "
+                        f"('{v1}' vs '{v2}')."
+                    )
 
     # Lọc bỏ các ca khó, bản ghi dry-run và dữ liệu mô phỏng
     clean_pairs = []

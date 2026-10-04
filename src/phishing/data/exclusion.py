@@ -130,14 +130,14 @@ class ExclusionRegistry:
         if self._group_hashes and isinstance(url, str):
             try:
                 import tldextract
-                # Offline bundled PSL, including private tenant suffixes; no network.
-                extractor = tldextract.TLDExtract(suffix_list_urls=(), include_psl_private_domains=True)
-                domain = extractor(url).top_domain_under_public_suffix
-            except ImportError:
-                from urllib.parse import urlparse
-                host = (urlparse(url).hostname or "").lower()
-                parts = host.split(".")
-                domain = ".".join(parts[-2:]) if len(parts) >= 2 else host
+            except ImportError as err:
+                raise ImportError(
+                    "Thư viện tldextract bắt buộc phải được cài đặt để phân tách nhóm tên miền "
+                    "bảo thủ theo Public Suffix List (PSL). Không được phép fallback để tránh rò rỉ dữ liệu."
+                ) from err
+            # Offline bundled PSL, including private tenant suffixes; no network.
+            extractor = tldextract.TLDExtract(suffix_list_urls=(), include_psl_private_domains=True)
+            domain = extractor(url).top_domain_under_public_suffix
             if domain and hashlib.sha256(domain.encode()).hexdigest() in self._group_hashes:
                 return True
         if sample.get("group_sha256") in self._group_hashes:

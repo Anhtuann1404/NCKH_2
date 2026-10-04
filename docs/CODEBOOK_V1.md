@@ -5,7 +5,7 @@
 **Ngày cập nhật:** 05/10/2026  
 **Trạng thái:** `pending_review` (Đã được Thành viên B nghiệm thu tại commit a7bdd74; chờ Lead D đối soát mã băm gói view thật để đóng băng chính thức)  
 **Mã băm từ điển đối chiếu (`configs/dictionary_v1.json`):**  
-`SHA-256: 0546c37668f66fa995ff677920fb50c8fcd1fadf67c931286f5870d18283293e`  
+`SHA-256: a7403a79531b0e5f13884fa4e4d431876f34e3277a3112577a3ff2275703ff2d`  
 **Dải ngày corpus train đã kiểm kê:** `02/07/2024` đến `08/09/2025` (Task DATA-01, 56 shards, 498.255 dòng)  
 **Người biên soạn & quản lý:** Thành viên C (Data Pipeline & Blind View)  
 **Hiện trạng rà soát & Nghiệm thu:**

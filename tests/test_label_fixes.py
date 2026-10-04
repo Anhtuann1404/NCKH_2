@@ -86,8 +86,17 @@ def test_real_pilot_ready_allows_session_init(tmp_path, capsys):
     input_path = tmp_path / "ready.json"
     export_blind_view([], input_path, dataset_type="real_pilot_ready")
     output = tmp_path / "A.jsonl"
-    # Với gói rỗng nhưng ready, session khởi động thành công và báo đã hoàn thành (không bị chặn nghiệm thu)
-    cli.annotate_interactive_session("A", input_path, output)
+    manifest_path = tmp_path / "mock_manifest.json"
+    view_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps({
+        "acceptance": {"B": "approved", "D": "approved"},
+        "ready_for_annotation": True,
+        "codebook_status": "locked",
+        "sample_count": 0,
+        "blind_view_sha256": view_hash,
+    }), encoding="utf-8")
+    # Với gói rỗng nhưng ready và manifest đã duyệt, session khởi động thành công và báo đã hoàn thành
+    cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path)
     out = capsys.readouterr().out
     assert "hoàn thành toàn bộ các mẫu" in out
 

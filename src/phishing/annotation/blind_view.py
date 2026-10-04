@@ -17,6 +17,7 @@ Quy chuẩn ARS bắt buộc:
 
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+import hashlib
 import html
 from html.parser import HTMLParser
 import json
@@ -373,6 +374,46 @@ def create_blind_sample(
     )
     assert_no_label_leak(blind.to_dict())
     return blind
+
+
+def compute_sample_content_hash(sample: Any) -> str:
+    """Tính mã băm toàn vẹn SHA-256 nội dung của một mẫu mà người gán nhãn nhìn thấy.
+
+    Quy chuẩn ARS & Safety:
+    Bao gồm toàn bộ các thành phần hiển thị thực tế cho annotator:
+    - URL của trang (url)
+    - Toàn bộ văn bản đã làm sạch an toàn (page_text)
+    - Tóm tắt cấu trúc DOM (structure_summary), tuần tự hóa chuẩn canonical JSON
+      với các khóa được sắp xếp (sort_keys=True, separators=(',', ':')).
+
+    Hàm này được dùng chung thống nhất cho:
+    1. Lưu trữ bản ghi gán nhãn (AnnotationRecord.sample_content_hash)
+    2. Kiểm tra tính toàn vẹn khi tiếp tục phiên làm việc (Resume CLI)
+    3. Đối soát khớp nội dung từng cặp mẫu giữa A và B trước khi tính Cohen's Kappa.
+    """
+    if hasattr(sample, "to_dict"):
+        sample_dict = sample.to_dict()
+    elif isinstance(sample, dict):
+        sample_dict = sample
+    else:
+        sample_dict = {
+            "url": getattr(sample, "url", ""),
+            "page_text": getattr(sample, "page_text", ""),
+            "structure_summary": getattr(sample, "structure_summary", None),
+        }
+
+    url_str = str(sample_dict.get("url") or "")
+    text_str = str(sample_dict.get("page_text") or "")
+    summary = sample_dict.get("structure_summary")
+    if isinstance(summary, dict):
+        summary_repr = json.dumps(summary, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    elif summary is not None:
+        summary_repr = str(summary)
+    else:
+        summary_repr = ""
+
+    payload = f"{url_str}\0{text_str}\0{summary_repr}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)

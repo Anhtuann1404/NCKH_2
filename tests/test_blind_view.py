@@ -20,12 +20,24 @@ from phishing.annotation import (
     assert_neutral_sample_id,
     assert_no_label_leak,
     compute_cohens_kappa,
+    compute_sample_content_hash,
     create_blind_sample,
     export_blind_view,
     extract_safe_view_content,
     filter_research_annotations,
     validate_annotation_record,
 )
+import hashlib
+import importlib.util
+
+
+@pytest.fixture
+def cli_module():
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("annotate_cli", root / "scripts/annotate_cli.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 class TestBlindViewSecurityAndAntiLeakage:
@@ -873,6 +885,269 @@ class TestProvenanceAndKappaPairing:
         filtered = filter_research_annotations(records)
         assert len(filtered) == 2
         assert [r["sample_id"] for r in filtered] == ["REAL-1", "REAL-2"]
+
+    def test_kappa_rejects_mixed_batch_multiple_packages(self):
+        """compute_cohens_kappa cấm tính toán trên tập dữ liệu lẫn lộn nhiều gói/codebook/sampling-plan."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_A", "codebook_hash": "cb1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_B", "codebook_hash": "cb1"},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_A", "codebook_hash": "cb1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_B", "codebook_hash": "cb1"},
+        ]
+        with pytest.raises(ValueError, match="LỖI ĐA GÓI"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_rejects_pairwise_content_hash_mismatch(self):
+        """compute_cohens_kappa phát hiện và báo lỗi khi sample_content_hash của cùng sample_id bị lệch giữa A và B."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg1", "sample_content_hash": "hash_v1"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg1", "sample_content_hash": "hash_v2"},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg1", "sample_content_hash": "hash_tampered"},
+            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg1", "sample_content_hash": "hash_v2"},
+        ]
+        with pytest.raises(ValueError, match="MÂU THUẪN NỘI DUNG MẪU"):
+            compute_cohens_kappa(r1, r2, label_field="class_label")
+
+    def test_kappa_stable_deterministic_sort_matches_different_order(self):
+        """compute_cohens_kappa tự động sắp xếp theo sample_id bảo đảm kết quả độc lập với thứ tự nhập liệu."""
+        r1 = [
+            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
+            {"sample_id": "S01", "class_label": "benign", "random_subset": True},
+            {"sample_id": "S02", "class_label": "phishing", "random_subset": True},
+        ]
+        r2 = [
+            {"sample_id": "S02", "class_label": "phishing", "random_subset": True},
+            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
+            {"sample_id": "S01", "class_label": "benign", "random_subset": True},
+        ]
+        res = compute_cohens_kappa(r1, r2, label_field="class_label")
+        assert res.sample_count == 3
+        assert res.observed_agreement == 1.0
+        assert res.kappa == 1.0
+
+    def test_kappa_keeps_difficult_cases_in_random_subset(self):
+        """compute_cohens_kappa giữ nguyên các ca khó (difficult_case=True) nếu thuộc random_subset."""
+        r1 = [
+            {"sample_id": "S01", "class_label": "phishing", "difficult_case": True, "random_subset": True},
+            {"sample_id": "S02", "class_label": "benign", "difficult_case": False, "random_subset": True},
+        ]
+        r2 = [
+            {"sample_id": "S01", "class_label": "phishing", "difficult_case": True, "random_subset": True},
+            {"sample_id": "S02", "class_label": "benign", "difficult_case": False, "random_subset": True},
+        ]
+        res = compute_cohens_kappa(r1, r2, label_field="class_label")
+        assert res.sample_count == 2
+        assert res.observed_agreement == 1.0
+
+
+class TestResumeStrictProvenanceAndManifestChecks:
+    """Kiểm thử cơ chế kiểm tra Resume nghiêm ngặt và rào chắn Manifest kiểm định."""
+
+    def test_resume_rejects_missing_provenance_field_in_real_session(self, tmp_path, cli_module):
+        """Phiên gán nhãn thật từ chối bản ghi resume nếu thiếu bất kỳ trường nào trong 6 trường provenance."""
+        base_record = {
+            "annotator_id": "A",
+            "sample_id": "SMP-01",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "dataset_id": "REAL-PILOT-32-V1",
+            "dataset_hash": "pkg_hash_123",
+            "codebook_version": "1.0.0",
+            "codebook_hash": "cb_hash_456",
+            "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
+            "sample_content_hash": "content_hash_789",
+        }
+        provenance_keys = [
+            "dataset_id",
+            "dataset_hash",
+            "codebook_version",
+            "codebook_hash",
+            "sampling_plan_version",
+            "sample_content_hash",
+        ]
+        for missing_key in provenance_keys:
+            out_file = tmp_path / f"resume_missing_{missing_key}.jsonl"
+            tampered = dict(base_record)
+            tampered[missing_key] = ""
+            out_file.write_text(json.dumps(tampered) + "\n", encoding="utf-8")
+            with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
+                cli_module.load_already_annotated_sample_ids(
+                    out_file,
+                    expected_annotator_id="A",
+                    expected_pass_id=1,
+                    is_real_session=True,
+                )
+
+    def test_resume_rejects_empty_or_mismatched_when_expected_is_set(self, tmp_path, cli_module):
+        """Khi giá trị kỳ vọng đã được xác định, bản ghi thiếu, rỗng hoặc khác giá trị đều phải báo lỗi."""
+        out_file = tmp_path / "resume_empty_expected.jsonl"
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "SMP-01",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "dataset_hash": "",  # Rỗng
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="MÂU THUẪN GÓI DỮ LIỆU ĐẦU VÀO"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                expected_dataset_hash="hash_actual_v1",
+            )
+
+    def test_resume_rejects_unknown_sample_id_not_in_current_package(self, tmp_path, cli_module):
+        """CLI từ chối file resume chứa sample_id không thuộc gói dữ liệu đầu vào hiện tại."""
+        out_file = tmp_path / "resume_unknown_id.jsonl"
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "UNKNOWN-SAMPLE-999",
+            "pass_id": 1,
+            "is_dry_run": False,
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+        current_samples = {
+            "PILOT-001": {"sample_id": "PILOT-001", "url": "https://a.test", "page_text": "text"}
+        }
+        with pytest.raises(ValueError, match="SAMPLE_ID LẠ"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                current_samples_by_id=current_samples,
+            )
+
+    def test_resume_content_hash_includes_structure_summary(self, tmp_path, cli_module):
+        """Thay đổi structure_summary (DOM) dù URL và page_text giữ nguyên cũng bị phát hiện và từ chối."""
+        out_file = tmp_path / "resume_dom_changed.jsonl"
+        sample_orig = {
+            "sample_id": "SMP-01",
+            "url": "https://login.example.com/",
+            "page_text": "Please sign in to continue",
+            "structure_summary": {"forms": 1, "inputs": 1, "password_inputs": 0},
+        }
+        orig_hash = compute_sample_content_hash(sample_orig)
+        rec = {
+            "annotator_id": "A",
+            "sample_id": "SMP-01",
+            "pass_id": 1,
+            "is_dry_run": False,
+            "sample_content_hash": orig_hash,
+        }
+        out_file.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+
+        # Gói đầu vào hiện tại có cấu trúc DOM bị sửa đổi (thêm password input)
+        sample_tampered = {
+            "sample_id": "SMP-01",
+            "url": "https://login.example.com/",
+            "page_text": "Please sign in to continue",
+            "structure_summary": {"forms": 1, "inputs": 2, "password_inputs": 1},
+        }
+        current_samples = {"SMP-01": sample_tampered}
+        with pytest.raises(ValueError, match="MÂU THUẪN NỘI DUNG MẪU"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                current_samples_by_id=current_samples,
+            )
+
+    def test_cli_blocks_codebook_version_override_in_human_session(self, tmp_path, cli_module):
+        """CLI khóa cờ --codebook-version khi gán nhãn người thật."""
+        input_blind = tmp_path / "test_blind.json"
+        export_blind_view(
+            [{"sample_id": "SMP-001", "url": "https://test.invalid/", "html": "<p>Hello</p>"}],
+            input_blind,
+            dataset_id="TEST-OVERRIDE",
+        )
+        out_file = tmp_path / "A_override_cb.jsonl"
+        with pytest.raises(ValueError, match="CỜ BỊ KHÓA"):
+            cli_module.annotate_interactive_session(
+                annotator_id="A",
+                input_path=input_blind,
+                output_path=out_file,
+                pass_id=1,
+                dry_run=False,
+                cli_codebook_version="custom-v2",
+            )
+
+    def test_cli_manifest_preflight_blocks_unapproved_or_pending(self, tmp_path, cli_module):
+        """CLI kiểm tra toàn bộ điều kiện manifest trước khi cho phép phiên người thật hoạt động."""
+        input_blind = tmp_path / "real_view.json"
+        export_blind_view(
+            [{"sample_id": "SMP-001", "url": "https://test.invalid/", "html": "<p>Content</p>"}],
+            input_blind,
+            dataset_id="TEST-REAL",
+            dataset_type="real_pilot_ready",
+        )
+        out_file = tmp_path / "A_real.jsonl"
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+
+        # 1. B và D chưa nghiệm thu đầy đủ
+        m1 = tmp_path / "m1.json"
+        m1.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "pending"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="CHƯA NGHIỆM THU"):
+            cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m1)
+
+        # 2. ready_for_annotation=False
+        m2 = tmp_path / "m2.json"
+        m2.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": False,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="CHƯA SẴN SÀNG"):
+            cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m2)
+
+        # 3. codebook_status chưa locked
+        m3 = tmp_path / "m3.json"
+        m3.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "pending_review",
+            "sample_count": 1,
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="CODEBOOK CHƯA KHÓA"):
+            cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m3)
+
+        # 4. Hash view không khớp
+        m4 = tmp_path / "m4.json"
+        m4.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 1,
+            "blind_view_sha256": "wrong_hash_12345",
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM VIEW"):
+            cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m4)
+
+        # 5. Số mẫu không khớp
+        m5 = tmp_path / "m5.json"
+        m5.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+            "sample_count": 99,  # Gói view chỉ có 1 mẫu
+            "blind_view_sha256": view_hash,
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="SAI KHÁC SỐ MẪU"):
+            cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m5)
+
 
 
 

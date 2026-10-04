@@ -6,82 +6,160 @@ TIỂU BAN DỮ LIỆU & GÁN NHÃN MÙ (DATA PIPELINE & BLIND VIEW - THÀNH VI�
 Kính gửi: Lead D (Anh Tuấn)
 Đồng kính gửi: Thành viên B (Phùng Tấn Minh - QA & Kiểm độc lập)
 Người lập: Thành viên C (Data Pipeline & Blind View)
-Ngày lập: 05/10/2026
-Căn cứ: Chỉ đạo của Lead D về việc giữ pilot chưa mở và bàn giao riêng tệp view mù
+Ngày cập nhật: 05/10/2026
+Căn cứ: Chỉ đạo rà soát và hoàn tất bản sửa cuối của Lead D trên nhánh feat/data-pipeline
 Nhánh Git: feat/data-pipeline
-Trạng thái kiểm thử hệ thống: 99/99 test cases ĐẠT 100% (pytest passed in 1.42s)
+Trạng thái kiểm thử hệ thống: 111/111 test cases ĐẠT 100% (pytest passed in 1.76s)
 
 --------------------------------------------------------------------------------
 I. NGUYÊN TẮC THỰC THI & TUÂN THỦ RANH GIỚI TRÁCH NHIỆM
 --------------------------------------------------------------------------------
 
 Tiểu ban Dữ liệu (Thành viên C) nghiêm túc tuân thủ chỉ đạo của Lead D:
-1. Giữ nguyên trạng thái chưa mở đợt gán nhãn pilot (ready_for_annotation: false).
-2. Giữ nguyên trạng thái chờ duyệt (status: "pending_review") cho cả configs/dictionary_v1.json
+1. Tiếp tục giữ nguyên trạng thái chưa mở đợt gán nhãn pilot (ready_for_annotation: false).
+2. Tiếp tục giữ nguyên trạng thái chờ duyệt (status: "pending_review") cho cả configs/dictionary_v1.json
    và docs/CODEBOOK_V1.md. Thẩm quyền quyết định khóa chính thức và phát lệnh pilot thuộc về Lead D.
-3. Giữ nguyên chốt chặn huấn luyện chính (training_blocked: true) trong data/exclusion_registry.json.
+3. Tiếp tục giữ nguyên chốt chặn huấn luyện chính (training_blocked: true) trong data/exclusion_registry.json.
 4. Bàn giao riêng tệp View Mù REAL-PILOT-32-V1 qua kênh nội bộ hạn chế để Lead D kiểm hash và
    schema; tuyệt đối không đưa tệp dữ liệu thô (raw) hay bảng ánh xạ có nhãn (source_mapping.json)
    lên Git repository hoặc gửi cho Thành viên A và B.
 
 --------------------------------------------------------------------------------
-II. ĐÍNH CHÍNH METADATA NGUỒN CHECK POINT RESEARCH & ĐỐI SOÁT VỚI B
+II. BẢNG ĐỐI CHIẾU 7 ĐIỂM SỬA CHỮA KỸ THUẬT VÀ MÃ TEST CASES TƯƠNG ỨNG
 --------------------------------------------------------------------------------
 
-1. Cập nhật bảng nguồn chính thức tại configs/dictionary_v1.json:
-   - Đã chuẩn hóa danh mục 10 thương hiệu hàng đầu cho cả 5 quý khảo sát (Q4/2024 đến Q4/2025)
-     theo đúng các báo cáo nghiên cứu chính thức của Check Point Research (CPR).
-   - Đính chính quý Q4/2025 (công bố 15/01/2026): Ghi nhận đúng Microsoft (22%), Google (13%),
-     Amazon (9%), Apple (8%), Facebook (3%), PayPal (2%), Adobe (2%), Booking (2%), DHL (1%),
-     LinkedIn (1%); loại bỏ hoàn toàn Twitter khỏi danh mục Q4/2025.
-   - Hợp nhất đủ 14 mã tổ chức cơ sở, độc lập hoàn toàn với thuật toán học máy.
-
-2. Nghiệm thu độc lập từ Thành viên B:
-   - Thành viên B đã hoàn tất rà soát đối chiếu độc lập và KÝ DUYỆT NGHIỆM THU MÃ NGUỒN VÀ THIẾT KẾ
-     100% tại commit a7bdd74 (nhánh docs/member-b-start01).
-   - B đã cập nhật bảng đối chiếu tương ứng trong biên bản docs/annotation_templates/CODEBOOK_REVIEW_B.md.
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| Mục  | Nội dung yêu cầu kỹ thuật                 | Vị trí sửa mã nguồn (Code Location)                   | Test cases kiểm chứng (Unit Tests)       |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 1    | Resume nghiêm ngặt provenance & hash:     | - src/phishing/annotation/blind_view.py:              | - test_resume_rejects_missing_           |
+|      | - Yêu cầu đủ 6 trường provenance cho phiên|   compute_sample_content_hash() chuẩn canonical       |   provenance_field_in_real_session       |
+|      |   thật (dataset_id, dataset_hash,         |   bao gồm url, page_text, structure_summary.          | - test_resume_rejects_empty_or_          |
+|      |   codebook_version, codebook_hash,        | - scripts/annotate_cli.py:                            |   mismatched_when_expected_is_set        |
+|      |   sampling_plan_version, content_hash).   |   load_already_annotated_sample_ids()                 | - test_resume_rejects_unknown_sample_    |
+|      | - Báo lỗi khi trường kỳ vọng bị thiếu/rỗng|   kiểm tra bắt buộc đầy đủ 6 trường;                  |   id_not_in_current_package              |
+|      | - Từ chối sample_id không thuộc gói;      |   từ chối sample_id lạ ngoài current_samples;         | - test_resume_content_hash_includes_     |
+|      | - So sánh hash nội dung bằng hàm chung.   |   so khớp hash nội dung bằng compute_sample_content_  |   structure_summary                      |
+|      |                                           |   hash().                                             | - test_resume_rejects_dataset_hash_mismatch|
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 2    | Kappa kiểm soát đa gói & ghép ID ổn định: | - src/phishing/annotation/__init__.py:                | - test_kappa_rejects_mixed_batch_        |
+|      | - Cấm tính Kappa trên tập dữ liệu lẫn lộn |   compute_cohens_kappa() cấm lẫn đa gói               |   multiple_packages                      |
+|      |   nhiều gói / codebook / sampling-plan;   |   (len(clean) > 1 ném LỖI ĐA GÓI);                    | - test_kappa_rejects_pairwise_content_   |
+|      | - Ghép cặp theo sample_id và sắp xếp ổn   |   ghép cặp theo sample_id và sort tất định;           |   hash_mismatch                          |
+|      |   định trước khi tính (deterministic sort)|   kiểm tra từng cặp nhãn khớp provenance và           | - test_kappa_stable_deterministic_sort_  |
+|      | - Kiểm tra từng cặp khớp hash nội dung;   |   sample_content_hash;                                |   matches_different_order                |
+|      | - Giữ ca khó nhưng loại dry-run/synthetic.|   giữ ca khó trong random_subset; loại dry-run/syn.   | - test_kappa_keeps_difficult_cases_in_   |
+|      |                                           |                                                       |   random_subset                          |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 3    | Rào chắn manifest và CLI override:        | - scripts/annotate_cli.py:                            | - test_cli_blocks_codebook_version_      |
+|      | - Kiểm tra toàn bộ điều kiện manifest: B/D|   annotate_interactive_session() bổ sung kiểm tra     |   override_in_human_session              |
+|      |   duyệt, ready=true, status=locked, hash  |   toàn diện manifest_path (hoặc pilot_manifest.json): | - test_cli_blocks_random_subset_override_|
+|      |   view/codebook/dictionary khớp đĩa, số   |   B/D approved, ready_for_annotation, codebook_status |   in_human_session                       |
+|      |   mẫu khớp;                               |   locked, đối chiếu mã băm và số mẫu;                 | - test_cli_manifest_preflight_blocks_    |
+|      | - Cấm ghi đè --codebook-version và        |   chặn cờ CLI --codebook-version và --random-subset   |   unapproved_or_pending                  |
+|      |   --random-subset trong phiên thật.       |   trong phiên người thật (not dry_run).               |                                          |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 4    | Khai báo sampling-plan version real32:    | - configs/pilot_manifest.json:                        | - test_annotation_record_provenance_     |
+|      | - Khai báo "PILOT-PLAN-V1-FULL-OVERLAP";  |   sampling_plan_version: "PILOT-PLAN-V1-FULL-OVERLAP" |   roundtrip                              |
+|      | - Ghi rõ căn cứ: A/B kiểm toàn bộ 32 mẫu, | - data/annotations/blind_view_pilot_real.json:        | - test_kappa_rejects_codebook_and_plan_  |
+|      |   không gọi đây là mẫu con 30% đợt chính; |   sampling_plan_version khai báo nhất quán;           |   provenance_mismatch                    |
+|      | - Kiểm tra nhất quán ở cả resume và kappa.| - Kiểm tra tính nhất quán trong CLI và Kappa.         |                                          |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 5    | Xóa bỏ fallback eTLD+1 nguy hiểm:         | - src/phishing/data/exclusion.py:                     | - test_domain_group_exclusion_multi_part_|
+|      | - Xóa việc cắt hostname parts[-2:];       |   Xóa bỏ hoàn toàn fallback parts[-2:];               |   tld                                    |
+|      | - Bắt buộc dùng tldextract với PSL offline|   bắt buộc tldextract với PSL bundled offline;        | - test_missing_tldextract_raises_import_ |
+|      |   và private suffixes; báo ImportError.   |   raise ImportError khi thiếu thư viện.               |   error_without_fallback                 |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 6    | Đính chính Check Point Research (CPR):    | - configs/dictionary_v1.json:                         | - test_dictionary_v1_json_valid          |
+|      | - Q1/2025: Bỏ PayPal, thêm WhatsApp;      |   Đính chính bảng 5 quý CPR;                          | - (Toán học: Kiểm tra chứng minh hợp     |
+|      | - Q3/2025: Bỏ Facebook, Alibaba; thêm     | - docs/CODEBOOK_V1.md:                                |   chính xác 14 tổ chức qua script        |
+|      |   Spotify, Booking;                       |   Đồng bộ bảng nguồn và mã băm từ điển;               |   kiểm định độc lập)                     |
+|      | - Chứng minh toán học hợp đủ 14 tổ chức.  | - Cập nhật mã băm SHA-256 đồng bộ sang manifest.      |                                          |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
+| 7    | Bàn giao riêng & giải trình lưu vết Git:  | - .gitignore: Giữ blind_view_pilot_real.json ngoài git| - test_real_pilot_pending_review_cannot_ |
+|      | - View thật bị xóa tại 37fc2c7; giữ lưu   | - Báo cáo đầy đủ mã băm cho Lead D;                   |   create_human_labels                    |
+|      |   vết, không force push;                  | - Cập nhật báo cáo kỹ thuật Lead D với bảng đối chiếu | - test_exclusion_hashes_and_domain_do_   |
+|      | - Giữ status pending và ready=false.      |   chi tiết từng test case; duy trì ready=false.       |   not_exclude_unrelated_records          |
++------+-------------------------------------------+-------------------------------------------------------+------------------------------------------+
 
 --------------------------------------------------------------------------------
-III. BÀN GIAO THÔNG SỐ GÓI VIEW MÙ REAL-PILOT-32-V1 CHO LEAD D
+III. ĐÍNH CHÍNH METADATA NGUỒN CHECK POINT RESEARCH & CHỨNG MINH HỢP 14 TỔ CHỨC
+--------------------------------------------------------------------------------
+
+1. Chi tiết đính chính theo nguồn Check Point Research (CPR):
+   - Q4/2024 (Báo cáo ngày 22/01/2025):
+     Microsoft, Apple, Google, LinkedIn, Alibaba, WhatsApp, Amazon, Twitter, Facebook, Adobe (10 thương hiệu).
+   - Q1/2025 (Báo cáo ngày 21/04/2025):
+     Microsoft, Google, Apple, Amazon, Mastercard, Facebook, WhatsApp, LinkedIn, Alibaba, Adobe (10 thương hiệu).
+     (Đã loại bỏ PayPal, bổ sung WhatsApp theo đúng báo cáo gốc).
+   - Q2/2025 (Báo cáo ngày 22/07/2025):
+     Microsoft, Google, Apple, Amazon, Spotify, Facebook, Alibaba, PayPal, LinkedIn, Adobe (10 thương hiệu).
+   - Q3/2025 (Báo cáo ngày 16/10/2025):
+     Microsoft, Google, Apple, Amazon, PayPal, Adobe, LinkedIn, DHL, Spotify, Booking (10 thương hiệu).
+     (Đã loại bỏ Facebook và Alibaba; bổ sung Spotify và Booking theo đúng báo cáo gốc).
+   - Q4/2025 (Báo cáo ngày 15/01/2026):
+     Microsoft, Google, Amazon, Apple, Facebook, PayPal, Adobe, Booking, DHL, LinkedIn (10 thương hiệu).
+
+2. Chứng minh toán học: Danh mục 14 tổ chức là HỢP CHÍNH XÁC của các Top Brands:
+   - Tập hợp tất cả các thương hiệu xuất hiện trong Top 10 của 5 quý gồm đúng 15 thương hiệu:
+     {Adobe, Alibaba, Amazon, Apple, Booking, DHL, Facebook, Google, LinkedIn, Mastercard, Microsoft, PayPal, Spotify, Twitter, WhatsApp}.
+   - Ánh xạ sang danh mục tổ chức (theo cấu trúc pháp nhân/thương hiệu mẹ của Codebook v1):
+     + Facebook, WhatsApp -> meta (Meta Platforms Inc.)
+     + Twitter -> x_twitter (X / Twitter Corp.)
+     + 13 thương hiệu còn lại có ánh xạ 1-1 trực tiếp sang org_id tương ứng.
+   - Hợp các tổ chức được ánh xạ:
+     {adobe, alibaba, amazon, apple, booking, dhl, google, linkedin, mastercard, meta, microsoft, paypal, spotify, x_twitter}.
+   - Số lượng tổ chức: ĐÚNG 14 TỔ CHỨC CƠ SỞ (Exact Match 100% với configs/dictionary_v1.json).
+
+--------------------------------------------------------------------------------
+IV. THÔNG SỐ VÀ MÃ BĂM GÓI VIEW MÙ REAL-PILOT-32-V1 BÀN GIAO CHO LEAD D
 --------------------------------------------------------------------------------
 
 1. Thông số kỹ thuật gói View Mù (Kênh cục bộ hạn chế):
    - Đường dẫn cục bộ: data/annotations/blind_view_pilot_real.json
    - Định danh gói (dataset_id): REAL-PILOT-32-V1
    - Kiểu gói (dataset_type): real_pilot_pending_review
-   - Thuộc tính mô phỏng (is_synthetic): FALSE (Dữ liệu thực tế 32 mẫu)
-   - Cờ mở nhập liệu (ready_for_annotation): FALSE (Được khóa cứng trong mã CLI)
+   - Thuộc tính mô phỏng (is_synthetic): false (Dữ liệu thực tế 32 mẫu)
+   - Cờ mở nhập liệu (ready_for_annotation): false (Được khóa cứng trong mã CLI)
    - Quy mô: Đúng 32 mẫu (20 phishing + 12 benign theo nhãn nguồn)
-   - Mã băm SHA-256 tệp View Mù: cca2382278fd650d147a1b59a969d83a1100f7e4246a9f9fb9f5cd2ea6bd6899
+   - Phiên bản sampling plan: "PILOT-PLAN-V1-FULL-OVERLAP"
+   - Ghi chú kế hoạch mẫu: A/B kiểm toàn bộ 32 mẫu pilot; không gọi đây là mẫu con 30% của đợt chính.
+   - Mã băm SHA-256 tệp View Mù:
+     08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
 
-2. Các mã băm tham chiếu hiện tại trong configs/pilot_manifest.json:
+2. Các mã băm tham chiếu đồng bộ trong configs/pilot_manifest.json:
    - codebook_version: "1.0.0-pending_review"
    - codebook_status: "pending_review"
-   - codebook_sha256: b963492722f21f76874010670c33bdcc851ef16ed2088c1e3ddd9a41834c5858
-   - dictionary_sha256: 0546c37668f66fa995ff677920fb50c8fcd1fadf67c931286f5870d18283293e
-   - blind_view_sha256: cca2382278fd650d147a1b59a969d83a1100f7e4246a9f9fb9f5cd2ea6bd6899
+   - codebook_sha256: fc89f7704fd8fcc2ebe26f135a780dcd2d5464958150abe9b5888aeeecd92c2e
+   - dictionary_sha256: a7403a79531b0e5f13884fa4e4d431876f34e3277a3112577a3ff2275703ff2d
+   - blind_view_sha256: 08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
    - restricted_source_mapping_sha256: 36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347
    - restricted_blind_order_sha256: d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771
+   - sampling_plan_version: "PILOT-PLAN-V1-FULL-OVERLAP"
+   - sample_count: 32
    - acceptance: {"B": "approved", "D": "pending"}
 
-3. Bảo mật nhãn và an toàn cách ly:
-   - Tệp data/annotations/blind_view_pilot_real.json được giữ ở vùng cục bộ (nằm trong .gitignore),
-     không đưa lên Git.
-   - Khi CLI chạy trên tệp này ở chế độ người thật (interactive), CLI sẽ chủ động chặn và báo lỗi
-     "Gói pilot thật chưa được B/D nghiệm thu và khóa codebook; chỉ cho phép kiểm kỹ thuật dry-run."
-     đúng theo quy chế an toàn của dự án.
+--------------------------------------------------------------------------------
+V. GIẢI TRÌNH LƯU VẾT GIT & CAM KẾT KHÔNG FORCE-PUSH
+--------------------------------------------------------------------------------
+
+1. Sự cố đưa tệp view thật lên Git:
+   - Tại commit 3a8528a, tệp data/annotations/blind_view_pilot_real.json đã vô tình bị thêm vào git tracking.
+   - Tại commit 37fc2c7, tệp này đã được gỡ bỏ khỏi Git tracking (git rm --cached) và đưa lại vào .gitignore.
+2. Tuân thủ nguyên tắc nghiên cứu khoa học (ARS Audit Trail):
+   - Nhóm duy trì tính toàn vẹn của lịch sử Git, TUYỆT ĐỐI KHÔNG DÙNG git push --force để ghi đè lịch sử.
+   - Việc ghi nhận công khai sự cố này trong báo cáo bảo đảm tính minh bạch, trung thực học thuật và khả năng kiểm chứng độc lập.
 
 --------------------------------------------------------------------------------
-IV. KẾ HOẠCH BÀN GIAO TIẾP THEO
+VI. KẾ HOẠCH BÀN GIAO VÀ KHUYẾN NGHỊ TIẾP THEO
 --------------------------------------------------------------------------------
 
 1. Lead D tiến hành kiểm tra nghiệm thu mã băm tệp View Mù và đối chiếu với manifest.
-2. Sau khi Lead D nghiệm thu và ra lệnh chính thức:
-   - Lead D (hoặc C theo ủy quyền của Lead D) sẽ chuyển trạng thái configs/dictionary_v1.json
-     và docs/CODEBOOK_V1.md sang "locked" / "approved", cập nhật mã băm đồng bộ vào manifest.
-   - C kích hoạt ready_for_annotation: true và dataset_type: "real_pilot_ready".
-   - Lead D chính thức phát lệnh mở đợt gán nhãn pilot thật cho Thành viên A và B.
+2. Sau khi Lead D nghiệm thu và ký duyệt chính thức:
+   - Lead D cập nhật trạng thái configs/dictionary_v1.json và docs/CODEBOOK_V1.md sang "locked".
+   - Lead D cập nhật acceptance.D sang "approved", ready_for_annotation sang true.
+   - Chuyển dataset_type của blind view sang "real_pilot_ready".
+   - Chính thức phát lệnh mở đợt gán nhãn pilot thật cho Thành viên A và B.
 
-================================================================================
+===============================================================================
 HẾT VĂN BẢN BÁO CÁO
-================================================================================
+===============================================================================

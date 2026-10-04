@@ -185,3 +185,49 @@ class TestExclusionRegistry:
             {"label": "phish", "lang": "vi", "html_chars": 33333, "text_chars": 111, "forms": 1, "inputs": 1, "password_inputs": 0}
         ]
         registry.assert_no_leakage("official_test", clean_split)
+
+    def test_domain_group_exclusion_multi_part_tld(self, tmp_path):
+        import hashlib
+        reg_file = tmp_path / "registry.json"
+        group_hash = hashlib.sha256("example.co.uk".encode()).hexdigest()
+        reg_file.write_text(json.dumps({
+            "registry_status": "in_progress",
+            "training_blocked": True,
+            "exclusions": [{
+                "exclusion_id": "TEST-01",
+                "mapping_status": "unresolved",
+                "samples": [{"group_sha256": group_hash}]
+            }]
+        }), encoding="utf-8")
+        registry = ExclusionRegistry(reg_file)
+        # login.example.co.uk phải được gộp đúng vào example.co.uk và bị loại trừ
+        assert registry.is_excluded({"url": "https://login.example.co.uk/auth/signin"}) is True
+        # other.co.uk không bị gộp nhầm thành co.uk
+        assert registry.is_excluded({"url": "https://other.co.uk/page"}) is False
+
+    def test_missing_tldextract_raises_importerror_without_fallback(self, tmp_path, monkeypatch):
+        import hashlib
+        import builtins
+        reg_file = tmp_path / "registry.json"
+        group_hash = hashlib.sha256("example.com".encode()).hexdigest()
+        reg_file.write_text(json.dumps({
+            "registry_status": "in_progress",
+            "training_blocked": True,
+            "exclusions": [{
+                "exclusion_id": "TEST-01",
+                "mapping_status": "unresolved",
+                "samples": [{"group_sha256": group_hash}]
+            }]
+        }), encoding="utf-8")
+        registry = ExclusionRegistry(reg_file)
+
+        orig_import = builtins.__import__
+        def mock_import(name, *args, **kwargs):
+            if name == "tldextract":
+                raise ImportError("No module named 'tldextract'")
+            return orig_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+        with pytest.raises(ImportError, match="tldextract bắt buộc phải được cài đặt"):
+            registry.is_excluded({"url": "https://login.example.com/"})
+
