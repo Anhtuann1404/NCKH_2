@@ -279,7 +279,7 @@ class _SafeContentExtractor(HTMLParser):
         }
 
 
-def extract_safe_view_content(html_content: str | None, page_url: str) -> Tuple[str, Dict[str, Any]]:
+def extract_safe_view_content(html_content: str | None, page_url: str, *, max_html_characters: int = 1_000_000) -> Tuple[str, Dict[str, Any]]:
     """Trích xuất văn bản an toàn và cấu trúc DOM tóm tắt từ nội dung HTML đã cho.
 
     Không thực thi JavaScript, không nạp mạng, loại bỏ mọi thẻ nguy hiểm.
@@ -295,7 +295,7 @@ def extract_safe_view_content(html_content: str | None, page_url: str) -> Tuple[
             "external_links": 0,
         }
 
-    pre_cleaned = clean_html(html_content, page_url)
+    pre_cleaned = clean_html(html_content, page_url, max_characters=max_html_characters)
     parser = _SafeContentExtractor(page_url)
     parser.feed(pre_cleaned)
     parser.close()

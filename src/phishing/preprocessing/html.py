@@ -83,7 +83,7 @@ class _SnapshotParser(HTMLParser):
         return "".join(self.output)
 
 
-def clean_html(html: str, page_url: str) -> str:
+def clean_html(html: str, page_url: str, *, max_characters: int = MAX_HTML_CHARACTERS) -> str:
     """Drop scripts, event handlers and prefilled values; retain DOM structure.
 
     URL attributes are resolved against the page URL, with query values removed.
@@ -92,7 +92,7 @@ def clean_html(html: str, page_url: str) -> str:
     """
     if not isinstance(html, str):
         raise TypeError("HTML must be a string")
-    if len(html) > MAX_HTML_CHARACTERS:
+    if max_characters <= 0 or len(html) > max_characters:
         raise ValueError("HTML exceeds the character limit; truncation is not allowed")
     parser = _SnapshotParser(normalize_url(page_url))
     parser.feed(html)

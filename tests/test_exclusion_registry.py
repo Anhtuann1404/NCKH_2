@@ -76,7 +76,7 @@ class TestExclusionRegistry:
         data = json.loads(EXCLUSION_PATH.read_text(encoding="utf-8"))
         assert data["version"] == "1.1.0"
         assert data["registry_status"] == "in_progress_unresolved"
-        assert data["total_excluded_samples"] == 20
+        assert data["total_excluded_samples"] == 32
         assert data["training_blocked"] is True
 
         excl = data["exclusions"][0]

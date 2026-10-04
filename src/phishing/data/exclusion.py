@@ -59,6 +59,9 @@ class ExclusionRegistry:
         self._excluded_batches: Set[str] = set()
         self._summary_fingerprint_hashes: Set[str] = set()
         self._sample_fingerprints: Set[Tuple[Any, ...]] = set()
+        self._url_hashes: Set[str] = set()
+        self._html_hashes: Set[str] = set()
+        self._group_hashes: Set[str] = set()
         self.training_blocked: bool = True
         self.training_block_reason: str = ""
         self._load_registry()
@@ -88,11 +91,14 @@ class ExclusionRegistry:
             if batch_sha:
                 self._excluded_batches.add(batch_sha)
             for sample in excl.get("samples", []):
+                for key, destination in (("url_sha256", self._url_hashes), ("html_sha256", self._html_hashes), ("group_sha256", self._group_hashes)):
+                    if sample.get(key):
+                        destination.add(sample[key])
                 # Lưu hash fingerprint cấu trúc tóm tắt
                 s_hash = sample.get("summary_fingerprint_hash") or sample.get("sample_content_hash")
                 if s_hash:
                     self._summary_fingerprint_hashes.add(s_hash)
-                else:
+                elif "html_chars" in sample:
                     self._summary_fingerprint_hashes.add(compute_summary_fingerprint_hash(sample))
 
                 # Lưu fingerprint đặc trưng cấu trúc của mẫu pilot
@@ -105,15 +111,31 @@ class ExclusionRegistry:
                     sample.get("inputs"),
                     sample.get("password_inputs"),
                 )
-                self._sample_fingerprints.add(fp)
+                if "html_chars" in sample:
+                    self._sample_fingerprints.add(fp)
 
-        if not self._sample_fingerprints and not self._summary_fingerprint_hashes:
+        if not any((self._sample_fingerprints, self._summary_fingerprint_hashes, self._url_hashes, self._html_hashes, self._group_hashes)):
             raise ValueError(
                 f"LỖI CẤU TRÚC: Exclusion registry tại '{self.path}' không chứa bất kỳ mẫu loại trừ nào."
             )
 
     def is_excluded(self, sample: Dict[str, Any]) -> bool:
         """Kiểm tra xem mẫu có thuộc danh mục loại trừ hay không."""
+        url = sample.get("url")
+        html = sample.get("html")
+        url_hash = sample.get("url_sha256") or (hashlib.sha256(url.encode()).hexdigest() if isinstance(url, str) else None)
+        html_hash = sample.get("html_sha256") or (hashlib.sha256(html.encode()).hexdigest() if isinstance(html, str) else None)
+        if url_hash in self._url_hashes or html_hash in self._html_hashes:
+            return True
+        if self._group_hashes and isinstance(url, str):
+            import tldextract
+            # Offline bundled PSL, including private tenant suffixes; no network.
+            extractor = tldextract.TLDExtract(suffix_list_urls=(), include_psl_private_domains=True)
+            domain = extractor(url).top_domain_under_public_suffix
+            if domain and hashlib.sha256(domain.encode()).hexdigest() in self._group_hashes:
+                return True
+        if sample.get("group_sha256") in self._group_hashes:
+            return True
         # 1. Kiểm tra trực tiếp theo summary_fingerprint_hash (hoặc alias sample_content_hash) đã khai báo
         s_hash = sample.get("summary_fingerprint_hash") or sample.get("sample_content_hash")
         if s_hash and s_hash in self._summary_fingerprint_hashes:

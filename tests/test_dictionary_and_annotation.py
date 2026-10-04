@@ -48,7 +48,7 @@ class TestConfigIntegrity:
         assert EXCLUSION_PATH.exists()
         excl = json.loads(EXCLUSION_PATH.read_text(encoding="utf-8"))
         assert excl["registry_status"] == "in_progress_unresolved"
-        assert excl["total_excluded_samples"] == 20
+        assert excl["total_excluded_samples"] == 32
         assert excl["exclusions"][0]["mapping_status"] == "unresolved_source_mapping"
 
 
@@ -194,9 +194,14 @@ class TestHelperFunctionsAndKappa:
         is_difficult = [False, False, False, True]
 
         # Khi loại ca khó thứ 4, 3 mẫu còn lại đồng thuận 100%
-        result = compute_cohens_kappa(rater1, rater2, is_difficult=is_difficult)
+        result = compute_cohens_kappa(rater1, rater2, is_difficult=is_difficult, random_subset=[True, True, True, False])
         assert result.sample_count == 3
         assert result.observed_agreement == 1.0
+
+        # Ca khó thứ 4 thuộc random thì phải được giữ, kể cả khi bất đồng.
+        result = compute_cohens_kappa(rater1, rater2, is_difficult=is_difficult, random_subset=[True] * 4)
+        assert result.sample_count == 4
+        assert result.observed_agreement == 0.75
 
     def test_cohens_kappa_length_mismatch(self):
         with pytest.raises(ValueError, match="cùng độ dài"):

@@ -116,6 +116,9 @@ def load_already_annotated_sample_ids(
                     f"Không được âm thầm bỏ qua."
                 )
 
+            if not isinstance(rec, dict) or not isinstance(rec.get("sample_id"), str) or not rec["sample_id"].strip():
+                raise ValueError(f"LỖI TOÀN VẸN TỆP: Dòng {line_no} phải là object có sample_id không rỗng.")
+
             rec_annotator = rec.get("annotator_id")
             rec_pass = rec.get("pass_id")
             rec_is_dry = rec.get("is_dry_run", False)
@@ -136,7 +139,7 @@ def load_already_annotated_sample_ids(
                 )
 
             # Kiểm tra không lẫn bản ghi dry-run vào phiên gán nhãn thật
-            if rec_is_dry and not is_dry_run_session:
+            if not isinstance(rec_is_dry, bool) or rec_is_dry != is_dry_run_session:
                 raise ValueError(
                     f"LỖI TẠP NHIỄM DỮ LIỆU: Tệp '{output_path}' tại dòng {line_no} chứa bản ghi dry-run mô phỏng "
                     f"(is_dry_run=True). Tuyệt đối không được ghi lẫn nhãn mô phỏng vào nhãn thật của người gán."
@@ -144,6 +147,8 @@ def load_already_annotated_sample_ids(
 
             sid = rec.get("sample_id")
             if sid:
+                if sid in annotated:
+                    raise ValueError(f"LỖI TOÀN VẸN TỆP: sample_id trùng tại dòng {line_no}.")
                 annotated.add(sid)
 
     return annotated
@@ -175,6 +180,7 @@ def display_sample_and_allow_reading(sample: Dict[str, Any], current_idx: int, t
     if len(text) > 600:
         print(f"   {text[:600]} ... [Hiển thị trước 600 ký tự]")
         if interactive:
+            cursor = 600
             while True:
                 try:
                     cmd = input("\n[VĂN BẢN] Nhập 'v' xem toàn bộ (+{} ký tự), 'm' xem thêm 600 ký tự, hoặc Enter để bắt đầu chấm: ".format(len(text) - 600)).strip().lower()
@@ -185,7 +191,8 @@ def display_sample_and_allow_reading(sample: Dict[str, Any], current_idx: int, t
                         break
                     elif cmd == "m":
                         print("\n--- PHẦN VĂN BẢN TIẾP THEO ---")
-                        print(text[600:1200])
+                        print(text[cursor:cursor + 600] or "[Đã hết văn bản]")
+                        cursor += 600
                         print("-" * 80)
                     else:
                         break
@@ -215,11 +222,15 @@ def annotate_interactive_session(
 
     # Đảm bảo gói dữ liệu đầu vào không rò rỉ nhãn
     assert_no_label_leak(data)
+    if data.get("dataset_type") == "real_pilot_pending_review" and not dry_run:
+        raise ValueError("Gói pilot thật chưa được B/D nghiệm thu và khóa codebook; chỉ cho phép kiểm kỹ thuật dry-run.")
     samples = data.get("samples", [])
     total_samples = len(samples)
 
     # Nếu chạy dry-run và output không được chỉ định tên riêng, dùng file dry-run để cách ly
     actual_output_path = output_path
+    if not dry_run and output_path.name.endswith(".dryrun.jsonl"):
+        raise ValueError("Không ghi lượt người vào tệp .dryrun.jsonl.")
     if dry_run and not output_path.name.endswith(".dryrun.jsonl"):
         actual_output_path = output_path.with_name(f"{output_path.stem}.dryrun.jsonl")
 
@@ -257,16 +268,19 @@ def annotate_interactive_session(
             cli_codebook_version
             or sample.get("codebook_version")
             or data.get("codebook_version")
-            or "1.0.0"
         )
+        if not isinstance(codebook_version, str) or not codebook_version.strip():
+            raise ValueError("Thiếu codebook_version trong metadata hoặc tham số CLI.")
         if cli_random_subset is not None:
             random_subset = cli_random_subset
         elif "random_subset" in sample:
-            random_subset = bool(sample["random_subset"])
+            random_subset = sample["random_subset"]
         elif "random_subset_default" in data:
-            random_subset = bool(data["random_subset_default"])
+            random_subset = data["random_subset_default"]
         else:
-            random_subset = True
+            raise ValueError("Thiếu random_subset trong metadata hoặc tham số CLI.")
+        if not isinstance(random_subset, bool):
+            raise ValueError("random_subset phải là boolean, không phải chuỗi hoặc số.")
 
         if dry_run:
             # Chế độ dry-run tự động giả lập 1 mẫu để kiểm thử không treo input

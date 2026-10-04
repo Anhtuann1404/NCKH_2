@@ -419,7 +419,7 @@ class TestBlindViewExportAndKappaFlow:
         labels_b = [r.class_label for r in records_b]
         is_difficult = [r.difficult_case for r in records_a]
 
-        kappa_res = compute_cohens_kappa(labels_a, labels_b, is_difficult=is_difficult)
+        kappa_res = compute_cohens_kappa(labels_a, labels_b, is_difficult=is_difficult, random_subset=[r.random_subset for r in records_a])
         assert kappa_res.status == "valid"
         assert kappa_res.observed_agreement == 0.8
         assert kappa_res.sample_count == 5

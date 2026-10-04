@@ -1,0 +1,49 @@
+{
+  "dataset_id": "REAL-PILOT-32-V1",
+  "is_synthetic": false,
+  "sample_count": 32,
+  "source_class_counts": {
+    "phish": 20,
+    "benign": 12
+  },
+  "ready_for_annotation": false,
+  "codebook_version": "1.0.0-pending_review",
+  "codebook_status": "pending_review",
+  "codebook_sha256": "8226b00220159b0fd3a4e3666727cafd3eed144cc1c8ff69627d2d7851becbcb",
+  "dictionary_sha256": "61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28",
+  "blind_view_path": "data\\annotations\\blind_view_pilot_real.json",
+  "blind_view_sha256": "9859fa938ad849bae040d4d78af297bd2794c7d7ad4fdc401a757ef37d986041",
+  "restricted_source_mapping_path": "data\\raw\\pilot\\source_mapping.json",
+  "restricted_source_mapping_sha256": "36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347",
+  "restricted_blind_order_sha256": "d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771",
+  "technical20": {
+    "rows_api_revision_pinned": false,
+    "sha256_matches_original_archive": true,
+    "batch_sha256": "738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f",
+    "pinned_shard_mapping_status": "unresolved"
+  },
+  "extra12": {
+    "revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+    "path": "data/train-055.parquet",
+    "locally_verified_shard_sha256": "205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0",
+    "selection_rule": "first 12 source-phish unique URL+HTML, 1..2000000 HTML chars, shard row order"
+  },
+  "agreement_scope": "full_pilot_overlap_not_main_30_percent",
+  "official_test_used": false,
+  "missing_scheme_rule": "prepend https:// (or https: for protocol-relative), retain raw URL only in source",
+  "grouping": {
+    "library": "tldextract",
+    "version": "5.4.0",
+    "network_PSL_fetch": false,
+    "include_private_suffixes": true,
+    "PSL_snapshot_sha256": "b69315c085d53972724b8f2df111ffc329b0c84fe0a47d62c8c91655cc774a38"
+  },
+  "runtime": {
+    "python": "3.14.3",
+    "pyarrow": "25.0.1"
+  },
+  "acceptance": {
+    "B": "pending",
+    "D": "pending"
+  }
+}

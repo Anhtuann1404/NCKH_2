@@ -109,9 +109,19 @@ Mỗi bản ghi gán nhãn gồm các trường chuẩn hóa sau:
 
 1. **Đo đạc độc lập:**
    - Thành viên C chạy công cụ tính Cohen's Kappa (`compute_cohens_kappa`) **chỉ trên tập 30% mẫu ngẫu nhiên** được chọn trước.
-   - **Tuyệt đối không tính Kappa trên các ca khó** (`difficult_case = true`) được chuyển riêng.
+   - Chọn theo membership `random_subset` đã khóa: giữ ca khó vốn thuộc mẫu random; chỉ loại ca khó được thêm ngoài random. `difficult_case` không quyết định mẫu số.
+   - Trên pilot, A/B đọc cùng gói để tập dượt/đo giờ; ghi rõ đồng thuận toàn pilot, không gọi là kiểm 30% của tập chính. Khi chấm tổ chức dùng `label_field="primary_org"`, khi chấm lớp dùng `label_field="class_label"`; báo riêng.
    - Khi $P_e = 1.0$ (toàn bộ mẫu thuộc 1 lớp duy nhất), hệ số Kappa không xác định ($0/0$); hệ thống báo `status: undefined_single_class` và xuất riêng tỷ lệ đồng thuận quan sát ($P_o$), không báo $1.0$.
 2. **Phiên phân xử (Adjudication):**
    - Chỉ phân xử các mẫu có bất đồng ý kiến hoặc ca khó.
    - Căn cứ phân xử dựa trên bằng chứng chụp màn hình / trích dẫn văn bản trực tiếp.
    - Ghi nhận `final_class_label` và `final_org_id` vào `labels_final.json`, đồng thời **bảo tồn nguyên vẹn 100% lịch sử lượt gán ban đầu của A và B**.
+
+## 6. Làm rõ bốn tình huống (bổ sung sau phản hồi B)
+
+1. **Mục tiêu và lớp là hai quyết định riêng.** `unknown` khi thiếu nội dung nhận diện; `no_clear_target` khi đủ nội dung nhưng không có mục tiêu tổ chức rõ, kể cả trang benign chỉ nhắc tên. Nhiều form/tổ chức ngang hàng không có luồng chính thì `multi_target`. Tên xuất hiện nhiều hoặc nhà cung cấp đích form không tự là mục tiêu chính. Nhận diện mục tiêu không tự chứng minh lớp phishing/benign.
+2. **Outside catalog.** Một mục tiêu có bằng chứng có thể `identified` đồng thời `outside_catalog`. Giữ tên dịch vụ và tên tổ chức tự do; không thay bằng `unknown`, không tự thêm dictionary. C/B thống nhất bảng mã ngoài danh mục sau nhận diện tự do, trước tính kappa; không gộp mọi tổ chức ngoài danh mục thành một tổ chức. Với nhiều mục tiêu, lưu tất cả mã, không chọn tùy ý mã đầu; ca không có chính rõ báo riêng.
+3. **OAuth/SSO.** Nút “Continue with Google/Microsoft” có thể chỉ nêu nhà cung cấp đăng nhập. Ghi tên quan sát và vai trò theo ngữ cảnh; không tự coi nhà cung cấp là tổ chức bị mạo danh/chủ trang. Endpoint đăng nhập chính thức không xác nhận tenant/app hoặc redirect được ủy quyền. Không click luồng; nếu snapshot thiếu phạm vi endpoint/ủy quyền, giữ `unverified`, không ép benign hoặc phishing.
+4. **UGC và phạm vi quan hệ miền.** Tách nhà cung cấp hosting khỏi chủ nội dung/tổ chức trang tự nhận. Hồ sơ/bài đăng trên mạng xã hội cũng có thể là UGC; bảng mục 4 không liệt kê dịch vụ hosting không có nghĩa mọi path/subdomain là first-party identity. Ghi vai trò theo snapshot và bằng chứng hostname/path/endpoint, ưu tiên UGC khi có quy tắc; logo hoặc tên tenant không xác nhận ủy quyền. Thiếu phạm vi quy tắc giữ `unverified` và chuyển ca khó.
+
+Bổ sung này vẫn là dự thảo chờ B/D rà; không tự đóng băng dictionary/codebook hoặc tuyên bố đã có ký duyệt của người khác.
