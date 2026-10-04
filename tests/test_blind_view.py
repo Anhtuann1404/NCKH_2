@@ -1051,6 +1051,33 @@ class TestResumeStrictProvenanceAndManifestChecks:
                 current_samples_by_id=current_samples,
             )
 
+    def test_resume_does_not_mutate_or_backfill_old_records(self, tmp_path, cli_module):
+        """CLI tuyệt đối không tự ý bổ sung provenance hay sửa đổi tệp kết quả cũ khi phát hiện thiếu; bắt buộc ném lỗi và giữ nguyên tệp."""
+        out_file = tmp_path / "old_unmodified_probe.jsonl"
+        old_content = json.dumps({
+            "annotator_id": "A",
+            "sample_id": "PILOT-001",
+            "pass_id": 1,
+            "is_dry_run": False,
+            # Thiếu toàn bộ provenance
+        }) + "\n"
+        out_file.write_text(old_content, encoding="utf-8")
+        current_samples = {
+            "PILOT-001": {"sample_id": "PILOT-001", "url": "https://a.test", "page_text": "text"}
+        }
+
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
+            cli_module.load_already_annotated_sample_ids(
+                out_file,
+                expected_annotator_id="A",
+                expected_pass_id=1,
+                current_samples_by_id=current_samples,
+                is_real_session=True,
+            )
+
+        # Bảo đảm tệp cũ hoàn toàn không bị can thiệp, không bị ghi đè hay bổ sung dữ liệu giả
+        assert out_file.read_text(encoding="utf-8") == old_content
+
     def test_resume_content_hash_includes_structure_summary(self, tmp_path, cli_module):
         """Thay đổi structure_summary (DOM) dù URL và page_text giữ nguyên cũng bị phát hiện và từ chối."""
         out_file = tmp_path / "resume_dom_changed.jsonl"
