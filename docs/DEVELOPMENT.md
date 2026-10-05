@@ -221,6 +221,31 @@ Báo cáo, environment locks, code/config, run/split/dictionary manifests, mô h
 
 ## MODEL-PREP-02 — TF-IDF/LR và grouped CV mô phỏng
 
+### Đọc lỗi M2–M3 từ run đã lưu
+
+Sau khi có run mô phỏng, dùng thư mục run mà CLI đã in ra:
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/analyze_synthetic_errors.py --run artifacts/runs/synthetic-report-final
+```
+
+`synthetic-report-final` chỉ là ví dụ; thay bằng đường dẫn run trên máy. Trên PowerShell:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe scripts/analyze_synthetic_errors.py --run artifacts/runs/synthetic-report-final
+```
+
+CLI in đường dẫn thư mục phân tích mới trong `artifacts/runs/` (ignored). `--output` chọn thư mục khác nhưng phải chưa tồn tại; dữ liệu run đầu vào giữ nguyên. Công cụ dùng được với run fixture của runner hiện tại và run có hash artifact từ công cụ báo cáo; run cũ chưa có hash được ghi rõ `recorded_only_legacy_run`.
+
+- `error_cases.csv`: sample/group ID, nhãn fixture, seed, fold, target FPR, score/threshold/warning/outcome của M2/M3. Chỉ xuất ca có lỗi hoặc thiếu ngưỡng, không xuất raw URL/HTML. Nhãn 0=benign, 1=phishing; fold đánh số từ 0.
+- `category`: `m3_corrected` (M2 sai, M3 đúng), `m3_regressed` (M2 đúng, M3 sai), `both_wrong`, hoặc `missing_operating_point`. `false_positive` là cảnh báo nhầm benign; `false_negative` là bỏ sót phishing.
+- `error_summary.json`: counts theo từng seed × FPR, gồm cả `both_correct`, FP/FN/missing riêng từng mô hình; SHA-256 input, CSV và mã inspector. Không cộng các seed thành cỡ mẫu độc lập.
+
+Kiểm tra độc lập ID/cohort/group/fold và ngưỡng–score–warning trước xuất. Khi manifest có hash artifact, phải khớp mọi input cần dùng. Không fit, không sửa threshold, không kết nối ingestion của C; chỉ nhận scope fixture và `research_evidence=false`. Mục tiêu FPR là ràng buộc validation, không bảo đảm FPR test. Ca M3 sửa/sai thêm chỉ mô tả khác biệt dự đoán, chưa chứng minh nguyên nhân hoặc hiệu quả tín hiệu mạo danh. B kiểm tra CLI trên Windows; nhãn mô phỏng không dùng cho PLAN-01/Kappa hoặc kết quả nghiên cứu.
+
+### Chạy mô hình mô phỏng
+
 Chạy tại repo gốc, không cần B tham gia và không cần tải dữ liệu thật:
 
 ```sh
