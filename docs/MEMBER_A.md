@@ -1,12 +1,12 @@
 # Hồ sơ công việc thành viên A
 
-Cập nhật 04/10/2026. Người dùng phiên làm việc này xác nhận là **A — Trần Hồng Khải**, ngân sách **49 giờ/tuần**; D vẫn giữ vai trò lead/model/API–extension. Số tuần thực có và khung giờ cụ thể chưa chốt. Tài liệu cụ thể hóa [TEAM](TEAM.md), [DATA_PROTOCOL](DATA_PROTOCOL.md) và đề cương mục 5.2b–c, không thay giao thức đã duyệt.
+Cập nhật 05/10/2026. Người dùng phiên làm việc này xác nhận là **A — Trần Hồng Khải**, ngân sách **49 giờ/tuần**; D vẫn giữ vai trò lead/model/API–extension. Số tuần thực có và khung giờ cụ thể chưa chốt. Tài liệu cụ thể hóa [TEAM](TEAM.md), [DATA_PROTOCOL](DATA_PROTOCOL.md) và đề cương mục 5.2b–c, không thay giao thức đã duyệt.
 
 ## Kết quả đã chuẩn bị
 
 - [Rà quy tắc nhãn](annotation_templates/CODEBOOK_REVIEW_A.md): các quy tắc đã có và các điểm cần C/B chốt trước khóa.
 - [Thực hành với 6 mẫu mô phỏng](annotation_templates/PRACTICE_A.md): snapshot, cách ghi và giải thích; không phải pilot thật.
-- [Nội dung đề nghị C bàn giao](annotation_templates/REQUEST_PILOT_C.md): người dùng xác nhận đã gửi cho C; chưa nhận phản hồi/gói bàn giao trong phiên này.
+- [Nội dung đề nghị C bàn giao](annotation_templates/REQUEST_PILOT_C.md): người dùng xác nhận đã gửi và đã nhận phản hồi C; gói thật vẫn chờ Lead D nghiệm thu/phát lệnh.
 - [Bảng ước lượng giờ](annotation_templates/TIME_PLAN_A.md): giả định 3–5 phút/mẫu để A đối chiếu lịch; không điền thay giờ cam kết.
 - [Biểu mẫu lượt A](annotation_templates/annotation_A.example.json): nhãn, bằng chứng, ca khó và dấu vết hỗ trợ AI.
 - [Biểu mẫu thời gian](annotation_templates/timing_A.example.json): tách đọc, tra cứu, chuẩn hóa, phân xử; không lấy thời gian AI làm công sức người.
@@ -14,14 +14,16 @@ Cập nhật 04/10/2026. Người dùng phiên làm việc này xác nhận là 
 - [Bản thảo phương pháp](REPORT_LABELING_A.md): phần A viết cho báo cáo; chưa có kết quả thực nghiệm.
 - Hồ sơ local `data/annotations/A/`: trạng thái và các sổ JSONL trống để nhận lượt thật. Thư mục này đã được `.gitignore` loại khỏi Git; các mẫu chia sẻ ở `docs/annotation_templates/`.
 
-**Hiện có 0 nhãn mẫu thật, 0 thời gian pilot đã đo, 0 ca khó đã quan sát.** Không có view mù/codebook khóa trong các tệp dự án được rà soát. Không dùng tệp thử nguồn chứa target/label để thay view của C.
+**Hiện có 0 nhãn mẫu thật, chưa đo thời gian pilot người, 0 ca khó thật đã quan sát.** Kiểm nhánh `feat/data-pipeline` ngày 05/10/2026 tại `edc8887`: manifest real32 ghi B `approved`, D `pending`, `ready_for_annotation=false`; codebook/dictionary `1.0.0-pending_review`. Hash codebook/dictionary khớp manifest; file view thật không được Git theo dõi nên fetch/pull chưa bàn giao file đó. Chi tiết ở [kiểm tra bàn giao](PILOT_HANDOFF_REVIEW_A.md).
+
+Đã chạy 20 bản ghi dry-run kỹ thuật và tạo riêng 20 nhãn AI tham khảo trên **mẫu mô phỏng** theo yêu cầu người dùng. Các bản ghi tham khảo có `annotator_id=simulated_A`, `is_dry_run=true`, không phải lượt người A, không dùng cho PLAN-01/kappa/huấn luyện/kết quả nghiên cứu. Tệp local `data/annotations/A/ai_practice_reference.jsonl` và `AI_PRACTICE_REFERENCE.md` được Git ignore; không gửi đáp án tập dượt cho B trước lượt độc lập.
 
 ## Việc A thực hiện
 
 | Việc | Trạng thái | Điều kiện và đầu ra |
 | --- | --- | --- |
 | A-PREP — chuẩn bị quy trình và hồ sơ | DONE | Các tài liệu/biểu mẫu nêu trên; JSON đọc được, liên kết tồn tại |
-| A-RULE — góp ý DATA-02 | IN_PROGRESS | Đã soạn phương án xử lý cụ thể cho 9 điểm; chờ A/B/C rà và C khóa version/hash |
+| A-RULE — góp ý DATA-02 | IN_PROGRESS | A đã soạn R-A01–R-A09, C đã tích hợp; phần khóa cuối còn chờ nghiệm thu Lead, không tự ký thay nhóm |
 | A-PILOT — phần A của LABEL-01 | BLOCKED | Chờ codebook khóa, view mù pilot và exclusion registry từ C; xuất lượt A và log thời gian thật |
 | A-LABEL — nhãn tổ chức toàn bộ phishing giữ lại | BLOCKED | Chờ pilot, quy mô/sampling plan và view chính; bảo đảm mọi mẫu được giao có nhãn hoặc lý do thiếu bằng chứng |
 | A-BENIGN — kiểm toàn bộ hard benign được chọn | BLOCKED | Chờ danh sách/view đã chọn và tiêu chí hard benign; lưu nhãn phụ thủ công hoặc chưa xác định |
@@ -57,7 +59,7 @@ C xác nhận riêng tập 20 phishing dùng tính trung bình; không lấy tru
 - Phần tổng dự kiến cộng giờ hard benign, ca khó, phân xử, sửa quy tắc và dự phòng; ghi từng phần, không giả định bằng 0. Không cộng một khoảng phân xử hai lần.
 - Trung bình >300 giây/phishing **hoặc** ngân sách A/B không đủ: đề xuất giảm 2.000 xuống khoảng 1.200; nếu vẫn thiếu, nhóm chốt thấp hơn trước xem kết quả. A báo số đo, D/nhóm quyết quy mô; chưa có số đo thì chưa quyết.
 
-Mẫu thời gian có `completed` và `measurement_kind` để tách lượt người, hỗ trợ AI và lượt thiếu. Không gọi lượt AI là lượt người bấm giờ; mọi gợi ý AI phải có nguồn gốc và được A kiểm, không thay lượt B độc lập.
+Mẫu thời gian có `completed` và `measurement_kind` để tách lượt người và lượt thiếu. Theo R-A09 của codebook, lượt độc lập thật phải do con người thực hiện, không dùng AI hỗ trợ chấm nhãn. AI hiện chỉ hỗ trợ hồ sơ/công cụ và nhãn tham khảo trên tập mô phỏng; không gọi thời gian AI là giờ người.
 
 ## Bàn giao và nghiệm thu nhãn thật
 

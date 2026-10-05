@@ -1,6 +1,6 @@
 # Current tasks
 
-Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
+Cập nhật phần A ngày 05/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức. Các trạng thái công việc C/D bên dưới là khung khởi động; không dùng để suy rằng công việc trên nhánh C chưa triển khai. Trạng thái bàn giao A mới nhất nằm trong mục phần việc A và nhật ký.
 
 ## Trạng thái có bằng chứng
 
@@ -67,15 +67,15 @@ Các mục dưới cụ thể hóa nhiệm vụ nhãn của A; không đổi tr�
 | --- | --- | --- |
 | A-PREP — chuẩn bị hồ sơ | DONE | Quy trình A, biểu mẫu annotation/time, phiếu bàn giao; JSON đọc được, liên kết kiểm tra được |
 | A-RULE — rà codebook cho DATA-02 | IN_PROGRESS | [Góp ý cụ thể cho 9 điểm](annotation_templates/CODEBOOK_REVIEW_A.md); chờ A/B/C rà và C khóa version/hash |
-| A-PILOT — lượt A của LABEL-01 | BLOCKED | Chưa có codebook khóa/view mù/exclusion registry từ C; 0 lượt thật, chưa đo giờ |
+| A-PILOT — lượt A của LABEL-01 | BLOCKED | Manifest C tại edc8887: B approved, D pending, ready_for_annotation=false; chờ Lead phát lệnh và nhận file view có hash khớp; 0 lượt thật, chưa đo giờ |
 | A-LABEL — toàn bộ phishing giữ lại | BLOCKED | Chờ pilot, quy mô/sampling plan và view chính; không dùng source target để gán |
 | A-BENIGN — kiểm hard benign | BLOCKED | Chờ tiêu chí/danh sách/view được chọn từ C |
 | A-RESOLVE — phân xử và kiểm đầy đủ nhãn cuối | BLOCKED | Chờ lượt độc lập B, đồng thuận random trước phân xử và quyết định nhóm |
 | A-REPORT — phần phương pháp/kết quả nhãn | IN_PROGRESS | [Phương pháp dự kiến đã viết](REPORT_LABELING_A.md); số liệu kết quả chờ dữ liệu thật |
 
-Hồ sơ local `data/annotations/A/` đã khởi tạo với sổ JSONL trống và trạng thái, được Git ignore. Hỗ trợ AI hiện chỉ là rà tài liệu/soạn hồ sơ; không tính là annotation độc lập hoặc giờ người pilot.
+Hồ sơ local `data/annotations/A/` có sổ nhãn thật trống, trạng thái và đầu ra tập dượt, được Git ignore. Hỗ trợ AI gồm rà tài liệu/soạn hồ sơ, dry-run kỹ thuật và 20 nhãn AI tham khảo trên tập mô phỏng; không tính là annotation độc lập hoặc giờ người pilot.
 
-Phần A làm được trước bàn giao đã chuẩn bị thêm: [6 bài tập mô phỏng có giải thích](annotation_templates/PRACTICE_A.md), [tin nhắn đề nghị C bàn giao](annotation_templates/REQUEST_PILOT_C.md) (người dùng xác nhận đã gửi cho C) và [bảng ước lượng giờ theo giả định đề cương](annotation_templates/TIME_PLAN_A.md). Chưa chứng nhận A đã thực hành hoặc duyệt góp ý; ngân sách A đã xác nhận 49 giờ/tuần. Chưa nhận phản hồi/gói C trong phiên này.
+Phần A làm được trước bàn giao đã chuẩn bị thêm: [6 bài tập mô phỏng có giải thích](annotation_templates/PRACTICE_A.md), [tin nhắn đề nghị C bàn giao](annotation_templates/REQUEST_PILOT_C.md) (người dùng xác nhận đã gửi cho C) và [bảng ước lượng giờ theo giả định đề cương](annotation_templates/TIME_PLAN_A.md). Ngân sách A đã xác nhận 49 giờ/tuần. [Kiểm bàn giao mới nhất](PILOT_HANDOFF_REVIEW_A.md) tại edc8887 xác nhận real32 chưa mở; CLI mới đã chạy help trong snapshot riêng, chưa đọc/gán mẫu thật. Lượt A-PILOT vẫn BLOCKED.
 
 ## Đội nhóm cần điền
 
@@ -97,6 +97,8 @@ Phần A làm được trước bàn giao đã chuẩn bị thêm: [6 bài tập
 
 ## Nhật ký cập nhật
 
+05/10/2026 — rà lại phần việc A và fetch nhánh C tại edc8887. Lead chưa duyệt, manifest đã trả D=pending và ready_for_annotation=false; hash codebook/dictionary khớp, view real32 không tracked trên Git. Chuẩn bị snapshot CLI mới và kiểm --help/--manifest; không mở mẫu thật. Cập nhật hồ sơ, phương pháp/disclosure AI và hướng dẫn nhận gói. Đã có riêng 20 nhãn AI tham khảo trên synthetic, kiểm schema/trích dẫn và loại khỏi kappa mặc định; 0 nhãn thật, chưa đo giờ người. Các cập nhật hồ sơ được lưu trên nhánh codex/member-a-preparation, không merge main.
+
 03/10/2026 — tạo khung khởi động từ đề cương được duyệt; chưa khởi động pipeline, crawler hoặc mô hình. Đã kiểm liên kết nội bộ, JSON/config, schema refs và 4 ví dụ request/response bằng JSON Schema 2020-12; các request chứa target, thiếu HTML, revision âm hoặc file URL bị schema từ chối. Chưa kiểm toàn bộ OpenAPI meta-schema hoặc backend chạy thật. Cập nhật trạng thái cùng đường dẫn bằng chứng sau mỗi task, không tạo file current task theo ngày.
 
 04/10/2026 — chốt ownership 4 vai trò: A nhãn, B kiểm độc lập/QA, C pipeline dữ liệu/view mù, D người dùng/lead + model + API–extension. Các task triển khai vẫn TODO; chưa huấn luyện hoặc chạy API.
@@ -108,3 +110,5 @@ Phần A làm được trước bàn giao đã chuẩn bị thêm: [6 bài tập
 04/10/2026 — theo yêu cầu làm tiếp của A, bổ sung phương án cụ thể R-A01–R-A09, 6 tình huống mô phỏng có cách ghi, bản đề nghị bàn giao pilot cho C chưa gửi và bảng giờ 1.200/2.000 mẫu theo giả định 3–5 phút. Không thay codebook chính thức, không ghi bài tập thành nhãn thật hoặc đo thời gian thay người dùng.
 
 04/10/2026 — A xác nhận đã gửi đề nghị cho C và có ngân sách 49 giờ/tuần. Cập nhật hồ sơ hiện hành và trạng thái local; ngân sách điều kiện cho 6/7/8 tuần lần lượt 294/343/392 giờ, số tuần cụ thể chưa chốt. START-01 vẫn IN_PROGRESS, PLAN-01 chưa chốt: cần ngân sách B và pilot thực; gói C chưa được bàn giao trong phiên này. Lượt nhãn và thời gian pilot vẫn chưa có.
+
+04/10/2026 — nhận thông báo bàn giao từ C; fetch feat/data-pipeline và kiểm snapshot ccdfdbb trong tmp, không merge main. Validator cấu trúc, ID độc nhất, hash dictionary và CLI help/dry-run đạt; 20 dry-run chỉ simulated_A, tách khỏi lượt người. Metadata xác nhận gói synthetic_practice_pilot, codebook pending_review, version mẫu chưa đồng bộ; ghi phản hồi exclusion/Kappa và lệnh tập dượt tại PILOT_HANDOFF_REVIEW_A. Chưa có nhãn người A hoặc pilot công sức thật; chưa gửi phản hồi này cho C.

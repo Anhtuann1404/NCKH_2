@@ -1,6 +1,6 @@
 # Phần báo cáo của A — phương pháp nhãn và bằng chứng nội dung
 
-Chuẩn bị 04/10/2026. **Bản thảo mô tả phương pháp dự kiến**, dựa trên đề cương 5.2b–c và DATA_PROTOCOL. Chưa có annotation thật, pilot thời gian hoặc phân xử; không sử dụng đoạn này như báo cáo kết quả đã thực hiện.
+Chuẩn bị 04/10/2026, cập nhật trạng thái/disclosure 05/10/2026. **Bản thảo mô tả phương pháp dự kiến**, dựa trên đề cương 5.2b–c và DATA_PROTOCOL. Chưa có annotation thật, pilot thời gian hoặc phân xử; không sử dụng đoạn này như báo cáo kết quả đã thực hiện.
 
 ## Quy trình dự kiến
 
@@ -20,7 +20,7 @@ Pilot dự kiến gồm 20 mẫu kỹ thuật và 12 phishing bổ sung để c�
 | --- | --- | --- |
 | Số phishing/hard benign A được giao và hoàn thành | Chưa có batch | Manifest C và lượt A khóa |
 | Pilot: số hoàn thành/thiếu, trung bình phút/phishing/benign | Chưa đo | Membership pilot, log thời gian người, điều kiện hỗ trợ AI |
-| Tổng giờ A và quy mô chốt | Chưa xác nhận | Giờ/tuần thực, pilot, dự phòng và quyết định nhóm |
+| Tổng giờ A và quy mô chốt | A xác nhận 49 giờ/tuần; số tuần/quy mô chưa chốt | Số tuần thực, pilot, dự phòng, ngân sách B và quyết định nhóm |
 | Tỷ lệ phủ tổ chức trong danh mục theo trang/miền | Chưa tính | Nhãn độc lập/cuối và group index C; nêu mẫu số rõ |
 | Ngoài danh mục/chưa xác định/đa mục tiêu | Chưa tính | Codebook và counts thực, không gộp các trạng thái |
 | Đồng thuận/kappa trước phân xử | Chưa tính | Lượt A/B khóa và subset random của C/B |
@@ -35,4 +35,6 @@ Khoảng 70% phishing ngoài subset random chỉ có một lượt gán của A,
 
 ## Dấu vết hỗ trợ soạn thảo
 
-Codex hỗ trợ rà tài liệu và soạn bộ hồ sơ/bản thảo phương pháp này ngày 04/10/2026. Chưa dùng AI để gán nhãn mẫu thật; chưa có lượt người A/B, đồng thuận hoặc thời gian pilot. Khi có dữ liệu thật, A kiểm và cập nhật văn bản từ bằng chứng, nhóm công bố phạm vi hỗ trợ AI đúng thực tế.
+Codex hỗ trợ rà tài liệu, soạn hồ sơ và chuẩn bị công cụ ngày 04–05/10/2026. Theo yêu cầu người dùng, AI đã tạo riêng 20 nhãn tham khảo có lý do trên gói SYNTHETIC-PILOT-PRACTICE-V1; không phải nhãn chuẩn, chưa được người kiểm chứng và không đưa vào PLAN-01/kappa/huấn luyện/kết quả nghiên cứu. Bản ghi dùng simulated_A, is_dry_run=true, thời gian người không đo; không gửi đáp án này cho lượt độc lập B.
+
+Chưa dùng AI để gán nhãn mẫu thật; chưa có lượt người A, đồng thuận hoặc thời gian pilot thực. Lượt độc lập thật tuân thủ R-A09: con người thực hiện, không dùng AI hỗ trợ quyết định nhãn. Khi có dữ liệu thật, A kiểm và cập nhật văn bản từ bằng chứng, nhóm công bố phạm vi hỗ trợ AI đúng thực tế.
