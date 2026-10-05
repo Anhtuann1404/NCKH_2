@@ -1,26 +1,27 @@
+BÁO CÁO NGHIỆM THU DATA-03 VÀ XỬ LÝ SỰ CỐ PILOT V2 (GỬI LEAD D)
+
 Chào Lead D (Anh Tuấn),
 
-Thành viên C xin báo cáo kết quả xử lý sự cố pilot V1 và chính thức bàn giao gói pilot mới REAL-PILOT-32-V2 tại commit 27a7170 (nhánh feat/data-pipeline):
+Thành viên C xin báo cáo đã xử lý triệt để toàn bộ các điểm phản biện kỹ thuật của Lead D tại commit 69dbe24 (nhánh feat/data-pipeline):
 
-1. Đóng băng và vô hiệu hóa pilot cũ (REAL-PILOT-32-V1):
-- Toàn bộ dữ liệu, nhãn bàn giao Pass 1 của A/B và nhật ký V1 được giữ nguyên trạng để phục vụ kiểm toán khoa học, không xóa hay ghi đè.
-- Manifest configs/pilot_manifest.json đã chuyển sang status="invalidated", ready_for_annotation=false kèm invalidation_metadata. Lượt cũ bị loại trừ vĩnh viễn, không dùng để nghiệm thu Kappa hay công suất thời gian cho PLAN-01.
-- Toàn bộ 32 mẫu V1 tiếp tục được lưu giữ tại entry EXCL-REAL-PILOT-32 trong data/exclusion_registry.json.
-- Chi tiết sự cố được lưu tại docs/PILOT_INCIDENT_REPORT.md.
+1. Về cơ chế bảo lưu backup khi rollback thất bại (Điểm 1):
+- Trong scripts/data/generate_splits.py, khối finally đã được điều chỉnh: chỉ dọn dẹp backup khi công bố thành công hoặc khôi phục đã hoàn tất thành công.
+- Nếu quá trình khôi phục từ backup gặp lỗi (ví dụ lỗi ghi đĩa dở dang), hệ thống tuyệt đối KHÔNG XÓA backup, in cảnh báo bảo lưu và ném ngoại lệ chỉ rõ đường dẫn thư mục backup để phục hồi thủ công.
+- Đã bổ sung regression test test_backup_preserved_when_rollback_itself_fails tại tests/test_splits.py kiểm định đúng kịch bản probe của Lead D.
 
-2. Xây dựng gói pilot mới REAL-PILOT-32-V2:
-- Gồm đúng 32 mẫu thực tế độc lập (20 phishing, 12 benign), thiết kế A/B gán nhãn toàn bộ độc lập có bấm giờ.
-- Đã qua kiểm định đối chiếu 3 tầng chặt chẽ:
-  + Tầng 1 (URL): 0 mẫu trùng lặp URL (nguyên bản hoặc chuẩn hóa) so với cả gói V1 và gói tập dượt kỹ thuật.
-  + Tầng 2 (HTML Content Hash): 0 mẫu trùng lặp mã băm SHA-256 byte raw HTML.
-  + Tầng 3 (Domain Group eTLD+1): 0 mẫu trùng lặp domain group; 32 mẫu thuộc 32 domain groups độc lập hoàn toàn (Zero Domain Leakage).
-- Tệp mù hóa data/annotations/blind_view_pilot_real_v2.json (SHA-256: b5249858c2dfe8531f5d4f8ccca5ef70d6f107f882d5853117ca1eec0e80c48b) ẩn 100% nhãn nguồn, target tổ chức và domain group; chỉ chứa URL, văn bản đã lọc an toàn (strip script/iframe/form) và tóm tắt cấu trúc.
-- Cập nhật data/exclusion_registry.json thêm entry EXCL-PILOT-02, nâng tổng số mẫu cô lập vĩnh viễn lên 84 mẫu (20 kỹ thuật + 32 V1 + 32 V2), khóa cứng huấn luyện chính (training_blocked=true).
+2. Về dữ liệu chưa có nhãn trong Temporal và Grouped split (Điểm 2):
+- Trong src/phishing/data/splits.py, khi has_labels=False (toàn bộ mẫu chưa có nhãn):
+  + Temporal split: cả 3 phân vùng (train, validation, test) và overall status đều chuyển thành "not_evaluable" kèm lý do "Corpus has no labels (all samples unlabeled); not eligible for model evaluation". Vẫn xuất đầy đủ cấu trúc index/date ranges để audit.
+  + Grouped split: toàn bộ các fold được đánh dấu is_usable=False, class_status="unlabeled" kèm lý do không đủ điều kiện đánh giá mô hình.
+- Đã bổ sung regression test test_temporal_and_grouped_split_unlabeled_status_not_evaluable tại tests/test_splits.py.
 
-3. Trạng thái nghiệm thu và kiểm thử:
-- Manifest configs/pilot_manifest_v2.json hiện đang khóa ở trạng thái: status="pending_lead_acceptance", ready_for_annotation=false, acceptance={"D": "pending", "B": "pending"} (SHA-256: 3e3ebcb34fdce8b233a7ad142d1fc661f0d3b66d860dff56763e05a81ca4da90).
-- Mã nguồn xây dựng gói: scripts/data/build_real_pilot_v2.py.
-- Báo cáo đối chiếu chi tiết: docs/BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md.
-- Toàn bộ 209/209 kiểm thử của codebase (bao gồm bộ test mới tests/test_pilot_v2.py) đều đã vượt qua 100%.
+3. Về kiểm thử tự chứa và marker integration (Điểm 3):
+- Đã bổ sung đánh dấu @pytest.mark.integration cho test test_evaluate_kappa_real_default_manifest (dùng manifest/gói thật) trong tests/test_evaluate_kappa.py.
+- Kết quả kiểm thử đối chiếu chính xác:
+  + Trên checkout sạch (loại trừ integration test): 210 passed, 1 deselected in 27.67s (100% PASS).
+  + Trên môi trường đầy đủ (chạy toàn bộ test suite): 211 passed in 24.67s (100% PASS).
 
-Nhờ Lead D xem xét và nghiệm thu gói REAL-PILOT-32-V2. Sau khi Lead D phê duyệt (chuyển acceptance.D="approved"), C sẽ mở cờ ready_for_annotation=true để A và B tải Blind View và thực hiện gán nhãn 100% thủ công (nghiêm cấm sử dụng AI).
+4. Trạng thái các nhiệm vụ:
+- DATA-03 giữ nguyên ở PENDING_REVIEW chờ Lead D nghiệm thu.
+- Gói pilot mới REAL-PILOT-32-V2 khóa ở ready_for_annotation=false, acceptance={"D": "pending", "B": "pending"}.
+- Giữ nguyên trạng thái PENDING_REVIEW của DEV-01, không mở training thật, exclusion registry tiếp tục khóa cứng 84 mẫu loại trừ.
