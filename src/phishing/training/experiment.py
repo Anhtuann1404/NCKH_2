@@ -14,6 +14,8 @@ from phishing.evaluation.metrics import binary_metrics, select_validation_thresh
 from phishing.training.pipeline import VARIANTS, make_pipeline, rule_scores
 from phishing.training.plan import RunPlan
 from phishing.training.synthetic import make_dataset
+from phishing.training.config import load_config, validate_config
+from phishing.training.report import summarize, write_report
 
 
 def fit_fold(samples, fold, variant, dictionary, *, candidates=(0.25, 1.0, 4.0), targets=(0.01, 0.05)):
@@ -75,7 +77,10 @@ def fit_fold(samples, fold, variant, dictionary, *, candidates=(0.25, 1.0, 4.0),
     return fitted, report, predictions
 
 
-def run_synthetic(output, *, groups=40, seeds=(17, 42, 2026), repetitions=2000):
+def run_synthetic(output, *, groups=None, repetitions=None, config=None):
+    config = (load_config(groups=groups, repetitions=repetitions) if config is None
+              else validate_config(config, groups=groups, repetitions=repetitions))
+    groups, seeds, repetitions = config['groups'], config['seeds'], config['bootstrap_repetitions']
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)  # Never overwrite an earlier run.
     samples, dictionary = make_dataset(groups)
@@ -92,7 +97,7 @@ def run_synthetic(output, *, groups=40, seeds=(17, 42, 2026), repetitions=2000):
         by_variant = {variant: sorted(
             [row for row in predictions if row['seed'] == seed and row['variant'] == variant],
             key=lambda row: row['sample_id']) for variant in VARIANTS}
-        for baseline in ('M2', 'B-rule'):
+        for baseline in ('M2', 'B-rule', 'M3-no-organization', 'M3-no-domain', 'M3-no-intention'):
             for target in ('0.01', '0.05'):
                 left, right = by_variant[baseline], by_variant['M3']
                 if [r['sample_id'] for r in left] != [r['sample_id'] for r in right] or len(left) != len(samples):
@@ -115,7 +120,7 @@ def run_synthetic(output, *, groups=40, seeds=(17, 42, 2026), repetitions=2000):
     root = Path(__file__).resolve().parents[3]
     code_hashes = {str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
                    for path in sorted((root / 'src/phishing').rglob('*.py'))}
-    write('manifest.json', {
+    manifest = {
         'scope': 'synthetic_fixture_only', 'research_evidence': False,
         'samples': len(samples), 'groups': groups, 'seeds': list(seeds), 'outer_folds': 5, 'inner_folds': 3,
         'fit_policy': 'inner_group_holdout_no_refit', 'C_grid': [0.25, 1.0, 4.0],
@@ -129,5 +134,13 @@ def run_synthetic(output, *, groups=40, seeds=(17, 42, 2026), repetitions=2000):
         'packages': {name: version(name) for name in ('scikit-learn', 'numpy', 'scipy')},
         'limitations': ['invented labels/domains/templates', 'small validation benign count cannot establish 1% FPR',
                        'draft exact-alias rules; no production dictionary', 'no real-data training or API model export'],
-    })
+    }
+    write('config.json', config)
+    summary = summarize(manifest,
+        [{'sample_id': s.sample_id, 'group_id': s.group_id, 'label': s.label} for s in samples],
+        reports, predictions, comparisons)
+    write_report(output, summary)
+    manifest['artifact_sha256'] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                                 for path in sorted(output.iterdir()) if path.is_file()}
+    write('manifest.json', manifest)
     return output

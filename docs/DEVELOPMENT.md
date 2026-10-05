@@ -227,9 +227,20 @@ Chạy tại repo gốc, không cần B tham gia và không cần tải dữ li�
 PYTHONPATH=src .venv/bin/python scripts/run_synthetic_experiment.py
 ```
 
+Trên PowerShell, tại thư mục gốc dự án:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe scripts/run_synthetic_experiment.py
+```
+
+CLI đọc `configs/synthetic_experiment.json`; lưu cấu hình hiệu lực thành `config.json` trong run. Các trường scope, seed, fold, variants, C-grid và FPR được kiểm tra theo cấu hình fixture cố định; chỉ số nhóm và số lần bootstrap có thể đổi để kiểm thử nhanh. Đây là cấu hình mô phỏng, không thay giao thức dữ liệu thật. B kiểm tra chạy trên Windows và gửi đường dẫn run cùng manifest; không dùng kết quả fixture để chốt hiệu năng hoặc PLAN-01.
+
 Mặc định sinh 160 snapshot trên 40 nhóm miền `.test`, chạy outer StratifiedGroupKFold 5 fold × seed 17/42/2026, inner 3-fold lấy một fold làm validation. M0/M1/M2/M3, ba ablation và B-rule dùng cùng phân vùng và cùng cohort có HTML. `--groups` thay số nhóm fixture; `--bootstrap-repetitions` thay số lượt bootstrap (mặc định 2000); `--output` chỉ thư mục mới để tránh ghi đè run. Không có tùy chọn đọc tập dữ liệu thật ở CLI này.
 
-Các file `manifest.json`, `sample_index.json`, `folds.json`, `metrics.json`, `predictions.jsonl`, `paired_ci.json` nằm trong `artifacts/runs/synthetic-.../` được ignore. Manifest có dấu `research_evidence: false`, dictionary fixture, SHA-256 code/dữ liệu/lock và phiên bản môi trường. Các fold lưu chỉ số hàng, đối chiếu bằng sample_index. Run grouped CV không xuất bundle mô hình cho API. Demo tích hợp riêng bên dưới huấn luyện fixture trong RAM khi khởi động.
+Các file `config.json`, `manifest.json`, `sample_index.json`, `folds.json`, `metrics.json`, `predictions.jsonl`, `paired_ci.json`, `summary.json`, `summary.csv`, `report.md` nằm trong `artifacts/runs/synthetic-.../` được ignore. Manifest có dấu `research_evidence: false`, dictionary fixture, SHA-256 code/dữ liệu/lock/các tệp kết quả và phiên bản môi trường. Các fold lưu chỉ số hàng, đối chiếu bằng sample_index. Run grouped CV không xuất bundle mô hình cho API; launcher API riêng tải bundle fixture đã lưu, không fit khi khởi động.
+
+Mở `report.md` trong thư mục CLI in ra để xem bảng theo seed/model/FPR, average precision theo fold, dao động seed và paired CI. `summary.csv` dùng cho bảng tính; `summary.json` giữ cả độ phân tán fold/seed và CI. TP/FN/FP/TN được cộng trên toàn bộ OOF của **từng seed** trước khi tính recall/FPR; không lấy trung bình tỷ lệ fold làm tỷ lệ toàn tập hoặc nhân ba cỡ mẫu. AP là average precision, chưa phải phép tích phân PR-AUC hình thang. Một fold thiếu operating point thì tỷ lệ OOF cả seed/variant/target giữ NA, không âm thầm bỏ các mẫu này. CLI từ chối ghi đè run cũ. Kết quả fixture chỉ kiểm quy trình; không chứng minh hiệu năng phishing thực tế.
 
 M2/M3 dùng word TF-IDF (1,2), char TF-IDF (3,5), ngân sách 1000/1500 từ vựng. Numeric scaler, vocabulary, IDF và LR chỉ fit inner-train. Chọn C từ 0.25/1/4 bằng average precision trên validation, hòa chọn C nhỏ hơn. Chọn threshold riêng ở FPR validation 1%/5%, tối đa recall, hòa chọn ngưỡng cao hơn. **Không refit trên validation sau chọn ngưỡng**; test dùng đúng mô hình đã tạo score validation. Đây là triển khai holdout nhóm nội bộ; chưa triển khai nested tuning nhiều fold nội bộ. Với data thật, phải chốt cấu hình triển khai cùng giao thức trước run chính.
 
@@ -237,7 +248,7 @@ M2/M3 dùng word TF-IDF (1,2), char TF-IDF (3,5), ngân sách 1000/1500 từ v�
 
 M3 hiện là quy tắc exact alias với ranh giới từ, quan hệ miền theo primitives đã có và dấu hiệu form/password/login. Danh mục chỉ gồm ba tổ chức **hư cấu**, độc lập với train/test. B-rule có trọng số fixture cố định; chưa phải quy tắc cuối dùng nghiên cứu. Ablation bỏ cột của từng khối organization/domain/intention; các khối vẫn có phụ thuộc (tín hiệu domain cần candidate tổ chức), vì vậy không diễn giải là tác động nhân quả độc lập. Chưa thực hiện so khớp mờ/codebook thương hiệu con; C bàn giao danh mục thật đã khóa trước khi hoàn thiện phần này.
 
-Paired bootstrap lấy lại **toàn bộ nhóm có hoàn lại**, cùng draw cho hai mô hình, CI percentile 95%, riêng từng seed và mức FPR, so M3–M2 và M3–B-rule. Không gộp các seed thành mẫu độc lập. Số replicate có metric không xác định được ghi riêng; không thay bằng 0. CI có điều kiện trên các mô hình đã fit, không bao gồm bất định do huấn luyện lại.
+Paired bootstrap lấy lại **toàn bộ nhóm có hoàn lại**, cùng draw cho hai mô hình, CI percentile 95%, riêng từng seed và mức FPR, so M3–M2, M3–B-rule và M3–từng ablation. Không gộp các seed thành mẫu độc lập. Số replicate có metric không xác định được ghi riêng; không thay bằng 0. CI có điều kiện trên các mô hình đã fit, không bao gồm bất định do huấn luyện lại.
 
 Kiểm thử chống rò rỉ: nhóm không giao giữa train/validation/test; mỗi mẫu test một lần/seed; vocabulary và scaler chỉ fit train; đổi nhãn test không đổi score/ngưỡng/C; M2/M3 dùng chung từ vựng/IDF; metadata không vào feature input; ablation đúng khối; bootstrap giữ nguyên nhóm và đếm replicate thiếu lớp. Đây là kiểm mã, không thay thế audit dữ liệu của B sau này.
 

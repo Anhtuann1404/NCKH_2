@@ -1,0 +1,13 @@
+{
+  "scope": "synthetic_fixture_only",
+  "research_evidence": false,
+  "groups": 40,
+  "seeds": [17, 42, 2026],
+  "outer_folds": 5,
+  "inner_folds": 3,
+  "C_grid": [0.25, 1.0, 4.0],
+  "targets": [0.01, 0.05],
+  "variants": ["M0", "M1", "M2", "M3", "M3-no-organization", "M3-no-domain", "M3-no-intention", "B-rule"],
+  "bootstrap_repetitions": 2000,
+  "bootstrap_seed_base": 813
+}
