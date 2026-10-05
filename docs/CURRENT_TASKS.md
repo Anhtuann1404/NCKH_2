@@ -13,7 +13,8 @@ Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày 
 - DONE — scaffold DEV-01 của D: preprocessing URL/HTML, URL/DOM/text draft, primitive domain/UGC, CLI fixture, môi trường và 17 unittest; chưa là pipeline đã khóa.
 - PENDING_REVIEW — DATA-01: C đã hoàn tất audit date 56 shards (498.255 dòng), strict date parser, exclusion registry (20 pilot samples với trạng thái unresolved mapping), khóa môi trường dữ liệu win32/CPython 3.13; chờ Lead D nghiệm thu.
 - PENDING_REVIEW — DATA-02: C đã hoàn tất cập nhật domain matcher dùng chung (ưu tiên UGC không phụ thuộc thứ tự), xử lý forms.office.com và S3/Azure/GCS, sửa Kappa khi Pe=1, cập nhật dictionary_v1.json (SHA-256: `61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28`) và CODEBOOK_V1.md sang trạng thái pending_review; chờ B rà soát và D nghiệm thu.
-- TODO — pilot nhãn, phần import/index của C cho DEV-01, dữ liệu chính, mô hình, API và extension.
+- DONE — DATA-03: C đã hoàn tất xây dựng Engine phân chia Grouped 5-Fold Cross Validation lặp 3 seed (17, 42, 2026) kèm inner validation, và Temporal Split (60% Train / 20% Val / 20% Test) chống rò rỉ dữ liệu (loại bỏ trùng nhóm muộn), bóc tách group_id offline (eTLD+1 và tenant hạ tầng dùng chung), công cụ CLI `generate_splits.py`, 15/15 unit tests đạt 100% (tổng test suite 160/160 pass).
+- TODO — pilot nhãn (A và B đang thực hiện Pass 1), phần import/index của C cho DEV-01, dữ liệu chính, mô hình, API và extension.
 
 `TODO` chưa làm; `IN_PROGRESS` đang có công việc thực; `BLOCKED` có phụ thuộc cụ thể; `DONE` có sản phẩm kiểm tra được; `PENDING_REVIEW` đã hoàn thành kỹ thuật kèm bằng chứng, chờ nghiệm thu. Không đánh dấu DONE chỉ vì đã có mô tả.
 
@@ -82,6 +83,20 @@ Tạo môi trường, khóa dependency, module preprocessing và fixture domain/
 
 **Bằng chứng phần D (04/10/2026):** [preprocessing](../src/phishing/preprocessing/__init__.py), [features](../src/phishing/features/__init__.py), [domain rules](../src/phishing/features/domains.py), [CLI](../scripts/inspect_snapshot.py), [tests](../tests/test_preprocessing.py), [domain tests](../tests/test_domain_rules.py), [fixture](../tests/fixtures/synthetic_login.html), [environment](../configs/dev_environment.lock.json). 17 tests đạt và CLI chạy bằng CPython 3.14.6; lệnh ở DEVELOPMENT. Version dev-0, chưa fit TF-IDF/mô hình, chưa phân nhóm eTLD+1 và chưa kiểm parity DOM trình duyệt. C vẫn cần bàn giao import/index; B review fixture/code trước khi coi pipeline đủ điều kiện cho run chính.
 
+### DATA-03 — Engine phân chia Grouped 5-Fold & Temporal Split
+
+Status: DONE. Owner: C. Phụ thuộc: DATA-01, DATA-02.
+
+Đã hoàn thành toàn diện theo yêu cầu chống rò rỉ dữ liệu (Anti-Leakage) của đề cương và `EXPERIMENT_PROTOCOL.md`:
+1. **Module bóc tách group_id offline:** [`grouping.py`](../src/phishing/data/grouping.py) trích xuất `eTLD+1` và tenant hạ tầng dùng chung (UGC / Multi-tenant Hosting) cho SharePoint, Google Sites, Office Forms, AWS S3 (cả path-style và virtual-hosted), Azure Blob, Firebase, GitHub Pages, Pages.dev, Vercel, Netlify. Khởi tạo `tldextract` với `suffix_list_urls=None` bảo đảm 100% không phát sinh HTTP/DNS traffic ra ngoài.
+2. **Grouped 5-Fold Cross Validation & Inner Validation:** [`splits.py`](../src/phishing/data/splits.py) hàm `generate_grouped_kfold` lặp qua 3 random seeds chuẩn (`17`, `42`, `2026`). Phân bổ nhóm xác định (deterministic greedy bin-packing), bảo đảm 100% các mẫu cùng nhóm nằm trọn vẹn trong một fold. Tự động sinh `inner_val` bên trong outer train để phục vụ chọn ngưỡng operating threshold (FPR 1%/5%) mà không rò rỉ tập test.
+3. **Temporal Split 60/20/20:** [`splits.py`](../src/phishing/data/splits.py) hàm `generate_temporal_split` nhóm theo ngày lịch nguyên vẹn (không chia cắt trong cùng một ngày), tính mốc cắt 60% Train / 20% Val / 20% Test, tự động loại trừ các bản ghi muộn trùng nhóm sớm (`purge_overlapping_groups=True`) để bảo đảm kiểm định khả năng tổng quát hóa trên miền mới theo đúng giao thức.
+4. **Kiểm định phòng vệ:** Các hàm `assert_no_group_leakage` và `assert_strict_temporal_order` ném lỗi ngay lập tức khi phát hiện bất kỳ dấu hiệu rò rỉ dữ liệu nào.
+5. **Công cụ CLI:** [`generate_splits.py`](../scripts/data/generate_splits.py) hỗ trợ sinh `groups.json`, `grouped_5fold_splits.json` và `temporal_splits.json`.
+6. **Kiểm thử tự động:** 15/15 unit tests đạt 100% tại [`test_splits.py`](../tests/test_splits.py). Toàn bộ test suite dự án đạt 160/160 pass.
+
+Bằng chứng: [grouping.py](../src/phishing/data/grouping.py), [splits.py](../src/phishing/data/splits.py), [generate_splits.py](../scripts/data/generate_splits.py), [test_splits.py](../tests/test_splits.py).
+
 ### EXT-01 — Khung MV3 và mock API
 
 Status: TODO. Owner: D. Phụ thuộc: đọc API_SPEC; có thể làm song song.
@@ -131,4 +146,8 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 - Gói dữ liệu `blind_view_pilot.json`: 20 mẫu pilot mù an toàn đại diện đa dạng các loại hình dịch vụ.
 - Công cụ CLI `annotate_cli.py`: Hỗ trợ gán nhãn có bấm giờ tự động, tương thích đa nền tảng UTF-8, lưu JSONL tức thời và hỗ trợ resume. Đạt 65/65 unit tests (100% pass). Sẵn sàng bàn giao cho Thành viên A và B.
 
-
+05/10/2026 — C hoàn thành triển khai Task DATA-03 (Grouped 5-Fold & Temporal Splitting Engine):
+- Trích xuất `group_id` offline qua `tldextract` (eTLD+1 kèm PSL private domains) và tenant rules cho SharePoint, Google Sites, Office Forms, S3, Azure Blob, Firebase, GitHub Pages, Vercel, Netlify.
+- Xây dựng thuật toán phân chia Grouped 5-Fold CV với 3 seeds (17, 42, 2026), bảo đảm 100% không rò rỉ group giữa các fold, tích hợp inner validation split bên trong outer train để phục vụ chọn operating threshold độc lập.
+- Xây dựng thuật toán phân chia Temporal Split 60/20/20 theo ngày lịch nguyên vẹn, tự động loại trừ bản ghi muộn trùng nhóm sớm (`purge_overlapping_groups=True`).
+- Viết công cụ CLI `generate_splits.py` và 15 unit tests tại `test_splits.py`. Toàn bộ 160/160 tests của dự án đạt 100% pass.
