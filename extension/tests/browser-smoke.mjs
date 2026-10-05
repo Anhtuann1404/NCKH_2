@@ -162,6 +162,16 @@ try {
   await eventually(async () => (await savedState())?.demo_kind === 'synthetic_model' && (await savedState())?.phase === 'url_content' && (await savedState())?.status === 'completed', 'fitted TF-IDF model result through extension');
   assert.equal((await savedState()).mock, false);
   checks.push('synthetic_fitted_model_api_extension');
+  await eventually(async () => (await popup.locator('#signals').innerText()).includes('Trang có ô nhập mật khẩu.'), 'popup observed password input');
+  assert.match(await popup.locator('#signals').innerText(), /không giải thích nguyên nhân/);
+  assert.match(await popup.locator('body').innerText(), /DEMO MÔ PHỎNG/);
+  assert((await savedState()).observed_signals.includes('observed_password_input'));
+  await popup.locator('body').screenshot({ path: path.join(project, 'artifacts/smoke/observed-popup.png') });
+  checks.push('observed_signals_display_without_causal_claim');
+  await page.goto(`${origin}/ordinary.html`);
+  await eventually(async () => (await savedState())?.demo_kind === 'synthetic_model' && (await savedState())?.phase === 'url_content' && (await savedState())?.status === 'completed' && !(await savedState()).observed_signals.includes('observed_password_input'), 'ordinary page clears observed password');
+  await eventually(async () => (await popup.locator('#signals').innerText()).length === 0, 'popup clears previous signals');
+  checks.push('navigation_clears_observed_signals');
 
   if (latencyCount) {
     // Measure settled requests, separately per phase; two warmups excluded.
@@ -248,7 +258,7 @@ try {
         summary[phase][field] = { n: values.length, p50_ms: percentile(values, 0.5), p95_ms: percentile(values, 0.95) };
       }
     }
-    const bundleManifest = JSON.parse(await readFile(path.join(project, 'artifacts/models/synthetic-demo-v1/manifest.json'), 'utf8'));
+    const bundleManifest = JSON.parse(await readFile(path.join(project, 'artifacts/models/synthetic-demo-observed-v1/manifest.json'), 'utf8'));
     const latencyReport = { checked_at: report.checked_at, research_evidence: false,
       scope: 'headless Chromium loopback synthetic integration; sequential settled requests',
       client_roundtrip_definition: 'service worker before serialization/fetch through response parse/validation; includes retry delay if any',

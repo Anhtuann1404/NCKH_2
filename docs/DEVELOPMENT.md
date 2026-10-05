@@ -429,3 +429,14 @@ Hợp đồng thử của D: manifest có `contract_version: training-input-fixt
 Checker kiểm hashes artifact/HTML; ID duy nhất/khớp; mẫu loại trừ và cohort có nội dung; split phủ cohort, không trùng ID/nhóm và đủ hai lớp cả ba phần. Dùng lại RunPlan, không tự tạo split hoặc thay nhãn cuối bằng nhãn nguồn.
 
 Chưa xác minh nguồn thật, component trùng nội dung, annotation QC, lịch sử dictionary, thời gian hay chữ ký nghiệm thu. Checker từ chối scope nghiên cứu và chưa nối vào fit corpus thật. Sau nghiệm thu C mới nối adapter/readiness theo giao thức hiện có; không đổi schema C để ép khớp hợp đồng fixture này.
+
+
+### Tín hiệu quan sát trên demo extension
+
+Popup và banner có thể hiển thị ô mật khẩu, tên tổ chức hư cấu, quan hệ miền chưa xác minh và biểu mẫu gửi tới hostname khác. API lấy các tín hiệu từ bộ trích hiện có và từ điển fixture của bundle; không thay score/threshold. Đây là quan sát, không phải phép giải thích quyết định mô hình hoặc bằng chứng website lừa đảo.
+
+UI chỉ hiển thị mã tín hiệu đã biết bằng câu chữ cố định, ở kết quả content hoàn tất của synthetic model. Đổi trang, lỗi, URL-only và pending xóa/ẩn tín hiệu cũ. Thiếu nội dung và lỗi API là “Chưa đánh giá được”, khác với “Chưa phát hiện dấu hiệu phishing”. Nhãn DEMO và giới hạn dữ liệu hư cấu tiếp tục hiển thị.
+
+Sau khi cập nhật nhánh, chạy `npm run build` tại extension rồi bấm Reload ở chrome://extensions. Dừng API demo cũ trong terminal bằng Ctrl+C và chạy lại launcher với ID extension của máy mình. Mặc định bundle mới là `artifacts/models/synthetic-demo-observed-v1`: lần đầu tạo từ fixture, lần sau tải local không fit. Bundle cũ được giữ nguyên vì loader kiểm source hash và sẽ từ chối bundle tạo từ mã nguồn khác. Không dùng bundle từ người lạ.
+
+Kiểm tra: 62 Python tests, 13 Node tests và 17 Chromium smoke checks đạt trên macOS; ảnh popup ở artifacts/smoke/observed-popup.png (ignored). Chưa kiểm trực tiếp Windows. Không đọc pilot/corpus thật, không mở training nghiên cứu và không thay giao thức đã duyệt.

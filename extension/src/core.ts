@@ -12,12 +12,14 @@ export interface AnalyzeResponse {
   score: number | null; threshold: number | null;
   model: { model_id: string; preprocessing_version: string; variant: string };
   limitations: string[];
+  signals?: { code: string }[];
   timing_ms?: { preprocess: number; extract: number; infer: number; server_total: number };
 }
 export interface TabState {
   navigation_id: string; dom_revision: number; phase: Phase; request_id: string;
   status: 'pending' | 'completed' | 'unable_to_assess'; verdict: Verdict | null;
   code?: string; mock: boolean; demo_kind?: 'mock' | 'synthetic_model';
+  observed_signals?: string[];
   timing_ms?: { client_roundtrip: number; preprocess?: number; extract?: number; infer?: number; server_total?: number };
 }
 export class APIError extends Error {
@@ -55,7 +57,31 @@ export function validateResponse(value: unknown, request: AnalyzeRequest): Analy
     if (typeof response.score !== 'number' || !Number.isFinite(response.score) || response.score < 0 || response.score > 1 || typeof response.threshold !== 'number' || !Number.isFinite(response.threshold) || response.threshold < 0 || response.threshold > 1 || response.verdict !== (response.score >= response.threshold ? 'warning' : 'no_indication')) throw new APIError('invalid_response');
   } else throw new APIError('invalid_response');
   if (response.timing_ms && Object.values(response.timing_ms).some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0)) throw new APIError('invalid_response');
+  if (response.signals !== undefined && (!Array.isArray(response.signals) || response.signals.length > 16 || response.signals.some(signal => !signal || typeof signal.code !== 'string' || signal.code.length > 100))) throw new APIError('invalid_response');
   return response;
+}
+
+const OBSERVATIONS: Record<string, string> = {
+  observed_password_input: 'Trang có ô nhập mật khẩu.',
+  observed_organization_mention: 'Nội dung nhắc tên tổ chức trong danh mục mô phỏng.',
+  observed_unverified_domain: 'Miền chưa được xác minh theo danh mục mô phỏng.',
+  observed_external_form: 'Biểu mẫu có địa chỉ gửi tới hostname khác.',
+};
+export const OBSERVATION_NOTE = 'Đây là tín hiệu quan sát được, không giải thích nguyên nhân mô hình đưa ra quyết định.';
+export function observedSignalText(state?: TabState): string[] {
+  if (state?.status !== 'completed' || state.verdict === 'unable_to_assess' || state.phase !== 'url_content' || state.demo_kind !== 'synthetic_model') return [];
+  return [...new Set(state.observed_signals ?? [])].filter(code => Object.hasOwn(OBSERVATIONS, code)).map(code => OBSERVATIONS[code]);
+}
+
+export function assessmentNote(state?: TabState): string {
+  if (state?.status === 'pending') return 'Đang chờ kết quả; chưa thể kết luận về trang.';
+  if (state?.status === 'unable_to_assess' || state?.verdict === 'unable_to_assess') {
+    if (state.code === 'insufficient_content') return 'Không đủ nội dung để đánh giá. Đây không phải kết quả trang an toàn.';
+    return 'Chưa nhận được kết quả hợp lệ. Kiểm tra kết nối API và thiết lập demo; chưa thể kết luận về trang.';
+  }
+  return state?.demo_kind === 'synthetic_model'
+    ? 'Mô hình học từ dữ liệu hư cấu; chỉ kiểm thử tích hợp, không xác nhận trang an toàn.'
+    : 'Kết quả hiện tại chỉ dùng kiểm thử luồng, không xác nhận trang an toàn.';
 }
 
 export async function analyzeWithRetry(
@@ -99,6 +125,7 @@ export function statusText(state?: TabState): string {
   if (!state) return 'Chưa đánh giá được';
   if (state.status === 'pending') return 'Đang phân tích mô phỏng…';
   if (state.status === 'unable_to_assess' || state.verdict === 'unable_to_assess') return 'Chưa đánh giá được';
+  if (state.verdict !== 'warning' && state.verdict !== 'no_indication') return 'Chưa đánh giá được';
   const label = state.verdict === 'warning' ? 'Có dấu hiệu phishing' : 'Chưa phát hiện dấu hiệu phishing';
   return state.phase === 'url_only' ? `${label} — URL sơ bộ` : label;
 }

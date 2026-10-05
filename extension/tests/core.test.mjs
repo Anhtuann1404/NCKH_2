@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeWithRetry, APIError, isCurrent, normalizeURL, statusText, validateResponse } from '../dist/core.js';
+import { analyzeWithRetry, APIError, assessmentNote, isCurrent, observedSignalText, OBSERVATION_NOTE, normalizeURL, statusText, validateResponse } from '../dist/core.js';
 
 const request = () => ({ request_id: crypto.randomUUID(), navigation_id: crypto.randomUUID(), dom_revision: 2, phase: 'url_content', url: 'https://fixture.test/', html: '<p>Fixture</p>', preprocessing_version: 'snapshot-dev-0', capture_mode: 'rendered_dom' });
 const response = (req, overrides = {}) => ({ request_id: req.request_id, navigation_id: req.navigation_id, dom_revision: req.dom_revision, phase: req.phase, status: 'completed', verdict: 'warning', score: 0.82, threshold: 0.75, model: { model_id: 'mock-only-url_content', preprocessing_version: 'snapshot-dev-0', variant: 'M3' }, limitations: ['mock_response_not_model_result'], ...overrides });
@@ -79,4 +79,18 @@ test('roundtrip timing is finite and negative server timing is rejected', async 
   const result = await analyzeWithRetry(req, 'synthetic', { fetcher: async () => new Response(JSON.stringify(response(req)), { status: 200 }) });
   assert(Number.isFinite(result.elapsedMs) && result.elapsedMs >= 0);
   assert.throws(() => validateResponse(response(req, { timing_ms: { preprocess: -1, extract: 0, infer: 0, server_total: 0 } }), req), /invalid_response/);
+});
+
+test('observations use fixed copy and disappear for pending, errors and URL-only', () => {
+  const value = { ...state(request()), status: 'completed', verdict: 'no_indication', demo_kind: 'synthetic_model',
+    observed_signals: ['observed_password_input', '<script>untrusted</script>', 'observed_password_input'] };
+  assert.deepEqual(observedSignalText(value), ['Trang có ô nhập mật khẩu.']);
+  for (const update of [{ status: 'pending' }, { status: 'unable_to_assess' }, { phase: 'url_only' }, { demo_kind: 'mock' }])
+    assert.deepEqual(observedSignalText({ ...value, ...update }), []);
+  assert.match(OBSERVATION_NOTE, /không giải thích nguyên nhân/);
+  assert.match(assessmentNote({ ...value, status: 'unable_to_assess', code: 'insufficient_content' }), /Không đủ nội dung/);
+  assert.match(assessmentNote({ ...value, status: 'unable_to_assess', code: 'http_503' }), /Chưa nhận được kết quả/);
+  assert.equal(statusText({ ...value, verdict: null }), 'Chưa đánh giá được');
+  const req = request();
+  assert.throws(() => validateResponse(response(req, { signals: 'invalid' }), req), /invalid_response/);
 });
