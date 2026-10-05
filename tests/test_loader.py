@@ -1,12 +1,30 @@
 """Unit tests cho Data Ingestion & Indexing Engine (Task DEV-01).
 
-Kiểm tra:
-1. Tính tuân thủ schema bản ghi nghiên cứu DATA_PROTOCOL.md.
-2. Nguyên tắc Anti-Leakage: PreparedSnapshot hoàn toàn không chứa nhãn nguồn, metadata, hay split.
-3. Cơ chế phòng vệ chiều sâu: ExclusionRegistry phát hiện và loại trừ mẫu pilot.
-4. Chuẩn hóa URL có scheme fallback xác định, xử lý an toàn URL lỗi.
-5. Adapter dữ liệu nguồn PhreshPhish Parquet và PhishVN.
-6. CLI index_corpus.py hoạt động chính xác và xuất manifest đầy đủ mã băm SHA-256.
+Kiểm tra toàn diện 7 điểm probe và chỉ đạo nghiệm thu của Lead D:
+1. Chốt loại trừ pilot đóng kín:
+   - Dữ liệu thật bắt buộc phải có ExclusionRegistry;
+   - Mẫu bị loại trừ không được chuyển thành PreparedSnapshot (ném lỗi);
+   - Hàm filter_eligible_records và join_verified_labels_and_filter_eligible hoạt động chính xác;
+   - Manifest phản ánh ready_for_training=False và audit_only_training_blocked.
+2. Ánh xạ nhãn chuẩn xác & bảo toàn tier/sub-source:
+   - Thiếu nhãn, rỗng hoặc ngoài phạm vi (malware, defacement) không bị đổi thành benign;
+   - Bảo toàn tier (gold/silver/bronze) và sub-source của PhishVN.
+3. ID duy nhất ổn định theo shard/row & multi-shard:
+   - ID dạng PP-<shard>-R<row:06d> không bị đụng độ giữa các shard;
+   - CLI bảo vệ chống ghi đè khi chưa truyền --overwrite;
+   - Đọc tuần tự streaming không giữ toàn bộ HTML trong RAM.
+4. Xác minh Checksum HTML & Xuất xứ:
+   - Tự động tính SHA-256 từ HTML thực; phát hiện hash nguồn sai lệch;
+   - Đối soát với source_manifest.json; ghi nhận đầy đủ mã băm nguồn vào manifest.
+5. Grouping bảo toàn query unredacted:
+   - URL Forms có id=TenantA và id=TenantB sinh hai group khác nhau;
+   - Normalized URL trong snapshot vẫn che query an toàn.
+6. Tách biệt Chỉ mục Kỹ thuật & Kho Nhãn:
+   - corpus_index.jsonl chỉ chứa locator, không chứa raw URL hay nhãn;
+   - Đọc lại đúng HTML từ index (reconstitute_html_from_locator) và đối chiếu hash thành công.
+7. Bảo toàn metadata ngày & capture_mode:
+   - Phân biệt rõ valid / missing / invalid (ngày 2024-02-30 ghi là invalid, không ghi missing);
+   - Bảo toàn capture_mode="rendered_dom", không tự đổi thành stored_html.
 """
 
 import json
@@ -14,6 +32,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 from phishing.data.exclusion import ExclusionRegistry
@@ -21,398 +41,500 @@ from phishing.data.loader import (
     CorpusRecord,
     adapt_source_row_to_record,
     build_corpus_index,
-    extract_labels_vault,
+    filter_eligible_records,
+    join_verified_labels_and_filter_eligible,
     load_phishvn_records,
     load_phreshphish_shard,
     normalize_record_url,
+    reconstitute_html_from_locator,
 )
 from phishing.preprocessing import PreparedSnapshot
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CLI_PATH = PROJECT_ROOT / "scripts" / "data" / "index_corpus.py"
 
-def test_corpus_record_schema_and_to_index_dict():
-    """Kiểm tra tính đầy đủ 11 trường dữ liệu theo DATA_PROTOCOL.md và không lưu raw HTML trong index."""
+
+# ---------------------------------------------------------------------------
+# 1. Kiểm tra Schema & Tách biệt Index / Vault (Khắc phục Probe 6)
+# ---------------------------------------------------------------------------
+def test_corpus_record_schema_and_technical_index_separation():
+    """Chỉ mục kỹ thuật (corpus_index.jsonl) tuyệt đối không chứa raw_url, nhãn hay target."""
+    locator = {"source_id": "phreshphish", "shard": "train-000.parquet", "row_offset": 5}
     rec = CorpusRecord(
-        sample_id="TEST-001",
+        sample_id="PP-train-000-R000005",
         source_id="phreshphish",
         source_revision="rev-123",
         source_split="train",
-        collected_at="2025-01-15",
-        raw_url="https://example.com/login",
-        normalized_url="https://example.com/login",
+        locator=locator,
+        raw_url="https://secret-bank.com/login?token=sensitive_token",
+        normalized_url="https://secret-bank.com/login?token=_redacted_",
+        group_id="domain:secret-bank.com",
         html_sha256="abc123def",
+        source_provided_html_sha256="abc123def",
+        html_integrity_status="matched",
         language="en",
         capture_mode="stored_html",
-        source_label="phishing",
-        target="Microsoft",
-        group_id="example.com",
-        exclusion_reason=None,
+        collected_at="2025-01-15",
+        date_status="valid",
+        date_error=None,
         is_valid_url=True,
         url_error=None,
+        source_label="phishing",
+        raw_source_label="phish",
+        label_status="verified_binary",
+        target="Microsoft",
+        source_tier=None,
+        source_sub_source=None,
+        exclusion_reason=None,
         raw_html="<html><body>Login</body></html>",
     )
 
     idx_dict = rec.to_index_dict()
+    vault_dict = rec.to_vault_dict()
 
-    # Kiểm tra các trường bắt buộc theo DATA_PROTOCOL.md
-    expected_keys = {
-        "sample_id", "source_id", "source_revision", "source_split",
-        "collected_at", "date_status", "raw_url", "normalized_url",
-        "html_sha256", "language", "capture_mode", "source_label",
-        "target", "group_id", "is_valid_url", "url_error", "exclusion_reason"
-    }
-    assert set(idx_dict.keys()) == expected_keys
-    assert idx_dict["sample_id"] == "TEST-001"
-    assert idx_dict["date_status"] == "valid"
-    assert idx_dict["source_label"] == "phishing"
-    assert idx_dict["target"] == "Microsoft"
+    # Index kỹ thuật chỉ chứa locator và các trường đặc trưng an toàn
+    assert "locator" in idx_dict
+    assert idx_dict["locator"] == locator
+    assert idx_dict["normalized_url"] == "https://secret-bank.com/login?token=_redacted_"
 
-    # TUYỆT ĐỐI KHÔNG lưu raw_html trong index_dict
-    assert "raw_html" not in idx_dict
-    assert "html" not in idx_dict
+    # TUYỆT ĐỐI KHÔNG chứa raw_url, source_label, target, raw_html trong index kỹ thuật
+    for forbidden in ("raw_url", "source_label", "target", "raw_html", "html"):
+        assert forbidden not in idx_dict
+
+    # Kho nhãn bảo mật chứa đầy đủ raw_url, source_label, target
+    assert vault_dict["sample_id"] == "PP-train-000-R000005"
+    assert vault_dict["raw_url"] == "https://secret-bank.com/login?token=sensitive_token"
+    assert vault_dict["source_label"] == "phishing"
+    assert vault_dict["target"] == "Microsoft"
 
 
-def test_to_prepared_snapshot_zero_leakage():
-    """Chứng minh PreparedSnapshot hoàn toàn không chứa nhãn nguồn, mục tiêu hay metadata."""
-    rec = CorpusRecord(
-        sample_id="LEAK-CHECK-001",
+# ---------------------------------------------------------------------------
+# 2. Chốt loại trừ Pilot đóng kín (Khắc phục Probe 1)
+# ---------------------------------------------------------------------------
+def test_to_prepared_snapshot_blocks_excluded_record():
+    """Bản ghi có exclusion_reason (ví dụ pilot match) tuyệt đối không được tạo PreparedSnapshot."""
+    locator = {"source_id": "phreshphish", "shard": "train-000.parquet", "row_offset": 0}
+    excluded_rec = CorpusRecord(
+        sample_id="EXCLUDED-01",
         source_id="phreshphish",
-        source_revision="rev-secure",
+        source_revision="rev-1",
         source_split="train",
-        collected_at="2025-02-01",
-        raw_url="https://evil-login.example.com/signin?user=attacker",
-        normalized_url="https://evil-login.example.com/signin?user=_redacted_",
-        html_sha256="hash999",
+        locator=locator,
+        raw_url="https://pilot-excluded.com/",
+        normalized_url="https://pilot-excluded.com/",
+        group_id="domain:pilot-excluded.com",
+        html_sha256="sha111",
+        source_provided_html_sha256=None,
+        html_integrity_status="computed_only",
         language="en",
         capture_mode="stored_html",
-        source_label="phishing",
-        target="PayPal",
-        group_id="example.com",
-        exclusion_reason=None,
+        collected_at="2025-01-01",
+        date_status="valid",
+        date_error=None,
         is_valid_url=True,
         url_error=None,
-        raw_html="<html><body><form action='https://evil.com'><input type='password'></form></body></html>",
+        source_label="phishing",
+        raw_source_label="phish",
+        label_status="verified_binary",
+        target=None,
+        exclusion_reason="pilot_exclusion_registry_match",
+        raw_html="<html><body>Excluded</body></html>",
+    )
+
+    with pytest.raises(ValueError, match="Không thể tạo PreparedSnapshot cho bản ghi đã bị loại trừ"):
+        excluded_rec.to_prepared_snapshot()
+
+
+def test_filter_eligible_records_and_join_verified_labels():
+    """Kiểm tra chọn tập đủ điều kiện và gộp nhãn đã kiểm chứng trước split/fit."""
+    records = [
+        CorpusRecord(
+            sample_id="S1",
+            source_id="phreshphish",
+            source_revision="r1",
+            source_split="train",
+            locator={"shard": "s1.parquet", "row_offset": 0},
+            raw_url="https://clean-site1.com/",
+            normalized_url="https://clean-site1.com/",
+            group_id="domain:clean-site1.com",
+            html_sha256="h1",
+            source_provided_html_sha256=None,
+            html_integrity_status="computed_only",
+            language="en",
+            capture_mode="stored_html",
+            collected_at="2025-01-01",
+            date_status="valid",
+            date_error=None,
+            is_valid_url=True,
+            url_error=None,
+            source_label="phishing",
+            raw_source_label="phish",
+            label_status="verified_binary",
+            target="Amazon",
+            exclusion_reason=None,
+        ),
+        CorpusRecord(
+            sample_id="S2",
+            source_id="phreshphish",
+            source_revision="r1",
+            source_split="train",
+            locator={"shard": "s1.parquet", "row_offset": 1},
+            raw_url="https://pilot-match.com/",
+            normalized_url="https://pilot-match.com/",
+            group_id="domain:pilot-match.com",
+            html_sha256="h2",
+            source_provided_html_sha256=None,
+            html_integrity_status="computed_only",
+            language="en",
+            capture_mode="stored_html",
+            collected_at="2025-01-02",
+            date_status="valid",
+            date_error=None,
+            is_valid_url=True,
+            url_error=None,
+            source_label="benign",
+            raw_source_label="benign",
+            label_status="verified_binary",
+            target=None,
+            exclusion_reason="pilot_exclusion_registry_match",
+        ),
+    ]
+
+    eligible = filter_eligible_records(records)
+    assert len(eligible) == 1
+    assert eligible[0].sample_id == "S1"
+
+    index_dicts = [r.to_index_dict() for r in records]
+    vault = {r.sample_id: r.to_vault_dict() for r in records}
+
+    joined = join_verified_labels_and_filter_eligible(index_dicts, vault)
+    assert len(joined) == 1
+    assert joined[0]["sample_id"] == "S1"
+    assert joined[0]["class_label"] == "phishing"
+
+
+# ---------------------------------------------------------------------------
+# 3. Ánh xạ nhãn & bảo toàn Tier PhishVN (Khắc phục Probe 2)
+# ---------------------------------------------------------------------------
+def test_label_mapping_rejects_silent_benign_conversion():
+    """Nhãn thiếu, rỗng hoặc ngoài phạm vi (malware, defacement) không bị đổi thành benign."""
+    locator = {"source_id": "test", "shard": "test", "row_offset": 0}
+
+    # 1. Nhãn rỗng -> missing
+    rec_missing = adapt_source_row_to_record(
+        sample_id="TEST-01",
+        source_id="phreshphish",
+        source_revision="r1",
+        source_split="train",
+        locator=locator,
+        raw_url="https://example.com/1",
+        raw_html="<html>test</html>",
+        raw_date="2025-01-01",
+        raw_label="",
+    )
+    assert rec_missing.source_label == "unlabeled"
+    assert rec_missing.label_status == "missing"
+    assert rec_missing.exclusion_reason == "missing_source_label"
+    assert rec_missing.source_label != "benign"
+
+    # 2. Nhãn PhishVN malware -> out_of_scope
+    rec_malware = adapt_source_row_to_record(
+        sample_id="TEST-02",
+        source_id="phishvn",
+        source_revision="v3",
+        source_split="train",
+        locator=locator,
+        raw_url="https://example.com/2",
+        raw_html=None,
+        raw_date=None,
+        raw_label="malware",
+        source_tier="silver",
+        source_sub_source="chongluadao",
+    )
+    assert rec_malware.source_label == "out_of_scope:malware"
+    assert rec_malware.label_status == "out_of_scope"
+    assert "out_of_scope_label" in rec_malware.exclusion_reason
+    assert rec_malware.source_label != "benign"
+    # Bảo toàn tier và sub-source
+    assert rec_malware.source_tier == "silver"
+    assert rec_malware.source_sub_source == "chongluadao"
+
+    # 3. Nhãn defacement -> out_of_scope
+    rec_defacement = adapt_source_row_to_record(
+        sample_id="TEST-03",
+        source_id="phishvn",
+        source_revision="v3",
+        source_split="train",
+        locator=locator,
+        raw_url="https://example.com/3",
+        raw_html=None,
+        raw_date=None,
+        raw_label="defacement",
+    )
+    assert rec_defacement.source_label == "out_of_scope:defacement"
+    assert rec_defacement.source_label != "benign"
+
+
+# ---------------------------------------------------------------------------
+# 4. Grouping không bị che lấp query (Khắc phục Probe 5)
+# ---------------------------------------------------------------------------
+def test_grouping_unredacted_query_preserves_distinct_forms_tenants():
+    """Hai URL Forms có id=TenantA và id=TenantB sinh hai group khác nhau."""
+    locator1 = {"source_id": "test", "shard": "test", "row_offset": 0}
+    locator2 = {"source_id": "test", "shard": "test", "row_offset": 1}
+
+    rec1 = adapt_source_row_to_record(
+        sample_id="FORM-01",
+        source_id="phreshphish",
+        source_revision="r1",
+        source_split="train",
+        locator=locator1,
+        raw_url="https://forms.office.com/Pages/ResponsePage.aspx?id=TenantA_SecretToken",
+        raw_html="<html>form A</html>",
+        raw_date="2025-01-01",
+        raw_label="phish",
+    )
+
+    rec2 = adapt_source_row_to_record(
+        sample_id="FORM-02",
+        source_id="phreshphish",
+        source_revision="r1",
+        source_split="train",
+        locator=locator2,
+        raw_url="https://forms.office.com/Pages/ResponsePage.aspx?id=TenantB_SecretToken",
+        raw_html="<html>form B</html>",
+        raw_date="2025-01-01",
+        raw_label="phish",
+    )
+
+    # 1. Group ID phải phân biệt theo tenant unredacted:
+    assert rec1.group_id == "tenant:forms.office.com:id=tenanta_secrettoken"
+    assert rec2.group_id == "tenant:forms.office.com:id=tenantb_secrettoken"
+    assert rec1.group_id != rec2.group_id
+
+    # 2. Normalized URL dùng cho mô hình vẫn được che an toàn:
+    assert rec1.normalized_url == "https://forms.office.com/Pages/ResponsePage.aspx?id=_redacted_"
+    assert rec2.normalized_url == "https://forms.office.com/Pages/ResponsePage.aspx?id=_redacted_"
+
+
+# ---------------------------------------------------------------------------
+# 5. Checksum HTML & Xuất xứ (Khắc phục Probe 4)
+# ---------------------------------------------------------------------------
+def test_html_checksum_mismatch_detected_and_excluded():
+    """Probe 4: Hash HTML nguồn sai lệch với HTML thực tế phải bị phát hiện và gắn cờ loại trừ."""
+    locator = {"source_id": "test", "shard": "test", "row_offset": 0}
+    actual_html = "<html><body>Genuine HTML content</body></html>"
+
+    rec = adapt_source_row_to_record(
+        sample_id="HASH-ERR-01",
+        source_id="phreshphish",
+        source_revision="r1",
+        source_split="train",
+        locator=locator,
+        raw_url="https://example.com/",
+        raw_html=actual_html,
+        raw_date="2025-01-01",
+        raw_label="phish",
+        precomputed_html_sha256="fake_sha256_provided_by_malicious_probe",
+    )
+
+    assert rec.html_integrity_status == "mismatch"
+    assert rec.exclusion_reason is not None
+    assert "html_sha256_mismatch" in rec.exclusion_reason
+
+
+# ---------------------------------------------------------------------------
+# 6. Đọc lại đúng HTML từ Index Locator (Khắc phục Probe 6)
+# ---------------------------------------------------------------------------
+def test_reconstitute_html_from_locator(tmp_path):
+    """Chứng minh có thể đọc lại đúng HTML từ locator và đối chiếu mã băm chuẩn xác."""
+    shard_file = tmp_path / "train-000.parquet"
+    html_sample = "<html><head><title>Reconstitute Test</title></head><body>Hello</body></html>"
+    table = pa.Table.from_pydict({
+        "url": ["https://site.org/"],
+        "html": [html_sample],
+        "label": ["benign"],
+        "sha256": [None],
+        "date": ["2025-01-01"],
+        "lang": ["en"],
+    })
+    pq.write_table(table, shard_file)
+
+    records = list(load_phreshphish_shard(shard_file, is_real_data_mode=False))
+    assert len(records) == 1
+    rec = records[0]
+
+    # Đọc lại bằng hàm reconstitute
+    reconstituted = reconstitute_html_from_locator(rec, tmp_path)
+    assert reconstituted == html_sample
+
+    # Đọc lại từ index_dict
+    idx_dict = rec.to_index_dict()
+    reconstituted_from_dict = reconstitute_html_from_locator(idx_dict, tmp_path)
+    assert reconstituted_from_dict == html_sample
+
+
+# ---------------------------------------------------------------------------
+# 7. Metadata Ngày & Capture Mode (Khắc phục Probe 7)
+# ---------------------------------------------------------------------------
+def test_date_status_distinguishes_valid_missing_invalid():
+    """Phân biệt rõ ràng 3 trạng thái ngày: valid, missing, invalid."""
+    loc = {"source_id": "test", "shard": "test", "row_offset": 0}
+
+    # 1. Ngày hợp lệ
+    r_valid = adapt_source_row_to_record(
+        sample_id="D1", source_id="test", source_revision="r", source_split="train",
+        locator=loc, raw_url="https://a.com/", raw_html=None, raw_date="2025-01-15", raw_label="benign",
+    )
+    assert r_valid.date_status == "valid"
+    assert r_valid.collected_at == "2025-01-15"
+
+    # 2. Ngày thiếu (None hoặc rỗng)
+    r_missing = adapt_source_row_to_record(
+        sample_id="D2", source_id="test", source_revision="r", source_split="train",
+        locator=loc, raw_url="https://b.com/", raw_html=None, raw_date=None, raw_label="benign",
+    )
+    assert r_missing.date_status == "missing"
+    assert r_missing.collected_at is None
+
+    # 3. Ngày sai lịch (2024-02-30) phải ghi là invalid, không được ghi là missing
+    r_invalid = adapt_source_row_to_record(
+        sample_id="D3", source_id="test", source_revision="r", source_split="train",
+        locator=loc, raw_url="https://c.com/", raw_html=None, raw_date="2024-02-30", raw_label="benign",
+    )
+    assert r_invalid.date_status == "invalid"
+    assert r_invalid.collected_at is None
+    assert "invalid_calendar_date" in r_invalid.date_error
+    assert "invalid_calendar_date" in r_invalid.exclusion_reason
+
+
+def test_capture_mode_rendered_dom_preserved():
+    """Bảo toàn capture_mode='rendered_dom', không bị chuyển thành stored_html."""
+    loc = {"source_id": "test", "shard": "test", "row_offset": 0}
+    rec = CorpusRecord(
+        sample_id="DOM-01",
+        source_id="test",
+        source_revision="r",
+        source_split="train",
+        locator=loc,
+        raw_url="https://dom-rendered.org/",
+        normalized_url="https://dom-rendered.org/",
+        group_id="domain:dom-rendered.org",
+        html_sha256="sha",
+        source_provided_html_sha256=None,
+        html_integrity_status="computed_only",
+        language="en",
+        capture_mode="rendered_dom",
+        collected_at="2025-01-01",
+        date_status="valid",
+        date_error=None,
+        is_valid_url=True,
+        url_error=None,
+        source_label="phishing",
+        raw_source_label="phish",
+        label_status="verified_binary",
+        target=None,
+        exclusion_reason=None,
+        raw_html="<html><body>DOM snapshot</body></html>",
     )
 
     snapshot = rec.to_prepared_snapshot()
-
-    assert isinstance(snapshot, PreparedSnapshot)
-    assert snapshot.url == "https://evil-login.example.com/signin?user=_redacted_"
-    assert snapshot.capture_mode == "stored_html"
-
-    # Kiểm tra PreparedSnapshot chỉ có đúng 4 slots: url, html, capture_mode, preprocessing_version
-    snapshot_attrs = {name for name in dir(snapshot) if not name.startswith("_")}
-    assert snapshot_attrs == {"url", "html", "capture_mode", "preprocessing_version"}
-
-    # Hoàn toàn không rò rỉ label, target, group_id hay date
-    for forbidden in ("source_label", "label", "target", "group_id", "collected_at", "exclusion_reason"):
-        assert not hasattr(snapshot, forbidden)
+    assert snapshot.capture_mode == "rendered_dom"
+    assert snapshot.capture_mode != "stored_html"
 
 
-def test_to_prepared_snapshot_invalid_url_raises():
-    """Bản ghi có URL lỗi không được phép tạo PreparedSnapshot."""
-    rec = CorpusRecord(
-        sample_id="ERR-001",
-        source_id="phreshphish",
-        source_revision=None,
-        source_split="train",
-        collected_at=None,
-        raw_url="not_a_valid_url",
-        normalized_url=None,
-        html_sha256=None,
-        language="en",
-        capture_mode="url_only",
-        source_label="phishing",
-        target=None,
-        group_id="unknown_domain",
-        exclusion_reason="invalid_url: An absolute HTTP(S) URL is required",
-        is_valid_url=False,
-        url_error="An absolute HTTP(S) URL is required",
-    )
-    with pytest.raises(ValueError, match="Không thể tạo PreparedSnapshot"):
-        rec.to_prepared_snapshot()
+# ---------------------------------------------------------------------------
+# 8. ID ổn định & Độc lập Shard (Khắc phục Probe 3)
+# ---------------------------------------------------------------------------
+def test_multi_shard_stable_unique_sample_ids(tmp_path):
+    """Hai shard khác nhau sinh ID khác nhau, không bao giờ đụng độ PP-TRAIN-000001."""
+    shard0 = tmp_path / "train-000.parquet"
+    shard1 = tmp_path / "train-001.parquet"
+
+    table0 = pa.Table.from_pydict({
+        "url": ["https://s0.com/"], "html": ["<html>0</html>"],
+        "label": ["phish"], "sha256": [None], "date": ["2025-01-01"], "lang": ["en"],
+    })
+    table1 = pa.Table.from_pydict({
+        "url": ["https://s1.com/"], "html": ["<html>1</html>"],
+        "label": ["benign"], "sha256": [None], "date": ["2025-01-01"], "lang": ["en"],
+    })
+    pq.write_table(table0, shard0)
+    pq.write_table(table1, shard1)
+
+    recs0 = list(load_phreshphish_shard(shard0, is_real_data_mode=False))
+    recs1 = list(load_phreshphish_shard(shard1, is_real_data_mode=False))
+
+    assert recs0[0].sample_id == "PP-train-000-R000000"
+    assert recs1[0].sample_id == "PP-train-001-R000000"
+    assert recs0[0].sample_id != recs1[0].sample_id
 
 
-def test_normalize_record_url_fallbacks():
-    """Kiểm tra chuẩn hóa URL và các tình huống scheme fallback xác định."""
-    # 1. URL chuẩn
-    norm, ok, err = normalize_record_url("https://bank.com/portal")
-    assert ok is True
-    assert norm == "https://bank.com/portal"
-    assert err is None
-
-    # 2. URL thiếu scheme -> tự động thêm https://
-    norm, ok, err = normalize_record_url("my-secure-bank.com/account")
-    assert ok is True
-    assert norm == "https://my-secure-bank.com/account"
-    assert err is None
-
-    # 3. Protocol-relative //
-    norm, ok, err = normalize_record_url("//sub.domain.com/login")
-    assert ok is True
-    assert norm == "https://sub.domain.com/login"
-    assert err is None
-
-    # 4. URL rỗng hoặc không hợp lệ
-    norm, ok, err = normalize_record_url("   ")
-    assert ok is False
-    assert norm is None
-    assert "empty" in err
-
-    norm, ok, err = normalize_record_url("https:// invalid space .com")
-    assert ok is False
-    assert norm is None
-    assert err is not None
-
-
-def test_adapt_source_row_with_pilot_exclusion():
-    """Kiểm tra adapter phát hiện mẫu thuộc ExclusionRegistry và gán exclusion_reason."""
-    registry = ExclusionRegistry()
-
-    # Mẫu bình thường không thuộc pilot
-    clean_rec = adapt_source_row_to_record(
-        sample_id="SAMP-CLEAN",
-        source_id="phreshphish",
-        source_revision="rev-1",
-        source_split="train",
-        raw_url="https://normal-unrelated-domain-2026.edu/page",
-        raw_html="<html><body>Normal clean page</body></html>",
-        raw_date="2025-05-10",
-        source_label="benign",
-        exclusion_registry=registry,
-    )
-    assert clean_rec.exclusion_reason is None
-    assert clean_rec.is_valid_url is True
-
-    # Mẫu có cấu trúc trùng khớp với pilot trong exclusion registry
-    pilot_match_rec = adapt_source_row_to_record(
-        sample_id="SAMP-PILOT",
-        source_id="phreshphish",
-        source_revision="rev-1",
-        source_split="train",
-        raw_url="https://pilot-test-fake.org/login",
-        raw_html="x" * 518982,
-        raw_date="2025-05-10",
-        source_label="benign",
-        language="en",
-        exclusion_registry=registry,
-    )
-    # Nếu fingerprint hoặc html_chars khớp pilot_row_idx 0 (html_chars: 518982)
-    # Lưu ý: registry kiểm tra summary_fingerprint_hash
-    sample_query = {
-        "pilot_row_idx": 0,
-        "label": "benign",
-        "lang": "en",
-        "html_chars": 518982,
-        "text_chars": 27006,
-        "forms": 2,
-        "inputs": 14,
-        "password_inputs": 0,
-    }
-    assert registry.is_excluded(sample_query) is True
-
-
-def test_build_corpus_index_and_manifest(tmp_path):
-    """Kiểm tra tổng hợp index, tính toán manifest, và phát hiện trùng lặp sample_id."""
-    records = [
-        CorpusRecord(
-            sample_id="ID-001",
-            source_id="phreshphish",
-            source_revision="r1",
-            source_split="train",
-            collected_at="2025-03-01",
-            raw_url="https://site1.com",
-            normalized_url="https://site1.com/",
-            html_sha256="h1",
-            language="en",
-            capture_mode="stored_html",
-            source_label="phishing",
-            target="PayPal",
-            group_id="site1.com",
-            exclusion_reason=None,
-        ),
-        CorpusRecord(
-            sample_id="ID-002",
-            source_id="phishvn",
-            source_revision="v3",
-            source_split="train",
-            collected_at=None,
-            raw_url="https://site2.vn",
-            normalized_url="https://site2.vn/",
-            html_sha256=None,
-            language="vi",
-            capture_mode="url_only",
-            source_label="benign",
-            target=None,
-            group_id="site2.vn",
-            exclusion_reason=None,
-        ),
-        CorpusRecord(
-            sample_id="ID-003",
-            source_id="phreshphish",
-            source_revision="r1",
-            source_split="train",
-            collected_at="2025-04-01",
-            raw_url="invalid_url",
-            normalized_url=None,
-            html_sha256=None,
-            language="en",
-            capture_mode="url_only",
-            source_label="phishing",
-            target=None,
-            group_id="unknown_domain",
-            exclusion_reason="invalid_url: An absolute HTTP(S) URL is required",
-            is_valid_url=False,
-            url_error="An absolute HTTP(S) URL is required",
-        ),
-    ]
-
-    out_index = tmp_path / "corpus_index.jsonl"
-    out_manifest = tmp_path / "index_manifest.json"
-
-    indexed, manifest = build_corpus_index(
-        records,
-        output_index_path=out_index,
-        output_manifest_path=out_manifest,
-    )
-
-    assert len(indexed) == 3
-    assert out_index.exists()
-    assert out_manifest.exists()
-
-    assert manifest["total_records"] == 3
-    assert manifest["valid_urls"] == 2
-    assert manifest["invalid_urls"] == 1
-    assert manifest["valid_dates"] == 2
-    assert manifest["missing_dates"] == 1
-    assert manifest["class_distribution"] == {"phishing": 2, "benign": 1}
-    assert manifest["source_distribution"] == {"phreshphish": 2, "phishvn": 1}
-    assert manifest["total_excluded_records"] == 1
-    assert "index_file_sha256" in manifest
-
-    # Kiểm tra trùng lặp sample_id ném lỗi
-    duplicate_records = list(records) + [records[0]]
-    with pytest.raises(ValueError, match="sample_id trùng lặp"):
-        build_corpus_index(duplicate_records)
-
-
-def test_extract_labels_vault():
-    """Kiểm tra trích xuất Ground Truth Labels Vault bảo mật cho Thành viên C."""
-    records = [
-        CorpusRecord(
-            sample_id="VAULT-01",
-            source_id="phreshphish",
-            source_revision="r1",
-            source_split="train",
-            collected_at="2025-03-01",
-            raw_url="https://site1.com",
-            normalized_url="https://site1.com/",
-            html_sha256="h1",
-            language="en",
-            capture_mode="stored_html",
-            source_label="phishing",
-            target="Amazon",
-            group_id="site1.com",
-            exclusion_reason=None,
-        ),
-    ]
-
-    vault = extract_labels_vault(records)
-    assert "VAULT-01" in vault
-    assert vault["VAULT-01"]["source_label"] == "phishing"
-    assert vault["VAULT-01"]["target"] == "Amazon"
-    assert vault["VAULT-01"]["group_id"] == "site1.com"
-
-
-def test_load_phreshphish_shard_mock(tmp_path):
-    """Kiểm tra đọc dữ liệu shard Parquet thông qua bảng pyarrow giả lập."""
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-
-    shard_file = tmp_path / "mock_train-000.parquet"
-    data = {
-        "url": ["https://login.fake-paypal.com", "https://news.bbc.co.uk", "bad url"],
-        "html": ["<html>Login</html>", "<html>BBC News</html>", None],
-        "label": ["phish", "benign", "phish"],
-        "sha256": ["sha_phish", "sha_benign", None],
-        "date": ["2024-11-01", "2024-11-02", "invalid-date"],
-        "lang": ["en", "en", "en"],
-    }
-    table = pa.Table.from_pydict(data)
-    pq.write_table(table, shard_file)
-
-    records = list(load_phreshphish_shard(shard_file, id_prefix="TEST-PP", start_index=10))
-
-    assert len(records) == 3
-    assert records[0].sample_id == "TEST-PP-000010"
-    assert records[0].source_label == "phishing"
-    assert records[0].collected_at == "2024-11-01"
-    assert records[0].group_id == "domain:fake-paypal.com"
-    assert records[0].is_valid_url is True
-
-    assert records[1].sample_id == "TEST-PP-000011"
-    assert records[1].source_label == "benign"
-    assert records[1].group_id == "domain:bbc.co.uk"
-
-    # Mẫu thứ 3 có URL lỗi và date lỗi
-    assert records[2].sample_id == "TEST-PP-000012"
-    assert records[2].is_valid_url is False
-    assert records[2].collected_at is None
-    assert records[2].exclusion_reason is not None
-
-
-def test_load_phishvn_records_mock(tmp_path):
-    """Kiểm tra đọc nguồn PhishVN từ tệp CSV giả lập."""
-    csv_file = tmp_path / "mock_phishvn.csv"
-    csv_content = (
-        "url,label,source,tier,scenario,split,lang,domain\n"
-        "https://techcombank-fake.xyz,phishing,chongluadao,bronze,bank,train,vi,techcombank-fake.xyz\n"
-        "https://dantri.com.vn,benign,tranco,gold,other,train,vi,dantri.com.vn\n"
-    )
-    csv_file.write_text(csv_content, encoding="utf-8-sig")
-
-    records = list(load_phishvn_records(csv_file, id_prefix="TEST-PVN"))
-
-    assert len(records) == 2
-    assert records[0].sample_id == "TEST-PVN-000001"
-    assert records[0].source_label == "phishing"
-    assert records[0].target == "bank"
-    assert records[0].group_id == "domain:techcombank-fake.xyz"
-    assert records[0].language == "vi"
-
-    assert records[1].sample_id == "TEST-PVN-000002"
-    assert records[1].source_label == "benign"
-    assert records[1].target == "other"
-    assert records[1].group_id == "domain:dantri.com.vn"
-
-
-def test_cli_index_corpus_synthetic(tmp_path):
-    """Kiểm thử end-to-end công cụ dòng lệnh index_corpus.py trên tệp JSONL."""
-    jsonl_file = tmp_path / "sample_data.jsonl"
+# ---------------------------------------------------------------------------
+# 9. CLI Index Corpus Tests (Non-overwrite, Registry requirement, Provenance)
+# ---------------------------------------------------------------------------
+def test_cli_index_corpus_fixture_and_non_overwrite(tmp_path):
+    """Kiểm tra CLI trên fixture, bảo vệ chống ghi đè và xuất manifest đầy đủ."""
+    fixture_file = tmp_path / "fixture.jsonl"
     rows = [
         {"url": "https://auth.company.com/login", "label": "phishing", "date": "2025-01-10", "lang": "en"},
         {"url": "https://portal.service.gov.vn", "label": "benign", "date": "2025-02-15", "lang": "vi"},
     ]
-    with open(jsonl_file, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r) + "\n")
+    fixture_file.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
 
-    out_dir = tmp_path / "indexed_output"
+    out_dir = tmp_path / "index_run_1"
 
+    # Chạy lần đầu
     cmd = [
-        sys.executable,
-        str(Path(__file__).resolve().parent.parent / "scripts" / "data" / "index_corpus.py"),
+        sys.executable, str(CLI_PATH),
         "--source", "jsonl",
-        "--input-path", str(jsonl_file),
+        "--input-path", str(fixture_file),
         "--output-dir", str(out_dir),
-        "--id-prefix", "CLI-TEST",
+        "--allow-unverified-fixture",
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    assert result.returncode == 0
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=PROJECT_ROOT)
+    assert proc.returncode == 0, f"Lỗi CLI: {proc.stderr}"
 
     assert (out_dir / "corpus_index.jsonl").exists()
+    assert (out_dir / "restricted_vault.jsonl").exists()
     assert (out_dir / "index_manifest.json").exists()
 
     manifest = json.loads((out_dir / "index_manifest.json").read_text(encoding="utf-8"))
-    assert manifest["total_records"] == 2
-    assert manifest["valid_urls"] == 2
-    assert manifest["class_distribution"] == {"phishing": 1, "benign": 1}
+    assert manifest["ready_for_training"] is False
+    assert manifest["training_readiness_status"] == "audit_only_training_blocked"
+    assert "index_file_sha256" in manifest
+    assert "vault_file_sha256" in manifest
+
+    # Chạy lần 2 vào cùng thư mục mà KHÔNG có --overwrite -> phải thất bại (Probe 3)
+    proc2 = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=PROJECT_ROOT)
+    assert proc2.returncode != 0
+    assert "--overwrite" in proc2.stderr or "--overwrite" in proc2.stdout
+
+    # Chạy với --overwrite -> thành công
+    cmd_overwrite = cmd + ["--overwrite"]
+    proc3 = subprocess.run(cmd_overwrite, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=PROJECT_ROOT)
+    assert proc3.returncode == 0
+
+
+def test_cli_real_data_halts_without_registry(tmp_path):
+    """Probe 1: Chế độ dữ liệu thật phải dừng ngay lập tức nếu thiếu ExclusionRegistry."""
+    mock_shard = tmp_path / "train-000.parquet"
+    table = pa.Table.from_pydict({
+        "url": ["https://s0.com/"], "html": ["<html>0</html>"],
+        "label": ["phish"], "sha256": [None], "date": ["2025-01-01"], "lang": ["en"],
+    })
+    pq.write_table(table, mock_shard)
+
+    out_dir = tmp_path / "out_real"
+    non_existent_reg = tmp_path / "non_existent_registry.json"
+
+    cmd = [
+        sys.executable, str(CLI_PATH),
+        "--source", "phreshphish",
+        "--input-path", str(mock_shard),
+        "--output-dir", str(out_dir),
+        "--exclusion-registry", str(non_existent_reg),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=PROJECT_ROOT)
+    assert proc.returncode != 0
+    assert ("bắt buộc phải có ExclusionRegistry" in proc.stderr or "bắt buộc phải có ExclusionRegistry" in proc.stdout)
