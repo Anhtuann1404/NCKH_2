@@ -6,7 +6,7 @@
     "phish": 20,
     "benign": 12
   },
-  "ready_for_annotation": false,
+  "ready_for_annotation": true,
   "codebook_version": "1.0.0",
   "codebook_status": "locked",
   "dictionary_version": "1.0.0",
@@ -54,6 +54,6 @@
   },
   "acceptance": {
     "B": "approved",
-    "D": "pending"
+    "D": "approved"
   }
 }

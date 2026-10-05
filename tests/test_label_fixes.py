@@ -77,8 +77,23 @@ def test_real_pilot_pending_review_cannot_create_human_labels(tmp_path):
     input_path = tmp_path / "pending.json"
     export_blind_view([], input_path, dataset_type="real_pilot_pending_review")
     output = tmp_path / "A.jsonl"
+    mock_manifest = tmp_path / "pending_manifest.json"
+    mock_manifest.write_text(json.dumps({
+        "dataset_id": "TEST",
+        "sample_count": 1,
+        "sampling_plan_version": "PLAN",
+        "codebook_version": "1.0.0",
+        "codebook_status": "locked",
+        "dictionary_version": "1.0.0",
+        "dictionary_status": "locked",
+        "acceptance": {"B": "approved", "D": "pending"},
+        "ready_for_annotation": False,
+        "blind_view_sha256": "dummy",
+        "codebook_sha256": "dummy",
+        "dictionary_sha256": "dummy",
+    }), encoding="utf-8")
     with pytest.raises(ValueError, match="nghiệm thu"):
-        cli.annotate_interactive_session("A", input_path, output)
+        cli.annotate_interactive_session("A", input_path, output, manifest_path=mock_manifest)
     assert not output.exists()
 
 

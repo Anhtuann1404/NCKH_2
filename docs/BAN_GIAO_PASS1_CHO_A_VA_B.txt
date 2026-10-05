@@ -1,0 +1,80 @@
+================================================================================
+HƯỚNG DẪN BÀN GIAO & KÍCH HOẠT GÁN NHÃN PASS 1 CHO THÀNH VIÊN A VÀ THÀNH VIÊN B
+Dự án: NCKH_2 — Phát hiện website phishing mạo danh tổ chức
+Gói dữ liệu: REAL-PILOT-32-V1 (Phiên bản chính thức 1.0.0 đã khóa)
+Người bàn giao: Thành viên C (Data Pipeline & Blind View)
+Người nhận: Thành viên A (Trần Hồng Khải) & Thành viên B (Phùng Tấn Minh)
+Căn cứ: Quyết định phê duyệt kích hoạt của Lead D (Anh Tuấn)
+================================================================================
+
+Kính gửi Thành viên A và Thành viên B,
+
+Tiểu ban Dữ liệu (Thành viên C) trân trọng thông báo: Gói dữ liệu Blind View thật
+REAL-PILOT-32-V1 (phiên bản 1.0.0) đã được Lead D chính thức phê duyệt nghiệm thu
+toàn diện và kích hoạt cờ gán nhãn trong manifest (acceptance.D: "approved",
+ready_for_annotation: true).
+
+Hai bạn được phép bắt đầu phiên gán nhãn Pass 1 độc lập có bấm giờ theo đúng các
+quy chuẩn nghiên cứu khoa học dưới đây:
+
+--------------------------------------------------------------------------------
+1. BẢNG THÔNG SỐ VÀ MÃ BĂM ĐỐI SOÁT TRƯỚC KHI BẮT ĐẦU
+--------------------------------------------------------------------------------
+Trước khi mở phiên gán nhãn, A và B vui lòng kiểm tra tính toàn vẹn của tệp
+view mù nhận được qua kênh riêng nội bộ:
+
+- Tên tệp: data/annotations/blind_view_pilot_real.json
+- Kích thước: 22,485 bytes
+- Mã SHA-256: 8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749
+- Số lượng mẫu: Đúng 32 mẫu (ID từ PILOT-001 đến PILOT-032).
+- Căn cứ quy tắc: docs/CODEBOOK_V1.md (SHA-256: 12de9c2f3b457938039b05c72c651d6650f403b620216516262134a3313a2ed1)
+- Căn cứ từ điển: configs/dictionary_v1.json (SHA-256: 7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3)
+
+Lệnh kiểm tra nhanh mã băm trong PowerShell:
+python -c "import hashlib, pathlib; b = pathlib.Path('data/annotations/blind_view_pilot_real.json').read_bytes(); print('Bytes:', len(b), 'SHA256 Match:', hashlib.sha256(b).hexdigest() == '8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749')"
+
+--------------------------------------------------------------------------------
+2. LỆNH KHỞI CHẠY PHIÊN GÁN NHÃN CÓ BẤM GIỜ TỰ ĐỘNG
+--------------------------------------------------------------------------------
+
+A. Dành cho Thành viên A (Trần Hồng Khải):
+Chạy lệnh sau tại thư mục gốc của dự án:
+  python scripts/annotate_cli.py --annotator A --input data/annotations/blind_view_pilot_real.json --output data/annotations/A/labels_pass1.jsonl --pass 1
+
+B. Dành cho Thành viên B (Phùng Tấn Minh):
+Chạy lệnh sau tại thư mục gốc của dự án:
+  python scripts/annotate_cli.py --annotator B --input data/annotations/blind_view_pilot_real.json --output data/annotations/B/labels_pass1.jsonl --pass 1
+
+*Lưu ý về Resume:* Nếu phiên bị gián đoạn, chỉ cần chạy lại đúng câu lệnh trên,
+CLI sẽ tự động đối soát 6 trường provenance, bỏ qua các mẫu đã hoàn thành và
+tiếp tục từ mẫu kế tiếp một cách an toàn.
+
+--------------------------------------------------------------------------------
+3. NGUYÊN TẮC KHOA HỌC BẮT BUỘC TRONG SUỐT PHIÊN GÁN NHÃN (ARS PROTOCOL)
+--------------------------------------------------------------------------------
+1. ĐỘC LẬP MÙ TUYỆT ĐỐI (BLIND & INDEPENDENT):
+   - A và B gán nhãn hoàn toàn độc lập. Tuyệt đối không trao đổi ý kiến, không
+     chia sẻ màn hình hoặc xem tệp kết quả của nhau trong suốt Pass 1.
+   - Bất kỳ thảo luận nào về ca khó chỉ được thực hiện ở Pass 2 (Adjudication)
+     sau khi Lead D và Thành viên C đã tính toán xong chỉ số Cohen's Kappa ban đầu.
+
+2. BẢO MẬT & AN TOÀN NỘI DUNG (ZERO NETWORK & NO SCRIPT EXECUTION):
+   - Chỉ đánh giá dựa trên văn bản và cấu trúc an toàn được CLI hiển thị.
+   - Tuyệt đối không mở URL sống trên trình duyệt thông thường ra Internet và
+     không thực thi JavaScript của các trang phishing.
+
+3. KHÔNG DÙNG AI ĐỂ QUYẾT ĐỊNH NHÃN:
+   - Quyết định nhãn lớp và nhận diện thương hiệu phải xuất phát 100% từ nhận định
+     và quan sát độc lập của con người. Tuyệt đối không dùng LLM/AI để gán nhãn hộ.
+
+4. ĐỒNG HỒ BẤM GIỜ THỰC TẾ:
+   - Thời gian gán nhãn (seconds_spent) được bấm giờ tự động ngay từ khi hiển thị
+     nội dung mẫu đến khi nhấn phím lưu nhãn. Các thao tác đọc phân trang ('v', 'm')
+     đều được tính trọn vẹn vào thời gian đánh giá. Vui lòng tập trung khi mở mẫu.
+
+5. BẢO TOÀN DỮ LIỆU HUẤN LUYỆN (ANTI-LEAKAGE):
+   - Chốt chặn data/exclusion_registry.json tiếp tục duy trì `training_blocked: true`.
+   - Việc mở phiên gán nhãn pilot tuyệt đối không mở quyền huấn luyện mô hình chính.
+
+Chúc hai bạn hoàn thành xuất sắc lượt gán nhãn Pass 1!
+================================================================================

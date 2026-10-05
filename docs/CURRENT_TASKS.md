@@ -50,7 +50,7 @@ Bằng chứng: [dictionary_v1.json](../configs/dictionary_v1.json), [CODEBOOK_V
 
 ### LABEL-01 — View mù và pilot có bấm giờ
 
-Status: IN_PROGRESS (C đã có công cụ và gói real32 local, chờ khóa codebook/nghiệm thu B/D; chưa có nhãn người). Owner: C tạo view; A/B đọc độc lập. Phụ thuộc: DATA-02.
+Status: READY_FOR_ANNOTATION (Lead D đã phê duyệt gói khóa cuối REAL-PILOT-32-V1; acceptance.D="approved", ready_for_annotation=true. A và B được bàn giao để bắt đầu Pass 1 độc lập có bấm giờ). Owner: C tạo view & rào chắn; A/B đọc độc lập. Phụ thuộc: DATA-02.
 
 Đã hoàn thành toàn diện phần việc của Thành viên C (bao gồm giải quyết 6 điểm review của Lead D):
 1. **Module Blind View & Anti-Leakage:** [`blind_view.py`](../src/phishing/annotation/blind_view.py) loại bỏ triệt để script, iframe, inline events, form values. Triển khai cơ chế Allowlist chặt chẽ (`ALLOWED_BLIND_SAMPLE_KEYS`, `ALLOWED_STRUCTURE_SUMMARY_KEYS`), kiểm tra ID mẫu trung tính (`assert_neutral_sample_id` từ chối các chuỗi chứa nhãn như phish/benign hay tên thương hiệu 14 tổ chức), và cấm tiền tố/hậu tố rò rỉ (`annotation_`, `rater_`, `model_`, `_label`, `_score`).
