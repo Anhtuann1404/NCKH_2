@@ -114,7 +114,7 @@ def calculate_composite_code_sha256(code_hashes: Dict[str, str]) -> str:
     return hasher.hexdigest()
 
 
-def main() -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="NCKH_2 Anti-Leakage Data Splitting Tool (Grouped 5-Fold & Temporal 60/20/20)."
     )
@@ -130,7 +130,7 @@ def main() -> int:
     parser.add_argument("--skip-temporal", action="store_true", help="Deliberately skip temporal split if dates not available.")
     parser.add_argument("--overwrite", action="store_true", help="Allow overwriting existing artifacts in output-dir.")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # 1. Kiểm tra cấu hình và tham số dòng lệnh trước tiên
     if args.n_splits < 3:
@@ -420,21 +420,50 @@ def main() -> int:
         with open(stg_manifest_file, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-        # 11. CÔNG BỐ ATOMIC: Toàn bộ artifacts trong staging đã hoàn tất và kiểm tra hợp lệ
+        # 11. CÔNG BỐ ATOMIC CÓ BACKUP & ROLLBACK (Khắc phục Điểm 1 của Lead D):
+        # Nếu output_dir đã có tệp từ run trước, sao lưu toàn bộ vào backup_dir trước khi xuất bản.
+        # Nếu xảy ra bất kỳ lỗi nào trong quá trình xóa/chuyển tệp, khôi phục nguyên vẹn 100% run cũ.
         output_dir.mkdir(parents=True, exist_ok=True)
+        backup_dir = None
+        existing_items = list(output_dir.iterdir())
+        if existing_items:
+            backup_dir = output_dir.parent / f".backup_{output_dir.name}_{uuid.uuid4().hex[:8]}"
+            shutil.copytree(output_dir, backup_dir)
 
-        # Xử lý rõ ràng artifact temporal của run trước khi overwrite hoặc skip (Khắc phục Probe 3)
-        old_temporal = output_dir / "temporal_splits.json"
-        if args.skip_temporal or temporal_sha256 is None:
-            if old_temporal.exists():
+        publish_success = False
+        try:
+            # Xử lý rõ ràng artifact temporal của run trước khi overwrite hoặc skip (Khắc phục Probe 3)
+            old_temporal = output_dir / "temporal_splits.json"
+            if (args.skip_temporal or temporal_sha256 is None) and old_temporal.exists():
                 old_temporal.unlink()
 
-        # Sao chép/di chuyển từng tệp từ staging sang output_dir
-        for stg_item in staging_dir.iterdir():
-            target_item = output_dir / stg_item.name
-            if target_item.exists():
-                target_item.unlink()
-            shutil.move(str(stg_item), str(target_item))
+            # Sao chép/di chuyển từng tệp từ staging sang output_dir
+            for stg_item in list(staging_dir.iterdir()):
+                target_item = output_dir / stg_item.name
+                if target_item.exists():
+                    target_item.unlink()
+                shutil.move(str(stg_item), str(target_item))
+            publish_success = True
+        except Exception as exc:
+            print(f"[!] Lỗi khi công bố artifacts sang {output_dir}: {exc}. Đang tiến hành rollback...", file=sys.stderr)
+            # Xóa các tệp dở dang trong output_dir
+            for item in list(output_dir.iterdir()):
+                if item.is_file() or item.is_symlink():
+                    item.unlink(missing_ok=True)
+                elif item.is_dir():
+                    shutil.rmtree(item, ignore_errors=True)
+
+            if backup_dir and backup_dir.exists():
+                for bkp_item in backup_dir.iterdir():
+                    if bkp_item.is_file():
+                        shutil.copy2(bkp_item, output_dir / bkp_item.name)
+                    elif bkp_item.is_dir():
+                        shutil.copytree(bkp_item, output_dir / bkp_item.name)
+                print(f"[!] Đã khôi phục hoàn toàn trạng thái artifacts trước đó từ backup.", file=sys.stderr)
+            raise
+        finally:
+            if backup_dir and backup_dir.exists():
+                shutil.rmtree(backup_dir, ignore_errors=True)
 
         print(f"[+] Saved Group index: {output_dir / 'groups.json'} ({len(group_counts)} groups)")
         print(f"[+] Saved Grouped {args.n_splits}-Fold splits: {output_dir / 'grouped_5fold_splits.json'}")

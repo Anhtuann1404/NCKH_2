@@ -624,3 +624,104 @@ class TestLeadDProbesRegression:
         assert len(psl_bytes) > 0
         assert len(psl_sha) == 64
 
+    def test_temporal_split_malware_defacement_fails_binary_evaluability(self) -> None:
+        """Lead D phản biện Điểm 2: Tập chỉ chứa malware/defacement phải trả status='not_evaluable'."""
+        records = [
+            {
+                "sample_id": f"S{i}",
+                "url": f"https://domain{i}.com/",
+                "class_label": "malware" if i % 2 == 0 else "defacement",
+                "collected_at": f"2025-01-{(i % 28) + 1:02d}",
+            }
+            for i in range(30)
+        ]
+        res = generate_temporal_split(records)
+        assert res["status"] == "not_evaluable"
+        assert res["evaluability"]["train"]["status"] == "not_evaluable"
+        assert res["evaluability"]["validation"]["status"] == "not_evaluable"
+        assert res["evaluability"]["test"]["status"] == "not_evaluable"
+        assert "binary classes" in res["evaluability"]["train"]["reason"]
+
+    def test_publish_failure_triggers_full_rollback_preserves_old_artifacts(self, tmp_path: Path, monkeypatch) -> None:
+        """Lead D phản biện Điểm 1: Lỗi khi chuyển file ở bước công bố phải kích hoạt rollback 100% run cũ."""
+        import contextlib
+        import io
+        import shutil
+        import hashlib
+        from scripts.data import generate_splits
+
+        records_run1 = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(20)
+        ]
+        in_file1 = tmp_path / "corpus1.jsonl"
+        in_file1.write_text("\n".join(json.dumps(r) for r in records_run1) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_published"
+
+        buf_out = io.StringIO()
+        buf_err = io.StringIO()
+
+        # 1. Chạy run 1 thành công
+        with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+            exit_code1 = generate_splits.main([
+                "--input", str(in_file1),
+                "--output-dir", str(out_dir),
+                "-k", "3",
+                "--seeds", "42",
+            ])
+        assert exit_code1 == 0
+        assert (out_dir / "groups.json").exists()
+        assert (out_dir / "grouped_5fold_splits.json").exists()
+        assert (out_dir / "temporal_splits.json").exists()
+        assert (out_dir / "manifest.json").exists()
+
+        # Lưu lại SHA-256 của cả 4 artifact của run 1
+        original_hashes = {
+            f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+            for f in out_dir.iterdir() if f.is_file()
+        }
+        assert len(original_hashes) == 4
+
+        # 2. Chuẩn bị run 2 với dữ liệu mới
+        records_run2 = [
+            {"sample_id": f"NEW_{i}", "url": f"https://newdomain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-02-{i+1:02d}"}
+            for i in range(20)
+        ]
+        in_file2 = tmp_path / "corpus2.jsonl"
+        in_file2.write_text("\n".join(json.dumps(r) for r in records_run2) + "\n", encoding="utf-8")
+
+        # Mock shutil.move: gây lỗi ở tệp thứ hai khi đang chuyển từ staging sang output_dir
+        real_move = shutil.move
+        move_call_count = 0
+
+        def flaky_move(src, dst):
+            nonlocal move_call_count
+            if str(out_dir) in str(dst):
+                move_call_count += 1
+                if move_call_count >= 2:
+                    raise OSError("Probe simulated disk crash on 2nd file move")
+            return real_move(src, dst)
+
+        monkeypatch.setattr(shutil, "move", flaky_move)
+
+        # Chạy run 2 với --overwrite -> bắt buộc phải raise OSError
+        with pytest.raises(OSError, match="Probe simulated disk crash"):
+            with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+                generate_splits.main([
+                    "--input", str(in_file2),
+                    "--output-dir", str(out_dir),
+                    "-k", "3",
+                    "--seeds", "42",
+                    "--overwrite",
+                ])
+
+        # 3. KIỂM ĐỊNH ROLLBACK: Toàn bộ 4 artifact cũ phải được khôi phục nguyên vẹn 100%
+        current_hashes = {
+            f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+            for f in out_dir.iterdir() if f.is_file()
+        }
+        assert current_hashes == original_hashes, "Rollback thất bại: artifacts cũ bị mất hoặc bị trộn với run mới!"
+        # Đảm bảo không còn backup sót lại
+        backup_dirs = list(out_dir.parent.glob(f".backup_{out_dir.name}_*"))
+        assert len(backup_dirs) == 0, "Thư mục backup chưa được dọn dẹp sạch!"
+

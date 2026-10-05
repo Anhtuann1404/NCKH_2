@@ -573,13 +573,10 @@ def generate_temporal_split(
     # 4. Đánh giá tính khả dụng (Evaluability Status)
     all_labels = sorted({e["label"] for e in valid_entries if e["label"] != "unlabeled"})
     has_labels = len(all_labels) > 0
-    target_classes: List[str]
-    if any(lbl.lower() in {"phishing", "phish", "benign"} for lbl in all_labels):
-        target_classes = ["phishing", "benign"]
-    elif has_labels:
-        target_classes = all_labels
-    else:
-        target_classes = []
+    # Bắt buộc bài toán nhị phân phát hiện website lừa đảo (phishing vs benign).
+    # Các nhãn ngoài phạm vi (malware, defacement, unknown) KHÔNG đủ điều kiện phân loại nhị phân.
+    target_classes: List[str] = ["phishing", "benign"] if has_labels else []
+    missing_corpus_targets = [lbl for lbl in target_classes if lbl not in all_labels]
 
     train_labels = Counter(e["label"] for e in raw_train_entries)
     val_labels_raw = Counter(e["label"] for e in raw_val_entries)
@@ -593,9 +590,12 @@ def generate_temporal_split(
         train_eval_status = "not_evaluable"
         train_eval_reason = "Train set is empty"
     elif has_labels:
-        if len(all_labels) < 2:
+        if len(all_labels) < 2 or missing_corpus_targets:
             train_eval_status = "not_evaluable"
-            train_eval_reason = f"Corpus lacks binary classes (found only {all_labels}; both phishing and benign required)"
+            train_eval_reason = (
+                f"Corpus lacks binary classes (found {all_labels}; "
+                f"both phishing and benign required, missing: {missing_corpus_targets or target_classes})"
+            )
         elif any(train_labels.get(lbl, 0) == 0 for lbl in target_classes):
             train_eval_status = "not_evaluable"
             missing = [lbl for lbl in target_classes if train_labels.get(lbl, 0) == 0]
@@ -607,9 +607,12 @@ def generate_temporal_split(
         val_eval_status = "not_evaluable"
         val_eval_reason = "All validation samples purged due to group overlap with train"
     elif has_labels:
-        if len(all_labels) < 2:
+        if len(all_labels) < 2 or missing_corpus_targets:
             val_eval_status = "not_evaluable"
-            val_eval_reason = f"Corpus lacks binary classes (found only {all_labels}; both phishing and benign required)"
+            val_eval_reason = (
+                f"Corpus lacks binary classes (found {all_labels}; "
+                f"both phishing and benign required, missing: {missing_corpus_targets or target_classes})"
+            )
         elif any(val_labels_clean.get(lbl, 0) == 0 for lbl in target_classes):
             val_eval_status = "not_evaluable"
             missing = [lbl for lbl in target_classes if val_labels_clean.get(lbl, 0) == 0]
@@ -621,9 +624,12 @@ def generate_temporal_split(
         test_eval_status = "not_evaluable"
         test_eval_reason = "All test samples purged due to group overlap with past (train/val)"
     elif has_labels:
-        if len(all_labels) < 2:
+        if len(all_labels) < 2 or missing_corpus_targets:
             test_eval_status = "not_evaluable"
-            test_eval_reason = f"Corpus lacks binary classes (found only {all_labels}; both phishing and benign required)"
+            test_eval_reason = (
+                f"Corpus lacks binary classes (found {all_labels}; "
+                f"both phishing and benign required, missing: {missing_corpus_targets or target_classes})"
+            )
         elif any(test_labels_clean.get(lbl, 0) == 0 for lbl in target_classes):
             test_eval_status = "not_evaluable"
             missing = [lbl for lbl in target_classes if test_labels_clean.get(lbl, 0) == 0]
