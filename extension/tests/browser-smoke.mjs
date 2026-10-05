@@ -6,8 +6,10 @@ import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { checkedPython } from './python.mjs';
 
 const project = path.resolve('..');
+const python = checkedPython(project);
 const builtExtension = path.resolve('dist');
 const fixtures = path.join(project, 'tests/fixtures/demo_pages');
 const token = 'synthetic-fixture-token-never-use-in-production';
@@ -66,7 +68,7 @@ async function startAPI(scenario = 'warning', delay = 0) {
   let occupied = false;
   try { await fetch(`${apiOrigin}/health`); occupied = true; } catch { /* no service listening */ }
   if (occupied) throw new Error('Port 8765 is already in use; this test will not stop an unrelated service.');
-  processAPI = spawn(path.join(project, '.venv/bin/python'), (scenario === 'synthetic_model' ? ['scripts/run_demo_model_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--requests-per-minute', '300'] : ['scripts/run_mock_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--scenario', scenario, '--delay-ms', String(delay)]), {
+  processAPI = spawn(python, (scenario === 'synthetic_model' ? ['scripts/run_demo_model_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--requests-per-minute', '300'] : ['scripts/run_mock_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--scenario', scenario, '--delay-ms', String(delay)]), {
     cwd: project, env: { ...process.env, PYTHONPATH: 'src', PHISHING_LOCAL_API_TOKEN: token }, stdio: ['ignore', 'ignore', 'pipe'],
   });
   let stderr = '';

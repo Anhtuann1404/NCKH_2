@@ -6,8 +6,10 @@ import { mkdtemp, readFile, rm, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { checkedPython } from './python.mjs';
 
 const project = path.resolve('..');
+const python = checkedPython(project);
 const temporary = await mkdtemp(path.join(tmpdir(), 'nckh-parity-'));
 const wrap = body => '<!doctype html><html><head><meta charset="utf-8"><title>Synthetic parity</title></head><body>' + body + '</body></html>';
 const fixtures = [
@@ -50,7 +52,7 @@ try {
   const input = path.join(temporary, 'fixtures.json');
   await writeFile(input, JSON.stringify(captured));
   const result = await new Promise((resolve, reject) => {
-    const child = spawn(path.join(project, '.venv/bin/python'), ['scripts/check_snapshot_parity.py', '--input', input],
+    const child = spawn(python, ['scripts/check_snapshot_parity.py', '--input', input],
       { cwd: project, env: { ...process.env, PYTHONPATH: 'src', PYTHONDONTWRITEBYTECODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
     child.stdout.on('data', data => { stdout += data; }); child.stderr.on('data', data => { stderr += data; });

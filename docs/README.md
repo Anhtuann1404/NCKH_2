@@ -53,3 +53,5 @@ D là lead/owner model và API–extension; A Trần Hồng Khải gán nhãn, B
 - [source_manifest.example.json](../configs/source_manifest.example.json): biểu mẫu ghi nguồn, quyền và checksum; không coi giá trị trống là đã xác minh.
 
 Đề cương, ghi chú và tài liệu triển khai hiện nằm trong `docs/`; lịch sử nằm trong `docs/archive/`. Giữ một bản đề cương hiện hành, không tạo thêm bản sao.
+
+Hướng dẫn Windows/PowerShell, checklist review demo và checker đầu vào fixture nằm trong [DEVELOPMENT](DEVELOPMENT.md). Research training vẫn bị chặn; Windows cần thành viên kiểm thực tế.

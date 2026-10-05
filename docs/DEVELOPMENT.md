@@ -296,3 +296,76 @@ Browser smoke hiện có 15 checks (benchmark bật latency thêm một check =>
 Report chỉ lưu chữ ký đặc trưng/hashes/count và tên fixture; input HTML tạm được xóa sau test. Snapshot lớn được giữ trong RAM test, không lưu corpus. Giới hạn snapshot phía JS dùng độ dài UTF-16 còn Python dùng số codepoint; JSON API còn có giới hạn byte UTF-8. Sáu fixture không chứng minh mọi encoding/trang thật đều tương đương. Các limits được xử lý bằng lỗi, không cắt nội dung để làm thành dự đoán hoàn chỉnh. Số đo độ trễ trước đó vẫn thuộc fixture nhỏ; các ca DOM lớn không nằm trong mẫu p50/p95.
 
 Bản này chỉ thêm kiểm chứng và báo cáo: không đổi preprocessing/features version, không làm mới bundle hoặc mở chốt training thật.
+
+## Windows và checklist bàn giao — 05/10/2026
+
+Nhánh D: `codex/d-demo-integration`, PR #3. Clone nhánh này để review; chưa gộp adapter C. Logic chọn interpreter Windows đã có test, nhưng chưa chạy thực tế trên Windows. B cần ghi OS/Python/Node/Chrome và kết quả để xác nhận.
+
+### Windows / PowerShell
+
+Từ repo gốc, dùng Python 3.14 phù hợp lock demo:
+
+```powershell
+py -3.14 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+.\.venv\Scripts\python.exe scripts/check_training_inputs.py --demo-fixture
+cd extension
+npm ci
+npx playwright install chromium
+npm test
+npm run test:browser
+npm run test:parity
+cd ..
+```
+
+Nếu cài lock thất bại, gửi lỗi và phiên bản môi trường cho D; không tự nới version. Tests chọn `.venv/Scripts/python.exe` trên Windows và `.venv/bin/python` trên macOS/Linux. Có thể đặt `$env:PHISHING_PYTHON = (Resolve-Path .\.venv\Scripts\python.exe).Path` từ repo gốc để chọn interpreter riêng; giá trị là đường dẫn executable, không kèm tham số. macOS/Linux dùng `export PHISHING_PYTHON=/absolute/path/to/python`. Tests kiểm interpreter/dependency trước khi mở Chromium.
+
+Trong Chrome mở `chrome://extensions`, bật Developer mode, Load unpacked → `extension/dist`, copy ID trên máy mình. Chạy API ở terminal tại repo gốc, thay `YOUR_EXTENSION_ID` bằng ID đó:
+
+```powershell
+$env:PYTHONPATH = "src"
+.\.venv\Scripts\python.exe scripts/run_demo_model_api.py --extension-id YOUR_EXTENSION_ID
+```
+
+Terminal thứ hai tại repo gốc:
+
+```powershell
+.\.venv\Scripts\python.exe -m http.server 9000 --bind 127.0.0.1 --directory tests/fixtures/demo_pages
+```
+
+Nhập token từ `.env.phishing.local` của máy mình vào popup extension; không gửi token vào báo cáo/Git. Nếu ID đổi khi clone/build thì dùng ID mới, không dùng ID của D. Mỗi máy build bundle riêng, không sao chép joblib không rõ nguồn.
+
+### Checklist B
+
+Chỉ dùng `http://127.0.0.1:9000/login.html` và `ordinary.html`; giữ banner DEMO MÔ PHỎNG. Không dùng fixture để kết luận trang thật an toàn.
+
+- [ ] Cài/build/tests chạy được; ghi môi trường và số tests thực tế.
+- [ ] Mặc định extension tắt; tắt thì không gửi snapshot và xóa trạng thái cũ.
+- [ ] Bật phân tích URL trước; chưa consent nội dung thì chỉ URL-only, consent mới gửi nội dung.
+- [ ] Với content consent/bundle fixture mặc định: login cảnh báo, ordinary chưa phát hiện; cả hai giữ thông báo mô hình hư cấu. Nếu khác, ghi bundle/môi trường/bước tái hiện.
+- [ ] Tắt API hoặc nhập token sai: chưa đánh giá được, không biến lỗi thành chưa phát hiện phishing. Sau đó phục hồi token/API đúng.
+- [ ] Đổi trang/DOM không giữ cảnh báo của trang trước; có kiểm tự động trong browser smoke.
+- [ ] API lần hai tải bundle local, không fit lúc startup; chạy parity và giữ report local.
+
+Báo cáo gồm branch/commit, OS/Python/Node/Chrome, lệnh, PASS/FAIL và bước tái hiện. Che token/URL nhạy cảm trong ảnh/log. Không commit raw/view/labels, bundle hoặc reports sinh. Benchmark là phép đo riêng trên fixture, không là hiệu năng nghiên cứu.
+
+### Kiểm đầu vào trước fit — chỉ fixture
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/check_training_inputs.py --demo-fixture
+PYTHONPATH=src .venv/bin/python scripts/check_training_inputs.py --manifest /path/to/fixture/manifest.json
+```
+
+PowerShell dùng `$env:PYTHONPATH = "src"` và `.\.venv\Scripts\python.exe`. Demo tạo gói tạm rồi xóa, không fit/đọc data thật hoặc sửa registry C. Exit 0 là fixture hợp lệ; exit 1 là bị chặn. Kết quả luôn có `research_training_allowed: false`.
+
+Hợp đồng thử của D: manifest có `contract_version: training-input-fixture-v0`, `scope: synthetic_fixture_only`, `artifacts` đủ `index`, `labels`, `groups`, `split`, `exclusion`. Mỗi artifact có `path` tương đối trong gói và SHA-256 byte thực. Không phải schema corpus C đã được duyệt.
+
+- Index JSON: danh sách `sample_id`, `html_path`, `html_sha256`, `capture_mode` (`stored_html`/`rendered_dom`), `exclusion_reason: null`.
+- Labels JSON riêng: danh sách `sample_id`, `class_label` (`phishing`/`benign`), `final: true`. Groups JSON ánh xạ ID → group cuối được cung cấp.
+- Split JSON: `variant`, `seed`, `train_ids`, `validation_ids`, `test_ids`. Exclusion JSON: danh sách `excluded_ids` tường minh.
+
+Checker kiểm hashes artifact/HTML; ID duy nhất/khớp; mẫu loại trừ và cohort có nội dung; split phủ cohort, không trùng ID/nhóm và đủ hai lớp cả ba phần. Dùng lại RunPlan, không tự tạo split hoặc thay nhãn cuối bằng nhãn nguồn.
+
+Chưa xác minh nguồn thật, component trùng nội dung, annotation QC, lịch sử dictionary, thời gian hay chữ ký nghiệm thu. Checker từ chối scope nghiên cứu và chưa nối vào fit corpus thật. Sau nghiệm thu C mới nối adapter/readiness theo giao thức hiện có; không đổi schema C để ép khớp hợp đồng fixture này.
