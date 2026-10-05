@@ -1,12 +1,14 @@
 # Current tasks
 
-Cập nhật hiện hành 05/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
+Cập nhật hiện hành 06/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
 
-## Bàn giao D hiện hành
+## Bàn giao hiện hành — đọc trước nhật ký khởi động
 
-[Hồ sơ bàn giao và phân công review](DEVELOPMENT.md): MODEL-API-EXT-01, MODEL-BUNDLE-01, PERF-DEMO-01 và PARITY-DOM-01 DONE cho demo fixture. 55 Python tests, 11 Node tests, 15 browser checks, 6 parity cases đạt; số đo latency lưu local; code phần D đã tích hợp vào develop từ nhánh codex/d-demo-integration. Bản gốc feat/local-dev-01 được giữ nguyên. B review chạy lại, C review capture parity, A thử UI fixture; chưa dùng corpus thật.
+Phần D đã tích hợp PR #4/#5/#6/#7 vào develop (e175562): thực nghiệm fixture, báo cáo/phân tích lỗi, demo tín hiệu và selected-fit bundle. 77 Python tests, 13 Node tests đạt; selected-fit đã qua 18 Chromium checks và người dùng thử login/ordinary/lỗi API thành công. Windows chờ B kiểm độc lập. Chỉ là demo mô phỏng, chưa có run nghiên cứu thật.
 
-Lead đã nghiệm thu pilot C 0bf180c/view8be1c642…8d9a749; chưa nhận commit kích hoạt hoặc kết quả A/B. Training chính tiếp tục bị chặn. Các task/nhật ký khởi động phía dưới giữ để truy vết; trạng thái C mới nhất phải đối chiếu nhánh C, không suy từ bảng TODO ban đầu.
+Theo xác nhận người dùng trong Work_Space_2, A dùng AI chọn nhãn ở tập dượt và Pass 1: V1 bị vô hiệu hóa cho Kappa/PLAN-01, giữ nguyên dữ liệu/kết quả/log. V2 chờ D/B duyệt; nguồn thật, nhãn lộ trên Git, kiểm trùng và metadata/CLI/tests cần xử lý. Hai bản sửa DATA-03 tại 69dbe24 đạt probes; checkout sạch toàn nhánh C còn 4 tests V2 lỗi (206 passed, 1 skipped, 32 subtests passed). DEV-01 C còn pending; chưa gộp mã C hoặc mở training thật.
+
+[Checklist nghiệm thu và mở training](DATA_PROTOCOL.md#checklist-nghiệm-thu-và-mở-training) là bản dùng chung cho lần bàn giao tới. Nghiệm thu kỹ thuật, mở pilot, chốt PLAN-01 và cho phép training là các quyết định riêng. Các bảng/nhật ký khởi động phía dưới giữ để truy vết, không thay trạng thái hiện hành này.
 
 ## Trạng thái có bằng chứng
 
@@ -100,12 +102,7 @@ Status: DONE phần công cụ mô phỏng, chờ nhóm review PR vào develop. 
 
 ## Điều kiện trước huấn luyện chính
 
-- [ ] Revision/checksum và quyền nguồn đã ghi.
-- [ ] Audit date, cửa sổ, dictionary/codebook khóa.
-- [ ] Pilot loại khỏi tập đánh giá; ngân sách giờ và cỡ mẫu chốt.
-- [ ] Nhãn tổ chức hoàn chỉnh phần giữ lại, QC/audit và phân xử có log.
-- [ ] Groups/splits và các loại trùng đã kiểm; official test không vào phát triển.
-- [ ] Preprocessing/features version hóa; pipeline học chỉ fit phần huấn luyện.
+D dùng [checklist tại DATA_PROTOCOL](DATA_PROTOCOL.md#checklist-nghiệm-thu-và-mở-training), ghi bằng chứng và quyết định riêng cho đúng commit/hash/gói/run. Hiện mọi điều kiện mở training thật vẫn chưa được ký hoàn tất; tests/bundle fixture không cấp quyền này. Ưu tiên C sửa V2 và DEV-01, A/B xác nhận mức tiếp xúc nhãn rồi thực hiện pilot mới khi được duyệt.
 
 ## Nhật ký cập nhật
 
@@ -209,3 +206,5 @@ DONE fixture checks: 15 browser smoke checks đạt, gồm DOM lớn~594KB/6000p
 
 
 06/10/2026 — PR #7 được Lead yêu cầu tích hợp develop sau review. Kiểm tra lại mã ghép: 77 Python tests và 13 Node tests đạt; mã chương trình khớp branch selected-fit đã qua 18 Chromium checks. Người dùng xác nhận thủ công login có cảnh báo/ô mật khẩu, ordinary không cảnh báo, tắt API báo chưa nhận kết quả hợp lệ. Đây là nghiệm thu demo trên máy D; Windows chưa được kiểm độc lập. Giữ main nguyên và không mở training thật. Đồng bộ Work_Space_2: V1 không dùng Kappa/PLAN-01 do AI hỗ trợ chọn nhãn; V2 chưa duyệt và còn lỗi nguồn/gán nhãn mù/tests, DEV-01 C vẫn pending. Việc tích hợp PR #7 không cấp nghiệm thu cho các phần dữ liệu này.
+
+06/10/2026 — DATA-ACCEPTANCE-CHECKLIST-01 (D): chuẩn bị checklist vận hành trong DATA_PROTOCOL cho nghiệm thu code/nguồn, mở pilot mới, Kappa/thời gian/PLAN-01, corpus/nhãn/groups/splits và quyết định training. Cập nhật phần trạng thái hiện hành để không hiểu nhầm V1 còn dùng được hoặc bảng TODO cũ là trạng thái mới. Không đổi đề cương/giao thức/cỡ mẫu/ngưỡng; không mở pilot hay training, không sửa metadata C.

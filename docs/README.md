@@ -41,11 +41,11 @@ Lõi là URL + nội dung + tín hiệu tổ chức–miền–ý định; tập
 
 ## Trạng thái và bàn giao hiện hành
 
-[Bàn giao D để nhóm review](DEVELOPMENT.md): model → API → extension, persistence bundle, benchmark và parity. 61 Python tests, 12 Node tests, 15 browser smoke checks và 6 parity cases đạt. Code bàn giao đã merge từ `codex/d-demo-integration` vào `develop`; bản local gốc trên `feat/local-dev-01` được giữ nguyên.
+Phần D đã tích hợp PR #4/#5/#6/#7 vào develop: model fixture → API → extension, báo cáo thực nghiệm, phân tích lỗi và selected-fit bundle. 77 Python tests, 13 Node tests và 18 selected-fit Chromium checks đạt; người dùng đã kiểm thủ công login/ordinary/lỗi API. Hướng dẫn ở [DEVELOPMENT](DEVELOPMENT.md); Windows chờ B kiểm độc lập.
 
-C đã có nguồn/date audit và tooling annotation trên nhánh riêng; Lead nghiệm thu gói pilot tại `0bf180c` với hash view cuối `8be1c642…8d9a749`. C điều phối commit kích hoạt và bàn giao A/B; chưa nhận kết quả nhãn người. Không coi các trạng thái khởi động trước đây là bằng chứng C chưa triển khai. Huấn luyện corpus chính vẫn chờ điều kiện nguồn, mapping/exclusion và nhãn.
+V1 không dùng Kappa/PLAN-01 do lượt A có AI hỗ trợ chọn nhãn. V2 chờ duyệt; giữ bằng chứng V1, chưa mở gán nhãn V2 hoặc training thật. DATA-03/DEV-01 C được nghiệm thu riêng, không coi tests fixture là bằng chứng nguồn/nhãn thật.
 
-D là lead/owner model và API–extension; A Trần Hồng Khải gán nhãn, B Phùng Tấn Minh kiểm độc lập/QA, C quản lý dữ liệu/view mù. Review demo D chỉ cần fixture; các lượt gán nhãn thật độc lập theo codebook/gói pilot đã nghiệm thu. Chi tiết owner ở TEAM, trạng thái và bằng chứng ở CURRENT_TASKS.
+D là lead/owner model/API–extension; A Trần Hồng Khải gán nhãn, B Phùng Tấn Minh kiểm độc lập/QA, C quản lý dữ liệu/view mù. Xem [CURRENT_TASKS](CURRENT_TASKS.md) cho trạng thái có bằng chứng và [checklist nghiệm thu](DATA_PROTOCOL.md#checklist-nghiệm-thu-và-mở-training) trước mọi lần bàn giao. Hướng nghiên cứu và giao thức đã duyệt giữ nguyên.
 
 ## Các file cấu hình mẫu
 
