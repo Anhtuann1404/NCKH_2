@@ -4,7 +4,7 @@ Cập nhật hiện hành 05/10/2026. Sprint khởi động dài hai tuần tín
 
 ## Bàn giao D hiện hành
 
-[Hồ sơ bàn giao và phân công review](DEVELOPMENT.md): MODEL-API-EXT-01, MODEL-BUNDLE-01, PERF-DEMO-01 và PARITY-DOM-01 DONE cho demo fixture. 55 Python tests, 11 Node tests, 15 browser checks, 6 parity cases đạt; số đo latency lưu local; code bàn giao trên nhánh review riêng codex/d-demo-integration từ origin/main. Bản gốc feat/local-dev-01 được giữ nguyên. B review chạy lại, C review capture parity, A thử UI fixture; chưa dùng corpus thật.
+[Hồ sơ bàn giao và phân công review](DEVELOPMENT.md): MODEL-API-EXT-01, MODEL-BUNDLE-01, PERF-DEMO-01 và PARITY-DOM-01 DONE cho demo fixture. 55 Python tests, 11 Node tests, 15 browser checks, 6 parity cases đạt; số đo latency lưu local; code phần D đã tích hợp vào develop từ nhánh codex/d-demo-integration. Bản gốc feat/local-dev-01 được giữ nguyên. B review chạy lại, C review capture parity, A thử UI fixture; chưa dùng corpus thật.
 
 Lead đã nghiệm thu pilot C 0bf180c/view8be1c642…8d9a749; chưa nhận commit kích hoạt hoặc kết quả A/B. Training chính tiếp tục bị chặn. Các task/nhật ký khởi động phía dưới giữ để truy vết; trạng thái C mới nhất phải đối chiếu nhánh C, không suy từ bảng TODO ban đầu.
 
@@ -188,3 +188,5 @@ DONE fixture checks: 15 browser smoke checks đạt, gồm DOM lớn~594KB/6000p
 05/10/2026 — D chuẩn bị nhánh review codex/d-demo-integration từ origin/main theo yêu cầu người dùng. Bàn giao scaffold và demo model/API/extension, bundle, parity và runtime tests; giữ repo gốc feat/local-dev-01, không đưa workflow DeepSeek/Claude, dữ liệu hạn chế hoặc artifacts sinh vào commit. Không push/merge main.
 
 05/10/2026 — D bổ sung lựa chọn Python Windows/POSIX và PHISHING_PYTHON cho browser/parity tests, hướng dẫn PowerShell + checklist B trong DEVELOPMENT. Thêm checker input fixture: hash, ID/nhãn/groups/split/exclusion; luôn research_training_allowed=false, không fit. Chưa xác minh Windows thực tế, chưa gộp adapter C; DATA-03/ingestion C vẫn chờ sửa và nghiệm thu. 61 Python và 12 Node tests đạt; giữ nhánh codex/d-demo-integration, không merge main.
+
+05/10/2026 — Theo yêu cầu Lead, tạo develop từ origin/main, merge phần D đã kiểm thử tại 1614d84, chuyển PR #3 sang develop và cập nhật workflow nhánh công việc → develop → main. Main giữ nguyên. DATA-03/ingestion/tool nghiệm thu C tiếp tục PENDING_REVIEW; không merge phần chưa nghiệm thu hoặc mở training thật.

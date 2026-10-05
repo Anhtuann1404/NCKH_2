@@ -2,9 +2,33 @@
 
 Theo đề cương đã duyệt; tài liệu dự án nằm trong docs, không tạo nhiều bản sao theo ngày.
 
+## Luồng nhánh đã thống nhất — 05/10/2026
+
+`nhánh công việc → develop → main`.
+
+- `develop` là nhánh tích hợp để nhóm clone, chạy và kiểm tra các phần đã nghiệm thu kỹ thuật. Phần D tại `1614d84` đã được merge bằng merge commit, giữ lịch sử nhánh.
+- Mỗi thành viên tạo nhánh công việc từ develop và mở PR đích develop. Giữ owner review, kiểm thử phù hợp, không gộp dữ liệu hạn chế/secret hoặc phần còn lỗi. Các nhánh đang làm từ base cũ có thể cập nhật develop và xử lý conflict sau khi bảo toàn thay đổi local; không reset hoặc force push.
+- `main` dành cho giai đoạn ổn định đã được Lead nghiệm thu. Chỉ mở PR develop → main khi giai đoạn đủ tiêu chí; không tự merge main khi hoàn thành một task.
+- Các PR xếp chồng có thể giữ base là nhánh phụ thuộc để review; trước tích hợp cuối phải đưa về develop sau khi phụ thuộc được nghiệm thu.
+
+Bắt đầu công việc mới từ checkout sạch:
+
+```sh
+git fetch origin
+git switch develop
+git pull --ff-only origin develop
+git switch -c codex/my-task
+```
+
+Nếu có thay đổi chưa commit, bảo toàn chúng trước khi đổi nhánh. Không dùng lệnh reset/clean để làm checkout sạch. Commit trên nhánh công việc rồi mở PR đích develop, không push trực tiếp main.
+
+Điều kiện chốt một giai đoạn: các task trong phạm vi được nghiệm thu; tests/integration chạy lại trên develop; lỗi còn lại và giới hạn được ghi; docs/cách chạy đồng bộ; nguồn/nhãn/training readiness đáp ứng giao thức nếu giai đoạn chứa thực nghiệm thật. Lead review diff develop → main trước quyết định merge.
+
+Hiện chỉ phần D fixture/demo được tích hợp. DATA-03, ingestion và công cụ nghiệm thu Pass 1 của C còn các điểm review tại bbf886c/98cb37e nên chưa merge; A/B tiếp tục pilot độc lập bằng gói đã khóa. Windows chưa được kiểm thực tế. Có develop không đồng nghĩa được mở training corpus chính.
+
 ## Bàn giao D để nhóm review — 05/10/2026
 
-Owner: D (Anh Tuấn), lead/model/API–extension. Repo gốc: `/Users/yingjunn_/Study_/NCKH_2`, nhánh `feat/local-dev-01`, base `f4b2e09`. Bản bàn giao để review nằm trên nhánh riêng `codex/d-demo-integration`, tạo từ `origin/main` và chỉ gồm mã D cùng các phần phụ thuộc. Repo gốc và nhánh local vẫn giữ nguyên. Clone nhánh review để kiểm tra; chưa merge vào main.
+Owner: D (Anh Tuấn), lead/model/API–extension. Repo gốc: `/Users/yingjunn_/Study_/NCKH_2`, nhánh `feat/local-dev-01`, base `f4b2e09`. Bản bàn giao để review nằm trên nhánh riêng `codex/d-demo-integration`, tạo từ `origin/main` và chỉ gồm mã D cùng các phần phụ thuộc. Repo gốc và nhánh local vẫn giữ nguyên. Phần D đã tích hợp vào develop để nhóm kiểm tra; chưa merge vào main.
 
 ### Kết quả và file cần đọc
 
@@ -21,7 +45,7 @@ Không đổi dependency hoặc hợp đồng request/response OpenAPI. Extensio
 
 ### Chạy bản bàn giao
 
-Từ thư mục clone nhánh review, tạo venv và cài dependency locks như hướng dẫn bên dưới:
+Từ thư mục clone develop, tạo venv và cài dependency locks như hướng dẫn bên dưới:
 
 ```sh
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -q
@@ -67,7 +91,7 @@ Mô hình/bundle chỉ học fixture hư cấu; joblib chỉ tải gói do nhóm
 
 Gói pilot C tại `0bf180c` đã được Lead nghiệm thu với view SHA-256 `8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749`. Việc ký/mở pilot được điều phối trên nhánh C; chưa nhận commit kích hoạt hoặc nhãn A/B trong bản local D. Training corpus chính vẫn blocked bởi mapping/exclusion và điều kiện nguồn/nhãn chưa hoàn tất. Phê duyệt pilot không biến MODEL-API-EXT-01 thành mô hình nghiên cứu.
 
-Không đưa `.env*`, raw/view/labels, bundle hoặc reports sinh vào commit demo; thư mục `output/` hiện có thuộc người dùng, không nằm trong phạm vi bản bàn giao. Các thay đổi D và docs được bàn giao qua nhánh review riêng; chưa merge vào main.
+Không đưa `.env*`, raw/view/labels, bundle hoặc reports sinh vào commit demo; thư mục `output/` hiện có thuộc người dùng, không nằm trong phạm vi bản bàn giao. Các thay đổi D và docs được tích hợp vào develop qua nhánh riêng; chưa merge vào main.
 
 ## Cấu trúc dự kiến
 
@@ -299,7 +323,7 @@ Bản này chỉ thêm kiểm chứng và báo cáo: không đổi preprocessing
 
 ## Windows và checklist bàn giao — 05/10/2026
 
-Nhánh D: `codex/d-demo-integration`, PR #3. Clone nhánh này để review; chưa gộp adapter C. Logic chọn interpreter Windows đã có test, nhưng chưa chạy thực tế trên Windows. B cần ghi OS/Python/Node/Chrome và kết quả để xác nhận.
+Phần D từ `codex/d-demo-integration`, PR #3, đã tích hợp vào `develop`. Clone develop để review; chưa gộp adapter C. Logic chọn interpreter Windows đã có test, nhưng chưa chạy thực tế trên Windows. B cần ghi OS/Python/Node/Chrome và kết quả để xác nhận.
 
 ### Windows / PowerShell
 

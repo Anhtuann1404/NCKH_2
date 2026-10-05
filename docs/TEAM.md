@@ -57,3 +57,7 @@ Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, m�
 5. Mỗi người viết phần sở hữu, D tổng hợp, cả nhóm và GVHD rà báo cáo.
 
 Nếu có thêm người, phân hỗ trợ cho owner hiện tại theo task; vẫn giữ một owner rõ cho mỗi output. Họ tên và giờ tuần điền trong CURRENT_TASKS. Các mốc giờ là dự trù lập kế hoạch, không bảo đảm hoặc kết quả đã đo.
+
+## Nhánh tích hợp và nghiệm thu
+
+Tất cả thành viên bàn giao qua PR vào `develop`; tạo nhánh công việc từ develop đã cập nhật. Lead chỉ gộp phần đã review và kiểm thử. Một giai đoạn ổn định mới được đề xuất PR develop → main. Nhánh develop không thay quyền sở hữu nhiệm vụ, không mở chốt training và không thay giao thức nghiên cứu. Xem DEVELOPMENT cho cách cập nhật nhánh và tiêu chí chốt giai đoạn.

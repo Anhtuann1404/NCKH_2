@@ -6,16 +6,16 @@ Cập nhật: 05/10/2026. Hướng nghiên cứu đã được giảng viên duy
 
 ## Bắt đầu cho thành viên nhóm
 
-Clone nhánh `main` của repo:
+Clone nhánh tích hợp `develop` của repo:
 
 ```sh
-git clone --branch main https://github.com/Anhtuann1404/NCKH_2.git
+git clone --branch develop https://github.com/Anhtuann1404/NCKH_2.git
 cd NCKH_2
 ```
 
-Đọc `docs/TEAM.md` để xác định vai trò, sau đó đọc `docs/CURRENT_TASKS.md` và `docs/DEVELOPMENT.md` để nhận việc và thống nhất cách bàn giao. Điền họ tên và thời gian có thể dành mỗi tuần trước khi chốt người nhận nhiệm vụ. Đã có preprocessing, API–extension mock và mô hình TF-IDF demo, lưu/tải bundle, benchmark và parity trên fixture trong repo cục bộ D; chưa huấn luyện mô hình nghiên cứu. Các thay đổi bàn giao trên nhánh riêng `codex/d-demo-integration`; xem DEVELOPMENT để chạy và review trước khi merge.
+Đọc `docs/TEAM.md` để xác định vai trò, sau đó đọc `docs/CURRENT_TASKS.md` và `docs/DEVELOPMENT.md` để nhận việc và thống nhất cách bàn giao. Điền họ tên và thời gian có thể dành mỗi tuần trước khi chốt người nhận nhiệm vụ. Đã có preprocessing, API–extension mock và mô hình TF-IDF demo, lưu/tải bundle, benchmark và parity trên fixture trong repo cục bộ D; chưa huấn luyện mô hình nghiên cứu. Phần D đã kiểm thử được tích hợp vào `develop`; xem DEVELOPMENT để chạy và tiếp tục review. Main chỉ nhận giai đoạn đã nghiệm thu.
 
-Khi bắt đầu viết mã, tạo nhánh riêng từ `main` đã cập nhật và gửi pull request để nhóm rà soát trước khi gộp. Không commit khóa API, dữ liệu bị hạn chế chia sẻ hoặc HTML thu thập vào repo.
+Khi bắt đầu viết mã, tạo nhánh riêng từ `develop` đã cập nhật và gửi pull request đích `develop` để nhóm rà soát trước khi gộp. Khi một giai đoạn ổn định, Lead mở PR `develop` → `main`; không push trực tiếp main. Không commit khóa API, dữ liệu bị hạn chế chia sẻ hoặc HTML thu thập vào repo.
 
 ## Đọc theo thứ tự
 
@@ -41,7 +41,7 @@ Lõi là URL + nội dung + tín hiệu tổ chức–miền–ý định; tập
 
 ## Trạng thái và bàn giao hiện hành
 
-[Bàn giao D để nhóm review](DEVELOPMENT.md): model → API → extension, persistence bundle, benchmark và parity. 55 Python tests, 11 Node tests, 15 browser smoke checks và 6 parity cases đạt. Code của phần bàn giao nằm trên nhánh review `codex/d-demo-integration`; bản local gốc trên `feat/local-dev-01` được giữ nguyên.
+[Bàn giao D để nhóm review](DEVELOPMENT.md): model → API → extension, persistence bundle, benchmark và parity. 61 Python tests, 12 Node tests, 15 browser smoke checks và 6 parity cases đạt. Code bàn giao đã merge từ `codex/d-demo-integration` vào `develop`; bản local gốc trên `feat/local-dev-01` được giữ nguyên.
 
 C đã có nguồn/date audit và tooling annotation trên nhánh riêng; Lead nghiệm thu gói pilot tại `0bf180c` với hash view cuối `8be1c642…8d9a749`. C điều phối commit kích hoạt và bàn giao A/B; chưa nhận kết quả nhãn người. Không coi các trạng thái khởi động trước đây là bằng chứng C chưa triển khai. Huấn luyện corpus chính vẫn chờ điều kiện nguồn, mapping/exclusion và nhãn.
 
