@@ -1,9 +1,11 @@
 """Bộ kiểm thử cho CLI evaluate_kappa.py (Nghiệm thu Pass 1 & Cohen's Kappa)."""
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
 import sys
+from typing import Optional
 
 import pytest
 
@@ -284,12 +286,55 @@ def test_evaluate_kappa_rejects_same_annotator_or_wrong_pass(tmp_path):
     assert "pass_id=2" in proc.stderr
 
 
-def _load_real_pilot_records(annotator_id: str) -> list[dict]:
+def _ensure_or_create_pilot_fixture(tmp_path: Optional[Path] = None):
     blind_path = PROJECT_ROOT / "data" / "annotations" / "blind_view_pilot_real.json"
     manifest_path = PROJECT_ROOT / "configs" / "pilot_manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    blind_data = json.loads(blind_path.read_text(encoding="utf-8"))
+    if blind_path.is_file() and manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        blind_data = json.loads(blind_path.read_text(encoding="utf-8"))
+        return blind_path, manifest_path, blind_data, manifest
 
+    # Checkout sạch không có tệp hạn chế: tự sinh fixture 32 mẫu tự chứa (Khắc phục Probe 6)
+    target_dir = tmp_path or (PROJECT_ROOT / "tests" / "fixtures" / "synthetic_pilot")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    samples = []
+    for i in range(1, 33):
+        samples.append({
+            "sample_id": f"PILOT-{i:03d}",
+            "url": f"https://fixture-{i}.example.com/login",
+            "html": f"<html><body>Fixture {i}</body></html>",
+            "random_subset": True,
+        })
+    blind_data = {
+        "dataset_id": "REAL-PILOT-32-V1",
+        "is_synthetic": False,
+        "sample_count": 32,
+        "samples": samples,
+    }
+    bv_file = target_dir / "blind_view_pilot_real.json"
+    bv_bytes = json.dumps(blind_data, ensure_ascii=False, indent=2).encode("utf-8")
+    bv_file.write_bytes(bv_bytes)
+    bv_sha = hashlib.sha256(bv_bytes).hexdigest()
+
+    manifest = {
+        "dataset_id": "REAL-PILOT-32-V1",
+        "is_synthetic": False,
+        "sample_count": 32,
+        "ready_for_annotation": True,
+        "codebook_version": "1.0.0",
+        "codebook_sha256": "12de9c2f3b457938039b05c72c651d6650f403b620216516262134a3313a2ed1",
+        "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
+        "blind_view_path": str(bv_file.as_posix()),
+        "blind_view_sha256": bv_sha,
+        "acceptance": {"D": "approved", "B": "approved"},
+    }
+    man_file = target_dir / "pilot_manifest.json"
+    man_file.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return bv_file, man_file, blind_data, manifest
+
+
+def _load_real_pilot_records(annotator_id: str, tmp_path: Optional[Path] = None) -> list[dict]:
+    bv_file, man_file, blind_data, manifest = _ensure_or_create_pilot_fixture(tmp_path)
     recs = []
     for s in blind_data["samples"]:
         sid = s["sample_id"]
@@ -305,6 +350,7 @@ def _load_real_pilot_records(annotator_id: str) -> list[dict]:
             codebook_hash=manifest["codebook_sha256"],
             sampling_plan_version=manifest["sampling_plan_version"],
             sample_content_hash=content_hash,
+            random_subset=s.get("random_subset", True),
         )
         recs.append(rec)
     return recs
@@ -456,6 +502,74 @@ def test_evaluate_kappa_pilot_manifest_existence_and_approval(tmp_path):
     )
     assert proc.returncode == 2
     assert "chưa được Lead D phê duyệt" in proc.stderr
+
+
+def test_evaluate_kappa_pilot_cannot_bypass_blind_view(tmp_path):
+    """Lead D probe 1: Bắt buộc blind view tồn tại và kiểm tra hash byte, không được bỏ qua."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+    recs_a = _load_real_pilot_records("A", tmp_path)
+    recs_b = _load_real_pilot_records("B", tmp_path)
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    # Manifest trỏ tới blind view không tồn tại
+    fake_manifest = tmp_path / "missing_view_manifest.json"
+    manifest_data = json.loads((PROJECT_ROOT / "configs" / "pilot_manifest.json").read_text(encoding="utf-8"))
+    manifest_data["blind_view_path"] = "non_existent_blind_view.json"
+    fake_manifest.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable, str(EVAL_SCRIPT),
+            "--rater-a", str(file_a),
+            "--rater-b", str(file_b),
+            "--pilot-manifest", str(fake_manifest),
+        ],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "Không tìm thấy tệp blind view chuẩn" in proc.stderr
+
+    # Manifest có blind_view_sha256 bị sai lệch
+    fake_manifest_sha = tmp_path / "wrong_sha_manifest.json"
+    manifest_data2 = json.loads((PROJECT_ROOT / "configs" / "pilot_manifest.json").read_text(encoding="utf-8"))
+    manifest_data2["blind_view_sha256"] = "wrong_sha256_hash_value"
+    fake_manifest_sha.write_text(json.dumps(manifest_data2), encoding="utf-8")
+
+    proc2 = subprocess.run(
+        [
+            sys.executable, str(EVAL_SCRIPT),
+            "--rater-a", str(file_a),
+            "--rater-b", str(file_b),
+            "--pilot-manifest", str(fake_manifest_sha),
+        ],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc2.returncode == 2
+    assert "LỖI TOÀN VẸN BLIND VIEW" in proc2.stderr
+
+
+def test_evaluate_kappa_pilot_rejects_altered_random_subset(tmp_path):
+    """Lead D probe 2: Thay đổi random_subset=false ở 1 mẫu làm giảm cỡ mẫu 31/32 phải bị chặn."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+    recs_a = _load_real_pilot_records("A", tmp_path)
+    recs_b = _load_real_pilot_records("B", tmp_path)
+
+    # Đổi random_subset=False ở mẫu đầu tiên của cả A và B
+    recs_a[0]["random_subset"] = False
+    recs_b[0]["random_subset"] = False
+
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "cờ 'random_subset' không khớp kế hoạch pilot đã khóa" in proc.stderr or "LỖI TẬP MẪU KAPPA" in proc.stderr
 
 
 def test_evaluate_kappa_strict_annotator_validation(tmp_path):

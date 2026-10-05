@@ -48,7 +48,9 @@ def normalize_url(url: str) -> str:
             raise ValueError("An absolute HTTP(S) URL is required")
         host = normalize_hostname(parts.hostname)
         port = parts.port
-    except ValueError:
+        if port is not None and not (1 <= port <= 65535):
+            raise ValueError("Port must be between 1 and 65535")
+    except (ValueError, TypeError):
         raise ValueError("Invalid HTTP(S) URL") from None
     authority = f"[{host}]" if ":" in host else host
     if port is not None and (parts.scheme, port) not in {("http", 80), ("https", 443)}:

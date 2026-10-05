@@ -25,27 +25,39 @@ GROUP_RULES_VERSION = "1.1.0"
 TLDEXTRACT_VERSION = getattr(tldextract, "__version__", "bundled")
 
 
-def _get_psl_snapshot_sha256() -> str:
-    try:
+def _load_psl_snapshot_and_sha256() -> tuple[bytes, str]:
+    """Tải snapshot PSL tích hợp trong tldextract và tính mã băm SHA-256 từ dữ liệu thực dùng.
+
+    ARS CONTRACT: Không dùng fallback hash viết cứng; dừng ngay lập tức nếu snapshot bị thiếu.
+    """
+    import pkgutil
+    data = pkgutil.get_data("tldextract", ".tld_set_snapshot")
+    if data is None:
         pkg_dir = os.path.dirname(tldextract.__file__)
         snapshot_path = os.path.join(pkg_dir, ".tld_set_snapshot")
         if os.path.exists(snapshot_path):
             with open(snapshot_path, "rb") as f:
-                return hashlib.sha256(f.read()).hexdigest()
-    except Exception:
-        pass
-    return "b69315c085d53972724b8f2df111ffc329b0c84fe0a47d62c8c91655cc774a38"
+                data = f.read()
+
+    if data is None:
+        raise RuntimeError(
+            "LỖI TOÀN VẸN PSL: Không thể đọc tệp snapshot '.tld_set_snapshot' từ tldextract. "
+            "Anti-leakage protocol bắt buộc phải có snapshot PSL cục bộ hợp lệ để định danh nhóm."
+        )
+
+    return data, hashlib.sha256(data).hexdigest()
 
 
-PSL_SNAPSHOT_SHA256 = _get_psl_snapshot_sha256()
+_PSL_BYTES, PSL_SNAPSHOT_SHA256 = _load_psl_snapshot_and_sha256()
 PSL_VERSION = PSL_SNAPSHOT_SHA256
 
-# Khởi tạo extractor offline với danh mục PSL tích hợp sẵn của thư viện.
+# Khởi tạo extractor offline với snapshot cố định, cache_dir=None để triệt tiêu việc đọc/ghi cache ngoài luồng.
 # suffix_list_urls=None bảo đảm tuyệt đối không gọi HTTP ra Internet trong quá trình chạy.
 # include_psl_private_domains=True tự động bóc tách các private suffix phổ biến
-# (như *.github.io, *.blob.core.windows.net, *.pages.dev, *.web.app, *.vercel.app...).
 _EXTRACTOR = tldextract.TLDExtract(
+    cache_dir=None,
     suffix_list_urls=None,
+    fallback_to_snapshot=True,
     include_psl_private_domains=True,
     extra_suffixes=[],
 )
@@ -96,6 +108,10 @@ def extract_group_id(url: str) -> str:
     try:
         parsed = urlsplit(candidate)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return "unknown"
+        # Kiểm tra port: nếu có port thì phải là số nguyên trong khoảng 1-65535
+        port = parsed.port
+        if port is not None and not (1 <= port <= 65535):
             return "unknown"
         # Xác thực và chuẩn hóa hostname nghiêm ngặt (chống URL rác có khoảng trắng/ký tự lỗi)
         host = normalize_hostname(parsed.hostname)

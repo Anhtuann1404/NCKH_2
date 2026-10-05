@@ -550,3 +550,77 @@ class TestLeadDProbesRegression:
         assert "grouping.py" in manifest_data["code_hashes"]
         assert "date_parser.py" in manifest_data["code_hashes"]
 
+    def test_malware_defacement_labels_fail_binary_class_sufficiency(self) -> None:
+        """Lead D probe 5: Tập chỉ chứa malware/defacement không được báo sufficient cho bài toán nhị phân."""
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "malware" if i % 2 == 0 else "defacement"}
+            for i in range(20)
+        ]
+        res = generate_grouped_kfold(records, n_splits=5, seeds=[42])
+        folds = res[42]
+        for fold in folds:
+            assert fold["is_usable"] is False
+            assert fold["class_sufficiency"]["status"] == "insufficient_classes"
+            assert "phishing" in fold["class_sufficiency"]["missing_in_outer_train"]
+            assert "benign" in fold["class_sufficiency"]["missing_in_outer_train"]
+
+    def test_invalid_url_ports_rejected(self) -> None:
+        """Lead D probe 5: URL có port abc hoặc 99999 hoặc 0 phải bị từ chối."""
+        from phishing.preprocessing.urls import normalize_url
+
+        # 1. normalize_url
+        with pytest.raises(ValueError):
+            normalize_url("http://example.com:abc/login")
+        with pytest.raises(ValueError):
+            normalize_url("http://example.com:99999/login")
+        with pytest.raises(ValueError):
+            normalize_url("http://example.com:0/login")
+
+        # 2. extract_group_id
+        assert extract_group_id("http://example.com:abc/login") == "unknown"
+        assert extract_group_id("http://example.com:99999/login") == "unknown"
+        assert extract_group_id("http://example.com:0/login") == "unknown"
+
+        # 3. generate_grouped_kfold rejects invalid ports
+        invalid_records = [
+            {"sample_id": "S1", "url": "http://example.com:99999/login", "class_label": "phishing"}
+        ]
+        with pytest.raises(ValueError, match="invalid URL"):
+            generate_grouped_kfold(invalid_records, n_splits=5, seeds=[42])
+
+    def test_atomic_staging_and_skip_temporal_cleans_stale_artifact(self, tmp_path: Path) -> None:
+        """Lead D probe 3: --skip-temporal phải dọn dẹp temporal artifact cũ của run trước."""
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(20)
+        ]
+        in_file = tmp_path / "corpus.jsonl"
+        in_file.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_run"
+
+        script = PROJECT_ROOT / "scripts" / "data" / "generate_splits.py"
+
+        # Run 1: có temporal splits
+        proc1 = subprocess.run(
+            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir), "-k", "3", "--seeds", "42"],
+            capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+        )
+        assert proc1.returncode == 0
+        assert (out_dir / "temporal_splits.json").exists()
+
+        # Run 2: với --skip-temporal --overwrite -> temporal_splits.json cũ phải bị dọn dẹp triệt để
+        proc2 = subprocess.run(
+            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir), "-k", "3", "--seeds", "42", "--skip-temporal", "--overwrite"],
+            capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+        )
+        assert proc2.returncode == 0
+        assert not (out_dir / "temporal_splits.json").exists(), "temporal_splits.json cũ không được tồn tại khi --skip-temporal!"
+
+    def test_psl_extractor_no_cache_leakage(self) -> None:
+        """Lead D probe 4: Extractor tldextract phải tắt cache (cache_dir=None) và đọc đúng snapshot."""
+        from phishing.data.grouping import _EXTRACTOR, _load_psl_snapshot_and_sha256
+        assert _EXTRACTOR._cache.enabled is False
+        psl_bytes, psl_sha = _load_psl_snapshot_and_sha256()
+        assert len(psl_bytes) > 0
+        assert len(psl_sha) == 64
+

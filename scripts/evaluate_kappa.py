@@ -25,6 +25,7 @@ Cách dùng::
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -452,22 +453,66 @@ def evaluate(
         if not expected_sampling_plan:
             raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'sampling_plan_version'.")
 
-        # 4d. Đọc blind view để lấy hash nội dung mẫu chuẩn nếu có
-        expected_sample_content_hashes: dict[str, str] = {}
+        # 4d. Bắt buộc Blind View tồn tại, kiểm tra mã băm byte SHA-256 với manifest, và nạp mẫu chuẩn
         bv_rel_path = manifest_data.get("blind_view_path")
-        if bv_rel_path:
-            bv_path = (manifest_file.parent / bv_rel_path).resolve()
-            if not bv_path.is_file():
-                bv_path = (PROJECT_ROOT / bv_rel_path).resolve()
-            if bv_path.is_file():
-                try:
-                    bv_data = json.loads(bv_path.read_text(encoding="utf-8"))
-                    for s in bv_data.get("samples", []):
-                        sid = s.get("sample_id")
-                        if sid:
-                            expected_sample_content_hashes[sid] = compute_sample_content_hash(s)
-                except Exception:
-                    pass
+        if not bv_rel_path:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'blind_view_path'.")
+
+        # Chuẩn hóa path cross-platform (thay '\\' bằng '/')
+        clean_bv_rel = str(bv_rel_path).replace("\\", "/")
+        bv_path = (manifest_file.parent / clean_bv_rel).resolve()
+        if not bv_path.is_file():
+            bv_path = (PROJECT_ROOT / clean_bv_rel).resolve()
+
+        if not bv_path.is_file():
+            raise FileNotFoundError(
+                f"LỖI NGHIỆM THU PILOT: Không tìm thấy tệp blind view chuẩn tại '{bv_path}' "
+                f"(khai báo trong manifest: '{bv_rel_path}'). Bắt buộc view phải tồn tại."
+            )
+
+        # Kiểm tra mã băm SHA-256 byte của view mù thực tế với manifest (Khắc phục Probe 1)
+        expected_bv_sha = manifest_data.get("blind_view_sha256")
+        if not expected_bv_sha:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'blind_view_sha256'.")
+
+        with open(bv_path, "rb") as f:
+            actual_bv_bytes = f.read()
+        actual_bv_sha = hashlib.sha256(actual_bv_bytes).hexdigest()
+        if actual_bv_sha.lower() != str(expected_bv_sha).lower():
+            raise ValueError(
+                f"LỖI TOÀN VẸN BLIND VIEW: Mã băm SHA-256 của tệp '{bv_path}' không khớp manifest "
+                f"('{actual_bv_sha}' != '{expected_bv_sha}')."
+            )
+
+        # Đọc dữ liệu blind view, kiểm tra cấu trúc và tính toán expected_sample_content_hashes (KHÔNG dùng except: pass)
+        try:
+            bv_data = json.loads(actual_bv_bytes.decode("utf-8"))
+        except Exception as exc:
+            raise ValueError(f"Không thể phân tích cú pháp JSON của blind view ({bv_path}): {exc}") from exc
+
+        bv_samples = bv_data.get("samples", [])
+        if len(bv_samples) != expected_count:
+            raise ValueError(
+                f"Blind view tại '{bv_path}' chứa {len(bv_samples)} mẫu, nhưng manifest yêu cầu {expected_count} mẫu."
+            )
+
+        expected_sample_content_hashes: dict[str, str] = {}
+        expected_sample_random_subsets: dict[str, bool] = {}
+
+        for s in bv_samples:
+            sid = s.get("sample_id")
+            if not sid:
+                raise ValueError(f"Blind view tại '{bv_path}' có mẫu thiếu 'sample_id'.")
+            if sid in expected_sample_content_hashes:
+                raise ValueError(f"Blind view tại '{bv_path}' có 'sample_id' trùng lặp: '{sid}'.")
+            expected_sample_content_hashes[sid] = compute_sample_content_hash(s)
+            expected_sample_random_subsets[sid] = s.get("random_subset", True)
+
+        if len(expected_sample_content_hashes) != expected_count:
+            raise ValueError(
+                f"Blind view tại '{bv_path}' chỉ có {len(expected_sample_content_hashes)} ID duy nhất, "
+                f"yêu cầu đủ {expected_count} ID duy nhất."
+            )
 
         # 4e. Kiểm tra từng bản ghi rater A và B
         for rater_name, recs in [("rater A", records_a), ("rater B", records_b)]:
@@ -498,15 +543,25 @@ def evaluate(
                         f"{rater_name}, mẫu '{sid}': sampling_plan_version không khớp manifest đã duyệt "
                         f"('{rec.get('sampling_plan_version')}' != '{expected_sampling_plan}')."
                     )
+                # Bắt buộc khớp hash nội dung mẫu với view mù chuẩn (Khắc phục Probe 1)
                 rec_sc_hash = rec.get("sample_content_hash")
                 if not rec_sc_hash or not str(rec_sc_hash).strip():
                     raise ValueError(f"{rater_name}, mẫu '{sid}': thiếu hoặc rỗng 'sample_content_hash'.")
-                if sid in expected_sample_content_hashes:
-                    if rec_sc_hash != expected_sample_content_hashes[sid]:
-                        raise ValueError(
-                            f"{rater_name}, mẫu '{sid}': sample_content_hash không khớp với blind view đã duyệt "
-                            f"('{rec_sc_hash}' != '{expected_sample_content_hashes[sid]}')."
-                        )
+                if sid not in expected_sample_content_hashes:
+                    raise ValueError(f"{rater_name}, mẫu '{sid}': sample_id không tồn tại trong blind view đã duyệt.")
+                if rec_sc_hash != expected_sample_content_hashes[sid]:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': sample_content_hash không khớp với blind view đã duyệt "
+                        f"('{rec_sc_hash}' != '{expected_sample_content_hashes[sid]}')."
+                    )
+                # Đối chiếu cờ random_subset với view/plan đã khóa (Khắc phục Probe 2)
+                expected_rs = expected_sample_random_subsets.get(sid, True)
+                actual_rs = rec.get("random_subset", True)
+                if actual_rs != expected_rs:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': cờ 'random_subset' không khớp kế hoạch pilot đã khóa "
+                        f"({actual_rs} != {expected_rs}). Pilot full-overlap bắt buộc tính đủ {expected_count} mẫu."
+                    )
 
         # 4f. Kiểm tra sample_content_hash giữa A và B phải đồng nhất từng cặp
         for sid in shared_ids:
@@ -531,6 +586,19 @@ def evaluate(
         label_field=PRIMARY_ORG_FIELD,
         require_provenance=require_provenance,
     )
+
+    # Chốt chặn kiểm định cỡ mẫu nghiệm thu pilot: Không cho phép drop mẫu ngầm (Khắc phục Probe 2)
+    if is_pilot_mode:
+        if kappa_class.sample_count != expected_count:
+            raise ValueError(
+                f"LỖI TẬP MẪU KAPPA: class_label chỉ tính được {kappa_class.sample_count}/{expected_count} mẫu. "
+                f"Pilot full-overlap bắt buộc phải tính đủ {expected_count} mẫu hợp lệ."
+            )
+        if kappa_org.sample_count != expected_count:
+            raise ValueError(
+                f"LỖI TẬP MẪU KAPPA: primary_org chỉ tính được {kappa_org.sample_count}/{expected_count} mẫu. "
+                f"Pilot full-overlap bắt buộc phải tính đủ {expected_count} mẫu hợp lệ."
+            )
 
     # 6. Thu thập bất đồng thuận (đã loại bỏ dry-run)
     disagreements = collect_disagreements(index_a, index_b, shared_ids)

@@ -15,8 +15,10 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import sys
 from typing import Any, Dict, List, Optional, Set
+import uuid
 
 # Đảm bảo mã hóa UTF-8 an toàn trên console Windows
 if hasattr(sys.stdout, "reconfigure"):
@@ -332,93 +334,116 @@ def main() -> int:
             "split": temporal_result,
         }
 
-    # 8. MỌI TÍNH TOÁN ĐÃ HOÀN TẤT VÀ XÁC THỰC THÀNH CÔNG -> Bắt đầu ghi file ra thư mục output
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # 8. MỌI TÍNH TOÁN ĐÃ HOÀN TẤT VÀ XÁC THỰC THÀNH CÔNG -> Ghi vào STAGING DIR trước khi công bố
+    staging_dir = output_dir.parent / f".staging_{output_dir.name}_{uuid.uuid4().hex[:8]}"
+    staging_dir.mkdir(parents=True, exist_ok=True)
 
-    groups_file = output_dir / "groups.json"
-    with open(groups_file, "w", encoding="utf-8") as f:
-        json.dump(groups_manifest, f, indent=2, ensure_ascii=False)
-    groups_sha256 = calculate_sha256(groups_file)
-    print(f"[+] Saved Group index: {groups_file} ({len(group_counts)} groups)")
+    try:
+        stg_groups_file = staging_dir / "groups.json"
+        with open(stg_groups_file, "w", encoding="utf-8") as f:
+            json.dump(groups_manifest, f, indent=2, ensure_ascii=False)
+        groups_sha256 = calculate_sha256(stg_groups_file)
 
-    grouped_manifest["metadata"]["groups_sha256"] = groups_sha256
-    grouped_file = output_dir / "grouped_5fold_splits.json"
-    with open(grouped_file, "w", encoding="utf-8") as f:
-        json.dump(grouped_manifest, f, indent=2, ensure_ascii=False)
-    grouped_sha256 = calculate_sha256(grouped_file)
-    print(f"[+] Saved Grouped {args.n_splits}-Fold splits: {grouped_file}")
+        grouped_manifest["metadata"]["groups_sha256"] = groups_sha256
+        stg_grouped_file = staging_dir / "grouped_5fold_splits.json"
+        with open(stg_grouped_file, "w", encoding="utf-8") as f:
+            json.dump(grouped_manifest, f, indent=2, ensure_ascii=False)
+        grouped_sha256 = calculate_sha256(stg_grouped_file)
 
-    temporal_sha256 = None
-    if temporal_manifest is not None and temporal_result is not None:
-        temporal_manifest["metadata"]["groups_sha256"] = groups_sha256
-        temporal_file = output_dir / "temporal_splits.json"
-        with open(temporal_file, "w", encoding="utf-8") as f:
-            json.dump(temporal_manifest, f, indent=2, ensure_ascii=False)
-        temporal_sha256 = calculate_sha256(temporal_file)
-        print(f"[+] Saved Temporal splits: {temporal_file} (Status: {temporal_result.get('status')})")
+        temporal_sha256 = None
+        if temporal_manifest is not None and temporal_result is not None:
+            temporal_manifest["metadata"]["groups_sha256"] = groups_sha256
+            stg_temporal_file = staging_dir / "temporal_splits.json"
+            with open(stg_temporal_file, "w", encoding="utf-8") as f:
+                json.dump(temporal_manifest, f, indent=2, ensure_ascii=False)
+            temporal_sha256 = calculate_sha256(stg_temporal_file)
 
-    # 9. Đánh giá tính vững chắc tổng thể (verified_robust)
-    all_folds_sufficient = all(
-        f["class_sufficiency"]["status"] == "sufficient"
-        for fold_list in grouped_splits.values()
-        for f in fold_list
-    )
-    all_folds_usable = all(
-        f.get("is_usable", True)
-        for fold_list in grouped_splits.values()
-        for f in fold_list
-    )
-    temporal_evaluable = (temporal_result.get("status") == "evaluable") if temporal_result is not None else True
+        # 9. Đánh giá tính vững chắc tổng thể (verified_robust)
+        all_folds_sufficient = all(
+            f["class_sufficiency"]["status"] == "sufficient"
+            for fold_list in grouped_splits.values()
+            for f in fold_list
+        )
+        all_folds_usable = all(
+            f.get("is_usable", True)
+            for fold_list in grouped_splits.values()
+            for f in fold_list
+        )
+        temporal_evaluable = (temporal_result.get("status") == "evaluable") if temporal_result is not None else True
 
-    verified_robust = bool(all_folds_sufficient and all_folds_usable and temporal_evaluable)
+        verified_robust = bool(all_folds_sufficient and all_folds_usable and temporal_evaluable)
 
-    code_hashes = calculate_code_hashes()
-    composite_code_sha256 = calculate_composite_code_sha256(code_hashes)
+        code_hashes = calculate_code_hashes()
+        composite_code_sha256 = calculate_composite_code_sha256(code_hashes)
 
-    # 10. Ghi Manifest liên kết đầy đủ mã băm xuất xứ (Provenance Manifest)
-    manifest: Dict[str, Any] = {
-        "manifest_type": "DATA-03_SPLIT_MANIFEST",
-        "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "input_file": str(input_path),
-        "input_sha256": input_sha256,
-        "code_sha256": composite_code_sha256,
-        "code_hashes": code_hashes,
-        "run_parameters": {
-            "n_splits": args.n_splits,
-            "seeds": list(seeds),
-            "id_field": args.id_field,
-            "url_field": args.url_field,
-            "group_field": args.group_field,
-            "date_field": args.date_field,
-            "label_field": args.label_field,
-            "skip_temporal": args.skip_temporal,
-        },
-        "grouping_metadata": {
-            "group_rules_version": GROUP_RULES_VERSION,
-            "tldextract_version": TLDEXTRACT_VERSION,
-            "psl_snapshot_sha256": PSL_SNAPSHOT_SHA256,
-            "psl_source": "tldextract bundled snapshot",
-        },
-        "artifacts": {
-            "groups_json": {"path": "groups.json", "sha256": groups_sha256},
-            "grouped_5fold_splits_json": {"path": "grouped_5fold_splits.json", "sha256": grouped_sha256},
-            "temporal_splits_json": (
-                {"path": "temporal_splits.json", "sha256": temporal_sha256} if temporal_sha256 else None
-            ),
-        },
-        "anti_leakage_status": "verified_robust" if verified_robust else "provisional_insufficient_classes",
-        "verified_robust": verified_robust,
-        "verification_summary": {
-            "all_folds_sufficient": all_folds_sufficient,
-            "all_folds_usable": all_folds_usable,
-            "temporal_evaluable": temporal_evaluable,
-        },
-    }
+        # 10. Ghi Manifest liên kết đầy đủ mã băm xuất xứ (Provenance Manifest)
+        manifest: Dict[str, Any] = {
+            "manifest_type": "DATA-03_SPLIT_MANIFEST",
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "input_file": str(input_path),
+            "input_sha256": input_sha256,
+            "code_sha256": composite_code_sha256,
+            "code_hashes": code_hashes,
+            "run_parameters": {
+                "n_splits": args.n_splits,
+                "seeds": list(seeds),
+                "id_field": args.id_field,
+                "url_field": args.url_field,
+                "group_field": args.group_field,
+                "date_field": args.date_field,
+                "label_field": args.label_field,
+                "skip_temporal": args.skip_temporal,
+            },
+            "grouping_metadata": {
+                "group_rules_version": GROUP_RULES_VERSION,
+                "tldextract_version": TLDEXTRACT_VERSION,
+                "psl_snapshot_sha256": PSL_SNAPSHOT_SHA256,
+                "psl_source": "tldextract bundled snapshot",
+            },
+            "artifacts": {
+                "groups_json": {"path": "groups.json", "sha256": groups_sha256},
+                "grouped_5fold_splits_json": {"path": "grouped_5fold_splits.json", "sha256": grouped_sha256},
+                "temporal_splits_json": (
+                    {"path": "temporal_splits.json", "sha256": temporal_sha256} if temporal_sha256 else None
+                ),
+            },
+            "anti_leakage_status": "verified_robust" if verified_robust else "provisional_insufficient_classes",
+            "verified_robust": verified_robust,
+            "verification_summary": {
+                "all_folds_sufficient": all_folds_sufficient,
+                "all_folds_usable": all_folds_usable,
+                "temporal_evaluable": temporal_evaluable,
+            },
+        }
 
-    manifest_file = output_dir / "manifest.json"
-    with open(manifest_file, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
-    print(f"[+] Saved Run Manifest: {manifest_file} (Status: {manifest['anti_leakage_status']})")
+        stg_manifest_file = staging_dir / "manifest.json"
+        with open(stg_manifest_file, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+        # 11. CÔNG BỐ ATOMIC: Toàn bộ artifacts trong staging đã hoàn tất và kiểm tra hợp lệ
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Xử lý rõ ràng artifact temporal của run trước khi overwrite hoặc skip (Khắc phục Probe 3)
+        old_temporal = output_dir / "temporal_splits.json"
+        if args.skip_temporal or temporal_sha256 is None:
+            if old_temporal.exists():
+                old_temporal.unlink()
+
+        # Sao chép/di chuyển từng tệp từ staging sang output_dir
+        for stg_item in staging_dir.iterdir():
+            target_item = output_dir / stg_item.name
+            if target_item.exists():
+                target_item.unlink()
+            shutil.move(str(stg_item), str(target_item))
+
+        print(f"[+] Saved Group index: {output_dir / 'groups.json'} ({len(group_counts)} groups)")
+        print(f"[+] Saved Grouped {args.n_splits}-Fold splits: {output_dir / 'grouped_5fold_splits.json'}")
+        if temporal_sha256 is not None:
+            print(f"[+] Saved Temporal splits: {output_dir / 'temporal_splits.json'} (Status: {temporal_result.get('status')})")
+        print(f"[+] Saved Run Manifest: {output_dir / 'manifest.json'} (Status: {manifest['anti_leakage_status']})")
+
+    finally:
+        shutil.rmtree(staging_dir, ignore_errors=True)
 
     print("\n[V] DATA-03 splitting generation completed successfully.")
     return 0

@@ -13,7 +13,7 @@
   "dictionary_status": "locked",
   "codebook_sha256": "12de9c2f3b457938039b05c72c651d6650f403b620216516262134a3313a2ed1",
   "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
-  "blind_view_path": "data\\annotations\\blind_view_pilot_real.json",
+  "blind_view_path": "data/annotations/blind_view_pilot_real.json",
   "blind_view_sha256": "8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749",
   "audit_trail": {
     "verified_pending_blind_view_sha256": "a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e",
@@ -21,7 +21,7 @@
     "verified_pending_dictionary_sha256": "d9c28221662d1806a67bc82c6ebc909bb8aa3bbfd6d9dd95c4c2b74c911e7b66",
     "note": "Bản hash a4d69... là bản pending đã kiểm tại 5d216aa; lưu dấu vết để phân biệt với gói khóa cuối 1.0.0, không trộn kết quả giữa hai phiên bản."
   },
-  "restricted_source_mapping_path": "data\\raw\\pilot\\source_mapping.json",
+  "restricted_source_mapping_path": "data/raw/pilot/source_mapping.json",
   "restricted_source_mapping_sha256": "36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347",
   "restricted_blind_order_sha256": "d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771",
   "technical20": {

@@ -122,13 +122,8 @@ def _validate_and_extract_record(
             raise ValueError(f"Record '{sid}' has invalid '{group_field}': {raw_gid!r}.")
         gid = cand_gid
 
-    if not gid:
-        raw_url = rec.get(url_field)
-        if raw_url is None:
-            raise ValueError(
-                f"Record '{sid}' missing valid '{group_field}' and has no '{url_field}'. "
-                f"Silent fallback to 'row:<idx>' is strictly forbidden."
-            )
+    raw_url = rec.get(url_field)
+    if raw_url is not None:
         if not isinstance(raw_url, str) or isinstance(raw_url, bool):
             raise TypeError(f"Record '{sid}' '{url_field}' must be a string, got {type(raw_url).__name__}.")
         cand_url = raw_url.strip()
@@ -137,11 +132,18 @@ def _validate_and_extract_record(
                 f"Record '{sid}' missing valid '{group_field}' and has no '{url_field}' (URL is empty). "
                 f"Silent fallback to 'row:<idx>' is strictly forbidden."
             )
-        gid = extract_group_id(cand_url)
-        if gid == "unknown" or any(c.isspace() for c in gid):
+        extracted_gid = extract_group_id(cand_url)
+        if extracted_gid == "unknown" or any(c.isspace() for c in extracted_gid):
             raise ValueError(
                 f"Record '{sid}' has invalid URL '{cand_url}' that cannot be mapped to a valid group."
             )
+        if not gid:
+            gid = extracted_gid
+    elif not gid:
+        raise ValueError(
+            f"Record '{sid}' missing valid '{group_field}' and has no '{url_field}'. "
+            f"Silent fallback to 'row:<idx>' is strictly forbidden."
+        )
 
     lbl = "unlabeled"
     if label_field and label_field in rec and rec[label_field] is not None:
@@ -222,14 +224,9 @@ def generate_grouped_kfold(
     all_sources = sorted({s for s in sample_to_source.values()})
     has_multi_source = len(all_sources) > 1
 
-    # Xác định các lớp mục tiêu bắt buộc (phishing vs benign cho bài toán phát hiện lừa đảo)
-    target_classes: List[str]
-    if any(lbl.lower() in {"phishing", "phish", "benign"} for lbl in all_corpus_labels):
-        target_classes = ["phishing", "benign"]
-    elif has_labels:
-        target_classes = all_corpus_labels
-    else:
-        target_classes = []
+    # Xác định các lớp mục tiêu bắt buộc (bài toán nhị phân phát hiện lừa đảo: phishing vs benign)
+    # Các nhãn ngoài phạm vi (malware, defacement, unknown) KHÔNG được tính là đủ điều kiện phân loại nhị phân.
+    target_classes: List[str] = ["phishing", "benign"] if has_labels else []
 
     all_seed_results: Dict[int, List[Dict[str, Any]]] = {}
 
