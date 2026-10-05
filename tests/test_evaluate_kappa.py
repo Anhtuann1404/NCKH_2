@@ -647,7 +647,11 @@ def test_evaluate_kappa_real_default_manifest(tmp_path):
         [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
         capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
     )
-    assert proc.returncode == 0, f"Lỗi CLI với manifest mặc định: {proc.stderr}"
+    if not manifest.get("ready_for_annotation"):
+        assert proc.returncode != 0
+        assert "ready_for_annotation != true" in proc.stderr or "Manifest pilot chưa ở trạng thái sẵn sàng" in proc.stderr
+    else:
+        assert proc.returncode == 0, f"Lỗi CLI với manifest mặc định: {proc.stderr}"
 
 
 def test_evaluate_kappa_strict_annotator_validation(tmp_path):

@@ -35,3 +35,5 @@ data/source_audit/phreshphish/pilot_20_rows.json
 tmp/
 logs/
 *.log
+scratch/
+

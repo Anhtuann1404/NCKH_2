@@ -6,7 +6,15 @@
     "phish": 20,
     "benign": 12
   },
-  "ready_for_annotation": true,
+  "ready_for_annotation": false,
+  "status": "invalidated",
+  "invalidation_metadata": {
+    "status": "invalidated",
+    "invalidated_at_utc": "2026-10-05T16:15:00Z",
+    "reason": "AI assistance detected in Annotator A session and 20-sample content overlap with practice pilot",
+    "usable_for_kappa_or_plan01": false,
+    "superseded_by": "REAL-PILOT-32-V2"
+  },
   "codebook_version": "1.0.0",
   "codebook_status": "locked",
   "dictionary_version": "1.0.0",

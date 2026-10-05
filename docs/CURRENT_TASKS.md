@@ -51,23 +51,27 @@ Bằng chứng: [dictionary_v1.json](../configs/dictionary_v1.json), [CODEBOOK_V
 
 ### LABEL-01 — View mù và pilot có bấm giờ
 
-Status: READY_FOR_ANNOTATION (Lead D đã phê duyệt gói khóa cuối REAL-PILOT-32-V1; acceptance.D="approved", ready_for_annotation=true. A và B được bàn giao để bắt đầu Pass 1 độc lập có bấm giờ). Owner: C tạo view & rào chắn; A/B đọc độc lập. Phụ thuộc: DATA-02.
+Status: PENDING_REVIEW (Đã xử lý sự cố pilot V1; V1 bị vô hiệu hóa và đóng băng nguyên trạng; đã xây dựng gói mới REAL-PILOT-32-V2 gồm 32 mẫu sạch kiểm định 3 tầng, manifest V2 ở trạng thái pending_lead_acceptance, exclusion registry cô lập 84 mẫu; sẵn sàng chờ Lead D nghiệm thu trước khi mở gán nhãn). Owner: C tạo view & rào chắn; A/B đọc độc lập 100% thủ công không dùng AI. Phụ thuộc: DATA-02.
 
-Đã hoàn thành toàn diện phần việc của Thành viên C (bao gồm giải quyết 6 điểm review của Lead D):
-1. **Module Blind View & Anti-Leakage:** [`blind_view.py`](../src/phishing/annotation/blind_view.py) loại bỏ triệt để script, iframe, inline events, form values. Triển khai cơ chế Allowlist chặt chẽ (`ALLOWED_BLIND_SAMPLE_KEYS`, `ALLOWED_STRUCTURE_SUMMARY_KEYS`), kiểm tra ID mẫu trung tính (`assert_neutral_sample_id` từ chối các chuỗi chứa nhãn như phish/benign hay tên thương hiệu 14 tổ chức), và cấm tiền tố/hậu tố rò rỉ (`annotation_`, `rater_`, `model_`, `_label`, `_score`).
-2. **Schema & Validation AnnotationRecord:** Tuân thủ 100% taxonomy [`docs/CODEBOOK_V1.md`](CODEBOOK_V1.md), tích hợp trường bấm giờ `seconds_spent` không âm, bổ sung trường phân định mô phỏng `is_dry_run: bool = False`. Đã cung cấp mẫu template tại [`annotation_record_template.json`](../data/annotations/templates/annotation_record_template.json).
-3. **Gói dữ liệu Blind View Pilot 20 mẫu:** [`blind_view_pilot.json`](../data/annotations/blind_view_pilot.json) xác nhận rõ xuất xứ `dataset_type: "synthetic_practice_pilot"`, `is_synthetic: true`, mục đích mô phỏng thao tác kỹ thuật; ghi chú rõ ràng không dùng thời gian từ tập này để tính cỡ mẫu cho PLAN-01. ID 20 mẫu được chuẩn hóa trung tính `PILOT-001` đến `PILOT-020`.
-4. **Công cụ gán nhãn CLI có bấm giờ tự động:** [`annotate_cli.py`](../scripts/annotate_cli.py) hỗ trợ:
-   - Đồng hồ bấm giờ tính cả thời gian đọc toàn văn và phân trang văn bản (lệnh `v`/`m` trong console không làm ngắt đồng hồ).
-   - Đọc động `codebook_version` và `random_subset` từ tệp dữ liệu hoặc cờ CLI, không hardcode.
-   - Cách ly tuyệt đối chế độ dry-run: tự động lưu vào file `.dryrun.jsonl`, gán `is_dry_run=True` và `annotator_id="simulated_<ID>"`.
-   - Cơ chế resume an toàn: đối chiếu `annotator_id`, `pass_id`, loại trừ tạp nhiễm dry-run và ném lỗi toàn vẹn đối với dòng JSON hỏng (không âm thầm bỏ qua).
-5. **Đo đạc Cohen's Kappa:** [`annotation/__init__.py`](../src/phishing/annotation/__init__.py) hàm `compute_cohens_kappa` tự động loại bỏ các bản ghi mô phỏng `is_dry_run=True` khỏi thống kê thỏa thuận liên đánh giá viên.
-6. **Kiểm thử tự động:** 23/23 unit tests đạt 100% tại [`test_blind_view.py`](../tests/test_blind_view.py). Toàn bộ dự án đạt 78/78 tests pass.
+Đã hoàn thành toàn diện phần việc của Thành viên C (bao gồm xử lý sự cố pilot V1 do A thừa nhận dùng AI và 20 mẫu trùng tập dượt):
+1. **Đóng băng nguyên trạng và vô hiệu hóa REAL-PILOT-32-V1:**
+   - Cập nhật [`configs/pilot_manifest.json`](../configs/pilot_manifest.json) sang `status: "invalidated"`, `ready_for_annotation: false`, bổ sung `invalidation_metadata`.
+   - Giữ nguyên toàn bộ tệp nhãn của A/B, blind view và logs của V1 để phục vụ kiểm toán khoa học; loại bỏ vĩnh viễn khỏi việc tính Cohen's Kappa hoặc nghiệm thu PLAN-01.
+2. **Xây dựng gói pilot mới REAL-PILOT-32-V2:**
+   - 32 mẫu thực tế độc lập (20 phishing, 12 benign).
+   - Kiểm định đối chiếu 3 tầng (URL, raw HTML byte SHA-256, domain group eTLD+1): 0 trùng URL, 0 trùng HTML, 0 trùng domain group với V1 và tập dượt; 32 domain groups độc lập hoàn toàn.
+   - Script tạo gói: [`build_real_pilot_v2.py`](../scripts/data/build_real_pilot_v2.py).
+3. **Mù hóa tuyệt đối và bảo mật nguồn gốc:**
+   - Blind view [`data/annotations/blind_view_pilot_real_v2.json`](../data/annotations/blind_view_pilot_real_v2.json) (SHA-256: `b5249858c2dfe8531f5d4f8ccca5ef70d6f107f882d5853117ca1eec0e80c48b`) ẩn 100% nhãn nguồn, target tổ chức, domain group.
+   - Restricted source mapping [`data/raw/pilot_v2/source_mapping.json`](../data/raw/pilot_v2/source_mapping.json) lưu trữ cục bộ bảo mật cho C và Lead D.
+   - Manifest V2 [`configs/pilot_manifest_v2.json`](../configs/pilot_manifest_v2.json) khóa ở trạng thái `pending_lead_acceptance`, `ready_for_annotation: false`, `acceptance: {"D": "pending", "B": "pending"}`.
+4. **Cô lập dữ liệu trong Exclusion Registry:**
+   - Cập nhật [`data/exclusion_registry.json`](../data/exclusion_registry.json) bổ sung entry `EXCL-PILOT-02`, nâng tổng số mẫu cô lập lên 84 (20 kỹ thuật + 32 V1 + 32 V2), khóa cứng huấn luyện (`training_blocked: true`).
+5. **Tài liệu và Kiểm thử:**
+   - Báo cáo sự cố: [`docs/PILOT_INCIDENT_REPORT.md`](PILOT_INCIDENT_REPORT.md).
+   - Báo cáo bàn giao V2: [`docs/BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md`](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).
+   - Bộ kiểm thử hồi quy [`tests/test_pilot_v2.py`](../tests/test_pilot_v2.py): 6/6 tests passed. Toàn bộ dự án đạt 209/209 tests passed (100%).
 
-Bằng chứng: [blind_view.py](../src/phishing/annotation/blind_view.py), [blind_view_pilot.json](../data/annotations/blind_view_pilot.json), [annotate_cli.py](../scripts/annotate_cli.py), [test_blind_view.py](../tests/test_blind_view.py).
-
-Bổ sung theo L-B01–L-B06: [bàn giao sửa lỗi](LABEL_01_FIXES.md), [manifest pilot thật](../configs/pilot_manifest.json), [builder](../scripts/data/build_real_pilot.py), [kiểm thử hồi quy](../tests/test_label_fixes.py). Đã khôi phục byte checksum 20 mẫu kỹ thuật cũ và thêm 12 source-phish từ shard train pinned/checksum xác minh. View real32, mapping và hoán vị C-only giữ local; registry có hash/nhóm của union 32, không cộng trùng thành 52. Codebook vẫn pending_review, pinned mapping 20 mẫu cũ unresolved; chưa mở training hoặc gọi LABEL-01 DONE.
 
 ### PLAN-01 — Khóa quy mô và kế hoạch audit
 
