@@ -12,7 +12,7 @@ const initialized = (async () => {
   for (const [name, value] of Object.entries(saved)) {
     if (!name.startsWith('tab:')) continue;
     const state = value as TabState;
-    if (state.status === 'pending') { state.status = 'unable_to_assess'; state.verdict = 'unable_to_assess'; state.code = 'worker_restarted'; }
+    if (state.status === 'pending') { state.status = 'unable_to_assess'; state.verdict = 'unable_to_assess'; state.code = 'worker_restarted'; state.observed_signals = []; }
     states.set(Number(name.slice(4)), state);
     await chrome.storage.session.set({ [name]: state });
   }
@@ -30,7 +30,7 @@ async function publish(tabId: number, state: TabState): Promise<void> {
 }
 
 function fail(tabId: number, request: AnalyzeRequest, code: string) {
-  if (isCurrent(states.get(tabId), request)) void publish(tabId, { ...states.get(tabId)!, status: 'unable_to_assess', verdict: 'unable_to_assess', code });
+  if (isCurrent(states.get(tabId), request)) void publish(tabId, { ...states.get(tabId)!, status: 'unable_to_assess', verdict: 'unable_to_assess', code, observed_signals: [] });
 }
 
 async function acceptSnapshot(message: Record<string, unknown>, sender: chrome.runtime.MessageSender) {
@@ -71,7 +71,10 @@ async function acceptSnapshot(message: Record<string, unknown>, sender: chrome.r
         },
       });
       if (!isCurrent(states.get(tabId), result.request) || abort.signal.aborted || !(await settings()).enabled) return;
-      await publish(tabId, { ...cleanState, request_id: result.request.request_id, status: result.response.status === 'completed' ? 'completed' : 'unable_to_assess', verdict: result.response.verdict, mock: result.response.model.model_id.startsWith('mock-only-'), demo_kind: result.response.model.model_id.startsWith('mock-only-') ? 'mock' : 'synthetic_model', timing_ms: { ...result.response.timing_ms, client_roundtrip: result.elapsedMs } });
+      await publish(tabId, { ...cleanState, request_id: result.request.request_id, status: result.response.status === 'completed' ? 'completed' : 'unable_to_assess', verdict: result.response.verdict,
+        ...(result.response.status === 'insufficient_content' ? { code: 'insufficient_content' } : {}),
+        observed_signals: [...new Set((result.response.signals ?? []).map(signal => signal.code))],
+        mock: result.response.model.model_id.startsWith('mock-only-'), demo_kind: result.response.model.model_id.startsWith('mock-only-') ? 'mock' : 'synthetic_model', timing_ms: { ...result.response.timing_ms, client_roundtrip: result.elapsedMs } });
     } catch (error) {
       if (!abort.signal.aborted) fail(tabId, request, error instanceof APIError ? error.code : 'network_error');
     }
@@ -93,7 +96,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       const state = states.get(id);
       if (state && sender.frameId === 0 && frame?.documentId === sender.documentId && state.navigation_id === message.navigation_id) {
         jobs.get(id)?.abort.abort();
-        await publish(id, { ...state, status: 'unable_to_assess', verdict: 'unable_to_assess', code: 'snapshot_too_large' });
+        await publish(id, { ...state, status: 'unable_to_assess', verdict: 'unable_to_assess', code: 'snapshot_too_large', observed_signals: [] });
       }
       respond({ accepted: true });
     });

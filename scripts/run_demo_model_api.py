@@ -13,7 +13,7 @@ def main():
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--requests-per-minute', type=int, default=90)
     parser.add_argument('--token-file', type=Path, default=Path('.env.phishing.local'))
-    parser.add_argument('--bundle', type=Path, default=Path('artifacts/models/synthetic-demo-v1'),
+    parser.add_argument('--bundle', type=Path, default=Path('artifacts/models/synthetic-demo-observed-v1'),
                         help='Trusted locally built demo bundle; created once if missing')
     args = parser.parse_args()
     try:

@@ -19,7 +19,7 @@ from time import perf_counter
 from phishing.evaluation.metrics import select_validation_threshold
 from phishing.features import FEATURE_VERSION, extract
 from phishing.preprocessing import PREPROCESSING_VERSION, prepare_snapshot
-from phishing.training.pipeline import make_pipeline
+from phishing.training.pipeline import make_pipeline, structured
 from phishing.training.synthetic import make_dataset
 
 
@@ -144,15 +144,27 @@ class SyntheticDemoModel:
         insufficient = payload['phase'] == 'url_content' and not features.text
         score = None if insufficient else float(self.models[payload['phase']].predict_proba([snapshot])[0, 1])
         threshold = None if insufficient else self.thresholds[payload['phase']]
+        signals = [{'code': 'synthetic_training_only', 'org_candidate_id': None,
+                    'domain_relation': 'not_applicable',
+                    'message': 'Mô hình học từ dữ liệu hư cấu; chỉ dùng kiểm thử tích hợp.'}]
+        if payload['phase'] == 'url_content' and not insufficient:
+            numeric = dict(self.models['url_content'].named_steps['features'].transformer_list)['numeric']
+            observed = structured(snapshot, numeric.named_steps['extract'].dictionary)
+            for present, code, relation, message in (
+                (observed['intention'][0] > 0, 'observed_password_input', 'not_applicable', 'Trang có ô nhập mật khẩu.'),
+                (observed['organization'][1] > 0, 'observed_organization_mention', 'not_applicable', 'Nội dung nhắc tên tổ chức trong danh mục mô phỏng.'),
+                (observed['domain'][3] > 0, 'observed_unverified_domain', 'unverified', 'Miền chưa được xác minh theo danh mục mô phỏng.'),
+                (observed['intention'][1] > 0, 'observed_external_form', 'not_applicable', 'Biểu mẫu có địa chỉ gửi tới hostname khác.'),
+            ):
+                if present:
+                    signals.append({'code': code, 'org_candidate_id': None, 'domain_relation': relation, 'message': message})
         ended = perf_counter()
         return {
             **{key: payload[key] for key in ('request_id', 'navigation_id', 'dom_revision', 'phase')},
             'status': 'insufficient_content' if insufficient else 'completed',
             'verdict': 'unable_to_assess' if insufficient else ('warning' if score >= threshold else 'no_indication'),
             'score': score, 'threshold': threshold, 'model': self.metadata(payload['phase']),
-            'signals': [{'code': 'synthetic_training_only', 'org_candidate_id': None,
-                         'domain_relation': 'not_applicable',
-                         'message': 'Mô hình học từ dữ liệu hư cấu; chỉ dùng kiểm thử tích hợp.'}],
+            'signals': signals,
             'limitations': ['synthetic_training_only', 'not_research_evidence',
                             'draft_preprocessing_not_frozen', 'uncalibrated_score'],
             'timing_ms': {'preprocess': (prepared-started)*1000, 'extract': (extracted-prepared)*1000,

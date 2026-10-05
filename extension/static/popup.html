@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>NCKH Phishing — demo</title><link rel="stylesheet" href="popup.css"></head>
 <body>
   <header><span class="badge">DEMO MÔ PHỎNG</span><h1>Cảnh báo phishing</h1><p>Chưa có mô hình nhận diện thật.</p></header>
-  <section class="result"><span>Trạng thái trang hiện tại</span><strong id="status">Chưa đánh giá được</strong><p id="note">Chỉ dùng kiểm thử luồng cảnh báo.</p></section>
+  <section class="result" aria-live="polite"><span>Trạng thái trang hiện tại</span><strong id="status">Chưa đánh giá được</strong><p id="note">Chỉ dùng kiểm thử luồng cảnh báo.</p><div id="signals"></div></section>
   <form id="settings">
     <label class="toggle"><input id="enabled" type="checkbox"> Bật phân tích demo</label>
     <label class="toggle"><input id="content" type="checkbox"> Cho phép phân tích nội dung trang</label>

@@ -1,4 +1,4 @@
-import { normalizeURL, PREPROCESSING_VERSION, statusText, TabState } from './core';
+import { assessmentNote, normalizeURL, observedSignalText, OBSERVATION_NOTE, PREPROCESSING_VERSION, statusText, TabState } from './core';
 import { snapshotHTML } from './snapshot';
 
 let navigation = crypto.randomUUID();
@@ -22,7 +22,8 @@ function show(state: TabState) {
     (banner as HTMLElement & { statusText?: HTMLElement }).statusText = text;
   }
   const text = (banner as HTMLElement & { statusText?: HTMLElement }).statusText!;
-  text.textContent = `DEMO MÔ PHỎNG — ${state.demo_kind === 'synthetic_model' ? 'mô hình học từ dữ liệu hư cấu' : 'chưa nhận diện thật'}\n${statusText(state)}`;
+  const observations = observedSignalText(state);
+  text.textContent = `DEMO MÔ PHỎNG — ${state.demo_kind === 'synthetic_model' ? 'mô hình học từ dữ liệu hư cấu' : 'chưa nhận diện thật'}\n${statusText(state)}\n${assessmentNote(state)}${observations.length ? '\nTín hiệu quan sát được:\n• ' + observations.join('\n• ') + '\n' + OBSERVATION_NOTE : ''}`;
   text.style.whiteSpace = 'pre-line';
 }
 
