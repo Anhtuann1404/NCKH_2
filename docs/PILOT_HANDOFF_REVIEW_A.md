@@ -9,12 +9,14 @@
 - Dictionary SHA-256: `a7403a79531b0e5f13884fa4e4d431876f34e3277a3112577a3ff2275703ff2d`.
 - Manifest REAL-PILOT-32-V1 ghi 32 mẫu, view hash `08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176`. Đây là hash **được khai báo**, chưa xác minh file nhận trên máy A; file view không tracked trên nhánh nên pull không đủ bàn giao.
 - Snapshot công cụ mới ở `tmp/c-pilot-edc8887/`; CLI `--help` chạy được, có `--manifest`. Không copy/view nội dung real32. Kiểm help không thay nghiệm thu end-to-end trên gói đã khóa.
-- L-B01–L-B06 đã được sửa trên nhánh C; các phát hiện lỗi CLI/Kappa bên dưới chỉ là lịch sử của ccdfdbb, không còn là danh sách lỗi hiện hành.
+- L-B01–L-B06 đã có bản sửa; nghiệm thu cuối theo kết luận Lead. Các phát hiện lỗi CLI/Kappa bên dưới là lịch sử của ccdfdbb; không suy rằng toàn bộ công cụ đã được duyệt từ việc có bản sửa.
 - Đã có 20 dry-run kỹ thuật và 20 nhãn AI tham khảo trên synthetic, lưu riêng local; chưa có lượt người A. Mọi nhãn AI bị loại khỏi kappa mặc định, không dùng cho PLAN-01 hoặc nghiên cứu.
 
 Bằng chứng local: `data/annotations/A/real_pilot_handoff_status.json`, `latest_cli_environment_check.json`, `ai_practice_reference_report.json`. Những tệp này được Git ignore.
 
 Việc còn chờ: C bàn giao file view thực cùng manifest/codebook/dictionary đã khóa nhất quán; B/D nghiệm thu cuối và Lead phát lệnh rõ ràng. Nhận lại phiên bản/hash mới nếu C sửa gói; không dùng hash pending ở trên làm bản khóa. Không gửi nhãn/ghi chú A cho B trước khóa lượt độc lập.
+
+Lead đã rà hồ sơ A tại `868ab91` và ghi nhận phần chuẩn bị đạt; đây không phải phê duyệt mở pilot. A tiếp tục chờ, chưa mở mẫu thật. Khi nhận gói đã nghiệm thu, trước Pass 1 phải kiểm lại hash tệp nhận và ghi commit công cụ, phiên bản/hash gói, codebook, dictionary cùng sampling plan. Không dùng lệnh trong mục lịch sử để chạy phiên mới.
 
 ## Nhật ký kiểm tra cũ — ccdfdbb (04/10/2026)
 
