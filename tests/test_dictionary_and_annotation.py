@@ -20,7 +20,7 @@ EXCLUSION_PATH = PROJECT_ROOT / "data" / "exclusion_registry.json"
 
 from phishing.data import verify_sha256
 from phishing.features.domains import DomainRule, domain_relation, load_rules_from_org_dict
-from phishing.annotation import compute_cohens_kappa, KappaResult
+from phishing.annotation import compute_cohens_kappa, compute_cohens_kappa_from_labels, KappaResult
 
 
 class TestConfigIntegrity:
@@ -166,7 +166,7 @@ class TestHelperFunctionsAndKappa:
         """Khi toàn bộ mẫu chỉ thuộc 1 category duy nhất, Pe=1.0 -> Kappa không xác định (0/0), không trả 1.0."""
         rater1 = ["phish"] * 20
         rater2 = ["phish"] * 20
-        result = compute_cohens_kappa(rater1, rater2)
+        result = compute_cohens_kappa_from_labels(rater1, rater2)
         assert result.kappa is None
         assert result.status == "undefined_single_class"
         assert result.observed_agreement == 1.0
@@ -176,7 +176,7 @@ class TestHelperFunctionsAndKappa:
     def test_cohens_kappa_perfect_agreement_multiclass(self):
         rater1 = ["microsoft", "google", "meta", "apple"] * 5
         rater2 = ["microsoft", "google", "meta", "apple"] * 5
-        result = compute_cohens_kappa(rater1, rater2)
+        result = compute_cohens_kappa_from_labels(rater1, rater2)
         assert result.status == "valid"
         assert result.kappa == 1.0
         assert result.observed_agreement == 1.0
@@ -184,7 +184,7 @@ class TestHelperFunctionsAndKappa:
     def test_cohens_kappa_partial_agreement(self):
         rater1 = ["A", "A", "A", "B", "B", "B", "C", "C", "C", "A"]
         rater2 = ["A", "A", "B", "B", "B", "A", "C", "C", "C", "A"]
-        result = compute_cohens_kappa(rater1, rater2)
+        result = compute_cohens_kappa_from_labels(rater1, rater2)
         assert result.status == "valid"
         assert 0.0 < result.kappa < 1.0
 
@@ -195,21 +195,21 @@ class TestHelperFunctionsAndKappa:
         is_difficult = [False, False, False, True]
 
         # Khi loại ca khó thứ 4, 3 mẫu còn lại đồng thuận 100%
-        result = compute_cohens_kappa(rater1, rater2, is_difficult=is_difficult, random_subset=[True, True, True, False])
+        result = compute_cohens_kappa_from_labels(rater1, rater2, is_difficult=is_difficult, random_subset=[True, True, True, False])
         assert result.sample_count == 3
         assert result.observed_agreement == 1.0
 
         # Ca khó thứ 4 thuộc random thì phải được giữ, kể cả khi bất đồng.
-        result = compute_cohens_kappa(rater1, rater2, is_difficult=is_difficult, random_subset=[True] * 4)
+        result = compute_cohens_kappa_from_labels(rater1, rater2, is_difficult=is_difficult, random_subset=[True] * 4)
         assert result.sample_count == 4
         assert result.observed_agreement == 0.75
 
     def test_cohens_kappa_length_mismatch(self):
         with pytest.raises(ValueError, match="cùng độ dài"):
-            compute_cohens_kappa(["A", "B"], ["A"])
+            compute_cohens_kappa_from_labels(["A", "B"], ["A"])
 
     def test_cohens_kappa_missing_data(self):
         with pytest.raises(ValueError, match="Thiếu dữ liệu nhãn"):
-            compute_cohens_kappa(["A", None], ["A", "B"])
+            compute_cohens_kappa_from_labels(["A", None], ["A", "B"])
         with pytest.raises(ValueError, match="Thiếu dữ liệu nhãn"):
-            compute_cohens_kappa(["A", "  "], ["A", "B"])
+            compute_cohens_kappa_from_labels(["A", "  "], ["A", "B"])

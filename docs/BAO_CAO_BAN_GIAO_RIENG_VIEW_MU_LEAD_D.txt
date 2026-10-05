@@ -92,7 +92,8 @@ III. ĐÍNH CHÍNH METADATA NGUỒN CHECK POINT RESEARCH & CHỨNG MINH HỢP 14
      Microsoft, Google, Apple, Amazon, Mastercard, Facebook, WhatsApp, LinkedIn, Alibaba, Adobe (10 thương hiệu).
      (Đã loại bỏ PayPal, bổ sung WhatsApp theo đúng báo cáo gốc).
    - Q2/2025 (Báo cáo ngày 22/07/2025):
-     Microsoft, Google, Apple, Amazon, Spotify, Facebook, Alibaba, PayPal, LinkedIn, Adobe (10 thương hiệu).
+     Microsoft, Google, Apple, Spotify, Adobe, LinkedIn, Amazon, Booking, WhatsApp, Facebook (10 thương hiệu).
+     (Đã loại bỏ Alibaba và PayPal; bổ sung Booking và WhatsApp theo đúng báo cáo gốc CPR Q2/2025).
    - Q3/2025 (Báo cáo ngày 16/10/2025):
      Microsoft, Google, Apple, Amazon, PayPal, Adobe, LinkedIn, DHL, Spotify, Booking (10 thương hiệu).
      (Đã loại bỏ Facebook và Alibaba; bổ sung Spotify và Booking theo đúng báo cáo gốc).
@@ -124,14 +125,16 @@ IV. THÔNG SỐ VÀ MÃ BĂM GÓI VIEW MÙ REAL-PILOT-32-V1 BÀN GIAO CHO LEAD D
    - Phiên bản sampling plan: "PILOT-PLAN-V1-FULL-OVERLAP"
    - Ghi chú kế hoạch mẫu: A/B kiểm toàn bộ 32 mẫu pilot; không gọi đây là mẫu con 30% của đợt chính.
    - Mã băm SHA-256 tệp View Mù:
-     08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
+     a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e
 
 2. Các mã băm tham chiếu đồng bộ trong configs/pilot_manifest.json:
    - codebook_version: "1.0.0-pending_review"
    - codebook_status: "pending_review"
-   - codebook_sha256: fc89f7704fd8fcc2ebe26f135a780dcd2d5464958150abe9b5888aeeecd92c2e
-   - dictionary_sha256: a7403a79531b0e5f13884fa4e4d431876f34e3277a3112577a3ff2275703ff2d
-   - blind_view_sha256: 08dc47c45e7ff254389ac46b1068d505bea13ed4f05f56cf5416a5c516a78176
+   - dictionary_version: "1.0.0-pending_review"
+   - dictionary_status: "pending_review"
+   - codebook_sha256: b0ba9e063c9b96728f1f98bdf7e6885a8e6650345a93b6c7704b8d957e94e84a
+   - dictionary_sha256: d9c28221662d1806a67bc82c6ebc909bb8aa3bbfd6d9dd95c4c2b74c911e7b66
+   - blind_view_sha256: a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e
    - restricted_source_mapping_sha256: 36215a9b2e89d59b0554bd99e96c11dd7d189e3b5e8da459fe9f6ed75a388347
    - restricted_blind_order_sha256: d988eb711b8f8ebc76025117c0138a731157438c716bcfb172a7fd3f1209d771
    - sampling_plan_version: "PILOT-PLAN-V1-FULL-OVERLAP"

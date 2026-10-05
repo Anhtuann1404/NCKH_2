@@ -36,18 +36,23 @@ def compute_cohens_kappa(
     label_field: Literal["class_label", "primary_org"] = "class_label",
     allow_dry_run: bool = False,
     allow_synthetic: bool = False,
+    require_provenance: bool = True,
 ) -> KappaResult:
     """Tính chỉ số thỏa thuận liên đánh giá viên Cohen's Kappa giữa A và B trên mẫu ngẫu nhiên.
 
     Quy tắc ARS bắt buộc:
-    1. Chọn theo random_subset, giữ cả ca khó vốn nằm trong random. is_difficult
-       chỉ là metadata, không quyết định loại mẫu. Chuỗi nhãn không metadata được
-       xem là đầu vào đã lọc random; khi truyền is_difficult phải truyền membership.
-    2. Loại bỏ triệt để các bản ghi mô phỏng/dry-run (is_dry_run=True) và dữ liệu mô phỏng (is_synthetic=True)
-       để không làm sai lệch thống kê nghiên cứu.
-    3. Khi Pe = 1.0 (hoặc toàn bộ dữ liệu chỉ có duy nhất 1 danh mục), hệ số Kappa không xác định (0/0).
+    1. Trong luồng nghiên cứu (require_provenance=True), bắt buộc từng bản ghi phải có đầy đủ 6 trường
+       provenance (dataset_id, dataset_hash, codebook_version, codebook_hash, sampling_plan_version, sample_content_hash)
+       và sample_id hợp lệ. Nếu thiếu bất kỳ trường nào, lập tức ném ngoại lệ ValueError.
+    2. Nếu cần tính toán thuần túy từ chuỗi nhãn hoặc bộ dữ liệu test đơn giản không có provenance,
+       sử dụng compute_cohens_kappa_from_labels hoặc truyền rõ require_provenance=False.
+    3. Chọn theo random_subset, giữ cả ca khó vốn nằm trong random. is_difficult
+       chỉ là metadata, không quyết định loại mẫu.
+    4. Loại bỏ triệt để các bản ghi mô phỏng/dry-run (is_dry_run=True) và dữ liệu mô phỏng (is_synthetic=True)
+       khỏi thống kê nghiên cứu (trừ khi được chỉ định rõ qua allow_dry_run/allow_synthetic).
+    5. Khi Pe = 1.0 (hoặc toàn bộ dữ liệu chỉ có duy nhất 1 danh mục), hệ số Kappa không xác định (0/0).
        Hàm trả về kappa = None, status = 'undefined_single_class', và ghi nhận P_o riêng biệt.
-    4. Kiểm tra tính toàn vẹn dữ liệu: phát hiện thiếu nhãn (None, rỗng, whitespace).
+    6. Kiểm tra tính toàn vẹn dữ liệu: phát hiện thiếu nhãn (None, rỗng, whitespace).
     """
     if len(rater1) != len(rater2) or len(rater1) == 0:
         raise ValueError("Hai danh sách nhãn phải có cùng độ dài và không được rỗng.")
@@ -72,6 +77,28 @@ def compute_cohens_kappa(
         "sampling_plan_version",
         "sample_content_hash",
     ]
+
+    # LUỒNG NGHIÊN CỨU: Bắt buộc đầy đủ 6 trường provenance và sample_id trên từng bản ghi
+    if require_provenance:
+        for r_name, r_list in [("rater1", rater1), ("rater2", rater2)]:
+            for idx, r in enumerate(r_list):
+                if not isinstance(r, dict) and not hasattr(r, "sample_id"):
+                    raise ValueError(
+                        f"THIẾU PROVENANCE: Chuỗi nhãn thô không có thông tin provenance. "
+                        f"Luồng nghiên cứu yêu cầu bản ghi có đầy đủ provenance và hash nội dung. "
+                        f"Để tính toán từ chuỗi nhãn thô, sử dụng compute_cohens_kappa_from_labels hoặc require_provenance=False."
+                    )
+                sid = _extract_sid(r)
+                if not sid or str(sid).strip() == "":
+                    raise ValueError(f"THIẾU PROVENANCE: Bản ghi index {idx} của {r_name} thiếu hoặc rỗng 'sample_id'.")
+                for req_f in provenance_check_fields:
+                    val = getattr(r, req_f, None) if not isinstance(r, dict) else r.get(req_f)
+                    if val is None or str(val).strip() == "":
+                        raise ValueError(
+                            f"THIẾU PROVENANCE: Bản ghi '{sid}' của {r_name} thiếu hoặc rỗng trường bắt buộc '{req_f}' "
+                            f"trong luồng nghiên cứu."
+                        )
+
     has_any_prov = any(
         any(
             (getattr(r, pf, None) if not isinstance(r, dict) else r.get(pf)) is not None
@@ -300,4 +327,46 @@ def filter_research_annotations(
             continue
         filtered.append(r)
     return filtered
+
+
+def compute_cohens_kappa_from_labels(
+    labels1: Sequence[str],
+    labels2: Sequence[str],
+    *,
+    is_difficult: Sequence[bool] | None = None,
+    random_subset: Sequence[bool] | None = None,
+    allow_dry_run: bool = True,
+    allow_synthetic: bool = True,
+) -> KappaResult:
+    """Tính chỉ số thỏa thuận Cohen's Kappa từ danh sách chuỗi nhãn thô (dùng riêng cho unit test/toán học).
+
+    TÁCH BIỆT RẠCH RÒI KHỎI LUỒNG NGHIÊN CỨU:
+    Luồng nghiên cứu chính thức BẮT BUỘC dùng compute_cohens_kappa với require_provenance=True.
+    """
+    return compute_cohens_kappa(
+        labels1,
+        labels2,
+        is_difficult=is_difficult,
+        random_subset=random_subset,
+        allow_dry_run=allow_dry_run,
+        allow_synthetic=allow_synthetic,
+        require_provenance=False,
+    )
+
+
+__all__ = [
+    "compute_cohens_kappa",
+    "compute_cohens_kappa_from_labels",
+    "KappaResult",
+    "filter_research_annotations",
+    "AnnotationRecord",
+    "BlindSample",
+    "assert_neutral_sample_id",
+    "assert_no_label_leak",
+    "compute_sample_content_hash",
+    "create_blind_sample",
+    "export_blind_view",
+    "extract_safe_view_content",
+    "validate_annotation_record",
+]
 

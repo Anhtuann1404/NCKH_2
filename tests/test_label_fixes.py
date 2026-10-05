@@ -49,10 +49,10 @@ def test_kappa_keeps_random_difficult_and_uses_requested_label():
     a = [{"class_label": "benign", "primary_org": "google", "random_subset": True, "difficult_case": True},
          {"class_label": "benign", "primary_org": "meta", "random_subset": False}]
     b = [dict(a[0], primary_org="microsoft"), dict(a[1])]
-    result = compute_cohens_kappa(a, b, is_difficult=[True, False], label_field="primary_org")
+    result = compute_cohens_kappa(a, b, is_difficult=[True, False], label_field="primary_org", require_provenance=False)
     assert result.sample_count == 1 and result.observed_agreement == 0
     with pytest.raises(ValueError, match="random_subset"):
-        compute_cohens_kappa(["x"], ["y"], is_difficult=[True])
+        compute_cohens_kappa(["x"], ["y"], is_difficult=[True], require_provenance=False)
 
 
 def test_offline_html_limit_is_explicit():
@@ -84,19 +84,37 @@ def test_real_pilot_pending_review_cannot_create_human_labels(tmp_path):
 
 def test_real_pilot_ready_allows_session_init(tmp_path, capsys):
     input_path = tmp_path / "ready.json"
-    export_blind_view([], input_path, dataset_type="real_pilot_ready")
+    dataset_id = "REAL-PILOT-READY-01"
+    sp_ver = "PILOT-PLAN-V1-FULL-OVERLAP"
+    export_blind_view(
+        [],
+        input_path,
+        dataset_id=dataset_id,
+        dataset_type="real_pilot_ready",
+        sampling_plan_version=sp_ver,
+    )
     output = tmp_path / "A.jsonl"
     manifest_path = tmp_path / "mock_manifest.json"
     view_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    cb_hash = hashlib.sha256((ROOT / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+    dict_hash = hashlib.sha256((ROOT / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+
     manifest_path.write_text(json.dumps({
+        "dataset_id": dataset_id,
+        "sample_count": 0,
+        "sampling_plan_version": sp_ver,
+        "codebook_version": "1.0.0",
+        "codebook_status": "locked",
+        "dictionary_version": "1.0.0",
+        "dictionary_status": "locked",
         "acceptance": {"B": "approved", "D": "approved"},
         "ready_for_annotation": True,
-        "codebook_status": "locked",
-        "sample_count": 0,
         "blind_view_sha256": view_hash,
+        "codebook_sha256": cb_hash,
+        "dictionary_sha256": dict_hash,
     }), encoding="utf-8")
-    # Với gói rỗng nhưng ready và manifest đã duyệt, session khởi động thành công và báo đã hoàn thành
-    cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path)
+    # Với gói rỗng nhưng ready và manifest đã duyệt đầy đủ contract, session khởi động thành công và báo đã hoàn thành
+    cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path, dry_run=True)
     out = capsys.readouterr().out
     assert "hoàn thành toàn bộ các mẫu" in out
 

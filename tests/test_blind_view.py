@@ -20,6 +20,7 @@ from phishing.annotation import (
     assert_neutral_sample_id,
     assert_no_label_leak,
     compute_cohens_kappa,
+    compute_cohens_kappa_from_labels,
     compute_sample_content_hash,
     create_blind_sample,
     export_blind_view,
@@ -432,7 +433,7 @@ class TestBlindViewExportAndKappaFlow:
         labels_b = [r.class_label for r in records_b]
         is_difficult = [r.difficult_case for r in records_a]
 
-        kappa_res = compute_cohens_kappa(labels_a, labels_b, is_difficult=is_difficult, random_subset=[r.random_subset for r in records_a])
+        kappa_res = compute_cohens_kappa_from_labels(labels_a, labels_b, is_difficult=is_difficult, random_subset=[r.random_subset for r in records_a])
         assert kappa_res.status == "valid"
         assert kappa_res.observed_agreement == 0.8
         assert kappa_res.sample_count == 5
@@ -440,6 +441,14 @@ class TestBlindViewExportAndKappaFlow:
 
     def test_cohens_kappa_filters_dry_run_records(self):
         """Hàm compute_cohens_kappa phải tự động loại bỏ bản ghi dry-run mô phỏng."""
+        prov = {
+            "dataset_id": "TEST-PILOT-01",
+            "dataset_hash": "hash_pkg_v1",
+            "codebook_hash": "cb_hash_v1",
+            "codebook_version": "1.0.0",
+            "sampling_plan_version": "PLAN-V1",
+            "sample_content_hash": "content_hash_s",
+        }
         records_a = [
             validate_annotation_record({
                 "annotator_id": "A", "sample_id": "S1", "pass_id": 1,
@@ -447,6 +456,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "note",
                 "seconds_spent": 100.0, "random_subset": True, "difficult_case": False, "is_dry_run": False,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "A", "sample_id": "S2", "pass_id": 1,
@@ -454,6 +464,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "note",
                 "seconds_spent": 80.0, "random_subset": True, "difficult_case": False, "is_dry_run": False,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "A", "sample_id": "S3", "pass_id": 1,
@@ -461,6 +472,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "note",
                 "seconds_spent": 90.0, "random_subset": True, "difficult_case": False, "is_dry_run": False,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "simulated_A", "sample_id": "S4", "pass_id": 1,
@@ -468,6 +480,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "dry",
                 "seconds_spent": 0.5, "random_subset": True, "difficult_case": False, "is_dry_run": True,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "simulated_A", "sample_id": "S5", "pass_id": 1,
@@ -475,6 +488,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "dry",
                 "seconds_spent": 0.5, "random_subset": True, "difficult_case": False, "is_dry_run": True,
+                **prov,
             }),
         ]
 
@@ -485,6 +499,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "note",
                 "seconds_spent": 110.0, "random_subset": True, "difficult_case": False, "is_dry_run": False,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "B", "sample_id": "S2", "pass_id": 1,
@@ -492,6 +507,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "note",
                 "seconds_spent": 75.0, "random_subset": True, "difficult_case": False, "is_dry_run": False,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "B", "sample_id": "S3", "pass_id": 1,
@@ -499,6 +515,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "note",
                 "seconds_spent": 85.0, "random_subset": True, "difficult_case": False, "is_dry_run": False,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "simulated_B", "sample_id": "S4", "pass_id": 1,
@@ -506,6 +523,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "dry",
                 "seconds_spent": 0.5, "random_subset": True, "difficult_case": False, "is_dry_run": True,
+                **prov,
             }),
             validate_annotation_record({
                 "annotator_id": "simulated_B", "sample_id": "S5", "pass_id": 1,
@@ -513,6 +531,7 @@ class TestBlindViewExportAndKappaFlow:
                 "observed_service": "Office", "org_targets": ["target"], "primary_org": "target",
                 "identity_role": "identity_claim", "domain_role": "unverified", "evidence_note": "dry",
                 "seconds_spent": 0.5, "random_subset": True, "difficult_case": False, "is_dry_run": True,
+                **prov,
             }),
         ]
 
@@ -816,18 +835,33 @@ class TestProvenanceAndKappaPairing:
         assert d["codebook_hash"] == "def456hash"
         assert d["sampling_plan_version"] == "PLAN-01"
 
+    @staticmethod
+    def _full_prov(**kwargs):
+        prov = {
+            "dataset_id": "REAL-PILOT-32-V1",
+            "dataset_hash": "hash_pkg_v1",
+            "codebook_hash": "hash_cb_v1",
+            "codebook_version": "1.0.0",
+            "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
+            "sample_content_hash": "content_hash_default",
+            "random_subset": True,
+        }
+        prov.update(kwargs)
+        return prov
+
     def test_kappa_pairs_by_sample_id_regardless_of_order(self):
         """compute_cohens_kappa tự sắp xếp ghép cặp theo sample_id khi thứ tự dòng khác nhau."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "random_subset": True},
-            {"sample_id": "S02", "class_label": "benign", "random_subset": True},
-            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
+            p(sample_id="S01", class_label="phishing", sample_content_hash="c1"),
+            p(sample_id="S02", class_label="benign", sample_content_hash="c2"),
+            p(sample_id="S03", class_label="phishing", sample_content_hash="c3"),
         ]
         # r2 bị xáo trộn thứ tự dòng: S03, S01, S02
         r2 = [
-            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
-            {"sample_id": "S01", "class_label": "phishing", "random_subset": True},
-            {"sample_id": "S02", "class_label": "benign", "random_subset": True},
+            p(sample_id="S03", class_label="phishing", sample_content_hash="c3"),
+            p(sample_id="S01", class_label="phishing", sample_content_hash="c1"),
+            p(sample_id="S02", class_label="benign", sample_content_hash="c2"),
         ]
         res = compute_cohens_kappa(r1, r2, label_field="class_label")
         assert res.sample_count == 3
@@ -836,34 +870,38 @@ class TestProvenanceAndKappaPairing:
 
     def test_kappa_rejects_sample_id_mismatch(self):
         """compute_cohens_kappa ném lỗi khi tập hợp sample_id giữa hai người gán không trùng khớp."""
-        r1 = [{"sample_id": "S01", "class_label": "phishing"}, {"sample_id": "S02", "class_label": "benign"}]
-        r2 = [{"sample_id": "S01", "class_label": "phishing"}, {"sample_id": "S99", "class_label": "benign"}]
+        p = self._full_prov
+        r1 = [p(sample_id="S01", class_label="phishing"), p(sample_id="S02", class_label="benign")]
+        r2 = [p(sample_id="S01", class_label="phishing"), p(sample_id="S99", class_label="benign")]
         with pytest.raises(ValueError, match="không khớp nhau"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_package_hash_mismatch(self):
         """compute_cohens_kappa ném lỗi khi rater1 và rater2 gán trên hai gói dữ liệu khác nhau."""
-        r1 = [{"sample_id": "S01", "class_label": "phishing", "dataset_hash": "hash_A"}]
-        r2 = [{"sample_id": "S01", "class_label": "phishing", "dataset_hash": "hash_B"}]
-        with pytest.raises(ValueError, match="mâu thuẫn provenance"):
+        p = self._full_prov
+        r1 = [p(sample_id="S01", class_label="phishing", dataset_hash="hash_A")]
+        r2 = [p(sample_id="S01", class_label="phishing", dataset_hash="hash_B")]
+        with pytest.raises(ValueError, match="mâu thuẫn provenance 'dataset_hash'"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_codebook_and_plan_provenance_mismatch(self):
         """compute_cohens_kappa phát hiện mâu thuẫn codebook_hash hoặc sampling_plan_version."""
-        r1 = [{"sample_id": "S01", "class_label": "phishing", "codebook_hash": "cb_v1"}]
-        r2 = [{"sample_id": "S01", "class_label": "phishing", "codebook_hash": "cb_v2"}]
+        p = self._full_prov
+        r1 = [p(sample_id="S01", class_label="phishing", codebook_hash="cb_v1")]
+        r2 = [p(sample_id="S01", class_label="phishing", codebook_hash="cb_v2")]
         with pytest.raises(ValueError, match="mâu thuẫn provenance 'codebook_hash'"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_excludes_synthetic_records_from_research_statistics(self):
         """Dữ liệu mô phỏng (is_synthetic=True) bị loại bỏ khỏi thống kê Cohen's Kappa theo quy tắc Lead D."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "is_synthetic": True, "random_subset": True},
-            {"sample_id": "S02", "class_label": "benign", "is_synthetic": True, "random_subset": True},
+            p(sample_id="S01", class_label="phishing", is_synthetic=True),
+            p(sample_id="S02", class_label="benign", is_synthetic=True),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing", "is_synthetic": True, "random_subset": True},
-            {"sample_id": "S02", "class_label": "benign", "is_synthetic": True, "random_subset": True},
+            p(sample_id="S01", class_label="phishing", is_synthetic=True),
+            p(sample_id="S02", class_label="benign", is_synthetic=True),
         ]
         # Mặc định allow_synthetic=False: ném lỗi vì toàn bộ mẫu bị loại bỏ
         with pytest.raises(ValueError, match="dữ liệu mô phỏng"):
@@ -888,85 +926,92 @@ class TestProvenanceAndKappaPairing:
 
     def test_kappa_rejects_mixed_batch_multiple_packages(self):
         """compute_cohens_kappa cấm tính toán trên tập dữ liệu lẫn lộn nhiều gói/codebook/sampling-plan."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_A", "codebook_hash": "cb1"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_B", "codebook_hash": "cb1"},
+            p(sample_id="S01", class_label="phishing", dataset_hash="pkg_A"),
+            p(sample_id="S02", class_label="benign", dataset_hash="pkg_B"),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_A", "codebook_hash": "cb1"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_B", "codebook_hash": "cb1"},
+            p(sample_id="S01", class_label="phishing", dataset_hash="pkg_A"),
+            p(sample_id="S02", class_label="benign", dataset_hash="pkg_B"),
         ]
         with pytest.raises(ValueError, match="LỖI ĐA GÓI"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_pairwise_content_hash_mismatch(self):
         """compute_cohens_kappa phát hiện và báo lỗi khi sample_content_hash của cùng sample_id bị lệch giữa A và B."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg1", "sample_content_hash": "hash_v1"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg1", "sample_content_hash": "hash_v2"},
+            p(sample_id="S01", class_label="phishing", sample_content_hash="hash_v1"),
+            p(sample_id="S02", class_label="benign", sample_content_hash="hash_v2"),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg1", "sample_content_hash": "hash_tampered"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg1", "sample_content_hash": "hash_v2"},
+            p(sample_id="S01", class_label="phishing", sample_content_hash="hash_tampered"),
+            p(sample_id="S02", class_label="benign", sample_content_hash="hash_v2"),
         ]
         with pytest.raises(ValueError, match="MÂU THUẪN NỘI DUNG MẪU"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_missing_sample_id_when_provenance_present(self):
         """compute_cohens_kappa từ chối khi bản ghi có provenance nhưng không có sample_id."""
-        r1 = [{"class_label": "phishing", "dataset_id": "ds_pilot"}]
-        r2 = [{"class_label": "phishing", "dataset_id": "ds_pilot"}]
-        with pytest.raises(ValueError, match="thiếu 'sample_id'"):
+        p = self._full_prov
+        r1 = [dict(p(class_label="phishing"), sample_id=None)]
+        r2 = [dict(p(class_label="phishing"), sample_id=None)]
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_partial_missing_or_empty_sample_id(self):
         """compute_cohens_kappa từ chối khi có bản ghi thiếu hoặc rỗng sample_id."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing"},
-            {"sample_id": "", "class_label": "benign"},
+            p(sample_id="S01", class_label="phishing"),
+            p(sample_id="", class_label="benign"),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing"},
-            {"sample_id": "S02", "class_label": "benign"},
+            p(sample_id="S01", class_label="phishing"),
+            p(sample_id="S02", class_label="benign"),
         ]
-        with pytest.raises(ValueError, match="THIẾU PROVENANCE: Tập nhãn của rater1 có bản ghi thiếu hoặc rỗng 'sample_id'"):
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_intra_batch_missing_provenance_field(self):
         """compute_cohens_kappa yêu cầu mọi bản ghi trong tập phải có đầy đủ trường provenance."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_1", "codebook_version": "1.0.0"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_1", "codebook_version": ""},
+            p(sample_id="S01", class_label="phishing"),
+            p(sample_id="S02", class_label="benign", codebook_version=""),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_hash": "pkg_1", "codebook_version": "1.0.0"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_hash": "pkg_1", "codebook_version": "1.0.0"},
+            p(sample_id="S01", class_label="phishing"),
+            p(sample_id="S02", class_label="benign"),
         ]
         with pytest.raises(ValueError, match="THIẾU PROVENANCE.*codebook_version"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_when_one_rater_completely_lacks_provenance_field(self):
-        """compute_cohens_kappa từ chối khi rater1 có provenance nhưng rater2 không có."""
+        """compute_cohens_kappa từ chối khi rater1 có provenance nhưng rater2 thiếu."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "dataset_id": "ds_pilot"},
-            {"sample_id": "S02", "class_label": "benign", "dataset_id": "ds_pilot"},
+            p(sample_id="S01", class_label="phishing"),
+            p(sample_id="S02", class_label="benign"),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing"},
-            {"sample_id": "S02", "class_label": "benign"},
+            p(sample_id="S01", class_label="phishing", dataset_id=""),
+            p(sample_id="S02", class_label="benign", dataset_id=""),
         ]
-        with pytest.raises(ValueError, match="THIẾU PROVENANCE.*rater2.*dataset_id"):
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE.*dataset_id"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
 
     def test_kappa_rejects_missing_content_hash_on_one_record(self):
-        """compute_cohens_kappa yêu cầu sample_content_hash đầy đủ trên toàn bộ bản ghi nếu có khai báo."""
+        """compute_cohens_kappa yêu cầu sample_content_hash đầy đủ trên toàn bộ bản ghi."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "sample_content_hash": "h1"},
-            {"sample_id": "S02", "class_label": "benign", "sample_content_hash": None},
+            p(sample_id="S01", class_label="phishing", sample_content_hash="h1"),
+            p(sample_id="S02", class_label="benign", sample_content_hash=""),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing", "sample_content_hash": "h1"},
-            {"sample_id": "S02", "class_label": "benign", "sample_content_hash": "h2"},
+            p(sample_id="S01", class_label="phishing", sample_content_hash="h1"),
+            p(sample_id="S02", class_label="benign", sample_content_hash="h2"),
         ]
         with pytest.raises(ValueError, match="THIẾU PROVENANCE.*sample_content_hash"):
             compute_cohens_kappa(r1, r2, label_field="class_label")
@@ -1000,15 +1045,16 @@ class TestProvenanceAndKappaPairing:
 
     def test_kappa_stable_deterministic_sort_matches_different_order(self):
         """compute_cohens_kappa tự động sắp xếp theo sample_id bảo đảm kết quả độc lập với thứ tự nhập liệu."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
-            {"sample_id": "S01", "class_label": "benign", "random_subset": True},
-            {"sample_id": "S02", "class_label": "phishing", "random_subset": True},
+            p(sample_id="S03", class_label="phishing", sample_content_hash="c3"),
+            p(sample_id="S01", class_label="benign", sample_content_hash="c1"),
+            p(sample_id="S02", class_label="phishing", sample_content_hash="c2"),
         ]
         r2 = [
-            {"sample_id": "S02", "class_label": "phishing", "random_subset": True},
-            {"sample_id": "S03", "class_label": "phishing", "random_subset": True},
-            {"sample_id": "S01", "class_label": "benign", "random_subset": True},
+            p(sample_id="S02", class_label="phishing", sample_content_hash="c2"),
+            p(sample_id="S03", class_label="phishing", sample_content_hash="c3"),
+            p(sample_id="S01", class_label="benign", sample_content_hash="c1"),
         ]
         res = compute_cohens_kappa(r1, r2, label_field="class_label")
         assert res.sample_count == 3
@@ -1017,17 +1063,134 @@ class TestProvenanceAndKappaPairing:
 
     def test_kappa_keeps_difficult_cases_in_random_subset(self):
         """compute_cohens_kappa giữ nguyên các ca khó (difficult_case=True) nếu thuộc random_subset."""
+        p = self._full_prov
         r1 = [
-            {"sample_id": "S01", "class_label": "phishing", "difficult_case": True, "random_subset": True},
-            {"sample_id": "S02", "class_label": "benign", "difficult_case": False, "random_subset": True},
+            p(sample_id="S01", class_label="phishing", difficult_case=True, random_subset=True, sample_content_hash="c1"),
+            p(sample_id="S02", class_label="benign", difficult_case=False, random_subset=True, sample_content_hash="c2"),
         ]
         r2 = [
-            {"sample_id": "S01", "class_label": "phishing", "difficult_case": True, "random_subset": True},
-            {"sample_id": "S02", "class_label": "benign", "difficult_case": False, "random_subset": True},
+            p(sample_id="S01", class_label="phishing", difficult_case=True, random_subset=True, sample_content_hash="c1"),
+            p(sample_id="S02", class_label="benign", difficult_case=False, random_subset=True, sample_content_hash="c2"),
         ]
         res = compute_cohens_kappa(r1, r2, label_field="class_label")
         assert res.sample_count == 2
         assert res.observed_agreement == 1.0
+
+    def test_lead_d_probe_manifest_missing_mandatory_fields_rejected(self, tmp_path):
+        """Tái hiện Probe 1 của Lead D: Manifest chỉ có acceptance, ready và codebook_status bị từ chối triệt để."""
+        import scripts.annotate_cli as cli
+        input_path = tmp_path / "view.json"
+        export_blind_view([], input_path)
+        manifest_path = tmp_path / "probe_manifest.json"
+        # Manifest thiếu dataset_id, sample_count, sampling_plan_version, các hashes...
+        manifest_path.write_text(json.dumps({
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "codebook_status": "locked",
+        }), encoding="utf-8")
+        with pytest.raises(ValueError, match="THIẾU TRƯỜNG MANIFEST BẮT BUỘC"):
+            cli.validate_manifest_preflight(manifest_path, input_path, {"samples": []})
+
+    def test_lead_d_probe_kappa_missing_provenance_rejected_in_research_mode(self):
+        """Tái hiện Probe 2 của Lead D: Hai bản ghi có ID/nhãn nhưng thiếu provenance bị từ chối trong luồng nghiên cứu."""
+        r1 = [{"sample_id": "S01", "class_label": "phishing"}, {"sample_id": "S02", "class_label": "benign"}]
+        r2 = [{"sample_id": "S01", "class_label": "phishing"}, {"sample_id": "S02", "class_label": "benign"}]
+        # Luồng nghiên cứu chính thức: bắt buộc provenance
+        with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
+            compute_cohens_kappa(r1, r2)
+
+        # Chế độ test/toán học tách biệt (require_provenance=False): tính được
+        res = compute_cohens_kappa(r1, r2, require_provenance=False)
+        assert res.sample_count == 2
+        assert res.observed_agreement == 1.0
+
+    def test_tamper_dataset_type_fails_preflight(self, tmp_path):
+        """Thay đổi riêng dataset_type làm sai lệch hash view -> bị chặn tại preflight."""
+        import scripts.annotate_cli as cli
+        input_path = tmp_path / "view.json"
+        dataset_id = "REAL-PILOT-32-V1"
+        sp_ver = "PILOT-PLAN-V1-FULL-OVERLAP"
+        export_blind_view([], input_path, dataset_id=dataset_id, dataset_type="blind_view", sampling_plan_version=sp_ver)
+        original_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+
+        manifest_path = tmp_path / "manifest.json"
+        cb_hash = hashlib.sha256((Path(__file__).resolve().parent.parent / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        dict_hash = hashlib.sha256((Path(__file__).resolve().parent.parent / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps({
+            "dataset_id": dataset_id,
+            "sample_count": 0,
+            "sampling_plan_version": sp_ver,
+            "codebook_version": "1.0.0",
+            "codebook_status": "locked",
+            "dictionary_version": "1.0.0",
+            "dictionary_status": "locked",
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "blind_view_sha256": original_hash,
+            "codebook_sha256": cb_hash,
+            "dictionary_sha256": dict_hash,
+        }), encoding="utf-8")
+
+        # Kẻ gian sửa riêng dataset_type trong file view thành "real_pilot_ready"
+        view_content = json.loads(input_path.read_text(encoding="utf-8"))
+        view_content["dataset_type"] = "real_pilot_ready"
+        input_path.write_text(json.dumps(view_content), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM VIEW"):
+            cli.validate_manifest_preflight(manifest_path, input_path, view_content)
+
+    def test_tamper_file_after_locking_fails_preflight(self, tmp_path):
+        """Sửa tệp sau khóa (codebook hoặc dictionary) bị chặn tại preflight."""
+        import scripts.annotate_cli as cli
+        input_path = tmp_path / "view.json"
+        dataset_id = "REAL-PILOT-32-V1"
+        sp_ver = "PILOT-PLAN-V1-FULL-OVERLAP"
+        export_blind_view([], input_path, dataset_id=dataset_id, dataset_type="real_pilot_ready", sampling_plan_version=sp_ver)
+        view_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+
+        dummy_cb = tmp_path / "CODEBOOK.md"
+        dummy_cb.write_text("# Codebook\n" + "Rules content " * 20, encoding="utf-8")
+        cb_hash = hashlib.sha256(dummy_cb.read_bytes()).hexdigest()
+
+        dummy_dict = tmp_path / "dictionary.json"
+        dummy_dict.write_text(json.dumps({"organizations": [{"id": f"org_{i}"} for i in range(14)]}), encoding="utf-8")
+        dict_hash = hashlib.sha256(dummy_dict.read_bytes()).hexdigest()
+
+        manifest_path = tmp_path / "manifest.json"
+        manifest_path.write_text(json.dumps({
+            "dataset_id": dataset_id,
+            "sample_count": 0,
+            "sampling_plan_version": sp_ver,
+            "codebook_version": "1.0.0",
+            "codebook_status": "locked",
+            "dictionary_version": "1.0.0",
+            "dictionary_status": "locked",
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "blind_view_sha256": view_hash,
+            "codebook_sha256": cb_hash,
+            "dictionary_sha256": dict_hash,
+        }), encoding="utf-8")
+
+        # Sửa codebook sau khi khóa
+        dummy_cb.write_text("# Tampered Codebook", encoding="utf-8")
+        with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM CODEBOOK"):
+            cli.validate_manifest_preflight(
+                manifest_path,
+                input_path,
+                {"samples": [], "dataset_id": dataset_id, "sampling_plan_version": sp_ver},
+                codebook_path=dummy_cb,
+                dictionary_path=dummy_dict,
+            )
+
+    def test_cli_blocks_codebook_override_in_real_session(self, tmp_path):
+        """Chặn ghi đè codebook bằng CLI trong lượt thật."""
+        import scripts.annotate_cli as cli
+        input_path = tmp_path / "view.json"
+        export_blind_view([], input_path, dataset_id="REAL-PILOT-32-V1", dataset_type="real_pilot_ready")
+        output = tmp_path / "A.jsonl"
+        with pytest.raises(ValueError, match="CỜ BỊ KHÓA"):
+            cli.annotate_interactive_session("A", input_path, output, cli_codebook_version="hack_v2", dry_run=False)
 
     def test_kappa_rejects_mixed_packages_even_when_both_raters_have_same_hash_set(self):
         """Cùng tập hash {hash_A, hash_B} nhưng trộn hai gói trong cùng batch phải ném lỗi LỖI ĐA GÓI."""
@@ -1252,6 +1415,9 @@ class TestResumeStrictProvenanceAndManifestChecks:
             "acceptance": {"B": "approved", "D": "approved"},
             "ready_for_annotation": True,
             "codebook_status": "locked",
+            "codebook_version": "1.0.0",
+            "dictionary_status": "locked",
+            "dictionary_version": "1.0.0",
             "sample_count": 2,
             "blind_view_sha256": view_hash,
             "codebook_sha256": cb_hash,
@@ -1378,6 +1544,28 @@ class TestResumeStrictProvenanceAndManifestChecks:
                 cli_codebook_version="custom-v2",
             )
 
+    @staticmethod
+    def _make_m(view_hash, **kwargs):
+        root = Path(__file__).resolve().parent.parent
+        cb_h = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        dict_h = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        base = {
+            "dataset_id": "TEST-REAL",
+            "sample_count": 1,
+            "sampling_plan_version": "PLAN-V1",
+            "codebook_version": "1.0.0",
+            "codebook_status": "locked",
+            "dictionary_version": "1.0.0",
+            "dictionary_status": "locked",
+            "acceptance": {"B": "approved", "D": "approved"},
+            "ready_for_annotation": True,
+            "blind_view_sha256": view_hash,
+            "codebook_sha256": cb_h,
+            "dictionary_sha256": dict_h,
+        }
+        base.update(kwargs)
+        return base
+
     def test_cli_manifest_preflight_blocks_unapproved_or_pending(self, tmp_path, cli_module):
         """CLI kiểm tra toàn bộ điều kiện manifest trước khi cho phép phiên người thật hoạt động."""
         input_blind = tmp_path / "real_view.json"
@@ -1386,67 +1574,38 @@ class TestResumeStrictProvenanceAndManifestChecks:
             input_blind,
             dataset_id="TEST-REAL",
             dataset_type="real_pilot_ready",
+            sampling_plan_version="PLAN-V1",
         )
         out_file = tmp_path / "A_real.jsonl"
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
 
         # 1. B và D chưa nghiệm thu đầy đủ
         m1 = tmp_path / "m1.json"
-        m1.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "pending"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m1.write_text(json.dumps(self._make_m(view_hash, acceptance={"B": "approved", "D": "pending"})), encoding="utf-8")
         with pytest.raises(ValueError, match="CHƯA NGHIỆM THU"):
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m1)
 
         # 2. ready_for_annotation=False
         m2 = tmp_path / "m2.json"
-        m2.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": False,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m2.write_text(json.dumps(self._make_m(view_hash, ready_for_annotation=False)), encoding="utf-8")
         with pytest.raises(ValueError, match="CHƯA SẴN SÀNG"):
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m2)
 
         # 3. codebook_status chưa locked
         m3 = tmp_path / "m3.json"
-        m3.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "pending_review",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m3.write_text(json.dumps(self._make_m(view_hash, codebook_status="pending_review")), encoding="utf-8")
         with pytest.raises(ValueError, match="CODEBOOK CHƯA KHÓA"):
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m3)
 
         # 4. Hash view không khớp
         m4 = tmp_path / "m4.json"
-        m4.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            "blind_view_sha256": "wrong_hash_12345",
-        }), encoding="utf-8")
+        m4.write_text(json.dumps(self._make_m("wrong_hash_12345")), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM VIEW"):
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m4)
 
         # 5. Số mẫu không khớp
         m5 = tmp_path / "m5.json"
-        m5.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "sample_count": 99,  # Gói view chỉ có 1 mẫu
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m5.write_text(json.dumps(self._make_m(view_hash, sample_count=99)), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC SỐ MẪU"):
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m5)
 
@@ -1463,19 +1622,22 @@ class TestResumeStrictProvenanceAndManifestChecks:
             input_blind,
             dataset_id="REAL-PILOT-32-V1",
             dataset_type="real_pilot_ready",
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
         )
         out_file = tmp_path / "A_display_check.jsonl"
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
 
         # Manifest chưa được Lead D nghiệm thu
         unapproved_manifest = tmp_path / "unapproved_manifest.json"
-        unapproved_manifest.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "pending"},
-            "ready_for_annotation": False,
-            "codebook_status": "pending_review",
-            "sample_count": 2,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        unapproved_manifest.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="REAL-PILOT-32-V1",
+            sample_count=2,
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
+            acceptance={"B": "approved", "D": "pending"},
+            ready_for_annotation=False,
+            codebook_status="pending_review",
+        )), encoding="utf-8")
 
         with patch.object(cli_module, "display_sample_and_allow_reading") as mock_display:
             with pytest.raises(ValueError, match="CHƯA NGHIỆM THU"):
@@ -1493,19 +1655,22 @@ class TestResumeStrictProvenanceAndManifestChecks:
             input_blind,
             dataset_id="REAL-PILOT-32-V1",
             dataset_type="real_pilot_pending_review",
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
         )
         out_file = tmp_path / "A_dryrun_check.jsonl"
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
 
         # Manifest có ready_for_annotation=false
         unready_manifest = tmp_path / "unready_manifest.json"
-        unready_manifest.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": False,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        unready_manifest.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="REAL-PILOT-32-V1",
+            sample_count=1,
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
+            acceptance={"B": "approved", "D": "approved"},
+            ready_for_annotation=False,
+            codebook_status="locked",
+        )), encoding="utf-8")
 
         with patch.object(cli_module, "display_sample_and_allow_reading") as mock_display:
             with pytest.raises(ValueError, match="CHƯA SẴN SÀNG"):
@@ -1521,18 +1686,15 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         m_file = tmp_path / "m_no_hash.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            # blind_view_sha256 missing
-        }), encoding="utf-8")
+        m = self._make_m("dummy", dataset_id="TEST-DS", sampling_plan_version="PLAN-V1", sample_count=1)
+        del m["blind_view_sha256"]
+        m_file.write_text(json.dumps(m), encoding="utf-8")
 
-        with pytest.raises(ValueError, match="THIẾU MÃ BĂM MANIFEST"):
+        with pytest.raises(ValueError, match="THIẾU TRƯỜNG MANIFEST BẮT BUỘC.*blind_view_sha256|THIẾU MÃ BĂM MANIFEST"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
 
     def test_manifest_preflight_rejects_pending_codebook_version(self, tmp_path, cli_module):
@@ -1542,18 +1704,18 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         m_file = tmp_path / "m_cb_pending.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "codebook_version": "v1.0.0-pending-review",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            codebook_version="v1.0.0-pending-review",
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="CODEBOOK CHƯA KHÓA"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1565,18 +1727,18 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         m_file = tmp_path / "m_dict_pending.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "dictionary_status": "draft",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            dictionary_status="draft",
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="DICTIONARY CHƯA KHÓA"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1588,19 +1750,19 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         m_file = tmp_path / "m_dict_ver_pending.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "dictionary_status": "locked",
-            "dictionary_version": "1.0.0-pending_review",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            dictionary_status="locked",
+            dictionary_version="1.0.0-pending_review",
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="DICTIONARY CHƯA KHÓA"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1612,18 +1774,18 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         m_file = tmp_path / "m_cb_mismatch.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "codebook_sha256": "fake_cb_hash_mismatch_12345",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            codebook_sha256="fake_cb_hash_mismatch_12345",
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM CODEBOOK"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1635,18 +1797,18 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         m_file = tmp_path / "m_dict_mismatch.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "dictionary_sha256": "fake_dict_hash_mismatch_12345",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            dictionary_sha256="fake_dict_hash_mismatch_12345",
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM DICTIONARY"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1662,6 +1824,7 @@ class TestResumeStrictProvenanceAndManifestChecks:
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
             input_blind,
             dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
         )
         data = json.loads(input_blind.read_text(encoding="utf-8"))
         # Giả lập metadata gói view khai báo sai khác hash codebook
@@ -1670,15 +1833,14 @@ class TestResumeStrictProvenanceAndManifestChecks:
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
 
         m_file = tmp_path / "m_valid.json"
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "codebook_sha256": cb_hash,
-            "dictionary_sha256": dict_hash,
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            codebook_sha256=cb_hash,
+            dictionary_sha256=dict_hash,
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM CODEBOOK TRONG GÓI"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1688,15 +1850,14 @@ class TestResumeStrictProvenanceAndManifestChecks:
         data["dictionary_sha256"] = "mismatched_view_dict_hash"
         input_blind.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         view_hash2 = hashlib.sha256(input_blind.read_bytes()).hexdigest()
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "codebook_sha256": cb_hash,
-            "dictionary_sha256": dict_hash,
-            "sample_count": 1,
-            "blind_view_sha256": view_hash2,
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash2,
+            dataset_id="TEST-DS",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+            codebook_sha256=cb_hash,
+            dictionary_sha256=dict_hash,
+        )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM DICTIONARY TRONG GÓI"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
@@ -1715,28 +1876,22 @@ class TestResumeStrictProvenanceAndManifestChecks:
 
         m_file = tmp_path / "m.json"
         # 1. Mismatch dataset_id
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-            "dataset_id": "DIFFERENT-ID",
-            "sampling_plan_version": "PLAN-V1",
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="DIFFERENT-ID",
+            sampling_plan_version="PLAN-V1",
+            sample_count=1,
+        )), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC DATASET_ID"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
 
         # 2. Mismatch sampling_plan_version
-        m_file.write_text(json.dumps({
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "sample_count": 1,
-            "blind_view_sha256": view_hash,
-            "dataset_id": "PACKAGE-ID-1",
-            "sampling_plan_version": "PLAN-V2",
-        }), encoding="utf-8")
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            dataset_id="PACKAGE-ID-1",
+            sampling_plan_version="PLAN-V2",
+            sample_count=1,
+        )), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC SAMPLING_PLAN"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data)
 
@@ -1763,19 +1918,16 @@ class TestResumeStrictProvenanceAndManifestChecks:
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
 
         m_file = tmp_path / "m_good.json"
-        manifest_payload = {
-            "acceptance": {"B": "approved", "D": "approved"},
-            "ready_for_annotation": True,
-            "codebook_status": "locked",
-            "codebook_version": "v1.0.0",
-            "dictionary_status": "locked",
-            "codebook_sha256": cb_hash,
-            "dictionary_sha256": dict_hash,
-            "sample_count": 2,
-            "blind_view_sha256": view_hash,
-            "dataset_id": "VALID-PILOT-V1",
-            "sampling_plan_version": "PLAN-V1",
-        }
+        manifest_payload = self._make_m(
+            view_hash,
+            dataset_id="VALID-PILOT-V1",
+            sampling_plan_version="PLAN-V1",
+            sample_count=2,
+            codebook_version="v1.0.0",
+            dictionary_version="1.0.0",
+            codebook_sha256=cb_hash,
+            dictionary_sha256=dict_hash,
+        )
         m_file.write_text(json.dumps(manifest_payload), encoding="utf-8")
 
         res = cli_module.validate_manifest_preflight(m_file, input_blind, data)
