@@ -3,6 +3,14 @@
 from typing import Dict, Any
 
 from phishing.data.grouping import extract_group_id
+from phishing.data.loader import (
+    CorpusRecord,
+    build_corpus_index,
+    extract_labels_vault,
+    load_phishvn_records,
+    load_phreshphish_shard,
+    normalize_record_url,
+)
 from phishing.data.splits import (
     DEFAULT_SEEDS,
     assert_no_group_leakage,
@@ -19,6 +27,12 @@ __all__ = [
     "assert_no_group_leakage",
     "assert_strict_temporal_order",
     "DEFAULT_SEEDS",
+    "CorpusRecord",
+    "normalize_record_url",
+    "load_phreshphish_shard",
+    "load_phishvn_records",
+    "build_corpus_index",
+    "extract_labels_vault",
 ]
 
 

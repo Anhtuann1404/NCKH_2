@@ -13,8 +13,8 @@ Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày 
 - DONE — scaffold DEV-01 của D: preprocessing URL/HTML, URL/DOM/text draft, primitive domain/UGC, CLI fixture, môi trường và 17 unittest; chưa là pipeline đã khóa.
 - PENDING_REVIEW — DATA-01: C đã hoàn tất audit date 56 shards (498.255 dòng), strict date parser, exclusion registry (20 pilot samples với trạng thái unresolved mapping), khóa môi trường dữ liệu win32/CPython 3.13; chờ Lead D nghiệm thu.
 - PENDING_REVIEW — DATA-02: C đã hoàn tất cập nhật domain matcher dùng chung (ưu tiên UGC không phụ thuộc thứ tự), xử lý forms.office.com và S3/Azure/GCS, sửa Kappa khi Pe=1, cập nhật dictionary_v1.json (SHA-256: `61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28`) và CODEBOOK_V1.md sang trạng thái pending_review; chờ B rà soát và D nghiệm thu.
-- PENDING_REVIEW — DATA-03: C đã hoàn tất xử lý 7 điểm review/probe của Lead D: chuẩn hóa S3 bucket (cả path-style và virtual-hosted), chặn cứng sample_id trùng/rỗng (không tự sinh row:<idx>), tôn trọng component trùng nội dung liên miền, cân bằng nhãn theo nhóm và kiểm tra tính khả dụng của fold (n_splits>=3), kiểm định tỷ lệ temporal split nghiêm ngặt kèm trạng thái evaluability, phân biệt thất bại temporal với skip và xuất manifest liên kết mã băm, sửa evaluate_kappa loại trừ triệt để dry-run khỏi thời gian/disagreements và tách thời gian phishing vs benign phục vụ PLAN-01; 171/171 tests pass. Chờ Lead D nghiệm thu lại.
-- TODO — pilot nhãn (A và B đang thực hiện Pass 1), phần import/index của C cho DEV-01, dữ liệu chính, mô hình, API và extension.
+- DONE (phần C) — import/index dữ liệu cho DEV-01: CorpusRecord chuẩn hóa 11 trường DATA_PROTOCOL.md, to_prepared_snapshot chống rò rỉ nhãn, adapter PhreshPhish & PhishVN, tích hợp ExclusionRegistry, CLI index_corpus.py; 10/10 unittests đạt (181/181 toàn dự án).
+- TODO — pilot nhãn (A và B đang thực hiện Pass 1), dữ liệu chính, mô hình, API và extension.
 
 `TODO` chưa làm; `IN_PROGRESS` đang có công việc thực; `BLOCKED` có phụ thuộc cụ thể; `DONE` có sản phẩm kiểm tra được; `PENDING_REVIEW` đã hoàn thành kỹ thuật kèm bằng chứng, chờ nghiệm thu. Không đánh dấu DONE chỉ vì đã có mô tả.
 
@@ -77,11 +77,18 @@ Status: TODO. Owner: D + A/B/C. Phụ thuộc: LABEL-01.
 
 ### DEV-01 — Scaffold parser/features và môi trường
 
-Status: IN_PROGRESS — phần scaffold của D đã DONE, import/index của C còn TODO. Owner: D (preprocessing/features); C (import/index dữ liệu). Phụ thuộc: có thể chuẩn bị bằng fixture trước DATA-02.
+Status: PENDING_REVIEW (C đã hoàn tất phần import/index; D đã hoàn tất phần scaffold và demo). Owner: D (preprocessing/features/serving); C (import/index dữ liệu). Phụ thuộc: có thể chuẩn bị bằng fixture trước DATA-02.
 
 Tạo môi trường, khóa dependency, module preprocessing và fixture domain/UGC/HTML không có nội dung thật. Done khi fixture chứng minh không thực thi HTML, không fetch mạng, không dùng labels/metadata làm features. Chưa huấn luyện tập chính ở bước này.
 
-**Bằng chứng phần D (04/10/2026):** [preprocessing](../src/phishing/preprocessing/__init__.py), [features](../src/phishing/features/__init__.py), [domain rules](../src/phishing/features/domains.py), [CLI](../scripts/inspect_snapshot.py), [tests](../tests/test_preprocessing.py), [domain tests](../tests/test_domain_rules.py), [fixture](../tests/fixtures/synthetic_login.html), [environment](../configs/dev_environment.lock.json). 17 tests đạt và CLI chạy bằng CPython 3.14.6; lệnh ở DEVELOPMENT. Version dev-0, chưa fit TF-IDF/mô hình, chưa phân nhóm eTLD+1 và chưa kiểm parity DOM trình duyệt. C vẫn cần bàn giao import/index; B review fixture/code trước khi coi pipeline đủ điều kiện cho run chính.
+**Bằng chứng phần D (04/10/2026):** [preprocessing](../src/phishing/preprocessing/__init__.py), [features](../src/phishing/features/__init__.py), [domain rules](../src/phishing/features/domains.py), [CLI](../scripts/inspect_snapshot.py), [tests](../tests/test_preprocessing.py), [domain tests](../tests/test_domain_rules.py), [fixture](../tests/fixtures/synthetic_login.html), [environment](../configs/dev_environment.lock.json). 17 tests đạt và CLI chạy bằng CPython 3.14.6; lệnh ở DEVELOPMENT. Version dev-0, chưa fit TF-IDF/mô hình, chưa phân nhóm eTLD+1 và chưa kiểm parity DOM trình duyệt.
+
+**Bằng chứng phần C (05/10/2026):** [loader](../src/phishing/data/loader.py), [CLI index_corpus](../scripts/data/index_corpus.py), [tests](../tests/test_loader.py). Đạt 10/10 unittests (tổng dự án 181/181 passed):
+1. **Schema bản ghi nghiên cứu:** `CorpusRecord` chuẩn hóa 11 trường theo `DATA_PROTOCOL.md`, xuất từ điển `to_index_dict()` tách biệt hoàn toàn không lưu raw HTML trong index.
+2. **Zero Label Leakage:** `to_prepared_snapshot()` chỉ trích xuất `(url, html, capture_mode)`, bảo đảm 100% không rò rỉ `source_label`, `target`, `group_id` hay `collected_at` vào bộ trích đặc trưng của D.
+3. **Phòng vệ chiều sâu Pilot:** Tự động phát hiện và gán `exclusion_reason` cho các mẫu thuộc `ExclusionRegistry`.
+4. **URL & Date Robustness:** Chuẩn hóa URL có scheme fallback xác định, xử lý an toàn URL lỗi; tích hợp strict date parser.
+5. **Adapter PhreshPhish & PhishVN:** Nạp được cả shard Parquet và tệp PhishVN CSV/ZIP; CLI `index_corpus.py` xuất `corpus_index.jsonl` và `index_manifest.json` ghi nhận đầy đủ mã băm SHA-256.
 
 ### DATA-03 — Engine phân chia Grouped 5-Fold & Temporal Split
 
@@ -153,3 +160,9 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 - Xây dựng thuật toán phân chia Grouped 5-Fold CV với 3 seeds (17, 42, 2026), bảo đảm 100% không rò rỉ group giữa các fold, tích hợp inner validation split bên trong outer train để phục vụ chọn operating threshold độc lập.
 - Xây dựng thuật toán phân chia Temporal Split 60/20/20 theo ngày lịch nguyên vẹn, tự động loại trừ bản ghi muộn trùng nhóm sớm (`purge_overlapping_groups=True`).
 - Viết công cụ CLI `generate_splits.py` và 15 unit tests tại `test_splits.py`. Toàn bộ 160/160 tests của dự án đạt 100% pass.
+
+05/10/2026 — C hoàn thành triển khai thành phần Data Ingestion & Indexing Engine cho Task DEV-01:
+- Module `src/phishing/data/loader.py`: Chuẩn hóa 11 trường bản ghi nghiên cứu theo `DATA_PROTOCOL.md`, tách biệt `to_index_dict()` không lưu raw HTML trong index; hàm `to_prepared_snapshot()` chuyển giao dữ liệu an toàn cho D với bảo đảm tuyệt đối không rò rỉ nhãn nguồn, mục tiêu hay metadata; tích hợp chốt chặn `ExclusionRegistry`.
+- Hỗ trợ đa nguồn: Viết adapter cho cả PhreshPhish Parquet shards và PhishVN CSV/ZIP, kèm scheme fallback xác định cho URL và strict date parser.
+- Viết CLI `scripts/data/index_corpus.py` hỗ trợ đa nền tảng UTF-8, xuất `corpus_index.jsonl` và `index_manifest.json` ghi nhận đầy đủ mã băm SHA-256.
+- Bổ sung 10 unit tests tại `tests/test_loader.py`. Toàn bộ dự án đạt 181/181 unit tests pass (100%). Sẵn sàng bàn giao cho Lead D.
