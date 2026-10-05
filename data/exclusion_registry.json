@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.1.0",
+  "updated_at_utc": "2026-10-04T10:15:00Z",
+  "registry_status": "in_progress_unresolved",
+  "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
+  "total_excluded_entries": 1,
+  "total_excluded_samples": 20,
+  "exclusions": [
+    {
+      "exclusion_id": "EXCL-PILOT-01",
+      "reason": "Mẫu kỹ thuật pilot 20 dòng ban đầu (8 phish, 12 benign) đã được mở kiểm tra cấu trúc/văn bản.",
+      "source": "phreshphish",
+      "split": "train",
+      "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "rows_api_revision_pinned": false,
+      "mapping_status": "unresolved_source_mapping",
+      "mapping_notes": "Do lượt thu thập pilot dùng Hugging Face Rows API với rows_api_revision_pinned=false, vị trí shard/row offset cụ thể trong git revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a chưa được ánh xạ 1-1 qua so khớp byte nội dung. C không tự tiện gán revision khi chưa đối chiếu. Trạng thái giữ unresolved_source_mapping. summary_fingerprint_hash là mã băm từ các thống kê cấu trúc tóm tắt của mẫu pilot (index, nhãn, độ dài html/text, số lượng form/input), chưa phải hash nội dung trang raw URL/HTML. Khi có bản pilot gốc, băm URL/HTML theo quy tắc cố định để đối chiếu.",
+      "batch_sha256": "738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f",
+      "n_samples": 20,
+      "reference_summary": "data/source_audit/phreshphish/pilot_summary.json",
+      "action": "permanently_exclude_from_train_val_test",
+      "samples": [
+        {
+          "pilot_row_idx": 0,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 518982,
+          "text_chars": 27006,
+          "forms": 2,
+          "inputs": 14,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "d0a5c7ddaaa61dff7d3d35717afc9d418527ac4015d7935a5c74bdddd2c789e7"
+        },
+        {
+          "pilot_row_idx": 1,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 192077,
+          "text_chars": 15898,
+          "forms": 0,
+          "inputs": 1,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "c7834637dd2c1830d0948e87e3e275dcc5c02272988b1e7ba85e403c3c9ffe68"
+        },
+        {
+          "pilot_row_idx": 2,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 164883,
+          "text_chars": 18677,
+          "forms": 3,
+          "inputs": 5,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "65890e519a64b948e3b67cfe193fae82d30d31ad70dc6429d61527c46e97b389"
+        },
+        {
+          "pilot_row_idx": 3,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 216067,
+          "text_chars": 7318,
+          "forms": 2,
+          "inputs": 7,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "8f6ffd4c116b510394b1fa51f4bd26370f12aeccead07e8b225e0cf4056cfe12"
+        },
+        {
+          "pilot_row_idx": 4,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 25199,
+          "text_chars": 2295,
+          "forms": 1,
+          "inputs": 1,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "062e33655ec65f7e1cf0d8a7594e64914ae5be901eaf0315b23adbbebc56e676"
+        },
+        {
+          "pilot_row_idx": 5,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 1736334,
+          "text_chars": 15071,
+          "forms": 1,
+          "inputs": 46,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "f57c2f25e33bb1e30399c531f6152eeb73321c929001ff76f53c0f90d1a8e878"
+        },
+        {
+          "pilot_row_idx": 6,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 150364,
+          "text_chars": 12412,
+          "forms": 2,
+          "inputs": 5,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "324d595c797721e4fa5e04449de2096167a93b5be8adcc1125144b0ced51aa66"
+        },
+        {
+          "pilot_row_idx": 7,
+          "label": "phish",
+          "lang": "en",
+          "html_chars": 1146343,
+          "text_chars": 1536,
+          "forms": 2,
+          "inputs": 34,
+          "password_inputs": 2,
+          "summary_fingerprint_hash": "2eb82f855ff2e079086cda5d9872e6d93ed2033a873981e820f644cb585e7f70"
+        },
+        {
+          "pilot_row_idx": 8,
+          "label": "phish",
+          "lang": "en",
+          "html_chars": 9064,
+          "text_chars": 31,
+          "forms": 0,
+          "inputs": 0,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "85f0bbb0612747158dd2be8303a7cd5639ce924f8d6e34716d4089b7b9796803"
+        },
+        {
+          "pilot_row_idx": 9,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 1599304,
+          "text_chars": 5855,
+          "forms": 4,
+          "inputs": 4,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "723c9e88a8c598b994a9e46040cfc01dfb3ae662ea16ba9acf3d9edb5339b000"
+        },
+        {
+          "pilot_row_idx": 10,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 98672,
+          "text_chars": 22027,
+          "forms": 1,
+          "inputs": 3,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "3a3213500214548726f9901657837425267414a348e98c278bf79078719460e6"
+        },
+        {
+          "pilot_row_idx": 11,
+          "label": "phish",
+          "lang": "en",
+          "html_chars": 167947,
+          "text_chars": 920,
+          "forms": 0,
+          "inputs": 4,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "d4031402651fe5c1eda47831f2a4c8ca4fc46a3c2f6c9f0d511d2d1766bbe3eb"
+        },
+        {
+          "pilot_row_idx": 12,
+          "label": "phish",
+          "lang": "en",
+          "html_chars": 64396,
+          "text_chars": 337,
+          "forms": 0,
+          "inputs": 0,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "e0200955d591a0f3f62664e405790858b9d58c2c402ed8b1304dae0fc07ae8a5"
+        },
+        {
+          "pilot_row_idx": 13,
+          "label": "phish",
+          "lang": "nl",
+          "html_chars": 4643,
+          "text_chars": 718,
+          "forms": 0,
+          "inputs": 0,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "2434ae6d2e4b12a302c35f3cfe31c550584b48e959c04484f6f0345ad3208529"
+        },
+        {
+          "pilot_row_idx": 14,
+          "label": "phish",
+          "lang": null,
+          "html_chars": 95163,
+          "text_chars": 0,
+          "forms": 0,
+          "inputs": 1,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "68db1731ab2c9bd50d962286ed290ade6aa1336e23b363ae98f4561a73481431"
+        },
+        {
+          "pilot_row_idx": 15,
+          "label": "phish",
+          "lang": "en",
+          "html_chars": 15651,
+          "text_chars": 436,
+          "forms": 1,
+          "inputs": 8,
+          "password_inputs": 1,
+          "summary_fingerprint_hash": "8821b0a1c8f53be9ab15e77d4b9846a4fe9355767c752dd828cec291ecccca96"
+        },
+        {
+          "pilot_row_idx": 16,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 354400,
+          "text_chars": 15748,
+          "forms": 5,
+          "inputs": 68,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "d61ed57535c860c4b7bb33c3d575f461b22128927641990dc10cc1c29673c0b1"
+        },
+        {
+          "pilot_row_idx": 17,
+          "label": "phish",
+          "lang": "la",
+          "html_chars": 106428,
+          "text_chars": 8768,
+          "forms": 1,
+          "inputs": 1,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "2c331697bc8222ca4097c1e183ce1e9f71062914fb112fca2423aead89e9aef6"
+        },
+        {
+          "pilot_row_idx": 18,
+          "label": "benign",
+          "lang": "en",
+          "html_chars": 56424,
+          "text_chars": 1894,
+          "forms": 0,
+          "inputs": 0,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "50f775ff76ff31043ec269af4b01c7fb5a93166322297c69371d2fead156c90a"
+        },
+        {
+          "pilot_row_idx": 19,
+          "label": "benign",
+          "lang": "ja",
+          "html_chars": 156511,
+          "text_chars": 4643,
+          "forms": 0,
+          "inputs": 0,
+          "password_inputs": 0,
+          "summary_fingerprint_hash": "86dbcb5f1c0e131bffa01c44c7aa6201f1ba588c38b371b8efeb1ccb46167fcf"
+        }
+      ]
+    }
+  ],
+  "training_blocked": true,
+  "training_block_reason": "Pilot mapping remains unresolved (rows_api_revision_pinned=false). Main model training is strictly blocked until 1-to-1 byte content matching to pinned revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a is resolved."
+}
