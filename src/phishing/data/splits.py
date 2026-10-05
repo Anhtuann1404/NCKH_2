@@ -100,7 +100,10 @@ def _validate_and_extract_record(
     if raw_sid is None:
         raise ValueError(f"Record #{idx} is missing mandatory ID field '{id_field}'.")
 
-    sid = str(raw_sid).strip()
+    if not isinstance(raw_sid, str) or isinstance(raw_sid, bool):
+        raise TypeError(f"Record #{idx} '{id_field}' must be a non-empty string, got {type(raw_sid).__name__}.")
+
+    sid = raw_sid.strip()
     if not sid:
         raise ValueError(f"Record #{idx} has empty ID field '{id_field}'.")
 
@@ -111,27 +114,39 @@ def _validate_and_extract_record(
     # Ưu tiên nhận group_id hoặc component index đã kiểm chứng từ đầu vào
     gid = ""
     if group_field and group_field in rec and rec[group_field] is not None:
-        cand_gid = str(rec[group_field]).strip()
-        if cand_gid:
-            gid = cand_gid
+        raw_gid = rec[group_field]
+        if not isinstance(raw_gid, str) or isinstance(raw_gid, bool):
+            raise TypeError(f"Record '{sid}' '{group_field}' must be a string, got {type(raw_gid).__name__}.")
+        cand_gid = raw_gid.strip()
+        if not cand_gid or cand_gid == "unknown" or any(c.isspace() for c in cand_gid):
+            raise ValueError(f"Record '{sid}' has invalid '{group_field}': {raw_gid!r}.")
+        gid = cand_gid
 
     if not gid:
         raw_url = rec.get(url_field)
-        if raw_url is None or not str(raw_url).strip():
+        if raw_url is None:
             raise ValueError(
                 f"Record '{sid}' missing valid '{group_field}' and has no '{url_field}'. "
                 f"Silent fallback to 'row:<idx>' is strictly forbidden."
             )
-        cand_url = str(raw_url).strip()
+        if not isinstance(raw_url, str) or isinstance(raw_url, bool):
+            raise TypeError(f"Record '{sid}' '{url_field}' must be a string, got {type(raw_url).__name__}.")
+        cand_url = raw_url.strip()
+        if not cand_url:
+            raise ValueError(
+                f"Record '{sid}' missing valid '{group_field}' and has no '{url_field}' (URL is empty). "
+                f"Silent fallback to 'row:<idx>' is strictly forbidden."
+            )
         gid = extract_group_id(cand_url)
-        if gid == "unknown":
+        if gid == "unknown" or any(c.isspace() for c in gid):
             raise ValueError(
                 f"Record '{sid}' has invalid URL '{cand_url}' that cannot be mapped to a valid group."
             )
 
     lbl = "unlabeled"
     if label_field and label_field in rec and rec[label_field] is not None:
-        cand_lbl = str(rec[label_field]).strip()
+        raw_lbl = rec[label_field]
+        cand_lbl = str(raw_lbl).strip()
         if cand_lbl:
             lbl = cand_lbl
 
@@ -159,6 +174,10 @@ def generate_grouped_kfold(
     """
     if not records:
         raise ValueError("Records sequence cannot be empty.")
+    if not seeds:
+        raise ValueError("seeds list cannot be empty. At least one seed is required.")
+    if len(seeds) != len(set(seeds)):
+        raise ValueError(f"Duplicate seeds detected: {seeds}. Seeds must be unique.")
     if n_splits < 3:
         raise ValueError(
             f"n_splits must be at least 3 (got {n_splits}) to support outer test "
@@ -169,6 +188,7 @@ def generate_grouped_kfold(
     seen_ids: Set[str] = set()
     sample_to_group: Dict[str, str] = {}
     sample_to_label: Dict[str, str] = {}
+    sample_to_source: Dict[str, str] = {}
     group_to_samples: Dict[str, List[str]] = defaultdict(list)
     group_label_counts: Dict[str, Counter] = defaultdict(Counter)
 
@@ -184,6 +204,9 @@ def generate_grouped_kfold(
         )
         sample_to_group[sid] = gid
         sample_to_label[sid] = lbl
+        # Thu thập thông tin nguồn nếu có
+        source_val = rec.get("source") or rec.get("source_id") or "default"
+        sample_to_source[sid] = str(source_val).strip()
         group_to_samples[gid].append(sid)
         group_label_counts[gid][lbl] += 1
 
@@ -196,6 +219,17 @@ def generate_grouped_kfold(
     # Đếm tổng nhãn toàn corpus để kiểm tra tính khả dụng của các fold
     all_corpus_labels = sorted({lbl for lbl in sample_to_label.values() if lbl != "unlabeled"})
     has_labels = len(all_corpus_labels) > 0
+    all_sources = sorted({s for s in sample_to_source.values()})
+    has_multi_source = len(all_sources) > 1
+
+    # Xác định các lớp mục tiêu bắt buộc (phishing vs benign cho bài toán phát hiện lừa đảo)
+    target_classes: List[str]
+    if any(lbl.lower() in {"phishing", "phish", "benign"} for lbl in all_corpus_labels):
+        target_classes = ["phishing", "benign"]
+    elif has_labels:
+        target_classes = all_corpus_labels
+    else:
+        target_classes = []
 
     all_seed_results: Dict[int, List[Dict[str, Any]]] = {}
 
@@ -213,13 +247,12 @@ def generate_grouped_kfold(
         fold_groups: List[List[str]] = [[] for _ in range(n_splits)]
         fold_sample_counts = [0] * n_splits
         # Theo dõi số lượng mẫu nhãn đầu tiên (nếu có) để cân bằng lớp
-        primary_label = all_corpus_labels[0] if has_labels else None
+        primary_label = target_classes[0] if target_classes else (all_corpus_labels[0] if has_labels else None)
         fold_primary_counts = [0] * n_splits
 
         for gid in shuffled_groups:
             # Gán group vào fold hiện đang có ít mẫu nhất, ưu tiên fold thiếu nhãn chính
             if primary_label and group_label_counts[gid][primary_label] > 0:
-                # Gán vào fold có ít mẫu thuộc nhãn chính nhất
                 best_fold_idx = min(
                     range(n_splits),
                     key=lambda i: (fold_primary_counts[i], fold_sample_counts[i]),
@@ -283,14 +316,56 @@ def generate_grouped_kfold(
             inner_train_label_dist = Counter(sample_to_label[s] for s in inner_train_samples)
             inner_val_label_dist = Counter(sample_to_label[s] for s in inner_val_samples)
 
-            # Kiểm tra tính đầy đủ của lớp (Class Sufficiency)
-            missing_outer_test = [lbl for lbl in all_corpus_labels if test_label_dist.get(lbl, 0) == 0]
-            missing_inner_val = [lbl for lbl in all_corpus_labels if inner_val_label_dist.get(lbl, 0) == 0]
-            class_status = "sufficient" if (not missing_outer_test and not missing_inner_val) else "insufficient_classes"
+            # Kiểm tra tính đầy đủ của lớp (Class Sufficiency) trên CẢ 4 phân vùng:
+            # outer_train, outer_test, inner_train, inner_val
+            missing_outer_train = [lbl for lbl in target_classes if train_label_dist.get(lbl, 0) == 0]
+            missing_outer_test = [lbl for lbl in target_classes if test_label_dist.get(lbl, 0) == 0]
+            missing_inner_train = [lbl for lbl in target_classes if inner_train_label_dist.get(lbl, 0) == 0]
+            missing_inner_val = [lbl for lbl in target_classes if inner_val_label_dist.get(lbl, 0) == 0]
+
+            is_usable = True
+            unusable_reasons: List[str] = []
+
+            if not has_labels:
+                class_status = "unlabeled"
+            elif len(all_corpus_labels) < 2:
+                class_status = "insufficient_classes"
+                is_usable = False
+                unusable_reasons.append(
+                    f"Corpus lacks binary classes (found only {all_corpus_labels}; both phishing and benign required)"
+                )
+            elif missing_outer_train or missing_outer_test or missing_inner_train or missing_inner_val:
+                class_status = "insufficient_classes"
+                is_usable = False
+                if missing_outer_train:
+                    unusable_reasons.append(f"outer_train missing {missing_outer_train}")
+                if missing_outer_test:
+                    unusable_reasons.append(f"outer_test missing {missing_outer_test}")
+                if missing_inner_train:
+                    unusable_reasons.append(f"inner_train missing {missing_inner_train}")
+                if missing_inner_val:
+                    unusable_reasons.append(f"inner_val missing {missing_inner_val}")
+            else:
+                class_status = "sufficient"
+
+            # Kiểm tra phân bố lớp theo nguồn (nếu có đa nguồn dữ liệu gộp)
+            source_sufficiency: Dict[str, Any] = {}
+            if has_multi_source:
+                train_sources = Counter(sample_to_source[s] for s in train_samples)
+                test_sources = Counter(sample_to_source[s] for s in test_samples)
+                missing_sources_test = [s for s in all_sources if test_sources.get(s, 0) == 0]
+                source_sufficiency = {
+                    "all_sources": all_sources,
+                    "train_sources": dict(train_sources),
+                    "test_sources": dict(test_sources),
+                    "missing_in_test": missing_sources_test,
+                }
 
             fold_results.append({
                 "fold": k,
                 "seed": seed,
+                "is_usable": is_usable,
+                "unusable_reason": "; ".join(unusable_reasons) if unusable_reasons else None,
                 "train_indices": sorted(train_samples),
                 "test_indices": sorted(test_samples),
                 "inner_train_indices": sorted(inner_train_samples),
@@ -301,9 +376,13 @@ def generate_grouped_kfold(
                 "inner_val_groups": sorted(inner_val_grp_set),
                 "class_sufficiency": {
                     "status": class_status,
+                    "target_classes": target_classes,
+                    "missing_in_outer_train": missing_outer_train,
                     "missing_in_outer_test": missing_outer_test,
+                    "missing_in_inner_train": missing_inner_train,
                     "missing_in_inner_val": missing_inner_val,
                 },
+                "source_sufficiency": source_sufficiency,
                 "metrics": {
                     "train_sample_count": len(train_samples),
                     "test_sample_count": len(test_samples),
@@ -497,37 +576,72 @@ def generate_temporal_split(
     # 4. Đánh giá tính khả dụng (Evaluability Status)
     all_labels = sorted({e["label"] for e in valid_entries if e["label"] != "unlabeled"})
     has_labels = len(all_labels) > 0
+    target_classes: List[str]
+    if any(lbl.lower() in {"phishing", "phish", "benign"} for lbl in all_labels):
+        target_classes = ["phishing", "benign"]
+    elif has_labels:
+        target_classes = all_labels
+    else:
+        target_classes = []
 
+    train_labels = Counter(e["label"] for e in raw_train_entries)
     val_labels_raw = Counter(e["label"] for e in raw_val_entries)
     val_labels_clean = Counter(e["label"] for e in clean_val_entries)
     test_labels_raw = Counter(e["label"] for e in raw_test_entries)
     test_labels_clean = Counter(e["label"] for e in clean_test_entries)
+
+    train_eval_status = "evaluable"
+    train_eval_reason = None
+    if len(raw_train_entries) == 0:
+        train_eval_status = "not_evaluable"
+        train_eval_reason = "Train set is empty"
+    elif has_labels:
+        if len(all_labels) < 2:
+            train_eval_status = "not_evaluable"
+            train_eval_reason = f"Corpus lacks binary classes (found only {all_labels}; both phishing and benign required)"
+        elif any(train_labels.get(lbl, 0) == 0 for lbl in target_classes):
+            train_eval_status = "not_evaluable"
+            missing = [lbl for lbl in target_classes if train_labels.get(lbl, 0) == 0]
+            train_eval_reason = f"Insufficient classes in train set (missing: {missing})"
 
     val_eval_status = "evaluable"
     val_eval_reason = None
     if len(clean_val_entries) == 0:
         val_eval_status = "not_evaluable"
         val_eval_reason = "All validation samples purged due to group overlap with train"
-    elif has_labels and any(val_labels_clean.get(lbl, 0) == 0 for lbl in all_labels):
-        val_eval_status = "not_evaluable"
-        missing = [lbl for lbl in all_labels if val_labels_clean.get(lbl, 0) == 0]
-        val_eval_reason = f"Insufficient classes in clean validation set (missing: {missing})"
+    elif has_labels:
+        if len(all_labels) < 2:
+            val_eval_status = "not_evaluable"
+            val_eval_reason = f"Corpus lacks binary classes (found only {all_labels}; both phishing and benign required)"
+        elif any(val_labels_clean.get(lbl, 0) == 0 for lbl in target_classes):
+            val_eval_status = "not_evaluable"
+            missing = [lbl for lbl in target_classes if val_labels_clean.get(lbl, 0) == 0]
+            val_eval_reason = f"Insufficient classes in clean validation set (missing: {missing})"
 
     test_eval_status = "evaluable"
     test_eval_reason = None
     if len(clean_test_entries) == 0:
         test_eval_status = "not_evaluable"
         test_eval_reason = "All test samples purged due to group overlap with past (train/val)"
-    elif has_labels and any(test_labels_clean.get(lbl, 0) == 0 for lbl in all_labels):
-        test_eval_status = "not_evaluable"
-        missing = [lbl for lbl in all_labels if test_labels_clean.get(lbl, 0) == 0]
-        test_eval_reason = f"Insufficient classes in clean test set (missing: {missing})"
+    elif has_labels:
+        if len(all_labels) < 2:
+            test_eval_status = "not_evaluable"
+            test_eval_reason = f"Corpus lacks binary classes (found only {all_labels}; both phishing and benign required)"
+        elif any(test_labels_clean.get(lbl, 0) == 0 for lbl in target_classes):
+            test_eval_status = "not_evaluable"
+            missing = [lbl for lbl in target_classes if test_labels_clean.get(lbl, 0) == 0]
+            test_eval_reason = f"Insufficient classes in clean test set (missing: {missing})"
 
-    overall_status = "evaluable" if (val_eval_status == "evaluable" and test_eval_status == "evaluable") else "not_evaluable"
+    overall_status = (
+        "evaluable"
+        if (train_eval_status == "evaluable" and val_eval_status == "evaluable" and test_eval_status == "evaluable")
+        else "not_evaluable"
+    )
 
     return {
         "status": overall_status,
         "evaluability": {
+            "train": {"status": train_eval_status, "reason": train_eval_reason},
             "validation": {"status": val_eval_status, "reason": val_eval_reason},
             "test": {"status": test_eval_status, "reason": test_eval_reason},
         },

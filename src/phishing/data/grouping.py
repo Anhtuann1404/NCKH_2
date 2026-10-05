@@ -12,13 +12,33 @@ Nguyên tắc ARS (Academic Research Skills) & Ponytail Discipline:
 """
 
 from typing import Optional
-from urllib.parse import parse_qs, urlsplit
+import hashlib
 import ipaddress
+import os
 import re
+from urllib.parse import parse_qs, urlsplit
 import tldextract
 
+from phishing.preprocessing.urls import normalize_hostname
+
 GROUP_RULES_VERSION = "1.1.0"
-PSL_VERSION = getattr(tldextract, "__version__", "bundled")
+TLDEXTRACT_VERSION = getattr(tldextract, "__version__", "bundled")
+
+
+def _get_psl_snapshot_sha256() -> str:
+    try:
+        pkg_dir = os.path.dirname(tldextract.__file__)
+        snapshot_path = os.path.join(pkg_dir, ".tld_set_snapshot")
+        if os.path.exists(snapshot_path):
+            with open(snapshot_path, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+    except Exception:
+        pass
+    return "b69315c085d53972724b8f2df111ffc329b0c84fe0a47d62c8c91655cc774a38"
+
+
+PSL_SNAPSHOT_SHA256 = _get_psl_snapshot_sha256()
+PSL_VERSION = PSL_SNAPSHOT_SHA256
 
 # Khởi tạo extractor offline với danh mục PSL tích hợp sẵn của thư viện.
 # suffix_list_urls=None bảo đảm tuyệt đối không gọi HTTP ra Internet trong quá trình chạy.
@@ -53,7 +73,7 @@ def extract_group_id(url: str) -> str:
     - Office Forms: tenant:forms.office.com:id=<form_id> hoặc tenant:forms.office.com:r=<code>
     - AWS S3 (chuẩn hóa cả path-style & virtual-hosted): tenant:s3:<bucket>
     - Tên miền thông thường (kèm PSL private domains): domain:<eTLD+1>
-    - Fallback: host:<hostname> hoặc "unknown" nếu URL không hợp lệ.
+    - Fallback: host:<hostname> hoặc "unknown" nếu URL/hostname không hợp lệ.
     """
     if not isinstance(url, str):
         raise TypeError(f"URL must be a string, got {type(url).__name__}")
@@ -62,14 +82,24 @@ def extract_group_id(url: str) -> str:
     if not raw_url:
         return "unknown"
 
-    # Đảm bảo có scheme để urlsplit bóc tách hostname chính xác
-    if "://" not in raw_url:
-        parsed = urlsplit(f"http://{raw_url}")
-    else:
-        parsed = urlsplit(raw_url)
+    # Từ chối nếu chứa khoảng trắng hoặc control characters
+    if any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in raw_url):
+        return "unknown"
 
-    host = (parsed.hostname or "").lower().rstrip(".")
-    if not host:
+    # Chuẩn hóa scheme theo missing scheme rule
+    candidate = raw_url
+    if candidate.startswith("//"):
+        candidate = "https:" + candidate
+    elif "://" not in candidate:
+        candidate = "https://" + candidate
+
+    try:
+        parsed = urlsplit(candidate)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return "unknown"
+        # Xác thực và chuẩn hóa hostname nghiêm ngặt (chống URL rác có khoảng trắng/ký tự lỗi)
+        host = normalize_hostname(parsed.hostname)
+    except Exception:
         return "unknown"
 
     path = parsed.path or ""

@@ -46,7 +46,11 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from phishing.annotation import KappaResult, compute_cohens_kappa
+from phishing.annotation import (
+    KappaResult,
+    compute_cohens_kappa,
+    compute_sample_content_hash,
+)
 
 # ---------------------------------------------------------------------------
 # Hằng số cấu hình
@@ -273,30 +277,53 @@ def validate_session_records(
     expected_pass: int = 1,
     expected_annotator: str | None = None,
 ) -> set[str]:
-    """Kiểm tra tính hợp lệ của phiên gán nhãn: pass_id và annotator_id."""
+    """Kiểm tra tính hợp lệ nghiêm ngặt của phiên gán nhãn: pass_id và annotator_id.
+
+    Quy chuẩn NCKH & Lead D:
+    - pass_id là bắt buộc trên từng bản ghi, phải đúng bằng expected_pass và phải là kiểu int (không nhận bool/str/float).
+    - annotator_id là bắt buộc trên từng bản ghi, phải là chuỗi không rỗng.
+    - Nếu expected_annotator được chỉ định ('A' hoặc 'B'), mọi bản ghi phải khớp chính xác.
+    - Không chấp nhận lẫn lộn nhiều người đánh giá trong cùng một tệp (len(annotators) == 1).
+    """
     annotators: set[str] = set()
 
     for idx, rec in enumerate(records):
-        raw_pass = rec.get(PASS_ID_FIELD)
-        if raw_pass is not None:
-            try:
-                pass_val = int(raw_pass)
-            except (ValueError, TypeError) as err:
-                raise ValueError(f"{file_path}: bản ghi #{idx} có pass_id không hợp lệ: {raw_pass}") from err
-            if pass_val != expected_pass:
-                raise ValueError(
-                    f"{file_path}: bản ghi #{idx} có pass_id={pass_val} "
-                    f"(kỳ vọng pass_id={expected_pass}). Tệp này không thuộc Pass {expected_pass}!"
-                )
+        # 1. Kiểm tra pass_id
+        if PASS_ID_FIELD not in rec or rec[PASS_ID_FIELD] is None:
+            raise ValueError(f"{file_path}: bản ghi #{idx} thiếu trường bắt buộc '{PASS_ID_FIELD}'.")
+        raw_pass = rec[PASS_ID_FIELD]
+        if isinstance(raw_pass, bool) or not isinstance(raw_pass, int):
+            raise ValueError(
+                f"{file_path}: bản ghi #{idx} có '{PASS_ID_FIELD}' sai kiểu dữ liệu "
+                f"({type(raw_pass).__name__}: {raw_pass!r}), yêu cầu kiểu int."
+            )
+        if raw_pass != expected_pass:
+            raise ValueError(
+                f"{file_path}: bản ghi #{idx} có pass_id={raw_pass} "
+                f"(kỳ vọng pass_id={expected_pass}). Tệp này không thuộc Pass {expected_pass}!"
+            )
 
-        ann = str(rec.get(ANNOTATOR_ID_FIELD, "")).strip()
-        if ann:
-            annotators.add(ann)
+        # 2. Kiểm tra annotator_id
+        if ANNOTATOR_ID_FIELD not in rec or rec[ANNOTATOR_ID_FIELD] is None:
+            raise ValueError(f"{file_path}: bản ghi #{idx} thiếu trường bắt buộc '{ANNOTATOR_ID_FIELD}'.")
+        raw_ann = rec[ANNOTATOR_ID_FIELD]
+        if not isinstance(raw_ann, str) or not raw_ann.strip():
+            raise ValueError(
+                f"{file_path}: bản ghi #{idx} có '{ANNOTATOR_ID_FIELD}' không hợp lệ "
+                f"({type(raw_ann).__name__}: {raw_ann!r}), yêu cầu chuỗi không rỗng."
+            )
+        ann = raw_ann.strip()
+        if expected_annotator is not None and ann != expected_annotator:
+            raise ValueError(
+                f"{file_path}: bản ghi #{idx} có annotator_id='{ann}', "
+                f"không khớp với annotator kỳ vọng '{expected_annotator}'."
+            )
+        annotators.add(ann)
 
-    if expected_annotator and annotators and expected_annotator not in annotators:
+    if len(annotators) > 1:
         raise ValueError(
-            f"{file_path}: annotator_id tìm thấy là {annotators}, "
-            f"không khớp với annotator kỳ vọng '{expected_annotator}'."
+            f"{file_path}: phát hiện nhiều annotator_id khác nhau trong cùng một tệp: {sorted(annotators)}. "
+            "Không chấp nhận lẫn lộn hai người trong cùng một file."
         )
 
     return annotators
@@ -353,26 +380,143 @@ def evaluate(
         )
     shared_ids = sorted(ids_a)
 
-    # 4. Kiểm tra nghiệm thu REAL-PILOT-32-V1 nếu được yêu cầu
-    if verify_pilot_32:
-        if len(shared_ids) != 32:
+    # 4. Kiểm tra nghiệm thu REAL-PILOT-32-V1 nếu được yêu cầu hoặc khi phát hiện dữ liệu pilot thật
+    is_pilot_mode = (
+        verify_pilot_32
+        or (pilot_manifest_path is not None)
+        or any(
+            r.get("dataset_id") == "REAL-PILOT-32-V1"
+            or str(r.get(SAMPLE_ID_FIELD, "")).startswith("PILOT-")
+            for r in records_a + records_b
+        )
+    )
+
+    if is_pilot_mode:
+        if pilot_manifest_path is not None:
+            manifest_file = Path(pilot_manifest_path)
+            if not manifest_file.is_file():
+                raise FileNotFoundError(f"Không tìm thấy tệp manifest pilot: {manifest_file}")
+        else:
+            manifest_file = PROJECT_ROOT / "configs" / "pilot_manifest.json"
+            if not manifest_file.is_file():
+                raise FileNotFoundError(
+                    f"Chế độ nghiệm thu pilot được kích hoạt nhưng không tìm thấy manifest mặc định: {manifest_file}"
+                )
+
+        try:
+            manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise ValueError(f"Không thể đọc manifest pilot ({manifest_file}): {exc}") from exc
+
+        # 4a. Kiểm tra trạng thái và chữ ký phê duyệt của manifest
+        acceptance = manifest_data.get("acceptance", {})
+        if not isinstance(acceptance, dict) or acceptance.get("D") != "approved":
+            raise ValueError("Manifest pilot chưa được Lead D phê duyệt (acceptance.D != 'approved').")
+        if acceptance.get("B") != "approved":
+            raise ValueError("Manifest pilot chưa được Annotator B phê duyệt (acceptance.B != 'approved').")
+        if not manifest_data.get("ready_for_annotation"):
+            raise ValueError("Manifest pilot chưa ở trạng thái sẵn sàng (ready_for_annotation != true).")
+
+        # 4b. Kiểm tra số lượng và danh sách sample_id
+        expected_count = int(manifest_data.get("sample_count", 32))
+        if len(shared_ids) != expected_count:
             raise ValueError(
-                f"Nghiệm thu REAL-PILOT-32-V1 yêu cầu đủ 32 mẫu, nhưng nhận được {len(shared_ids)} mẫu."
+                f"Nghiệm thu pilot yêu cầu đủ {expected_count} mẫu, nhưng nhận được {len(shared_ids)} mẫu."
             )
-        expected_ids = {f"PILOT-{i:03d}" for i in range(1, 33)}
+        expected_ids = {f"PILOT-{i:03d}" for i in range(1, expected_count + 1)}
         missing_ids = expected_ids - ids_a
         if missing_ids:
             raise ValueError(
-                f"Nghiệm thu REAL-PILOT-32-V1 thiếu các sample_id: {sorted(missing_ids)[:5]}..."
+                f"Nghiệm thu pilot thiếu các sample_id: {_preview(sorted(missing_ids))}."
+            )
+        extra_ids = ids_a - expected_ids
+        if extra_ids:
+            raise ValueError(
+                f"Nghiệm thu pilot có các sample_id không hợp lệ: {_preview(sorted(extra_ids))}."
             )
 
-    if pilot_manifest_path and pilot_manifest_path.is_file():
-        with pilot_manifest_path.open("r", encoding="utf-8") as f:
-            manifest_data = json.load(f)
-            if manifest_data.get("acceptance", {}).get("D") != "approved":
-                raise ValueError("Manifest pilot chưa được Lead D phê duyệt (acceptance.D != 'approved').")
-            if not manifest_data.get("ready_for_annotation"):
-                raise ValueError("Manifest pilot chưa ở trạng thái sẵn sàng (ready_for_annotation != true).")
+        # 4c. Đối chiếu provenance giữa từng bản ghi và manifest đã duyệt
+        expected_pkg_id = manifest_data.get("dataset_id")
+        if not expected_pkg_id:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'dataset_id'.")
+        expected_pkg_hash = manifest_data.get("blind_view_sha256") or manifest_data.get("dataset_hash")
+        if not expected_pkg_hash:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'blind_view_sha256' hoặc 'dataset_hash'.")
+        expected_cb_version = manifest_data.get("codebook_version")
+        if not expected_cb_version:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'codebook_version'.")
+        expected_cb_hash = manifest_data.get("codebook_sha256") or manifest_data.get("codebook_hash")
+        if not expected_cb_hash:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'codebook_sha256' hoặc 'codebook_hash'.")
+        expected_sampling_plan = manifest_data.get("sampling_plan_version")
+        if not expected_sampling_plan:
+            raise ValueError(f"{manifest_file}: manifest pilot thiếu trường 'sampling_plan_version'.")
+
+        # 4d. Đọc blind view để lấy hash nội dung mẫu chuẩn nếu có
+        expected_sample_content_hashes: dict[str, str] = {}
+        bv_rel_path = manifest_data.get("blind_view_path")
+        if bv_rel_path:
+            bv_path = (manifest_file.parent / bv_rel_path).resolve()
+            if not bv_path.is_file():
+                bv_path = (PROJECT_ROOT / bv_rel_path).resolve()
+            if bv_path.is_file():
+                try:
+                    bv_data = json.loads(bv_path.read_text(encoding="utf-8"))
+                    for s in bv_data.get("samples", []):
+                        sid = s.get("sample_id")
+                        if sid:
+                            expected_sample_content_hashes[sid] = compute_sample_content_hash(s)
+                except Exception:
+                    pass
+
+        # 4e. Kiểm tra từng bản ghi rater A và B
+        for rater_name, recs in [("rater A", records_a), ("rater B", records_b)]:
+            for rec in recs:
+                sid = rec[SAMPLE_ID_FIELD]
+                if rec.get("dataset_id") != expected_pkg_id:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': dataset_id không khớp manifest đã duyệt "
+                        f"('{rec.get('dataset_id')}' != '{expected_pkg_id}')."
+                    )
+                if rec.get("dataset_hash") != expected_pkg_hash:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': dataset_hash không khớp manifest đã duyệt "
+                        f"('{rec.get('dataset_hash')}' != '{expected_pkg_hash}')."
+                    )
+                if rec.get("codebook_version") != expected_cb_version:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': codebook_version không khớp manifest đã duyệt "
+                        f"('{rec.get('codebook_version')}' != '{expected_cb_version}')."
+                    )
+                if rec.get("codebook_hash") != expected_cb_hash:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': codebook_hash không khớp manifest đã duyệt "
+                        f"('{rec.get('codebook_hash')}' != '{expected_cb_hash}')."
+                    )
+                if rec.get("sampling_plan_version") != expected_sampling_plan:
+                    raise ValueError(
+                        f"{rater_name}, mẫu '{sid}': sampling_plan_version không khớp manifest đã duyệt "
+                        f"('{rec.get('sampling_plan_version')}' != '{expected_sampling_plan}')."
+                    )
+                rec_sc_hash = rec.get("sample_content_hash")
+                if not rec_sc_hash or not str(rec_sc_hash).strip():
+                    raise ValueError(f"{rater_name}, mẫu '{sid}': thiếu hoặc rỗng 'sample_content_hash'.")
+                if sid in expected_sample_content_hashes:
+                    if rec_sc_hash != expected_sample_content_hashes[sid]:
+                        raise ValueError(
+                            f"{rater_name}, mẫu '{sid}': sample_content_hash không khớp với blind view đã duyệt "
+                            f"('{rec_sc_hash}' != '{expected_sample_content_hashes[sid]}')."
+                        )
+
+        # 4f. Kiểm tra sample_content_hash giữa A và B phải đồng nhất từng cặp
+        for sid in shared_ids:
+            sc_a = index_a[sid].get("sample_content_hash")
+            sc_b = index_b[sid].get("sample_content_hash")
+            if sc_a != sc_b:
+                raise ValueError(
+                    f"Mẫu '{sid}': sample_content_hash giữa rater A và B không khớp "
+                    f"('{sc_a}' != '{sc_b}')."
+                )
 
     # 5. Đo Cohen's Kappa (tự động lọc random_subset bên trong)
     kappa_class = compute_cohens_kappa(
@@ -420,7 +564,7 @@ def evaluate(
         },
         "disagreement_count": len(disagreements),
         "disagreements": disagreements,
-        "pilot_32_verified": verify_pilot_32,
+        "pilot_32_verified": is_pilot_mode,
     }
 
 

@@ -7,6 +7,8 @@ import sys
 
 import pytest
 
+from phishing.annotation import compute_sample_content_hash
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EVAL_SCRIPT = PROJECT_ROOT / "scripts" / "evaluate_kappa.py"
 
@@ -37,7 +39,7 @@ def _make_sample_record(
         "random_subset": True,
         "difficult_case": False,
         "is_dry_run": False,
-        "dataset_id": "REAL-PILOT-32-V1",
+        "dataset_id": "TEST-EVAL-V1",
         "dataset_hash": "pkg_hash_abc123",
         "codebook_version": "1.0.0",
         "codebook_hash": "cb_hash_def456",
@@ -282,16 +284,42 @@ def test_evaluate_kappa_rejects_same_annotator_or_wrong_pass(tmp_path):
     assert "pass_id=2" in proc.stderr
 
 
+def _load_real_pilot_records(annotator_id: str) -> list[dict]:
+    blind_path = PROJECT_ROOT / "data" / "annotations" / "blind_view_pilot_real.json"
+    manifest_path = PROJECT_ROOT / "configs" / "pilot_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    blind_data = json.loads(blind_path.read_text(encoding="utf-8"))
+
+    recs = []
+    for s in blind_data["samples"]:
+        sid = s["sample_id"]
+        content_hash = compute_sample_content_hash(s)
+        rec = _make_sample_record(
+            annotator_id,
+            sid,
+            class_label="phishing" if int(sid.split("-")[1]) <= 20 else "benign",
+            primary_org="microsoft",
+            dataset_id=manifest["dataset_id"],
+            dataset_hash=manifest["blind_view_sha256"],
+            codebook_version=manifest["codebook_version"],
+            codebook_hash=manifest["codebook_sha256"],
+            sampling_plan_version=manifest["sampling_plan_version"],
+            sample_content_hash=content_hash,
+        )
+        recs.append(rec)
+    return recs
+
+
 def test_evaluate_kappa_pilot_32_validation(tmp_path):
-    """Kiểm tra cờ --verify-pilot-32 xác thực đủ 32 mẫu từ PILOT-001 đến PILOT-032."""
+    """Kiểm tra cờ --verify-pilot-32 xác thực đủ 32 mẫu và đối chiếu gói chuẩn REAL-PILOT-32-V1."""
     file_a = tmp_path / "rater_a.jsonl"
     file_b = tmp_path / "rater_b.jsonl"
 
     # Chỉ có 5 mẫu -> thất bại khi bật --verify-pilot-32
-    recs_a = [_make_sample_record("A", f"PILOT-{i:03d}") for i in range(1, 6)]
-    recs_b = [_make_sample_record("B", f"PILOT-{i:03d}") for i in range(1, 6)]
-    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
-    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+    recs_a_5 = _load_real_pilot_records("A")[:5]
+    recs_b_5 = _load_real_pilot_records("B")[:5]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a_5) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b_5) + "\n", encoding="utf-8")
 
     proc = subprocess.run(
         [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
@@ -300,14 +328,239 @@ def test_evaluate_kappa_pilot_32_validation(tmp_path):
     assert proc.returncode == 2
     assert "yêu cầu đủ 32 mẫu" in proc.stderr
 
-    # Đủ 32 mẫu chuẩn từ PILOT-001 đến PILOT-032 -> thành công
-    recs_a_32 = [_make_sample_record("A", f"PILOT-{i:03d}") for i in range(1, 33)]
-    recs_b_32 = [_make_sample_record("B", f"PILOT-{i:03d}") for i in range(1, 33)]
+    # Đủ 32 mẫu chuẩn từ PILOT-001 đến PILOT-032 khớp manifest đã duyệt -> thành công
+    recs_a_32 = _load_real_pilot_records("A")
+    recs_b_32 = _load_real_pilot_records("B")
     file_a.write_text("\n".join(json.dumps(r) for r in recs_a_32) + "\n", encoding="utf-8")
     file_b.write_text("\n".join(json.dumps(r) for r in recs_b_32) + "\n", encoding="utf-8")
+
+    out_json = tmp_path / "pilot_out.json"
+    proc = subprocess.run(
+        [
+            sys.executable, str(EVAL_SCRIPT),
+            "--rater-a", str(file_a),
+            "--rater-b", str(file_b),
+            "--verify-pilot-32",
+            "--json", str(out_json),
+        ],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 0, f"Lỗi CLI: {proc.stderr}"
+    res = json.loads(out_json.read_text(encoding="utf-8"))
+    assert res["pilot_32_verified"] is True
+    assert res["paired_sample_count"] == 32
+
+
+def test_evaluate_kappa_pilot_rejects_wrong_package(tmp_path):
+    """Lead D probe: 32 ID nhưng mang dataset_id 'WRONG-PACKAGE' phải bị chặn."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    recs_a = _load_real_pilot_records("A")
+    recs_b = _load_real_pilot_records("B")
+    for r in recs_a:
+        r["dataset_id"] = "WRONG-PACKAGE"
+
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
 
     proc = subprocess.run(
         [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
         capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
     )
-    assert proc.returncode == 0
+    assert proc.returncode == 2
+    assert "dataset_id không khớp manifest đã duyệt" in proc.stderr
+
+
+def test_evaluate_kappa_pilot_rejects_mismatched_hashes(tmp_path):
+    """Lead D probe: dataset_hash, codebook_hash hoặc sample_content_hash sai lệch phải bị chặn."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    # 1. Sai dataset_hash
+    recs_a = _load_real_pilot_records("A")
+    recs_b = _load_real_pilot_records("B")
+    recs_a[0]["dataset_hash"] = "tampered_dataset_hash"
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "dataset_hash không khớp manifest đã duyệt" in proc.stderr
+
+    # 2. Sai codebook_hash
+    recs_a = _load_real_pilot_records("A")
+    recs_a[0]["codebook_hash"] = "tampered_codebook_hash"
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "codebook_hash không khớp manifest đã duyệt" in proc.stderr
+
+    # 3. Sai sample_content_hash (nội dung mẫu bị sửa đổi ngầm)
+    recs_a = _load_real_pilot_records("A")
+    recs_a[0]["sample_content_hash"] = "tampered_content_hash"
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "sample_content_hash không khớp với blind view đã duyệt" in proc.stderr
+
+
+def test_evaluate_kappa_pilot_manifest_existence_and_approval(tmp_path):
+    """Lead D probe: manifest không tồn tại hoặc chưa approved phải bị chặn."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+    recs_a = _load_real_pilot_records("A")
+    recs_b = _load_real_pilot_records("B")
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    # Đường dẫn manifest không tồn tại
+    non_existent = tmp_path / "no_manifest.json"
+    proc = subprocess.run(
+        [
+            sys.executable, str(EVAL_SCRIPT),
+            "--rater-a", str(file_a),
+            "--rater-b", str(file_b),
+            "--pilot-manifest", str(non_existent),
+        ],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "Không tìm thấy tệp manifest pilot" in proc.stderr
+
+    # Manifest chưa được Lead D approved
+    fake_manifest = tmp_path / "unapproved_manifest.json"
+    orig_manifest = json.loads((PROJECT_ROOT / "configs" / "pilot_manifest.json").read_text(encoding="utf-8"))
+    orig_manifest["acceptance"]["D"] = "pending"
+    fake_manifest.write_text(json.dumps(orig_manifest), encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable, str(EVAL_SCRIPT),
+            "--rater-a", str(file_a),
+            "--rater-b", str(file_b),
+            "--pilot-manifest", str(fake_manifest),
+        ],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "chưa được Lead D phê duyệt" in proc.stderr
+
+
+def test_evaluate_kappa_strict_annotator_validation(tmp_path):
+    """Lead D probe 3: annotator_id thiếu, rỗng, sai annotator, hoặc lẫn lộn annotator."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    # 1. Thiếu annotator_id
+    recs_a = [_make_sample_record("A", "S1")]
+    del recs_a[0]["annotator_id"]
+    recs_b = [_make_sample_record("B", "S1")]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "thiếu trường bắt buộc 'annotator_id'" in proc.stderr
+
+    # 2. annotator_id rỗng hoặc whitespace
+    recs_a = [_make_sample_record("   ", "S1")]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "'annotator_id' không hợp lệ" in proc.stderr
+
+    # 3. annotator_id không khớp expected ("C" thay vì "A")
+    recs_a = [_make_sample_record("C", "S1")]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "không khớp với annotator kỳ vọng 'A'" in proc.stderr
+
+    # 4. Lẫn lộn 2 annotator trong cùng một tệp A (S1 là A, S2 là B)
+    recs_a = [
+        _make_sample_record("A", "S1"),
+        _make_sample_record("B", "S2"),
+    ]
+    recs_b = [
+        _make_sample_record("B", "S1"),
+        _make_sample_record("B", "S2"),
+    ]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert ("không khớp với annotator kỳ vọng 'A'" in proc.stderr or "nhiều annotator_id khác nhau" in proc.stderr)
+
+
+def test_evaluate_kappa_strict_pass_id_validation(tmp_path):
+    """Lead D probe 3: pass_id thiếu, kiểu bool, kiểu str, kiểu float, hoặc sai lượt."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+    recs_b = [_make_sample_record("B", "S1")]
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    # 1. Thiếu pass_id
+    recs_a = [_make_sample_record("A", "S1")]
+    del recs_a[0]["pass_id"]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "thiếu trường bắt buộc 'pass_id'" in proc.stderr
+
+    # 2. pass_id là bool (True)
+    recs_a = [_make_sample_record("A", "S1", pass_id=True)]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "sai kiểu dữ liệu (bool: True)" in proc.stderr
+
+    # 3. pass_id là string ("1")
+    recs_a = [_make_sample_record("A", "S1", pass_id="1")]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "sai kiểu dữ liệu (str: '1')" in proc.stderr
+
+    # 4. pass_id là float (1.0)
+    recs_a = [_make_sample_record("A", "S1", pass_id=1.0)]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "sai kiểu dữ liệu (float: 1.0)" in proc.stderr
+

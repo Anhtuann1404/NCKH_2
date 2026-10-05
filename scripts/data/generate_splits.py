@@ -8,6 +8,8 @@ Tự động sinh:
 4. manifest.json: Khóa mã băm liên kết đầu vào, groups, splits, phiên bản PSL và quy tắc.
 """
 
+from __future__ import annotations
+
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -15,6 +17,14 @@ import json
 from pathlib import Path
 import sys
 from typing import Any, Dict, List, Optional, Set
+
+# Đảm bảo mã hóa UTF-8 an toàn trên console Windows
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 # Thêm src vào PYTHONPATH nếu chạy trực tiếp
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -24,7 +34,9 @@ if str(SRC_DIR) not in sys.path:
 
 from phishing.data.grouping import (
     GROUP_RULES_VERSION,
+    PSL_SNAPSHOT_SHA256,
     PSL_VERSION,
+    TLDEXTRACT_VERSION,
     extract_group_id,
 )
 from phishing.data.splits import (
@@ -76,23 +88,28 @@ def calculate_sha256(file_path: Path) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def calculate_code_sha256() -> str:
-    """Tính mã băm mã nguồn grouping và splits."""
-    hasher = hashlib.sha256()
-    for py_file in [SRC_DIR / "phishing" / "data" / "grouping.py", SRC_DIR / "phishing" / "data" / "splits.py"]:
+def calculate_code_hashes() -> Dict[str, str]:
+    """Tính mã băm chi tiết cho từng file mã nguồn ảnh hưởng trực tiếp đến kết quả splits."""
+    code_files = [
+        SRC_DIR / "phishing" / "data" / "splits.py",
+        SRC_DIR / "phishing" / "data" / "grouping.py",
+        SRC_DIR / "phishing" / "data" / "date_parser.py",
+        REPO_ROOT / "scripts" / "data" / "generate_splits.py",
+    ]
+    hashes: Dict[str, str] = {}
+    for py_file in code_files:
         if py_file.exists():
             with open(py_file, "rb") as f:
-                hasher.update(f.read())
+                hashes[py_file.name] = hashlib.sha256(f.read()).hexdigest()
+    return hashes
+
+
+def calculate_composite_code_sha256(code_hashes: Dict[str, str]) -> str:
+    """Tính mã băm tổng hợp của toàn bộ mã nguồn ảnh hưởng."""
+    hasher = hashlib.sha256()
+    for fname in sorted(code_hashes.keys()):
+        hasher.update(code_hashes[fname].encode("utf-8"))
     return hasher.hexdigest()
-
-
-def clean_existing_artifacts(output_dir: Path) -> None:
-    """Xóa các artifact cũ trong thư mục output để tránh trộn lẫn hoặc rò rỉ artifact cũ."""
-    artifact_names = ["groups.json", "grouped_5fold_splits.json", "temporal_splits.json", "manifest.json"]
-    for name in artifact_names:
-        p = output_dir / name
-        if p.exists():
-            p.unlink()
 
 
 def main() -> int:
@@ -101,7 +118,7 @@ def main() -> int:
     )
     parser.add_argument("--input", "-i", type=str, required=True, help="Path to input JSON or JSONL file.")
     parser.add_argument("--output-dir", "-o", type=str, default="data/splits", help="Directory to save split manifests.")
-    parser.add_argument("--n-splits", "-k", type=int, default=5, help="Number of folds (default: 5).")
+    parser.add_argument("--n-splits", "-k", type=int, default=5, help="Number of folds (default: 5, minimum: 3).")
     parser.add_argument("--seeds", type=str, default="17,42,2026", help="Comma-separated random seeds (default: 17,42,2026).")
     parser.add_argument("--id-field", type=str, default="sample_id", help="Field name for unique ID.")
     parser.add_argument("--url-field", type=str, default="url", help="Field name for URL.")
@@ -109,18 +126,65 @@ def main() -> int:
     parser.add_argument("--date-field", type=str, default="collected_at", help="Field name for collection date.")
     parser.add_argument("--label-field", type=str, default="class_label", help="Field name for label.")
     parser.add_argument("--skip-temporal", action="store_true", help="Deliberately skip temporal split if dates not available.")
+    parser.add_argument("--overwrite", action="store_true", help="Allow overwriting existing artifacts in output-dir.")
 
     args = parser.parse_args()
 
+    # 1. Kiểm tra cấu hình và tham số dòng lệnh trước tiên
+    if args.n_splits < 3:
+        print(f"[!] Error: --n-splits must be at least 3, got {args.n_splits}.", file=sys.stderr)
+        return 1
+
+    raw_seeds = (args.seeds or "").strip()
+    if not raw_seeds:
+        print("[!] Error: --seeds cannot be empty. Specify e.g. --seeds 17,42,2026.", file=sys.stderr)
+        return 1
+
+    seed_list: List[int] = []
+    for s in raw_seeds.split(","):
+        s_clean = s.strip()
+        if not s_clean:
+            continue
+        try:
+            seed_list.append(int(s_clean))
+        except ValueError:
+            print(f"[!] Error: Invalid seed value '{s_clean}'. Seeds must be integers.", file=sys.stderr)
+            return 1
+
+    if not seed_list:
+        print("[!] Error: --seeds list is empty.", file=sys.stderr)
+        return 1
+
+    if len(seed_list) != len(set(seed_list)):
+        print(f"[!] Error: Duplicate seeds detected: {seed_list}. Seeds must be unique.", file=sys.stderr)
+        return 1
+
+    seeds = tuple(seed_list)
+
+    # 2. Kiểm tra input tệp nguồn trước khi làm bất kỳ thao tác nào
     input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"[!] Error: Input file does not exist: {input_path}", file=sys.stderr)
+        return 1
+
     output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Dọn dẹp artifact cũ để tránh tồn đọng tệp hỏng/cũ từ các run trước
-    clean_existing_artifacts(output_dir)
+    # 3. Kiểm tra bảo toàn bằng chứng: Không tự ý xóa hoặc ghi đè thư mục run cũ nếu chưa có --overwrite
+    target_artifacts = ["groups.json", "grouped_5fold_splits.json", "manifest.json"]
+    if not args.skip_temporal:
+        target_artifacts.append("temporal_splits.json")
 
-    seeds = tuple(int(s.strip()) for s in args.seeds.split(",") if s.strip())
+    existing_artifacts = [name for name in target_artifacts if (output_dir / name).exists()]
+    if existing_artifacts and not args.overwrite:
+        print(
+            f"[!] Error: Output directory '{output_dir}' already contains previous run artifacts: {existing_artifacts}.\n"
+            f"    To preserve provenance and audit trail, please specify a new run directory (e.g. -o data/splits/run_02)\n"
+            f"    or use --overwrite to explicitly replace existing artifacts.",
+            file=sys.stderr,
+        )
+        return 1
 
+    # 4. Nạp dữ liệu vào bộ nhớ
     print(f"[*] Loading records from: {input_path}")
     try:
         records = load_records(input_path)
@@ -131,7 +195,7 @@ def main() -> int:
     print(f"[*] Successfully loaded {len(records)} records.")
     input_sha256 = calculate_sha256(input_path)
 
-    # 1. Trích xuất groups có bảo toàn component trùng nội dung và kiểm tra tính hợp lệ
+    # 5. Trích xuất groups có bảo toàn component trùng nội dung và kiểm tra tính hợp lệ
     print("[*] Extracting group_id (eTLD+1, UGC tenant & pre-identified components)...")
     groups_manifest: Dict[str, Any] = {
         "metadata": {
@@ -140,7 +204,8 @@ def main() -> int:
             "input_sha256": input_sha256,
             "total_records": len(records),
             "group_rules_version": GROUP_RULES_VERSION,
-            "psl_version": PSL_VERSION,
+            "tldextract_version": TLDEXTRACT_VERSION,
+            "psl_snapshot_sha256": PSL_SNAPSHOT_SHA256,
         },
         "sample_groups": {},
         "group_summary": {},
@@ -151,10 +216,10 @@ def main() -> int:
 
     for idx, rec in enumerate(records):
         raw_sid = rec.get(args.id_field)
-        if raw_sid is None or not str(raw_sid).strip():
-            print(f"[!] Error: Record #{idx} is missing or has empty ID field '{args.id_field}'.", file=sys.stderr)
+        if raw_sid is None or not isinstance(raw_sid, str) or not raw_sid.strip():
+            print(f"[!] Error: Record #{idx} has missing/invalid ID field '{args.id_field}'.", file=sys.stderr)
             return 1
-        sid = str(raw_sid).strip()
+        sid = raw_sid.strip()
         if sid in seen_ids:
             print(f"[!] Error: Duplicate sample_id detected: '{sid}'. All IDs must be globally unique.", file=sys.stderr)
             return 1
@@ -163,23 +228,28 @@ def main() -> int:
         # Ưu tiên nhận group_id hoặc component index đã kiểm chứng từ đầu vào
         gid = ""
         if args.group_field and args.group_field in rec and rec[args.group_field] is not None:
-            cand_gid = str(rec[args.group_field]).strip()
-            if cand_gid:
-                gid = cand_gid
+            raw_gid = rec[args.group_field]
+            if isinstance(raw_gid, str):
+                cand_gid = raw_gid.strip()
+                if cand_gid and cand_gid != "unknown" and not any(c.isspace() for c in cand_gid):
+                    gid = cand_gid
 
         if not gid:
             raw_url = rec.get(args.url_field)
-            if raw_url is None or not str(raw_url).strip():
+            if raw_url is None or not isinstance(raw_url, str) or not raw_url.strip():
                 print(
                     f"[!] Error: Record '{sid}' has neither valid '{args.group_field}' nor '{args.url_field}'. "
                     f"Silent fallback to 'row:<idx>' is strictly forbidden.",
                     file=sys.stderr,
                 )
                 return 1
-            cand_url = str(raw_url).strip()
+            cand_url = raw_url.strip()
             gid = extract_group_id(cand_url)
-            if gid == "unknown":
-                print(f"[!] Error: Record '{sid}' has invalid URL '{cand_url}' that cannot be grouped.", file=sys.stderr)
+            if gid == "unknown" or any(c.isspace() for c in gid):
+                print(
+                    f"[!] Error: Record '{sid}' has invalid URL '{cand_url}' that cannot be mapped to a valid group.",
+                    file=sys.stderr,
+                )
                 return 1
 
         groups_manifest["sample_groups"][sid] = gid
@@ -187,19 +257,14 @@ def main() -> int:
 
     groups_manifest["group_summary"] = {
         "distinct_groups_count": len(group_counts),
-        "top_groups": sorted(group_counts.items(), key=lambda x: x[1], reverse=True)[:10],
+        "largest_group": max(group_counts.items(), key=lambda x: x[1]) if group_counts else None,
+        "smallest_group": min(group_counts.items(), key=lambda x: x[1]) if group_counts else None,
     }
 
-    groups_file = output_dir / "groups.json"
-    with open(groups_file, "w", encoding="utf-8") as f:
-        json.dump(groups_manifest, f, indent=2, ensure_ascii=False)
-    groups_sha256 = calculate_sha256(groups_file)
-    print(f"[+] Saved groups index: {groups_file} ({len(group_counts)} distinct groups, SHA-256: {groups_sha256[:12]}...)")
-
-    # 2. Tạo Grouped 5-Fold Cross Validation
-    print(f"[*] Generating Grouped {args.n_splits}-Fold CV across seeds: {seeds}...")
+    # 6. Tính toán Grouped K-Fold hoàn chỉnh trong bộ nhớ
+    print(f"[*] Generating Grouped {args.n_splits}-Fold splits for seeds: {seeds}...")
     try:
-        grouped_results = generate_grouped_kfold(
+        grouped_splits = generate_grouped_kfold(
             records=records,
             n_splits=args.n_splits,
             seeds=seeds,
@@ -209,7 +274,7 @@ def main() -> int:
             label_field=args.label_field,
         )
     except Exception as err:
-        print(f"[!] Error generating grouped k-fold: {err}", file=sys.stderr)
+        print(f"[!] Error: Grouped K-Fold generation failed: {err}", file=sys.stderr)
         return 1
 
     grouped_manifest: Dict[str, Any] = {
@@ -217,33 +282,22 @@ def main() -> int:
             "created_at_utc": datetime.now(timezone.utc).isoformat(),
             "n_splits": args.n_splits,
             "seeds": list(seeds),
-            "group_rules_version": GROUP_RULES_VERSION,
-            "psl_version": PSL_VERSION,
             "input_sha256": input_sha256,
-            "groups_sha256": groups_sha256,
-            "verification_checks_passed": [
-                "assert_no_group_leakage(outer train vs outer test)",
-                "assert_no_group_leakage(inner train vs inner val)",
-                "assert_unique_sample_ids",
-                "assert_non_empty_folds",
-            ],
+            "group_rules_version": GROUP_RULES_VERSION,
+            "tldextract_version": TLDEXTRACT_VERSION,
+            "psl_snapshot_sha256": PSL_SNAPSHOT_SHA256,
             "anti_leakage_verified": True,
         },
-        "splits_by_seed": grouped_results,
+        "splits_by_seed": grouped_splits,
     }
 
-    grouped_file = output_dir / "grouped_5fold_splits.json"
-    with open(grouped_file, "w", encoding="utf-8") as f:
-        json.dump(grouped_manifest, f, indent=2, ensure_ascii=False)
-    grouped_sha256 = calculate_sha256(grouped_file)
-    print(f"[+] Saved Grouped 5-Fold splits: {grouped_file} (SHA-256: {grouped_sha256[:12]}...)")
-
-    # 3. Tạo Temporal Split (Phân biệt thất bại với bỏ qua có chủ đích)
-    temporal_sha256 = None
+    # 7. Tính toán Temporal Split hoàn chỉnh trong bộ nhớ
+    temporal_result = None
+    temporal_manifest = None
     if args.skip_temporal:
-        print("[*] Temporal split skipped by explicit request (--skip-temporal).")
+        print("[*] Deliberately skipping Temporal split (--skip-temporal flag passed).")
     else:
-        print("[*] Generating Temporal Split (60% Train / 20% Val / 20% Test)...")
+        print("[*] Generating Temporal 60/20/20 split with past group purging...")
         try:
             temporal_result = generate_temporal_split(
                 records=records,
@@ -261,7 +315,7 @@ def main() -> int:
             print(f"[!] Error: Temporal split failed: {err}", file=sys.stderr)
             return 1
 
-        temporal_manifest: Dict[str, Any] = {
+        temporal_manifest = {
             "metadata": {
                 "created_at_utc": datetime.now(timezone.utc).isoformat(),
                 "train_ratio": 0.6,
@@ -269,44 +323,82 @@ def main() -> int:
                 "test_ratio": 0.2,
                 "purge_overlapping_groups": True,
                 "input_sha256": input_sha256,
-                "groups_sha256": groups_sha256,
                 "group_rules_version": GROUP_RULES_VERSION,
-                "psl_version": PSL_VERSION,
+                "tldextract_version": TLDEXTRACT_VERSION,
+                "psl_snapshot_sha256": PSL_SNAPSHOT_SHA256,
                 "verification_checks_passed": temporal_result.get("verification_checks_passed", []),
                 "anti_leakage_verified": temporal_result.get("status") == "evaluable",
             },
             "split": temporal_result,
         }
 
+    # 8. MỌI TÍNH TOÁN ĐÃ HOÀN TẤT VÀ XÁC THỰC THÀNH CÔNG -> Bắt đầu ghi file ra thư mục output
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    groups_file = output_dir / "groups.json"
+    with open(groups_file, "w", encoding="utf-8") as f:
+        json.dump(groups_manifest, f, indent=2, ensure_ascii=False)
+    groups_sha256 = calculate_sha256(groups_file)
+    print(f"[+] Saved Group index: {groups_file} ({len(group_counts)} groups)")
+
+    grouped_manifest["metadata"]["groups_sha256"] = groups_sha256
+    grouped_file = output_dir / "grouped_5fold_splits.json"
+    with open(grouped_file, "w", encoding="utf-8") as f:
+        json.dump(grouped_manifest, f, indent=2, ensure_ascii=False)
+    grouped_sha256 = calculate_sha256(grouped_file)
+    print(f"[+] Saved Grouped {args.n_splits}-Fold splits: {grouped_file}")
+
+    temporal_sha256 = None
+    if temporal_manifest is not None and temporal_result is not None:
+        temporal_manifest["metadata"]["groups_sha256"] = groups_sha256
         temporal_file = output_dir / "temporal_splits.json"
         with open(temporal_file, "w", encoding="utf-8") as f:
             json.dump(temporal_manifest, f, indent=2, ensure_ascii=False)
         temporal_sha256 = calculate_sha256(temporal_file)
         print(f"[+] Saved Temporal splits: {temporal_file} (Status: {temporal_result.get('status')})")
-        print(
-            f"    - Train: {temporal_result['metrics']['train_sample_count']} samples "
-            f"({temporal_result['train_date_range'][0]} to {temporal_result['train_date_range'][1]})"
-        )
-        print(
-            f"    - Val: {temporal_result['metrics']['val_clean_sample_count']} clean samples "
-            f"({temporal_result['metrics']['val_purged_sample_count']} purged) "
-            f"({temporal_result['val_date_range'][0]} to {temporal_result['val_date_range'][1]})"
-        )
-        print(
-            f"    - Test: {temporal_result['metrics']['test_clean_sample_count']} clean samples "
-            f"({temporal_result['metrics']['test_purged_sample_count']} purged) "
-            f"({temporal_result['test_date_range'][0]} to {temporal_result['test_date_range'][1]})"
-        )
 
-    # 4. Ghi Manifest liên kết đầy đủ mã băm xuất xứ (Provenance Manifest)
+    # 9. Đánh giá tính vững chắc tổng thể (verified_robust)
+    all_folds_sufficient = all(
+        f["class_sufficiency"]["status"] == "sufficient"
+        for fold_list in grouped_splits.values()
+        for f in fold_list
+    )
+    all_folds_usable = all(
+        f.get("is_usable", True)
+        for fold_list in grouped_splits.values()
+        for f in fold_list
+    )
+    temporal_evaluable = (temporal_result.get("status") == "evaluable") if temporal_result is not None else True
+
+    verified_robust = bool(all_folds_sufficient and all_folds_usable and temporal_evaluable)
+
+    code_hashes = calculate_code_hashes()
+    composite_code_sha256 = calculate_composite_code_sha256(code_hashes)
+
+    # 10. Ghi Manifest liên kết đầy đủ mã băm xuất xứ (Provenance Manifest)
     manifest: Dict[str, Any] = {
         "manifest_type": "DATA-03_SPLIT_MANIFEST",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "input_file": str(input_path),
         "input_sha256": input_sha256,
-        "code_sha256": calculate_code_sha256(),
-        "group_rules_version": GROUP_RULES_VERSION,
-        "psl_version": PSL_VERSION,
+        "code_sha256": composite_code_sha256,
+        "code_hashes": code_hashes,
+        "run_parameters": {
+            "n_splits": args.n_splits,
+            "seeds": list(seeds),
+            "id_field": args.id_field,
+            "url_field": args.url_field,
+            "group_field": args.group_field,
+            "date_field": args.date_field,
+            "label_field": args.label_field,
+            "skip_temporal": args.skip_temporal,
+        },
+        "grouping_metadata": {
+            "group_rules_version": GROUP_RULES_VERSION,
+            "tldextract_version": TLDEXTRACT_VERSION,
+            "psl_snapshot_sha256": PSL_SNAPSHOT_SHA256,
+            "psl_source": "tldextract bundled snapshot",
+        },
         "artifacts": {
             "groups_json": {"path": "groups.json", "sha256": groups_sha256},
             "grouped_5fold_splits_json": {"path": "grouped_5fold_splits.json", "sha256": grouped_sha256},
@@ -314,13 +406,19 @@ def main() -> int:
                 {"path": "temporal_splits.json", "sha256": temporal_sha256} if temporal_sha256 else None
             ),
         },
-        "anti_leakage_status": "verified_robust",
+        "anti_leakage_status": "verified_robust" if verified_robust else "provisional_insufficient_classes",
+        "verified_robust": verified_robust,
+        "verification_summary": {
+            "all_folds_sufficient": all_folds_sufficient,
+            "all_folds_usable": all_folds_usable,
+            "temporal_evaluable": temporal_evaluable,
+        },
     }
 
     manifest_file = output_dir / "manifest.json"
     with open(manifest_file, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
-    print(f"[+] Saved Run Manifest: {manifest_file}")
+    print(f"[+] Saved Run Manifest: {manifest_file} (Status: {manifest['anti_leakage_status']})")
 
     print("\n[V] DATA-03 splitting generation completed successfully.")
     return 0

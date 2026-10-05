@@ -1,16 +1,27 @@
 """Unit tests kiểm định module grouping, grouped 5-fold CV và temporal split chống rò rỉ dữ liệu."""
 
 from datetime import date, timedelta
+import json
+from pathlib import Path
+import subprocess
+import sys
 import pytest
 
-from phishing.data.grouping import extract_group_id
+from phishing.data.grouping import (
+    PSL_SNAPSHOT_SHA256,
+    TLDEXTRACT_VERSION,
+    extract_group_id,
+)
 from phishing.data.splits import (
     DEFAULT_SEEDS,
+    _validate_and_extract_record,
     assert_no_group_leakage,
     assert_strict_temporal_order,
     generate_grouped_kfold,
     generate_temporal_split,
 )
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 class TestGrouping:
@@ -382,3 +393,160 @@ class TestAntiLeakageAssertions:
 
         with pytest.raises(ValueError, match="Temporal order violated between Train and Val"):
             assert_strict_temporal_order(train_dates, val_dates, test_dates)
+
+
+class TestLeadDProbesRegression:
+    """Kiểm tra hồi quy 6 điểm phản biện và probe của Lead D."""
+
+    def test_probe1_cli_preserves_artifacts_on_failure(self, tmp_path: Path) -> None:
+        """Probe 1: Khi input không tồn tại hoặc lỗi, artifacts của run trước phải giữ nguyên 100%."""
+        out_dir = tmp_path / "splits_run"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        old_files = {
+            "groups.json": '{"old": "groups_content"}',
+            "grouped_5fold_splits.json": '{"old": "splits_content"}',
+            "temporal_splits.json": '{"old": "temporal_content"}',
+            "manifest.json": '{"old": "manifest_content"}',
+        }
+        for fname, content in old_files.items():
+            (out_dir / fname).write_text(content, encoding="utf-8")
+
+        script = PROJECT_ROOT / "scripts" / "data" / "generate_splits.py"
+        cmd = [
+            sys.executable,
+            str(script),
+            "--input",
+            str(tmp_path / "non_existent_file.jsonl"),
+            "--output-dir",
+            str(out_dir),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT)
+        assert proc.returncode != 0
+
+        # Cả 4 artifacts cũ phải còn nguyên vẹn, không bị xóa trước khi validate
+        for fname, expected_content in old_files.items():
+            fpath = out_dir / fname
+            assert fpath.is_file(), f"Artifact '{fname}' bị xóa khi CLI gặp lỗi!"
+            assert fpath.read_text(encoding="utf-8") == expected_content, f"Artifact '{fname}' bị sửa đổi nội dung!"
+
+    def test_probe1_cli_rejects_overwrite_without_flag(self, tmp_path: Path) -> None:
+        """Probe 1: Thư mục đã có artifacts cũ phải từ chối nếu không truyền cờ --overwrite."""
+        out_dir = tmp_path / "splits_run"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "groups.json").write_text("{}", encoding="utf-8")
+
+        in_file = tmp_path / "sample.jsonl"
+        recs = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(15)
+        ]
+        in_file.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+
+        script = PROJECT_ROOT / "scripts" / "data" / "generate_splits.py"
+        proc = subprocess.run(
+            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir)],
+            capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+        )
+        assert proc.returncode != 0
+        assert "--overwrite" in proc.stderr
+
+    def test_probe4_class_sufficiency_insufficient_when_missing_class(self) -> None:
+        """Probe 4: Kiểm tra đầy đủ 4 phân vùng; tập chỉ có benign phải báo is_usable=False."""
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "benign"}
+            for i in range(20)
+        ]
+        res = generate_grouped_kfold(records, n_splits=5, seeds=[42])
+        folds = res[42]
+        for fold in folds:
+            assert fold["is_usable"] is False
+            assert "Corpus lacks binary classes" in fold["unusable_reason"]
+            assert fold["class_sufficiency"]["status"] == "insufficient_classes"
+            assert "phishing" in fold["class_sufficiency"]["missing_in_outer_train"]
+
+    def test_probe4_temporal_split_class_distribution(self) -> None:
+        """Probe 4: Temporal split phải kiểm tra phân bố nhãn trên train/val/test."""
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(10)
+        ]
+        res = generate_temporal_split(records)
+        assert res["status"] == "not_evaluable"
+        assert res["evaluability"]["train"]["status"] == "not_evaluable"
+        assert res["evaluability"]["validation"]["status"] == "not_evaluable"
+        assert res["evaluability"]["test"]["status"] == "not_evaluable"
+        assert "Corpus lacks binary classes" in res["evaluability"]["train"]["reason"]
+
+    def test_probe5_invalid_url_and_group_handling(self) -> None:
+        """Probe 5: extract_group_id trả về 'unknown' khi URL sai RFC/khoảng trắng; splitter chặn ID/group lỗi."""
+        # 1. URL không hợp lệ trả về unknown
+        assert extract_group_id("not a valid URL") == "unknown"
+        assert extract_group_id("http://invalid host with spaces.com/") == "unknown"
+        assert extract_group_id("   ") == "unknown"
+        assert extract_group_id("http://") == "unknown"
+
+        # 2. _validate_and_extract_record chặn ID sai kiểu
+        with pytest.raises((ValueError, TypeError), match="sample_id"):
+            _validate_and_extract_record(0, {"sample_id": 123, "url": "https://example.com/"}, "sample_id", "url", "group_id", "class_label", set())
+        with pytest.raises((ValueError, TypeError), match="sample_id"):
+            _validate_and_extract_record(0, {"sample_id": True, "url": "https://example.com/"}, "sample_id", "url", "group_id", "class_label", set())
+        with pytest.raises(ValueError, match="sample_id"):
+            _validate_and_extract_record(0, {"sample_id": "", "url": "https://example.com/"}, "sample_id", "url", "group_id", "class_label", set())
+        with pytest.raises((ValueError, TypeError), match="url"):
+            _validate_and_extract_record(0, {"sample_id": "S1", "url": None}, "sample_id", "url", "group_id", "class_label", set())
+
+        # 3. _validate_and_extract_record chặn group_id là "unknown" hoặc chứa khoảng trắng
+        with pytest.raises(ValueError, match="unknown"):
+            _validate_and_extract_record(0, {"sample_id": "S1", "url": "https://example.com/", "group_id": "unknown"}, "sample_id", "url", "group_id", "class_label", set())
+        with pytest.raises(ValueError, match="has invalid 'group_id'"):
+            _validate_and_extract_record(0, {"sample_id": "S1", "url": "https://example.com/", "group_id": "host:has space"}, "sample_id", "url", "group_id", "class_label", set())
+
+    def test_probe6_empty_seeds_and_provenance_manifest(self, tmp_path: Path) -> None:
+        """Probe 6: chặn seeds rỗng/trùng; manifest ghi đầy đủ PSL snapshot hash, tham số CLI và code hash."""
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(20)
+        ]
+        # Seeds rỗng
+        with pytest.raises(ValueError, match="seeds list cannot be empty"):
+            generate_grouped_kfold(records, seeds=[])
+        # Seeds trùng lặp
+        with pytest.raises(ValueError, match="Duplicate seeds detected"):
+            generate_grouped_kfold(records, seeds=[42, 42])
+        # n_splits < 3
+        with pytest.raises(ValueError, match="n_splits must be at least 3"):
+            generate_grouped_kfold(records, n_splits=2)
+
+        # Chạy generate_splits.py kiểm tra manifest provenance
+        in_file = tmp_path / "valid_corpus.jsonl"
+        in_file.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_output"
+
+        script = PROJECT_ROOT / "scripts" / "data" / "generate_splits.py"
+        proc = subprocess.run(
+            [
+                sys.executable, str(script),
+                "--input", str(in_file),
+                "--output-dir", str(out_dir),
+                "--seeds", "42,100",
+                "-k", "5",
+            ],
+            capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+        )
+        assert proc.returncode == 0, f"Lỗi CLI: {proc.stderr}"
+
+        manifest_data = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        # Provenance: PSL Snapshot SHA-256
+        assert manifest_data["grouping_metadata"]["psl_snapshot_sha256"] == PSL_SNAPSHOT_SHA256
+        assert manifest_data["grouping_metadata"]["tldextract_version"] == TLDEXTRACT_VERSION
+        # CLI Parameters
+        assert manifest_data["run_parameters"]["seeds"] == [42, 100]
+        assert manifest_data["run_parameters"]["n_splits"] == 5
+        # Code hashes
+        assert "code_sha256" in manifest_data
+        assert "generate_splits.py" in manifest_data["code_hashes"]
+        assert "splits.py" in manifest_data["code_hashes"]
+        assert "grouping.py" in manifest_data["code_hashes"]
+        assert "date_parser.py" in manifest_data["code_hashes"]
+
