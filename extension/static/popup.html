@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>NCKH Phishing — demo</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><span class="badge">DEMO MÔ PHỎNG</span><h1>Cảnh báo phishing</h1><p>Chưa có mô hình nhận diện thật.</p></header>
+  <section class="result"><span>Trạng thái trang hiện tại</span><strong id="status">Chưa đánh giá được</strong><p id="note">Chỉ dùng kiểm thử luồng cảnh báo.</p></section>
+  <form id="settings">
+    <label class="toggle"><input id="enabled" type="checkbox"> Bật phân tích demo</label>
+    <label class="toggle"><input id="content" type="checkbox"> Cho phép phân tích nội dung trang</label>
+    <p class="hint">Khi cho phép, URL và HTML đã lọc được gửi đến API trên máy này. Văn bản còn có thể chứa thông tin cá nhân; dùng trang mô phỏng để thử.</p>
+    <label for="token">Token API cục bộ</label><input id="token" type="password" autocomplete="off" spellcheck="false">
+    <button type="submit">Lưu thiết lập</button>
+  </form>
+  <footer>API: <code>127.0.0.1:8765</code><br>ID extension: <code id="extension-id"></code></footer>
+  <script src="popup.js" type="module"></script>
+</body></html>

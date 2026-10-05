@@ -1,6 +1,10 @@
 # API specification v0.1
 
-**Trạng thái:** hợp đồng thiết kế, chưa có server chạy. Nguồn schema máy đọc: [openapi.json](openapi.json), OpenAPI 3.1. Ví dụ là mô phỏng với URL example.org; không có kết quả mô hình thật.
+**Trạng thái:** hợp đồng v0.1; đã có FastAPI mock và MV3 demo, chưa có server suy luận mô hình thật. Nguồn schema máy đọc: [openapi.json](openapi.json), OpenAPI 3.1. Ví dụ là mô phỏng với URL example.org; không có kết quả mô hình thật.
+
+Backend synthetic model đã nối cùng các route API, dùng model/bundle `synthetic-demo-*`, health `model_ready=true` khi tải thành công và các limitation bắt buộc `synthetic_training_only`, `not_research_evidence`. Bundle này chỉ phục vụ demo bằng fixture; xem DEVELOPMENT để build/tải và chạy.
+
+Mock hiện chạy với `snapshot-dev-0`, model/bundle có prefix `mock-only-*` và limitation `mock_response_not_model_result`; health `model_ready=false`. Scenario là cấu hình server, không là trường request. Ví dụ `snapshot-v1` bên dưới vẫn là thiết kế pipeline tương lai và sẽ bị mock trả 409. Lệnh cài/chạy/mock scenarios ở [DEVELOPMENT](DEVELOPMENT.md). Schema JSON không đổi trong lượt triển khai này.
 
 ## Kết nối
 

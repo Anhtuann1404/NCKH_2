@@ -1,0 +1,63 @@
+{
+  "scope": "DEV-01, EXT-01 mock and MODEL-PREP-02 synthetic TF-IDF/LR/grouped CV",
+  "verified_on": "2026-10-04",
+  "python": "3.14.6",
+  "implementation": "CPython",
+  "platform": "darwin",
+  "machine": "arm64",
+  "external_runtime_dependencies": {
+    "uvicorn": "0.54.0",
+    "opentelemetry-api": "1.45.0",
+    "rpds-py": "2026.6.3",
+    "click": "8.5.0",
+    "jsonschema-specifications": "2025.9.1",
+    "jsonschema": "4.26.0",
+    "pydantic_core": "2.46.5",
+    "h11": "0.16.0",
+    "pydantic": "2.13.5",
+    "fastapi": "0.142.2",
+    "annotated-types": "0.8.0",
+    "referencing": "0.37.0",
+    "annotated-doc": "0.0.5",
+    "typing-inspection": "0.4.4",
+    "starlette": "1.7.0",
+    "attrs": "26.1.0",
+    "typing_extensions": "4.16.0",
+    "httpx2": "2.13.1",
+    "truststore": "0.10.4",
+    "httpcore2": "2.13.1",
+    "anyio": "4.15.1",
+    "idna": "3.20",
+    "cloudpickle": "3.1.2",
+    "joblib": "1.6.0",
+    "narwhals": "2.26.0",
+    "numpy": "2.5.3",
+    "scikit-learn": "1.9.1",
+    "scipy": "1.18.1",
+    "threadpoolctl": "3.7.0"
+  },
+  "environment_tools": {
+    "pip": "26.1.2"
+  },
+  "preprocessing_version": "snapshot-dev-0",
+  "feature_version": "features-dev-0",
+  "research_pipeline_frozen": false,
+  "notes": [
+    "Preprocessing/features/metrics/run-plan code uses only Python standard library; API/tests use the pinned Python packages.",
+    "DeepSeek Bridge is separate and is not imported or called by this scaffold.",
+    "Python 3.14.6 and Node 26.7.0 were verified on macOS arm64; cross-version/platform compatibility is not yet measured.",
+    "All checks use synthetic fixtures; no accuracy/FPR/latency conclusions about real phishing.",
+    "Training dependencies pinned; only invented fixture models fitted. No real-data model or API bundle."
+  ],
+  "python_lock_path": "requirements-dev.lock",
+  "extension_lock_path": "extension/package-lock.json",
+  "node": "v26.7.0",
+  "npm": "11.19.0",
+  "browser_smoke_version": "153.0.8010.12",
+  "checks": {
+    "python_unittest": 48,
+    "node_unit_tests": 9,
+    "chromium_mock_scenarios": 11,
+    "synthetic_outer_runs": 120
+  }
+}
