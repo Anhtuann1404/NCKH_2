@@ -2,13 +2,19 @@
 
 Triển khai theo quy chuẩn nghiêm ngặt của NCKH_2:
 - EXPERIMENT_PROTOCOL.md: Grouped 5-fold CV lặp 3 seed (17, 42, 2026), inner validation split.
-- DATA_PROTOCOL.md: eTLD+1 + shared hosting tenant grouping, không rò rỉ group giữa train và test.
-- Temporal Split: 60% Train / 20% Val / 20% Test, không chia cắt trong cùng một ngày lịch.
-  Loại bỏ các bản ghi muộn trùng group sớm ("Loại bản ghi muộn trùng group sớm").
+- DATA_PROTOCOL.md: eTLD+1 + shared hosting tenant grouping, bảo toàn component trùng nội dung,
+  không rò rỉ group giữa train và test.
+- Strict Record Validation: Bắt buộc sample_id duy nhất toàn cục, từ chối ID rỗng/trùng lặp,
+  từ chối URL/nhóm hỏng; nghiêm cấm tự sinh row:<idx>.
+- Usability & Class Sufficiency: Cân bằng nhãn theo nhóm, kiểm tra outer train/val/test và inner train
+  không được rỗng, kiểm tra độ phủ lớp học máy (phishing / benign).
+- Temporal Split: 60% Train / 20% Val / 20% Test, kiểm tra tham số nghiêm ngặt, không chia cắt
+  cùng một ngày lịch, loại trừ trùng nhóm sớm, gắn trạng thái evaluable / not_evaluable rõ ràng.
 """
 
 from collections import Counter, defaultdict
 from datetime import date
+import math
 import random
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
@@ -74,13 +80,71 @@ def assert_strict_temporal_order(
         )
 
 
+def _validate_and_extract_record(
+    idx: int,
+    rec: Mapping[str, Any],
+    id_field: str,
+    url_field: str,
+    group_field: Optional[str],
+    label_field: Optional[str],
+    seen_ids: Set[str],
+) -> Tuple[str, str, str]:
+    """Kiểm định tính toàn vẹn bản ghi trước mọi thao tác phân chia:
+
+    1. ID bắt buộc có mặt, là chuỗi không rỗng, và duy nhất toàn cục.
+    2. Nhận group_id/component index đã kiểm chứng nếu có sẵn, không tự chia lẻ theo URL.
+    3. Nếu không có group_id, URL phải hợp lệ để trích xuất group_id (từ chối unknown).
+    4. Tuyệt đối không tự sinh row:<idx> thành nhóm độc lập.
+    """
+    raw_sid = rec.get(id_field)
+    if raw_sid is None:
+        raise ValueError(f"Record #{idx} is missing mandatory ID field '{id_field}'.")
+
+    sid = str(raw_sid).strip()
+    if not sid:
+        raise ValueError(f"Record #{idx} has empty ID field '{id_field}'.")
+
+    if sid in seen_ids:
+        raise ValueError(f"Duplicate sample_id detected: '{sid}'. All records must have globally unique IDs.")
+    seen_ids.add(sid)
+
+    # Ưu tiên nhận group_id hoặc component index đã kiểm chứng từ đầu vào
+    gid = ""
+    if group_field and group_field in rec and rec[group_field] is not None:
+        cand_gid = str(rec[group_field]).strip()
+        if cand_gid:
+            gid = cand_gid
+
+    if not gid:
+        raw_url = rec.get(url_field)
+        if raw_url is None or not str(raw_url).strip():
+            raise ValueError(
+                f"Record '{sid}' missing valid '{group_field}' and has no '{url_field}'. "
+                f"Silent fallback to 'row:<idx>' is strictly forbidden."
+            )
+        cand_url = str(raw_url).strip()
+        gid = extract_group_id(cand_url)
+        if gid == "unknown":
+            raise ValueError(
+                f"Record '{sid}' has invalid URL '{cand_url}' that cannot be mapped to a valid group."
+            )
+
+    lbl = "unlabeled"
+    if label_field and label_field in rec and rec[label_field] is not None:
+        cand_lbl = str(rec[label_field]).strip()
+        if cand_lbl:
+            lbl = cand_lbl
+
+    return sid, gid, lbl
+
+
 def generate_grouped_kfold(
     records: Sequence[Mapping[str, Any]],
     n_splits: int = 5,
     seeds: Sequence[int] = DEFAULT_SEEDS,
     id_field: str = "sample_id",
     url_field: str = "url",
-    group_field: Optional[str] = None,
+    group_field: Optional[str] = "group_id",
     label_field: Optional[str] = "class_label",
 ) -> Dict[int, List[Dict[str, Any]]]:
     """Tạo phân chia Grouped K-Fold Cross Validation với nhiều random seeds.
@@ -95,29 +159,32 @@ def generate_grouped_kfold(
     """
     if not records:
         raise ValueError("Records sequence cannot be empty.")
-    if n_splits < 2:
-        raise ValueError("n_splits must be at least 2.")
+    if n_splits < 3:
+        raise ValueError(
+            f"n_splits must be at least 3 (got {n_splits}) to support outer test "
+            f"and non-empty inner train/validation folds."
+        )
 
-    # 1. Thu thập group_id và ánh xạ mẫu
-    sample_to_group: Dict[Any, str] = {}
-    sample_to_label: Dict[Any, str] = {}
-    group_to_samples: Dict[str, List[Any]] = defaultdict(list)
+    # 1. Thu thập group_id và ánh xạ mẫu có kiểm định toàn vẹn nghiêm ngặt
+    seen_ids: Set[str] = set()
+    sample_to_group: Dict[str, str] = {}
+    sample_to_label: Dict[str, str] = {}
+    group_to_samples: Dict[str, List[str]] = defaultdict(list)
     group_label_counts: Dict[str, Counter] = defaultdict(Counter)
 
     for idx, rec in enumerate(records):
-        sample_id = rec.get(id_field, idx)
-        if group_field and group_field in rec and rec[group_field]:
-            gid = str(rec[group_field])
-        elif url_field in rec and rec[url_field]:
-            gid = extract_group_id(str(rec[url_field]))
-        else:
-            gid = f"row:{idx}"
-
-        lbl = str(rec.get(label_field, "unlabeled")) if label_field else "unlabeled"
-
-        sample_to_group[sample_id] = gid
-        sample_to_label[sample_id] = lbl
-        group_to_samples[gid].append(sample_id)
+        sid, gid, lbl = _validate_and_extract_record(
+            idx=idx,
+            rec=rec,
+            id_field=id_field,
+            url_field=url_field,
+            group_field=group_field,
+            label_field=label_field,
+            seen_ids=seen_ids,
+        )
+        sample_to_group[sid] = gid
+        sample_to_label[sid] = lbl
+        group_to_samples[gid].append(sid)
         group_label_counts[gid][lbl] += 1
 
     distinct_groups = sorted(group_to_samples.keys())
@@ -125,6 +192,10 @@ def generate_grouped_kfold(
         raise ValueError(
             f"Cannot create {n_splits} grouped folds with only {len(distinct_groups)} distinct groups."
         )
+
+    # Đếm tổng nhãn toàn corpus để kiểm tra tính khả dụng của các fold
+    all_corpus_labels = sorted({lbl for lbl in sample_to_label.values() if lbl != "unlabeled"})
+    has_labels = len(all_corpus_labels) > 0
 
     all_seed_results: Dict[int, List[Dict[str, Any]]] = {}
 
@@ -141,12 +212,25 @@ def generate_grouped_kfold(
 
         fold_groups: List[List[str]] = [[] for _ in range(n_splits)]
         fold_sample_counts = [0] * n_splits
+        # Theo dõi số lượng mẫu nhãn đầu tiên (nếu có) để cân bằng lớp
+        primary_label = all_corpus_labels[0] if has_labels else None
+        fold_primary_counts = [0] * n_splits
 
         for gid in shuffled_groups:
-            # Gán group vào fold hiện đang có ít mẫu nhất
-            min_fold_idx = min(range(n_splits), key=lambda i: fold_sample_counts[i])
-            fold_groups[min_fold_idx].append(gid)
-            fold_sample_counts[min_fold_idx] += len(group_to_samples[gid])
+            # Gán group vào fold hiện đang có ít mẫu nhất, ưu tiên fold thiếu nhãn chính
+            if primary_label and group_label_counts[gid][primary_label] > 0:
+                # Gán vào fold có ít mẫu thuộc nhãn chính nhất
+                best_fold_idx = min(
+                    range(n_splits),
+                    key=lambda i: (fold_primary_counts[i], fold_sample_counts[i]),
+                )
+            else:
+                best_fold_idx = min(range(n_splits), key=lambda i: fold_sample_counts[i])
+
+            fold_groups[best_fold_idx].append(gid)
+            fold_sample_counts[best_fold_idx] += len(group_to_samples[gid])
+            if primary_label:
+                fold_primary_counts[best_fold_idx] += group_label_counts[gid][primary_label]
 
         fold_results: List[Dict[str, Any]] = []
 
@@ -160,8 +244,8 @@ def generate_grouped_kfold(
             # Kiểm định chống rò rỉ dữ liệu mức outer
             assert_no_group_leakage(train_grp_set, test_grp_set, f"Seed {seed} Fold {k}")
 
-            train_samples: List[Any] = []
-            test_samples: List[Any] = []
+            train_samples: List[str] = []
+            test_samples: List[str] = []
 
             for gid in sorted(train_grp_set):
                 train_samples.extend(group_to_samples[gid])
@@ -177,27 +261,49 @@ def generate_grouped_kfold(
             # Kiểm định chống rò rỉ dữ liệu mức inner
             assert_no_group_leakage(inner_train_grp_set, inner_val_grp_set, f"Seed {seed} Fold {k} Inner")
 
-            inner_train_samples: List[Any] = []
-            inner_val_samples: List[Any] = []
+            inner_train_samples: List[str] = []
+            inner_val_samples: List[str] = []
             for gid in sorted(inner_train_grp_set):
                 inner_train_samples.extend(group_to_samples[gid])
             for gid in sorted(inner_val_grp_set):
                 inner_val_samples.extend(group_to_samples[gid])
 
+            # Kiểm tra tính khả dụng: Không được để fold nào bị rỗng
+            if not test_samples:
+                raise ValueError(f"Fold {k} test set is empty.")
+            if not train_samples:
+                raise ValueError(f"Fold {k} train set is empty.")
+            if not inner_train_samples:
+                raise ValueError(f"Fold {k} inner train set is empty.")
+            if not inner_val_samples:
+                raise ValueError(f"Fold {k} inner val set is empty.")
+
             train_label_dist = Counter(sample_to_label[s] for s in train_samples)
             test_label_dist = Counter(sample_to_label[s] for s in test_samples)
+            inner_train_label_dist = Counter(sample_to_label[s] for s in inner_train_samples)
+            inner_val_label_dist = Counter(sample_to_label[s] for s in inner_val_samples)
+
+            # Kiểm tra tính đầy đủ của lớp (Class Sufficiency)
+            missing_outer_test = [lbl for lbl in all_corpus_labels if test_label_dist.get(lbl, 0) == 0]
+            missing_inner_val = [lbl for lbl in all_corpus_labels if inner_val_label_dist.get(lbl, 0) == 0]
+            class_status = "sufficient" if (not missing_outer_test and not missing_inner_val) else "insufficient_classes"
 
             fold_results.append({
                 "fold": k,
                 "seed": seed,
-                "train_indices": sorted(train_samples, key=lambda s: str(s)),
-                "test_indices": sorted(test_samples, key=lambda s: str(s)),
-                "inner_train_indices": sorted(inner_train_samples, key=lambda s: str(s)),
-                "inner_val_indices": sorted(inner_val_samples, key=lambda s: str(s)),
+                "train_indices": sorted(train_samples),
+                "test_indices": sorted(test_samples),
+                "inner_train_indices": sorted(inner_train_samples),
+                "inner_val_indices": sorted(inner_val_samples),
                 "train_groups": sorted(train_grp_set),
                 "test_groups": sorted(test_grp_set),
                 "inner_train_groups": sorted(inner_train_grp_set),
                 "inner_val_groups": sorted(inner_val_grp_set),
+                "class_sufficiency": {
+                    "status": class_status,
+                    "missing_in_outer_test": missing_outer_test,
+                    "missing_in_inner_val": missing_inner_val,
+                },
                 "metrics": {
                     "train_sample_count": len(train_samples),
                     "test_sample_count": len(test_samples),
@@ -207,6 +313,8 @@ def generate_grouped_kfold(
                     "test_groups_count": len(test_grp_set),
                     "train_label_distribution": dict(train_label_dist),
                     "test_label_distribution": dict(test_label_dist),
+                    "inner_train_label_distribution": dict(inner_train_label_dist),
+                    "inner_val_label_distribution": dict(inner_val_label_dist),
                 },
             })
 
@@ -223,7 +331,8 @@ def generate_temporal_split(
     id_field: str = "sample_id",
     date_field: str = "collected_at",
     url_field: str = "url",
-    group_field: Optional[str] = None,
+    group_field: Optional[str] = "group_id",
+    label_field: Optional[str] = "class_label",
     purge_overlapping_groups: bool = True,
 ) -> Dict[str, Any]:
     """Tạo phân chia mốc thời gian (Temporal Split) 60/20/20 tuân thủ nguyên tắc ARS:
@@ -234,32 +343,49 @@ def generate_temporal_split(
     4. Chống rò rỉ miền/nhóm từ quá khứ sang tương lai:
        Nếu purge_overlapping_groups=True, các bản ghi ở tập Val/Test có group_id đã từng
        xuất hiện trong tập sớm hơn sẽ bị loại bỏ khỏi tập đánh giá sạch ("Loại bản ghi muộn trùng group sớm").
+    5. Kiểm định chặt chẽ tỷ lệ đầu vào (dương, hữu hạn, tổng bằng 1.0).
+    6. Đánh giá tính khả dụng (evaluability): Nếu sau khi purge mà tập Val hoặc Test bị rỗng
+       hoặc thiếu lớp học máy, chuyển trạng thái sang "not_evaluable" kèm lý do chi tiết.
     """
     if not records:
         raise ValueError("Records sequence cannot be empty.")
 
-    # 1. Trích xuất và xác thực ngày cho từng bản ghi
+    # 1. Kiểm định các tham số tỷ lệ nghiêm ngặt
+    for r_val, r_name in [(train_ratio, "train_ratio"), (val_ratio, "val_ratio"), (test_ratio, "test_ratio")]:
+        if not isinstance(r_val, (int, float)) or not math.isfinite(r_val) or r_val <= 0 or r_val >= 1:
+            raise ValueError(f"{r_name} must be a finite positive number between 0 and 1, got {r_val}")
+
+    if abs((train_ratio + val_ratio + test_ratio) - 1.0) > 1e-5:
+        raise ValueError(
+            f"train_ratio ({train_ratio}), val_ratio ({val_ratio}), and test_ratio ({test_ratio}) "
+            f"must sum to 1.0 (got {train_ratio + val_ratio + test_ratio:.6f})."
+        )
+
+    # 2. Trích xuất và xác thực bản ghi cùng trường ngày
+    seen_ids: Set[str] = set()
     valid_entries: List[Dict[str, Any]] = []
     invalid_date_count = 0
 
     for idx, rec in enumerate(records):
-        sample_id = rec.get(id_field, idx)
+        sid, gid, lbl = _validate_and_extract_record(
+            idx=idx,
+            rec=rec,
+            id_field=id_field,
+            url_field=url_field,
+            group_field=group_field,
+            label_field=label_field,
+            seen_ids=seen_ids,
+        )
         d_val = parse_strict_date(rec.get(date_field))
         if d_val is None:
             invalid_date_count += 1
             continue
 
-        if group_field and group_field in rec and rec[group_field]:
-            gid = str(rec[group_field])
-        elif url_field in rec and rec[url_field]:
-            gid = extract_group_id(str(rec[url_field]))
-        else:
-            gid = f"row:{idx}"
-
         valid_entries.append({
-            "sample_id": sample_id,
+            "sample_id": sid,
             "date": d_val,
             "group_id": gid,
+            "label": lbl,
             "raw_record": rec,
         })
 
@@ -354,16 +480,57 @@ def generate_temporal_split(
         else:
             clean_test_entries.append(e)
 
-    # Sau khi purge, kiểm định chống rò rỉ tuyệt đối
-    if purge_overlapping_groups:
+    # Sau khi purge, kiểm định chống rò rỉ tuyệt đối nếu test không rỗng
+    verification_checks: List[str] = [
+        "assert_strict_temporal_order",
+        "assert_unique_sample_ids",
+    ]
+    if purge_overlapping_groups and clean_test_entries:
         clean_test_group_set = {e["group_id"] for e in clean_test_entries}
         assert_no_group_leakage(train_group_set, clean_test_group_set, "Temporal Train vs Clean Test")
+        verification_checks.append("assert_no_group_leakage(train vs clean_test)")
 
     all_purged_groups = sorted(
         {e["group_id"] for e in purged_val_entries}.union({e["group_id"] for e in purged_test_entries})
     )
 
+    # 4. Đánh giá tính khả dụng (Evaluability Status)
+    all_labels = sorted({e["label"] for e in valid_entries if e["label"] != "unlabeled"})
+    has_labels = len(all_labels) > 0
+
+    val_labels_raw = Counter(e["label"] for e in raw_val_entries)
+    val_labels_clean = Counter(e["label"] for e in clean_val_entries)
+    test_labels_raw = Counter(e["label"] for e in raw_test_entries)
+    test_labels_clean = Counter(e["label"] for e in clean_test_entries)
+
+    val_eval_status = "evaluable"
+    val_eval_reason = None
+    if len(clean_val_entries) == 0:
+        val_eval_status = "not_evaluable"
+        val_eval_reason = "All validation samples purged due to group overlap with train"
+    elif has_labels and any(val_labels_clean.get(lbl, 0) == 0 for lbl in all_labels):
+        val_eval_status = "not_evaluable"
+        missing = [lbl for lbl in all_labels if val_labels_clean.get(lbl, 0) == 0]
+        val_eval_reason = f"Insufficient classes in clean validation set (missing: {missing})"
+
+    test_eval_status = "evaluable"
+    test_eval_reason = None
+    if len(clean_test_entries) == 0:
+        test_eval_status = "not_evaluable"
+        test_eval_reason = "All test samples purged due to group overlap with past (train/val)"
+    elif has_labels and any(test_labels_clean.get(lbl, 0) == 0 for lbl in all_labels):
+        test_eval_status = "not_evaluable"
+        missing = [lbl for lbl in all_labels if test_labels_clean.get(lbl, 0) == 0]
+        test_eval_reason = f"Insufficient classes in clean test set (missing: {missing})"
+
+    overall_status = "evaluable" if (val_eval_status == "evaluable" and test_eval_status == "evaluable") else "not_evaluable"
+
     return {
+        "status": overall_status,
+        "evaluability": {
+            "validation": {"status": val_eval_status, "reason": val_eval_reason},
+            "test": {"status": test_eval_status, "reason": test_eval_reason},
+        },
         "train_indices": [e["sample_id"] for e in raw_train_entries],
         "val_indices": [e["sample_id"] for e in clean_val_entries],
         "test_indices": [e["sample_id"] for e in clean_test_entries],
@@ -376,6 +543,7 @@ def generate_temporal_split(
             "train_cutoff_date": train_dates[-1].isoformat(),
             "val_cutoff_date": val_dates[-1].isoformat(),
         },
+        "verification_checks_passed": verification_checks,
         "metrics": {
             "total_valid_records": total_valid,
             "invalid_date_count": invalid_date_count,
@@ -390,5 +558,12 @@ def generate_temporal_split(
             "train_groups_count": len(train_group_set),
             "val_clean_groups_count": len(clean_val_group_set),
             "test_clean_groups_count": len({e["group_id"] for e in clean_test_entries}),
+            "labels": {
+                "train": dict(Counter(e["label"] for e in raw_train_entries)),
+                "val_raw": dict(val_labels_raw),
+                "val_clean": dict(val_labels_clean),
+                "test_raw": dict(test_labels_raw),
+                "test_clean": dict(test_labels_clean),
+            },
         },
     }

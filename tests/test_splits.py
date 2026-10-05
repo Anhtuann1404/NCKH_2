@@ -62,21 +62,27 @@ class TestGrouping:
         assert extract_group_id("https://forms.office.com/r/AbCd12") == "tenant:forms.office.com:r=abcd12"
         assert extract_group_id("https://forms.office.com/") == "domain:forms.office.com"
 
+    def test_s3_bucket_normalization_path_and_virtual_hosted(self) -> None:
+        # Cùng một bucket my-bucket qua path-style và virtual-hosted style phải trả về cùng khóa nhóm
+        url_path = "https://s3.us-west-2.amazonaws.com/my-bucket/login.html"
+        url_vhost = "https://my-bucket.s3.us-west-2.amazonaws.com/login.html"
+        assert extract_group_id(url_path) == "tenant:s3:my-bucket"
+        assert extract_group_id(url_vhost) == "tenant:s3:my-bucket"
+        assert extract_group_id(url_path) == extract_group_id(url_vhost)
+
+        # Các biến thể regional, dualstack, global, website
+        assert extract_group_id("https://s3.amazonaws.com/my-bucket/") == "tenant:s3:my-bucket"
+        assert extract_group_id("https://my-bucket.s3.amazonaws.com/") == "tenant:s3:my-bucket"
+        assert extract_group_id("https://s3.dualstack.us-east-1.amazonaws.com/my-bucket/") == "tenant:s3:my-bucket"
+        assert extract_group_id("https://my-bucket.s3.dualstack.us-east-1.amazonaws.com/") == "tenant:s3:my-bucket"
+        assert extract_group_id("http://my-bucket.s3-website-us-east-1.amazonaws.com/") == "tenant:s3:my-bucket"
+        assert extract_group_id("https://my.dot.bucket.s3.us-west-2.amazonaws.com/p") == "tenant:s3:my.dot.bucket"
+        assert extract_group_id("https://s3.us-west-2.amazonaws.com/my.dot.bucket/p") == "tenant:s3:my.dot.bucket"
+
+        # Alias chưa xác minh: xử lý bảo thủ bằng eTLD+1
+        assert extract_group_id("https://s3.custom-alias.org/bucket/") == "domain:custom-alias.org"
+
     def test_cloud_storage_and_app_hosting(self) -> None:
-        # S3 path-style
-        assert (
-            extract_group_id("https://s3.amazonaws.com/my-phish-bucket/login.html")
-            == "tenant:s3:my-phish-bucket"
-        )
-        assert (
-            extract_group_id("https://s3.us-west-2.amazonaws.com/west-bucket/index.html")
-            == "tenant:s3:west-bucket"
-        )
-        # S3 virtual-hosted (handled via PSL private suffix)
-        assert (
-            extract_group_id("https://my-bucket.s3.amazonaws.com/login.html")
-            == "domain:my-bucket.s3.amazonaws.com"
-        )
         # Azure Blob (PSL private suffix)
         assert (
             extract_group_id("https://myaccount.blob.core.windows.net/container/login.html")
@@ -177,12 +183,71 @@ class TestGroupedKFold:
 
     def test_grouped_kfold_insufficient_groups_raises_error(self) -> None:
         records = [
-            {"sample_id": "S1", "url": "https://single-domain.com/1"},
-            {"sample_id": "S2", "url": "https://single-domain.com/2"},
-            {"sample_id": "S3", "url": "https://single-domain.com/3"},
+            {"sample_id": "S1", "url": "https://domain-1.com/1"},
+            {"sample_id": "S2", "url": "https://domain-2.com/2"},
+            {"sample_id": "S3", "url": "https://domain-3.com/3"},
+            {"sample_id": "S4", "url": "https://domain-4.com/4"},
         ]
         with pytest.raises(ValueError, match="Cannot create 5 grouped folds"):
             generate_grouped_kfold(records, n_splits=5)
+
+    def test_duplicate_sample_id_rejected(self) -> None:
+        records = [
+            {"sample_id": "DUP-001", "url": "https://domain-a.com/page"},
+            {"sample_id": "DUP-001", "url": "https://domain-b.com/page"},
+            {"sample_id": "SMP-002", "url": "https://domain-c.com/page"},
+        ]
+        with pytest.raises(ValueError, match="Duplicate sample_id detected.*DUP-001"):
+            generate_grouped_kfold(records, n_splits=3)
+
+    def test_missing_id_and_url_rejected(self) -> None:
+        # Thiếu sample_id
+        with pytest.raises(ValueError, match="missing mandatory ID field"):
+            generate_grouped_kfold([{"url": "https://a.com"}], n_splits=3)
+
+        # sample_id rỗng
+        with pytest.raises(ValueError, match="empty ID field"):
+            generate_grouped_kfold([{"sample_id": "   ", "url": "https://a.com"}], n_splits=3)
+
+        # Thiếu URL và thiếu group_id
+        with pytest.raises(ValueError, match="missing valid 'group_id' and has no 'url'"):
+            generate_grouped_kfold([{"sample_id": "S1"}], n_splits=3)
+
+        # URL rỗng
+        with pytest.raises(ValueError, match="missing valid 'group_id' and has no 'url'"):
+            generate_grouped_kfold([{"sample_id": "S1", "url": "   "}], n_splits=3)
+
+        # URL hỏng không thể trích xuất nhóm
+        with pytest.raises(ValueError, match="invalid URL"):
+            generate_grouped_kfold([{"sample_id": "S1", "url": "http://"}], n_splits=3)
+
+    def test_pre_identified_content_duplicate_component_preserved(self) -> None:
+        # Một component trùng nội dung nối 5 tên miền khác nhau
+        records = [
+            {"sample_id": f"SMP-{i}", "url": f"https://domain-{i}.com/login", "group_id": "component_shared_login"}
+            for i in range(5)
+        ] + [
+            {"sample_id": f"OTHER-{i}", "url": f"https://other-{i}.com/page"}
+            for i in range(10)
+        ]
+
+        splits = generate_grouped_kfold(records, n_splits=3, seeds=(42,))
+        for fold in splits[42]:
+            train_ids = set(fold["train_indices"])
+            test_ids = set(fold["test_indices"])
+            comp_ids = {f"SMP-{i}" for i in range(5)}
+
+            # Toàn bộ component phải ở cùng 1 phía: hoặc tất cả trong train, hoặc tất cả trong test!
+            assert comp_ids.issubset(train_ids) or comp_ids.issubset(test_ids)
+            assert not (comp_ids.intersection(train_ids) and comp_ids.intersection(test_ids))
+
+    def test_n_splits_minimum_3_enforced(self) -> None:
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/"}
+            for i in range(10)
+        ]
+        with pytest.raises(ValueError, match="n_splits must be at least 3"):
+            generate_grouped_kfold(records, n_splits=2)
 
 
 class TestTemporalSplit:
@@ -257,6 +322,39 @@ class TestTemporalSplit:
         # V2 và E2 là domain sạch nên được giữ lại
         assert "V2" in res["val_indices"]
         assert "E2" in res["test_indices"]
+
+    def test_temporal_split_ratio_validation(self) -> None:
+        records = [
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(10)
+        ]
+        # test_ratio âm
+        with pytest.raises(ValueError, match="test_ratio must be a finite positive number"):
+            generate_temporal_split(records, train_ratio=0.6, val_ratio=0.2, test_ratio=-99)
+
+        # Tổng khác 1.0
+        with pytest.raises(ValueError, match="must sum to 1.0"):
+            generate_temporal_split(records, train_ratio=0.6, val_ratio=0.2, test_ratio=0.5)
+
+    def test_temporal_split_not_evaluable_status_on_empty_clean_set(self) -> None:
+        # Toàn bộ domain ở test đều trùng với train
+        records = [
+            {"sample_id": "T1", "url": "https://leak1.com/", "collected_at": "2025-01-01"},
+            {"sample_id": "T2", "url": "https://leak2.com/", "collected_at": "2025-01-02"},
+            {"sample_id": "V1", "url": "https://val-domain.com/", "collected_at": "2025-01-10"},
+            {"sample_id": "E1", "url": "https://leak1.com/", "collected_at": "2025-01-20"},
+            {"sample_id": "E2", "url": "https://leak2.com/", "collected_at": "2025-01-21"},
+        ]
+        res = generate_temporal_split(
+            records=records,
+            train_ratio=0.4,
+            val_ratio=0.2,
+            test_ratio=0.4,
+            purge_overlapping_groups=True,
+        )
+        assert len(res["test_indices"]) == 0
+        assert res["status"] == "not_evaluable"
+        assert res["evaluability"]["test"]["status"] == "not_evaluable"
 
     def test_temporal_split_insufficient_dates_raises_error(self) -> None:
         records = [

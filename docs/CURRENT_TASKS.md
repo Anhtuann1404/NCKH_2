@@ -13,7 +13,7 @@ Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày 
 - DONE — scaffold DEV-01 của D: preprocessing URL/HTML, URL/DOM/text draft, primitive domain/UGC, CLI fixture, môi trường và 17 unittest; chưa là pipeline đã khóa.
 - PENDING_REVIEW — DATA-01: C đã hoàn tất audit date 56 shards (498.255 dòng), strict date parser, exclusion registry (20 pilot samples với trạng thái unresolved mapping), khóa môi trường dữ liệu win32/CPython 3.13; chờ Lead D nghiệm thu.
 - PENDING_REVIEW — DATA-02: C đã hoàn tất cập nhật domain matcher dùng chung (ưu tiên UGC không phụ thuộc thứ tự), xử lý forms.office.com và S3/Azure/GCS, sửa Kappa khi Pe=1, cập nhật dictionary_v1.json (SHA-256: `61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28`) và CODEBOOK_V1.md sang trạng thái pending_review; chờ B rà soát và D nghiệm thu.
-- DONE — DATA-03: C đã hoàn tất xây dựng Engine phân chia Grouped 5-Fold Cross Validation lặp 3 seed (17, 42, 2026) kèm inner validation, và Temporal Split (60% Train / 20% Val / 20% Test) chống rò rỉ dữ liệu (loại bỏ trùng nhóm muộn), bóc tách group_id offline (eTLD+1 và tenant hạ tầng dùng chung), công cụ CLI `generate_splits.py`, 15/15 unit tests đạt 100% (tổng test suite 160/160 pass).
+- PENDING_REVIEW — DATA-03: C đã hoàn tất xử lý 7 điểm review/probe của Lead D: chuẩn hóa S3 bucket (cả path-style và virtual-hosted), chặn cứng sample_id trùng/rỗng (không tự sinh row:<idx>), tôn trọng component trùng nội dung liên miền, cân bằng nhãn theo nhóm và kiểm tra tính khả dụng của fold (n_splits>=3), kiểm định tỷ lệ temporal split nghiêm ngặt kèm trạng thái evaluability, phân biệt thất bại temporal với skip và xuất manifest liên kết mã băm, sửa evaluate_kappa loại trừ triệt để dry-run khỏi thời gian/disagreements và tách thời gian phishing vs benign phục vụ PLAN-01; 171/171 tests pass. Chờ Lead D nghiệm thu lại.
 - TODO — pilot nhãn (A và B đang thực hiện Pass 1), phần import/index của C cho DEV-01, dữ liệu chính, mô hình, API và extension.
 
 `TODO` chưa làm; `IN_PROGRESS` đang có công việc thực; `BLOCKED` có phụ thuộc cụ thể; `DONE` có sản phẩm kiểm tra được; `PENDING_REVIEW` đã hoàn thành kỹ thuật kèm bằng chứng, chờ nghiệm thu. Không đánh dấu DONE chỉ vì đã có mô tả.
@@ -85,17 +85,19 @@ Tạo môi trường, khóa dependency, module preprocessing và fixture domain/
 
 ### DATA-03 — Engine phân chia Grouped 5-Fold & Temporal Split
 
-Status: DONE. Owner: C. Phụ thuộc: DATA-01, DATA-02.
+Status: PENDING_REVIEW. Owner: C. Phụ thuộc: DATA-01, DATA-02.
 
-Đã hoàn thành toàn diện theo yêu cầu chống rò rỉ dữ liệu (Anti-Leakage) của đề cương và `EXPERIMENT_PROTOCOL.md`:
-1. **Module bóc tách group_id offline:** [`grouping.py`](../src/phishing/data/grouping.py) trích xuất `eTLD+1` và tenant hạ tầng dùng chung (UGC / Multi-tenant Hosting) cho SharePoint, Google Sites, Office Forms, AWS S3 (cả path-style và virtual-hosted), Azure Blob, Firebase, GitHub Pages, Pages.dev, Vercel, Netlify. Khởi tạo `tldextract` với `suffix_list_urls=None` bảo đảm 100% không phát sinh HTTP/DNS traffic ra ngoài.
-2. **Grouped 5-Fold Cross Validation & Inner Validation:** [`splits.py`](../src/phishing/data/splits.py) hàm `generate_grouped_kfold` lặp qua 3 random seeds chuẩn (`17`, `42`, `2026`). Phân bổ nhóm xác định (deterministic greedy bin-packing), bảo đảm 100% các mẫu cùng nhóm nằm trọn vẹn trong một fold. Tự động sinh `inner_val` bên trong outer train để phục vụ chọn ngưỡng operating threshold (FPR 1%/5%) mà không rò rỉ tập test.
-3. **Temporal Split 60/20/20:** [`splits.py`](../src/phishing/data/splits.py) hàm `generate_temporal_split` nhóm theo ngày lịch nguyên vẹn (không chia cắt trong cùng một ngày), tính mốc cắt 60% Train / 20% Val / 20% Test, tự động loại trừ các bản ghi muộn trùng nhóm sớm (`purge_overlapping_groups=True`) để bảo đảm kiểm định khả năng tổng quát hóa trên miền mới theo đúng giao thức.
-4. **Kiểm định phòng vệ:** Các hàm `assert_no_group_leakage` và `assert_strict_temporal_order` ném lỗi ngay lập tức khi phát hiện bất kỳ dấu hiệu rò rỉ dữ liệu nào.
-5. **Công cụ CLI:** [`generate_splits.py`](../scripts/data/generate_splits.py) hỗ trợ sinh `groups.json`, `grouped_5fold_splits.json` và `temporal_splits.json`.
-6. **Kiểm thử tự động:** 15/15 unit tests đạt 100% tại [`test_splits.py`](../tests/test_splits.py). Toàn bộ test suite dự án đạt 160/160 pass.
+Đã hoàn thành toàn diện theo 7 điểm rà soát và probe của Lead D:
+1. **Chuẩn hóa S3 bucket endpoints:** [`grouping.py`](../src/phishing/data/grouping.py) chuẩn hóa cả path-style (`s3.<region>.amazonaws.com/<bucket>`) và virtual-hosted (`<bucket>.s3.<region>.amazonaws.com`), dualstack và website về cùng khóa `tenant:s3:<bucket>`. Alias chưa xác minh được xử lý bảo thủ theo eTLD+1.
+2. **Kiểm định bản ghi nghiêm ngặt (Zero Duplicate IDs):** [`splits.py`](../src/phishing/data/splits.py) bắt buộc `sample_id` duy nhất toàn cục, từ chối ID rỗng hoặc trùng lặp; từ chối bản ghi thiếu URL/nhóm hỏng. Tuyệt đối không tự sinh `row:<idx>`.
+3. **Bảo toàn Connected Components trùng nội dung:** Nhận và bảo toàn trường `group_id` đã kiểm chứng từ đầu vào, giữ trọn vẹn toàn bộ component trùng nội dung liên miền trên cùng một phía của split, không tự chia lẻ theo URL.
+4. **Cân bằng nhãn & Khả dụng của Fold:** Phân bổ nhóm có phân tầng theo nhãn; kiểm tra bắt buộc `n_splits >= 3` để đảm bảo outer train/test và inner train/val đều không rỗng và có thông số đánh giá độ phủ lớp.
+5. **Kiểm định tỷ lệ & Evaluability Temporal Split:** Kiểm tra tỷ lệ hữu hạn, dương, tổng bằng 1.0 (từ chối `test_ratio=-99`); sau khi purge trùng nhóm sớm, tự động đánh giá và gắn trạng thái `evaluable` hoặc `not_evaluable` kèm lý do cụ thể. Giữ nguyên cutoff định trước.
+6. **Quản trị CLI & Provenance Hashes:** [`generate_splits.py`](../scripts/data/generate_splits.py) phân biệt rõ thất bại với bỏ qua có chủ đích (`--skip-temporal`), dọn sạch artifact cũ trong output dir, xuất `manifest.json` ghi nhận đầy đủ SHA-256 đầu vào, groups, code, phiên bản quy tắc `GROUP_RULES_VERSION` và `PSL_VERSION`.
+7. **Sửa evaluate_kappa (Loại dry-run & Thống kê theo lớp):** [`evaluate_kappa.py`](../scripts/evaluate_kappa.py) loại bỏ triệt để bản ghi mô phỏng/dry-run khỏi thời gian và bất đồng thuận; không loại ca khó thật; tách riêng thời gian phishing vs benign phục vụ trực tiếp PLAN-01; xác thực annotator A/B và `pass_id=1`; hỗ trợ `--verify-pilot-32` kiểm tra đủ 32 mẫu `PILOT-001` đến `PILOT-032`.
+8. **Kiểm thử tự động:** 22 unit tests tại [`test_splits.py`](../tests/test_splits.py) và 7 unit tests tại [`test_evaluate_kappa.py`](../tests/test_evaluate_kappa.py). Toàn bộ dự án đạt 171/171 tests pass (100%).
 
-Bằng chứng: [grouping.py](../src/phishing/data/grouping.py), [splits.py](../src/phishing/data/splits.py), [generate_splits.py](../scripts/data/generate_splits.py), [test_splits.py](../tests/test_splits.py).
+Bằng chứng: [grouping.py](../src/phishing/data/grouping.py), [splits.py](../src/phishing/data/splits.py), [generate_splits.py](../scripts/data/generate_splits.py), [evaluate_kappa.py](../scripts/evaluate_kappa.py), [test_splits.py](../tests/test_splits.py), [test_evaluate_kappa.py](../tests/test_evaluate_kappa.py).
 
 ### EXT-01 — Khung MV3 và mock API
 

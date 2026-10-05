@@ -4,9 +4,11 @@ Nguyên tắc ARS (Academic Research Skills) & Ponytail Discipline:
 1. Dùng eTLD+1 với Public Suffix List (PSL) khóa cục bộ, hoàn toàn offline (Zero Network Calls).
 2. Xử lý hạ tầng dùng chung (SharePoint, Google Sites, Office Forms, S3, Azure Blob, Firebase...)
    theo ranh giới tenant để tránh gom toàn bộ Internet vào một nhóm hoặc chia lẻ sai bản chất.
-3. Nếu không xác định được tenant đáng tin cậy trên dịch vụ dùng chung, áp dụng quy tắc gom nhóm
+3. Chuẩn hóa các điểm cuối AWS S3 (cả path-style và virtual-hosted-style qua mọi region/dualstack)
+   về cùng một khóa bucket tenant duy nhất (tenant:s3:<bucket>). Alias chưa xác minh xử lý bảo thủ.
+4. Nếu không xác định được tenant đáng tin cậy trên dịch vụ dùng chung, áp dụng quy tắc gom nhóm
    bảo thủ (conservative grouping) để bảo đảm an toàn chống rò rỉ dữ liệu.
-4. Kết quả trả về group_id chuẩn hóa dạng chuỗi định danh bất biến (deterministic).
+5. Kết quả trả về group_id chuẩn hóa dạng chuỗi định danh bất biến (deterministic).
 """
 
 from typing import Optional
@@ -15,14 +17,29 @@ import ipaddress
 import re
 import tldextract
 
+GROUP_RULES_VERSION = "1.1.0"
+PSL_VERSION = getattr(tldextract, "__version__", "bundled")
+
 # Khởi tạo extractor offline với danh mục PSL tích hợp sẵn của thư viện.
 # suffix_list_urls=None bảo đảm tuyệt đối không gọi HTTP ra Internet trong quá trình chạy.
 # include_psl_private_domains=True tự động bóc tách các private suffix phổ biến
-# (như *.github.io, *.blob.core.windows.net, *.s3.amazonaws.com, *.pages.dev, *.web.app, *.vercel.app...).
+# (như *.github.io, *.blob.core.windows.net, *.pages.dev, *.web.app, *.vercel.app...).
 _EXTRACTOR = tldextract.TLDExtract(
     suffix_list_urls=None,
     include_psl_private_domains=True,
     extra_suffixes=[],
+)
+
+# Regex chuẩn hóa các điểm cuối Amazon S3 chính thức theo tài liệu AWS:
+# 1. Path-style: s3.amazonaws.com, s3.us-west-2.amazonaws.com, s3-us-west-2.amazonaws.com, s3.dualstack...
+S3_PATH_STYLE_RE = re.compile(
+    r"^s3(?:[-.](?:dualstack\.|fips\.)?[a-z0-9-]+)?\.amazonaws\.com$",
+    re.IGNORECASE,
+)
+# 2. Virtual-hosted style: <bucket>.s3.amazonaws.com, <bucket>.s3.us-west-2.amazonaws.com, <bucket>.s3-website...
+S3_VIRTUAL_HOST_RE = re.compile(
+    r"^([a-z0-9][a-z0-9.-]+?)\.s3(?:[-.](?:dualstack\.|fips\.|website[-.]?)?[a-z0-9-]+)?\.amazonaws\.com$",
+    re.IGNORECASE,
 )
 
 
@@ -34,7 +51,7 @@ def extract_group_id(url: str) -> str:
     - SharePoint: tenant:<tenant>.sharepoint.com
     - Google Sites: tenant:sites.google.com/view/<name> hoặc tenant:sites.google.com/site/<name>
     - Office Forms: tenant:forms.office.com:id=<form_id> hoặc tenant:forms.office.com:r=<code>
-    - S3 path-style: tenant:s3:<bucket>
+    - AWS S3 (chuẩn hóa cả path-style & virtual-hosted): tenant:s3:<bucket>
     - Tên miền thông thường (kèm PSL private domains): domain:<eTLD+1>
     - Fallback: host:<hostname> hoặc "unknown" nếu URL không hợp lệ.
     """
@@ -94,15 +111,16 @@ def extract_group_id(url: str) -> str:
                 return f"tenant:{host}:r={parts[1].lower()}"
         return f"domain:{host}"
 
-    # 5. Xử lý S3 path-style (s3.amazonaws.com/<bucket>/...)
-    if host in ("s3.amazonaws.com", "s3.us-east-1.amazonaws.com") or (
-        host.startswith("s3.") and host.endswith(".amazonaws.com")
-    ):
-        path_clean = path.strip("/")
-        segments = [seg for seg in path_clean.split("/") if seg]
-        if segments and segments[0]:
-            return f"tenant:s3:{segments[0].lower()}"
+    # 5. Xử lý AWS S3: Chuẩn hóa cả path-style và virtual-hosted-style về cùng bucket key
+    path_segments = [seg for seg in path.strip("/").split("/") if seg]
+    if S3_PATH_STYLE_RE.match(host):
+        if path_segments and path_segments[0]:
+            return f"tenant:s3:{path_segments[0].lower()}"
         return "domain:s3.amazonaws.com"
+
+    if s3_match := S3_VIRTUAL_HOST_RE.match(host):
+        bucket = s3_match.group(1).lower()
+        return f"tenant:s3:{bucket}"
 
     # 6. Trích xuất eTLD+1 qua tldextract (đã bao gồm PSL private domains)
     extracted = _EXTRACTOR(host)

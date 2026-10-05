@@ -4,14 +4,16 @@
 Công cụ đọc hai tệp JSONL (mỗi dòng một bản ghi gán nhãn mù), tính Cohen's Kappa
 cho hai trường ``class_label`` và ``primary_org`` thông qua
 ``phishing.annotation.compute_cohens_kappa``, tổng hợp thời gian gán nhãn
-(``seconds_spent``) của từng người, liệt kê các ca bất đồng thuận, rồi xuất báo
+(``seconds_spent``) của từng người (phân tách riêng phishing vs benign phục vụ PLAN-01),
+liệt kê các ca bất đồng thuận, xác thực phiên gán nhãn/annotator/pass_id, rồi xuất báo
 cáo Markdown (``--output``) và/hoặc JSON (``--json``).
 
 Nguyên tắc NCKH:
-    * Script chỉ *đánh giá* độ đồng thuận, không trích xuất đặc trưng và không
-      dùng nhãn nguồn (target/label/metadata) làm đầu vào mô hình.
-    * Cảnh báo và từ chối chạy khi tập ``sample_id`` giữa hai rater không khớp
-      (chống ghép sai cặp gây sai lệch Kappa).
+    * Loại bỏ triệt để bản ghi mô phỏng/dry-run khỏi Kappa, thời gian và bất đồng thuận.
+    * Không loại ca khó thật khỏi thống kê công sức chỉ vì không thuộc mẫu Kappa.
+    * Xác thực phiên: annotator A và B phải phân biệt, pass_id=1, kiểm tra độ đầy đủ 32 ID
+      khi nghiệm thu REAL-PILOT-32-V1.
+    * Báo riêng thời gian phishing và benign để phục vụ chốt cỡ mẫu PLAN-01.
     * Đầu ra tất định (không gắn timestamp), tái lập được từ cùng đầu vào.
 
 Cách dùng::
@@ -25,9 +27,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from pathlib import Path
 import statistics
 import sys
-from pathlib import Path
 from typing import Any, Sequence
 
 # Đảm bảo mã hóa UTF-8 an toàn trên console Windows
@@ -55,6 +57,9 @@ CLASS_LABEL_FIELD = "class_label"
 PRIMARY_ORG_FIELD = "primary_org"
 SECONDS_SPENT_FIELD = "seconds_spent"
 EVIDENCE_NOTE_FIELD = "evidence_note"
+ANNOTATOR_ID_FIELD = "annotator_id"
+PASS_ID_FIELD = "pass_id"
+IS_DRY_RUN_FIELD = "is_dry_run"
 
 _DASH = "\u2014"  # em dash cho ô rỗng
 
@@ -63,12 +68,7 @@ _DASH = "\u2014"  # em dash cho ô rỗng
 # Đọc & lập chỉ mục dữ liệu
 # ---------------------------------------------------------------------------
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
-    """Đọc tệp JSONL, bỏ qua dòng trống, kiểm tra mỗi dòng là JSON object.
-
-    Raises:
-        FileNotFoundError: Nếu tệp không tồn tại.
-        ValueError: Nếu có dòng không phải JSON object hoặc tệp rỗng.
-    """
+    """Đọc tệp JSONL, bỏ qua dòng trống, kiểm tra mỗi dòng là JSON object."""
     if not path.is_file():
         raise FileNotFoundError(f"Không tìm thấy tệp JSONL: {path}")
 
@@ -89,6 +89,18 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not records:
         raise ValueError(f"Tệp JSONL không có bản ghi hợp lệ: {path}")
     return records
+
+
+def is_dry_run_record(record: dict[str, Any]) -> bool:
+    """Xác định bản ghi mô phỏng/dry-run cần loại khỏi thống kê nghiên cứu."""
+    if record.get(IS_DRY_RUN_FIELD) is True:
+        return True
+    if str(record.get(IS_DRY_RUN_FIELD, "")).lower() == "true":
+        return True
+    ann_id = str(record.get(ANNOTATOR_ID_FIELD, "")).strip()
+    if ann_id.startswith("simulated_") or ann_id.lower() == "dryrun":
+        return True
+    return False
 
 
 def index_by_sample_id(
@@ -113,7 +125,7 @@ def index_by_sample_id(
 # Thống kê thời gian gán nhãn
 # ---------------------------------------------------------------------------
 def seconds_spent_stats(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """Tổng hợp thống kê ``seconds_spent`` (giây) trên một tập bản ghi.
+    """Tổng hợp thống kê ``seconds_spent`` (giây) trên một tập bản ghi thực tế.
 
     Giá trị thiếu, không phải số, không hữu hạn hoặc âm được đếm riêng và loại
     khỏi các phép tính mean/median/min/max/total.
@@ -158,6 +170,24 @@ def seconds_spent_stats(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
         "min": min(values),
         "max": max(values),
         "total": sum(values),
+    }
+
+
+def compute_timing_breakdown(records: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Tính toán thời gian tổng quan và phân tách riêng cho Phishing vs Benign phục vụ PLAN-01."""
+    overall_stats = seconds_spent_stats(records)
+    phish_records = [r for r in records if str(r.get(CLASS_LABEL_FIELD, "")).strip().lower() == "phishing"]
+    benign_records = [r for r in records if str(r.get(CLASS_LABEL_FIELD, "")).strip().lower() == "benign"]
+
+    phish_stats = seconds_spent_stats(phish_records)
+    benign_stats = seconds_spent_stats(benign_records)
+
+    return {
+        "overall": overall_stats,
+        "phishing": phish_stats,
+        "benign": benign_stats,
+        # Giữ tương thích ngược với các trường phẳng
+        **overall_stats,
     }
 
 
@@ -237,16 +267,77 @@ def _preview(items: Sequence[str], limit: int = 5) -> str:
     return ", ".join(head) + suffix
 
 
+def validate_session_records(
+    records: Sequence[dict[str, Any]],
+    file_path: Path,
+    expected_pass: int = 1,
+    expected_annotator: str | None = None,
+) -> set[str]:
+    """Kiểm tra tính hợp lệ của phiên gán nhãn: pass_id và annotator_id."""
+    annotators: set[str] = set()
+
+    for idx, rec in enumerate(records):
+        raw_pass = rec.get(PASS_ID_FIELD)
+        if raw_pass is not None:
+            try:
+                pass_val = int(raw_pass)
+            except (ValueError, TypeError) as err:
+                raise ValueError(f"{file_path}: bản ghi #{idx} có pass_id không hợp lệ: {raw_pass}") from err
+            if pass_val != expected_pass:
+                raise ValueError(
+                    f"{file_path}: bản ghi #{idx} có pass_id={pass_val} "
+                    f"(kỳ vọng pass_id={expected_pass}). Tệp này không thuộc Pass {expected_pass}!"
+                )
+
+        ann = str(rec.get(ANNOTATOR_ID_FIELD, "")).strip()
+        if ann:
+            annotators.add(ann)
+
+    if expected_annotator and annotators and expected_annotator not in annotators:
+        raise ValueError(
+            f"{file_path}: annotator_id tìm thấy là {annotators}, "
+            f"không khớp với annotator kỳ vọng '{expected_annotator}'."
+        )
+
+    return annotators
+
+
 def evaluate(
     rater_a_path: Path,
     rater_b_path: Path,
     *,
     require_provenance: bool = True,
+    expected_pass: int = 1,
+    expected_rater_a: str | None = "A",
+    expected_rater_b: str | None = "B",
+    verify_pilot_32: bool = False,
+    pilot_manifest_path: Path | None = None,
 ) -> dict[str, Any]:
     """Chạy toàn bộ nghiệm thu Pass 1 và trả về payload kết quả."""
-    records_a = load_jsonl(rater_a_path)
-    records_b = load_jsonl(rater_b_path)
+    raw_records_a = load_jsonl(rater_a_path)
+    raw_records_b = load_jsonl(rater_b_path)
 
+    # 1. Loại bỏ các bản ghi mô phỏng/dry-run khỏi thống kê con người
+    records_a = [r for r in raw_records_a if not is_dry_run_record(r)]
+    records_b = [r for r in raw_records_b if not is_dry_run_record(r)]
+
+    dry_run_count_a = len(raw_records_a) - len(records_a)
+    dry_run_count_b = len(raw_records_b) - len(records_b)
+
+    if not records_a or not records_b:
+        raise ValueError("Không còn bản ghi gán nhãn thật nào sau khi loại bỏ dry-run/synthetic.")
+
+    # 2. Xác thực phiên gán nhãn (Pass ID & Annotator ID)
+    annotators_a = validate_session_records(records_a, rater_a_path, expected_pass, expected_rater_a)
+    annotators_b = validate_session_records(records_b, rater_b_path, expected_pass, expected_rater_b)
+
+    if annotators_a and annotators_b and annotators_a == annotators_b:
+        raise ValueError(
+            f"Cả hai tệp đều có cùng annotator_id: {annotators_a}. "
+            "Nghiệm thu Pass 1 yêu cầu hai người đánh giá độc lập khác nhau (A và B)!"
+        )
+
+    # 3. Lập chỉ mục sample_id
     index_a = index_by_sample_id(records_a, str(rater_a_path))
     index_b = index_by_sample_id(records_b, str(rater_b_path))
 
@@ -262,6 +353,28 @@ def evaluate(
         )
     shared_ids = sorted(ids_a)
 
+    # 4. Kiểm tra nghiệm thu REAL-PILOT-32-V1 nếu được yêu cầu
+    if verify_pilot_32:
+        if len(shared_ids) != 32:
+            raise ValueError(
+                f"Nghiệm thu REAL-PILOT-32-V1 yêu cầu đủ 32 mẫu, nhưng nhận được {len(shared_ids)} mẫu."
+            )
+        expected_ids = {f"PILOT-{i:03d}" for i in range(1, 33)}
+        missing_ids = expected_ids - ids_a
+        if missing_ids:
+            raise ValueError(
+                f"Nghiệm thu REAL-PILOT-32-V1 thiếu các sample_id: {sorted(missing_ids)[:5]}..."
+            )
+
+    if pilot_manifest_path and pilot_manifest_path.is_file():
+        with pilot_manifest_path.open("r", encoding="utf-8") as f:
+            manifest_data = json.load(f)
+            if manifest_data.get("acceptance", {}).get("D") != "approved":
+                raise ValueError("Manifest pilot chưa được Lead D phê duyệt (acceptance.D != 'approved').")
+            if not manifest_data.get("ready_for_annotation"):
+                raise ValueError("Manifest pilot chưa ở trạng thái sẵn sàng (ready_for_annotation != true).")
+
+    # 5. Đo Cohen's Kappa (tự động lọc random_subset bên trong)
     kappa_class = compute_cohens_kappa(
         records_a,
         records_b,
@@ -275,23 +388,39 @@ def evaluate(
         require_provenance=require_provenance,
     )
 
+    # 6. Thu thập bất đồng thuận (đã loại bỏ dry-run)
     disagreements = collect_disagreements(index_a, index_b, shared_ids)
+
+    # 7. Thống kê thời gian (đã loại bỏ dry-run, tách riêng Phishing vs Benign phục vụ PLAN-01)
+    timing_a = compute_timing_breakdown(records_a)
+    timing_b = compute_timing_breakdown(records_b)
 
     return {
         "pass": PASS_NAME,
-        "rater_a": {"file": str(rater_a_path), "record_count": len(records_a)},
-        "rater_b": {"file": str(rater_b_path), "record_count": len(records_b)},
+        "rater_a": {
+            "file": str(rater_a_path),
+            "record_count": len(records_a),
+            "dry_run_excluded": dry_run_count_a,
+            "annotator_id": sorted(annotators_a),
+        },
+        "rater_b": {
+            "file": str(rater_b_path),
+            "record_count": len(records_b),
+            "dry_run_excluded": dry_run_count_b,
+            "annotator_id": sorted(annotators_b),
+        },
         "paired_sample_count": len(shared_ids),
         "kappa": {
             CLASS_LABEL_FIELD: kappa_result_to_dict(kappa_class),
             PRIMARY_ORG_FIELD: kappa_result_to_dict(kappa_org),
         },
         "seconds_spent": {
-            "rater_a": seconds_spent_stats(records_a),
-            "rater_b": seconds_spent_stats(records_b),
+            "rater_a": timing_a,
+            "rater_b": timing_b,
         },
         "disagreement_count": len(disagreements),
         "disagreements": disagreements,
+        "pilot_32_verified": verify_pilot_32,
     }
 
 
@@ -326,10 +455,12 @@ def build_markdown(payload: dict[str, Any]) -> str:
     out: list[str] = []
     out.append("# Nghiệm thu Pass 1 \u2014 Đồng thuận liên đánh giá viên")
     out.append("")
-    out.append(f"- **Rater A**: `{rater_a['file']}` \u2014 {rater_a['record_count']} bản ghi")
-    out.append(f"- **Rater B**: `{rater_b['file']}` \u2014 {rater_b['record_count']} bản ghi")
+    out.append(f"- **Rater A**: `{rater_a['file']}` \u2014 {rater_a['record_count']} bản ghi hợp lệ ({rater_a['dry_run_excluded']} dry-run đã loại)")
+    out.append(f"- **Rater B**: `{rater_b['file']}` \u2014 {rater_b['record_count']} bản ghi hợp lệ ({rater_b['dry_run_excluded']} dry-run đã loại)")
     out.append(f"- **Số mẫu ghép cặp**: {payload['paired_sample_count']}")
     out.append(f"- **Số ca bất đồng thuận**: {payload['disagreement_count']}")
+    if payload.get("pilot_32_verified"):
+        out.append("- **Xác thực REAL-PILOT-32-V1**: \u2705 Đủ 32/32 mẫu chuẩn.")
     out.append("")
 
     for field_key in (CLASS_LABEL_FIELD, PRIMARY_ORG_FIELD):
@@ -347,25 +478,33 @@ def build_markdown(payload: dict[str, Any]) -> str:
         out.append(f"| Danh mục | {_md_cell(categories)} |")
         out.append("")
 
-    out.append("## Thời gian gán nhãn (`seconds_spent`, giây)")
+    out.append("## Thời gian gán nhãn (`seconds_spent`, giây) \u2014 Phục vụ PLAN-01")
     out.append("")
-    out.append("| Rater | N hợp lệ | Thiếu | Không hợp lệ | Mean | Median | Min | Max | Total |")
-    out.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+    out.append("| Rater | Phân nhóm | N hợp lệ | Thiếu | K.hợp lệ | Mean (s) | Median (s) | Min | Max | Total (s) |")
+    out.append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+
     for display_name, key in (("A", "rater_a"), ("B", "rater_b")):
-        stats = payload["seconds_spent"][key]
-        out.append(
-            "| {name} | {count} | {missing} | {invalid} | {mean} | {median} | {min} | {max} | {total} |".format(
-                name=display_name,
-                count=stats["count"],
-                missing=stats["missing"],
-                invalid=stats["invalid"],
-                mean=_fmt_float(stats["mean"], 2),
-                median=_fmt_float(stats["median"], 2),
-                min=_fmt_float(stats["min"], 2),
-                max=_fmt_float(stats["max"], 2),
-                total=_fmt_float(stats["total"], 2),
+        timing_data = payload["seconds_spent"][key]
+        groups = [
+            ("Toàn bộ", timing_data["overall"]),
+            ("Phishing (PLAN-01)", timing_data["phishing"]),
+            ("Benign", timing_data["benign"]),
+        ]
+        for grp_name, stats in groups:
+            out.append(
+                "| {rater} | {grp} | {count} | {missing} | {invalid} | {mean} | {median} | {min} | {max} | {total} |".format(
+                    rater=display_name,
+                    grp=grp_name,
+                    count=stats["count"],
+                    missing=stats["missing"],
+                    invalid=stats["invalid"],
+                    mean=_fmt_float(stats["mean"], 2),
+                    median=_fmt_float(stats["median"], 2),
+                    min=_fmt_float(stats["min"], 2),
+                    max=_fmt_float(stats["max"], 2),
+                    total=_fmt_float(stats["total"], 2),
+                )
             )
-        )
     out.append("")
 
     out.append(f"## Bất đồng thuận ({payload['disagreement_count']})")
@@ -413,7 +552,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="evaluate_kappa.py",
         description=(
             "Nghiệm thu Pass 1: tính Cohen's Kappa (class_label, primary_org), "
-            "thống kê seconds_spent và liệt kê bất đồng thuận giữa Annotator A và B."
+            "thống kê seconds_spent (tách riêng phishing vs benign) và liệt kê bất đồng thuận giữa A và B."
         ),
     )
     parser.add_argument(
@@ -442,6 +581,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Đường dẫn tệp JSON kết quả (tùy chọn).",
     )
     parser.add_argument(
+        "--pass-id",
+        type=int,
+        default=1,
+        help="ID lượt gán nhãn kỳ vọng (mặc định: 1 cho Pass 1).",
+    )
+    parser.add_argument(
+        "--expected-rater-a",
+        type=str,
+        default="A",
+        help="Annotator ID kỳ vọng cho tệp rater A (mặc định: 'A').",
+    )
+    parser.add_argument(
+        "--expected-rater-b",
+        type=str,
+        default="B",
+        help="Annotator ID kỳ vọng cho tệp rater B (mặc định: 'B').",
+    )
+    parser.add_argument(
+        "--verify-pilot-32",
+        action="store_true",
+        help="Bật kiểm tra xác thực chặt chẽ gói REAL-PILOT-32-V1 (đủ 32 ID).",
+    )
+    parser.add_argument(
+        "--pilot-manifest",
+        type=Path,
+        default=None,
+        help="Đường dẫn pilot_manifest.json để xác thực trạng thái approved của Lead D.",
+    )
+    parser.add_argument(
         "--require-provenance",
         dest="require_provenance",
         action=argparse.BooleanOptionalAction,
@@ -464,6 +632,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.rater_a,
             args.rater_b,
             require_provenance=args.require_provenance,
+            expected_pass=args.pass_id,
+            expected_rater_a=args.expected_rater_a,
+            expected_rater_b=args.expected_rater_b,
+            verify_pilot_32=args.verify_pilot_32,
+            pilot_manifest_path=args.pilot_manifest,
         )
     except (FileNotFoundError, ValueError) as exc:
         print(f"[evaluate_kappa] LỖI: {exc}", file=sys.stderr)

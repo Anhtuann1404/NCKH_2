@@ -1,9 +1,9 @@
 """Bộ kiểm thử cho CLI evaluate_kappa.py (Nghiệm thu Pass 1 & Cohen's Kappa)."""
 
 import json
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -163,3 +163,151 @@ def test_evaluate_kappa_rejects_missing_sample_id_or_different_sets(tmp_path):
     proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT)
     assert proc.returncode == 2
     assert "LỖI" in proc.stderr
+
+
+def test_evaluate_kappa_excludes_dry_run_from_timing_and_disagreements(tmp_path):
+    """Lead D probe: 2 mẫu thật 10s + 1 dry-run 10.000s -> mean phải là 10.0s, không phải 3.340s."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    recs_a = [
+        _make_sample_record("A", "S1", "phishing", seconds_spent=10.0),
+        _make_sample_record("A", "S2", "phishing", seconds_spent=10.0),
+        # Dry-run 10.000s
+        _make_sample_record("A", "DRY-01", "benign", seconds_spent=10000.0, is_dry_run=True),
+    ]
+    recs_b = [
+        _make_sample_record("B", "S1", "phishing", seconds_spent=12.0),
+        _make_sample_record("B", "S2", "phishing", seconds_spent=12.0),
+        _make_sample_record("B", "DRY-01", "phishing", seconds_spent=9000.0, is_dry_run=True),
+    ]
+
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    out_json = tmp_path / "dryrun_out.json"
+    cmd = [
+        sys.executable,
+        str(EVAL_SCRIPT),
+        "--rater-a", str(file_a),
+        "--rater-b", str(file_b),
+        "--json", str(out_json),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT)
+    assert proc.returncode == 0, f"Lỗi: {proc.stderr}"
+
+    data = json.loads(out_json.read_text(encoding="utf-8"))
+    assert data["paired_sample_count"] == 2  # DRY-01 bị loại
+    assert data["rater_a"]["dry_run_excluded"] == 1
+    assert data["rater_b"]["dry_run_excluded"] == 1
+
+    # Mean thời gian phải là 10.0s (không bị đội lên 3340s bởi 10.000s dry-run!)
+    stats_a = data["seconds_spent"]["rater_a"]
+    assert stats_a["mean"] == 10.0
+    assert stats_a["total"] == 20.0
+
+
+def test_evaluate_kappa_timing_breakdown_phishing_vs_benign(tmp_path):
+    """Báo riêng thời gian phishing và benign để phục vụ chốt cỡ mẫu PLAN-01."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    recs_a = [
+        _make_sample_record("A", "S1", "phishing", seconds_spent=150.0),
+        _make_sample_record("A", "S2", "phishing", seconds_spent=180.0),
+        _make_sample_record("A", "S3", "benign", seconds_spent=30.0),
+        # Ca khó thật (difficult_case=True) không được loại khỏi thời gian!
+        _make_sample_record("A", "S4", "phishing", seconds_spent=300.0, difficult_case=True),
+    ]
+    recs_b = [
+        _make_sample_record("B", "S1", "phishing", seconds_spent=140.0),
+        _make_sample_record("B", "S2", "phishing", seconds_spent=160.0),
+        _make_sample_record("B", "S3", "benign", seconds_spent=25.0),
+        _make_sample_record("B", "S4", "phishing", seconds_spent=280.0, difficult_case=True),
+    ]
+
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    out_json = tmp_path / "timing_breakdown.json"
+    cmd = [
+        sys.executable,
+        str(EVAL_SCRIPT),
+        "--rater-a", str(file_a),
+        "--rater-b", str(file_b),
+        "--json", str(out_json),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT)
+    assert proc.returncode == 0
+
+    data = json.loads(out_json.read_text(encoding="utf-8"))
+    timing_a = data["seconds_spent"]["rater_a"]
+
+    # Phishing: S1 (150s), S2 (180s), S4 (300s) -> mean = 210.0s
+    assert timing_a["phishing"]["count"] == 3
+    assert timing_a["phishing"]["mean"] == 210.0
+
+    # Benign: S3 (30s) -> mean = 30.0s
+    assert timing_a["benign"]["count"] == 1
+    assert timing_a["benign"]["mean"] == 30.0
+
+
+def test_evaluate_kappa_rejects_same_annotator_or_wrong_pass(tmp_path):
+    """Từ chối khi cả 2 tệp đều của A hoặc có pass_id=2 trong phiên Pass 1."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    # Cả 2 tệp đều có annotator_id="A"
+    recs_a = [_make_sample_record("A", "S1")]
+    recs_b = [_make_sample_record("A", "S1")]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b)],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert ("cùng annotator_id" in proc.stderr or "không khớp với annotator kỳ vọng" in proc.stderr)
+
+    # Bản ghi có pass_id=2
+    recs_b_pass2 = [_make_sample_record("B", "S1", pass_id=2)]
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b_pass2) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--pass-id", "1"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "pass_id=2" in proc.stderr
+
+
+def test_evaluate_kappa_pilot_32_validation(tmp_path):
+    """Kiểm tra cờ --verify-pilot-32 xác thực đủ 32 mẫu từ PILOT-001 đến PILOT-032."""
+    file_a = tmp_path / "rater_a.jsonl"
+    file_b = tmp_path / "rater_b.jsonl"
+
+    # Chỉ có 5 mẫu -> thất bại khi bật --verify-pilot-32
+    recs_a = [_make_sample_record("A", f"PILOT-{i:03d}") for i in range(1, 6)]
+    recs_b = [_make_sample_record("B", f"PILOT-{i:03d}") for i in range(1, 6)]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 2
+    assert "yêu cầu đủ 32 mẫu" in proc.stderr
+
+    # Đủ 32 mẫu chuẩn từ PILOT-001 đến PILOT-032 -> thành công
+    recs_a_32 = [_make_sample_record("A", f"PILOT-{i:03d}") for i in range(1, 33)]
+    recs_b_32 = [_make_sample_record("B", f"PILOT-{i:03d}") for i in range(1, 33)]
+    file_a.write_text("\n".join(json.dumps(r) for r in recs_a_32) + "\n", encoding="utf-8")
+    file_b.write_text("\n".join(json.dumps(r) for r in recs_b_32) + "\n", encoding="utf-8")
+
+    proc = subprocess.run(
+        [sys.executable, str(EVAL_SCRIPT), "--rater-a", str(file_a), "--rater-b", str(file_b), "--verify-pilot-32"],
+        capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode == 0
