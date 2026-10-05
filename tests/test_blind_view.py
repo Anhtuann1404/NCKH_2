@@ -2038,7 +2038,7 @@ class TestResumeStrictProvenanceAndManifestChecks:
         assert res["blind_view_sha256"] == view_hash
 
     def test_lead_d_probe_artifact_pending_when_manifest_locked_fails(self, tmp_path, cli_module):
-        """Lead D probe: Codebook/Dictionary hiện tại trên đĩa còn pending_review; nếu manifest ghi locked và hash khớp thì preflight bắt buộc phải ném lỗi."""
+        """Lead D probe: Codebook/Dictionary còn pending_review trên đĩa; nếu manifest ghi locked và hash khớp thì preflight bắt buộc phải ném lỗi."""
         input_blind = tmp_path / "view.json"
         export_blind_view(
             [{"sample_id": "SMP-001", "url": "https://test.invalid/", "html": "<p>Test</p>"}],
@@ -2049,15 +2049,33 @@ class TestResumeStrictProvenanceAndManifestChecks:
         view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         data = json.loads(input_blind.read_text(encoding="utf-8"))
 
-        root = Path(__file__).resolve().parent.parent
-        real_cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-        real_dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        # 1. Codebook pending fixture
+        pending_cb = tmp_path / "PENDING_CODEBOOK.md"
+        pending_cb.write_text(
+            "# SỔ TAY QUY TẮC GÁN NHÃN\n\n"
+            "**Phiên bản:** `v1.0.0-pending_review`\n"
+            "**Trạng thái:** `pending_review`\n"
+            + "Nội dung quy tắc... " * 10,
+            encoding="utf-8",
+        )
+        locked_dict = tmp_path / "LOCKED_DICT.json"
+        locked_dict.write_text(
+            json.dumps({
+                "dictionary_id": "org_dictionary_v1",
+                "version": "1.0.0",
+                "status": "locked",
+                "organizations": [{"name": f"Org_{i}"} for i in range(14)],
+            }),
+            encoding="utf-8",
+        )
+        cb_hash = hashlib.sha256(pending_cb.read_bytes()).hexdigest()
+        dict_hash = hashlib.sha256(locked_dict.read_bytes()).hexdigest()
 
         m_file = tmp_path / "fake_locked_manifest.json"
         m_file.write_text(json.dumps(self._make_m(
             view_hash,
-            cb_hash=real_cb_hash,
-            dict_hash=real_dict_hash,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
             codebook_status="locked",
             dictionary_status="locked",
             codebook_version="v1.0.0",
@@ -2065,7 +2083,49 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="ARTIFACT CODEBOOK CHƯA KHÓA"):
-            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=pending_cb, dictionary_path=locked_dict
+            )
+
+        # 2. Dictionary pending fixture
+        locked_cb = tmp_path / "LOCKED_CODEBOOK.md"
+        locked_cb.write_text(
+            "# SỔ TAY QUY TẮC GÁN NHÃN\n\n"
+            "**Phiên bản:** `v1.0.0`\n"
+            "**Trạng thái:** `locked`\n"
+            + "Nội dung quy tắc... " * 10,
+            encoding="utf-8",
+        )
+        pending_dict = tmp_path / "PENDING_DICT.json"
+        pending_dict.write_text(
+            json.dumps({
+                "dictionary_id": "org_dictionary_v1",
+                "version": "1.0.0-pending_review",
+                "status": "pending_review",
+                "organizations": [{"name": f"Org_{i}"} for i in range(14)],
+            }),
+            encoding="utf-8",
+        )
+        locked_cb_hash = hashlib.sha256(locked_cb.read_bytes()).hexdigest()
+        pending_dict_hash = hashlib.sha256(pending_dict.read_bytes()).hexdigest()
+
+        m_file2 = tmp_path / "fake_locked_manifest2.json"
+        m_file2.write_text(json.dumps(self._make_m(
+            view_hash,
+            cb_hash=locked_cb_hash,
+            dict_hash=pending_dict_hash,
+            codebook_status="locked",
+            dictionary_status="locked",
+            codebook_version="v1.0.0",
+            dictionary_version="1.0.0",
+        )), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="ARTIFACT DICTIONARY CHƯA KHÓA"):
+            cli_module.validate_manifest_preflight(
+                m_file2, input_blind, data,
+                codebook_path=locked_cb, dictionary_path=pending_dict
+            )
 
     def test_lead_d_probe_sample_with_mismatched_codebook_version_fails(self, tmp_path, cli_module):
         """Lead D probe: Mẫu có codebook_version='WRONG-VERSION' bị từ chối ngay trước khi hiển thị; không ghi annotation theo version chưa kiểm."""

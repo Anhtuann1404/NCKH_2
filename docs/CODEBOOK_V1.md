@@ -1,17 +1,17 @@
-# SỔ TAY QUY TẮC GÁN NHÃN (CODEBOOK V1.0 - CHỜ KHÓA CHÍNH THỨC)
+# SỔ TAY QUY TẮC GÁN NHÃN (CODEBOOK V1.0 - CHÍNH THỨC)
 
 **Dự án:** NCKH_2 — Phát hiện website phishing mạo danh tổ chức  
-**Phiên bản:** `v1.0.0-pending_review`  
+**Phiên bản:** `v1.0.0`  
 **Ngày cập nhật:** 05/10/2026  
-**Trạng thái:** `pending_review` (Đã được Thành viên B nghiệm thu tại commit a7bdd74; chờ Lead D đối soát mã băm gói view thật để đóng băng chính thức)  
+**Trạng thái:** `locked` (Đã được Thành viên B nghiệm thu tại commit a7bdd74; đã khóa phiên bản v1.0.0 chính thức)  
 **Mã băm từ điển đối chiếu (`configs/dictionary_v1.json`):**  
-`SHA-256: d9c28221662d1806a67bc82c6ebc909bb8aa3bbfd6d9dd95c4c2b74c911e7b66`  
+`SHA-256: 7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3`  
 **Dải ngày corpus train đã kiểm kê:** `02/07/2024` đến `08/09/2025` (Task DATA-01, 56 shards, 498.255 dòng)  
 **Người biên soạn & quản lý:** Thành viên C (Data Pipeline & Blind View)  
 **Hiện trạng rà soát & Nghiệm thu:**
 - **Thành viên A (Annotator chính):** Đã rà soát và đóng góp 9 khuyến nghị R-A01–R-A09 ([`CODEBOOK_REVIEW_A.md`](annotation_templates/CODEBOOK_REVIEW_A.md)).
 - **Thành viên B (QA & Kiểm độc lập):** ĐÃ KÝ DUYỆT NGHIỆM THU 100% tại commit `a7bdd74` ([`CODEBOOK_REVIEW_B.md`](annotation_templates/CODEBOOK_REVIEW_B.md)).
-- **Thành viên D (Lead):** Chờ Lead D đối soát view mù REAL-PILOT-32-V1 để đóng băng chính thức và phát lệnh pilot.
+- **Thành viên D (Lead):** Chờ Lead D kiểm tra gói khóa cuối và ký duyệt phát lệnh pilot.
 
 ---
 

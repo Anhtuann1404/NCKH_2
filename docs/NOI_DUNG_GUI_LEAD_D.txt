@@ -1,108 +1,89 @@
 ================================================================================
-BÀN GIAO GÓI VIEW MÙ THẬT REAL-PILOT-32-V1 CHO LEAD D ĐỐI SOÁT & NGHIỆM THU
+BÁO CÁO BÀN GIAO GÓI KHÓA CUỐI REAL-PILOT-32-V1 GỬI LEAD D
 Người gửi: Thành viên C (Data Pipeline & Blind View)
 Người nhận: Lead D (Anh Tuấn)
 Ngày bàn giao: 05/10/2026
-Trạng thái: GIỮ NGUYÊN PENDING - CHƯA MỞ PILOT - TRAINING BỊ CHẶN 100%
+Trạng thái: ĐÃ KHÓA 1.0.0 - GIỮ NGUYÊN PENDING - CHỜ LEAD D KÝ DUYỆT PHÁT LỆNH
 ================================================================================
 
 Kính gửi Lead D (Anh Tuấn),
 
-Thành viên C xin cảm ơn Lead D đã nghiệm thu các bản sửa kỹ thuật tại commit 5d216aa.
-Theo đúng yêu cầu của Lead D, Thành viên C xin bàn giao gói View Mù thực tế
-(blind_view_pilot_real.json) qua kênh riêng nội bộ để Lead D đối soát độc lập mã băm
-SHA-256, số lượng đúng 32 mẫu và schema chuẩn trước khi phát lệnh chính thức.
+Thành viên C xin cảm ơn Lead D đã nghiệm thu các bản sửa kỹ thuật tại 5d216aa và
+kiểm tra trực tiếp tệp pending bàn giao (a4d69...).
+
+Thực hiện đúng chỉ đạo của Lead D, Thành viên C đã hoàn tất việc chuẩn bị gói
+khóa cuối REAL-PILOT-32-V1 theo đúng trình tự kỹ thuật nghiêm ngặt:
+
+1. Dictionary (configs/dictionary_v1.json):
+   - Đã chuyển version thành "1.0.0", status thành "locked".
+   - Tính SHA-256 mới: 7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3
+
+2. Codebook (docs/CODEBOOK_V1.md):
+   - Đã chuyển version thành "v1.0.0", status thành "locked".
+   - Cập nhật mã băm dictionary mới (7aa83b...) vào dòng 8 của tài liệu.
+   - Tính SHA-256 mới: 12de9c2f3b457938039b05c72c651d6650f403b620216516262134a3313a2ed1
+
+3. View Mù Thực Tế (data/annotations/blind_view_pilot_real.json):
+   - Cập nhật codebook_version ở metadata và cả 32 mẫu thành "1.0.0".
+   - Cập nhật codebook_sha256 (12de9c...) và dictionary_sha256 (7aa83b...).
+   - Giữ nguyên 100% nội dung mẫu, ID (PILOT-001..032), thứ tự dòng và sampling plan (PILOT-PLAN-V1-FULL-OVERLAP).
+   - Tính SHA-256 mới: 8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749
+   - Lưu vết bản pending đã kiểm: 22,450 bytes, SHA-256 a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e.
+
+4. Manifest (configs/pilot_manifest.json):
+   - Đồng bộ version 1.0.0, status "locked" và cả 3 mã băm cuối cùng.
+   - Giữ nguyên tuyệt đối: acceptance.D: "pending" và ready_for_annotation: false.
+   - Lưu dấu vết audit_trail phân biệt bản pending a4d69... và bản khóa cuối 8be1c...
+
+5. Rào Chắn & Kiểm Thử:
+   - Toàn bộ 142/142 tests đạt 100% bằng các fixture nghiệm thu riêng.
+   - Không ghi nhãn người thật, không tự ý mở pilot để thử.
+   - data/exclusion_registry.json giữ nguyên training_blocked: true.
+   - Không đưa file view mù hay raw/mapping lên Git repository.
 
 --------------------------------------------------------------------------------
-1. THÔNG SỐ KỸ THUẬT GÓI VIEW MÙ BÀN GIAO
---------------------------------------------------------------------------------
-- Đường dẫn tệp cục bộ: data/annotations/blind_view_pilot_real.json
-  (Tệp được cấu hình trong .gitignore để đảm bảo an toàn & bảo mật nghiên cứu)
-- Dung lượng chính xác: 22,450 bytes
-- Mã băm SHA-256:
-  a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e
-- Số lượng mẫu: ĐÚNG 32 MẪU (20 phishing + 12 benign theo nhãn nguồn)
-- Định danh gói (dataset_id): REAL-PILOT-32-V1
-- Kiểu gói hiện tại (dataset_type): real_pilot_pending_review
-- Phiên bản kế hoạch mẫu (sampling_plan_version): PILOT-PLAN-V1-FULL-OVERLAP
-  (Ghi chú: A/B kiểm tra toàn bộ 32 mẫu, 100% overlap, không phải mẫu con 30% đợt chính)
-- Thuộc tính mô phỏng (is_synthetic): false (Dữ liệu thực tế 100%)
-
---------------------------------------------------------------------------------
-2. SCHEMA CHI TIẾT ĐÃ KIỂM ĐỊNH CỦA GÓI DỮ LIỆU
+BẢNG ĐỐI SOÁT PHIÊN BẢN VÀ MÃ BĂM GÓI KHÓA CUỐI (FINAL LOCKED PACKAGE)
 --------------------------------------------------------------------------------
 
-A. Metadata cấp gói (Top-level Package):
-   {
-     "dataset_id": "REAL-PILOT-32-V1",
-     "dataset_type": "real_pilot_pending_review",
-     "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
-     "total_samples": 32,
-     "created_at_utc": "2026-10-04T17:15:37.382606+00:00",
-     "codebook_sha256": "b0ba9e063c9b96728f1f98bdf7e6885a8e6650345a93b6c7704b8d957e94e84a",
-     "dictionary_sha256": "d9c28221662d1806a67bc82c6ebc909bb8aa3bbfd6d9dd95c4c2b74c911e7b66",
-     "codebook_version": "1.0.0-pending_review",
-     "samples": [ ... 32 mẫu ... ]
-   }
-
-B. Cấu trúc chuẩn từng mẫu (Per-sample Schema):
-   Tất cả 32 mẫu tuân thủ nghiêm ngặt các trường:
-   - sample_id: Định danh ẩn danh duy nhất từ "PILOT-001" đến "PILOT-032".
-   - url: URL chuẩn hóa an toàn (đã bổ sung scheme https:// nếu thiếu, stripped js).
-   - page_text: Văn bản trang an toàn (đã bóc tách toàn bộ script, iframe, inline handler).
-   - structure_summary: {"forms": int, "inputs": int, "password_inputs": int}
-   - codebook_version: "1.0.0-pending_review"
-   - random_subset: true (Toàn bộ 32 mẫu đều nằm trong tập trùng khớp 100% giữa A và B).
++-----------------------------------------+-----------+---------+-----------+-------------------------------------------------------------------+
+| Tệp / Cấu phần                          | Phiên bản | Trạng thái | Byte      | Mã băm SHA-256                                                    |
++-----------------------------------------+-----------+---------+-----------+-------------------------------------------------------------------+
+| configs/dictionary_v1.json              | 1.0.0     | locked  | 15,329    | 7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3 |
++-----------------------------------------+-----------+---------+-----------+-------------------------------------------------------------------+
+| docs/CODEBOOK_V1.md                     | v1.0.0    | locked  | 12,733    | 12de9c2f3b457938039b05c72c651d6650f403b620216516262134a3313a2ed1 |
++-----------------------------------------+-----------+---------+-----------+-------------------------------------------------------------------+
+| blind_view_pilot_real.json (Khóa cuối)  | 1.0.0     | locked  | 22,485    | 8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749 |
++-----------------------------------------+-----------+---------+-----------+-------------------------------------------------------------------+
+| [Lưu vết] blind_view_pilot_real (Pending)| pending   | pending | 22,450    | a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e |
++-----------------------------------------+-----------+---------+-----------+-------------------------------------------------------------------+
 
 --------------------------------------------------------------------------------
-3. LỆNH POWERSHELL / PYTHON ĐỂ LEAD D KIỂM TRA NHANH TẠI CHỖ
+LỆNH KIỂM TRA NHANH GÓI KHÓA CUỐI CHO LEAD D
 --------------------------------------------------------------------------------
-Lead D có thể chạy đoạn lệnh sau trong PowerShell tại thư mục gốc dự án để đối soát:
-
 python -c "
-import json, hashlib
-from pathlib import Path
+import json, hashlib, pathlib
 
-p = Path('data/annotations/blind_view_pilot_real.json')
-assert p.exists(), 'Khong tim thay file!'
-b = p.read_bytes()
-h = hashlib.sha256(b).hexdigest()
-data = json.loads(b.decode('utf-8'))
+dict_b = pathlib.Path('configs/dictionary_v1.json').read_bytes()
+cb_b = pathlib.Path('docs/CODEBOOK_V1.md').read_bytes()
+view_b = pathlib.Path('data/annotations/blind_view_pilot_real.json').read_bytes()
+mf = json.loads(pathlib.Path('configs/pilot_manifest.json').read_text(encoding='utf-8'))
+view = json.loads(view_b.decode('utf-8'))
 
-print('=== KET QUA DOI SOAT GOI BLIND VIEW ===')
-print('Bytes:', len(b), '(Ky vong: 22450)')
-print('SHA256:', h)
-print('SHA256 Match:', h == 'a4d69af5a50637de6fc8d1cfb3ab1845f8862f0089c7838a22a5fc2087ff623e')
-print('Dataset ID:', data.get('dataset_id'))
-print('Total samples declared:', data.get('total_samples'))
-print('Actual samples count:', len(data.get('samples', [])))
-print('Sampling Plan Version:', data.get('sampling_plan_version'))
-print('Dataset Type:', data.get('dataset_type'))
-
-samples = data.get('samples', [])
-assert len(samples) == 32, 'So mau khong dung 32!'
-for s in samples:
-    assert {'sample_id', 'url', 'page_text', 'structure_summary', 'codebook_version', 'random_subset'}.issubset(s.keys())
-print('Schema Check: TAT CA 32 MAU DUNG CHUAN SCHEMA 100%!')
+print('1. Dictionary SHA-256 Match:', hashlib.sha256(dict_b).hexdigest() == mf['dictionary_sha256'] == '7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3')
+print('2. Codebook SHA-256 Match:', hashlib.sha256(cb_b).hexdigest() == mf['codebook_sha256'] == '12de9c2f3b457938039b05c72c651d6650f403b620216516262134a3313a2ed1')
+print('3. Blind View SHA-256 Match:', hashlib.sha256(view_b).hexdigest() == mf['blind_view_sha256'] == '8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749')
+print('4. Sample Count:', len(view['samples']) == mf['sample_count'] == 32)
+print('5. Ready Flag (Still False):', mf['ready_for_annotation'] is False)
+print('6. Acceptance D (Still Pending):', mf['acceptance']['D'] == 'pending')
+print('7. All Samples Version 1.0.0:', all(s.get('codebook_version') == '1.0.0' for s in view['samples']))
+print('=== TAT CA THONG SO GIAO TIEP VA RANG BUOC DA SAN SANG 100% ===')
 "
 
 --------------------------------------------------------------------------------
-4. DUY TRÌ TRẠNG THÁI PENDING & BẢO ĐẢM KHÓA TOÀN DIỆN
+BÀN GIAO QUA KÊNH RIÊNG & KẾ HOẠCH TIẾP THEO
 --------------------------------------------------------------------------------
-Thành viên C xác nhận:
-1. configs/pilot_manifest.json:
-   - ready_for_annotation: false
-   - codebook_status: "pending_review"
-   - dictionary_status: "pending_review"
-   - acceptance: {"B": "approved", "D": "pending"}
-2. data/exclusion_registry.json:
-   - training_blocked: true (Chặn 100% việc huấn luyện M0-M3)
-3. Đợt gán nhãn pilot CHƯA ĐƯỢC MỞ.
-4. Sau khi Lead D kiểm tra xong gói dữ liệu, Lead D sẽ thực hiện việc:
-   - Khóa chính thức codebook và dictionary (status: "locked").
-   - Đồng bộ mã băm cuối cùng vào manifest.
-   - Chuyển ready_for_annotation = true, acceptance.D = "approved".
-   - Phát lệnh chính thức mở đợt gán nhãn cho Thành viên A và B.
-
-Trân trọng kính báo Lead D đối soát và nghiệm thu!
+- Tệp `blind_view_pilot_real.json` (bản khóa cuối 22,485 bytes, hash 8be1c...) được gửi kèm qua kênh riêng cho Lead D.
+- Kính mời Lead D kiểm tra lại gói khóa cuối. Sau khi xác nhận:
+  Lead D sẽ ký duyệt `D: approved`, cập nhật `ready_for_annotation: true`, và điều phối mở pilot cho A và B.
+- Thành viên C tuyệt đối không tự ý ký duyệt hay phát lệnh mở đợt gán nhãn.
 ================================================================================
