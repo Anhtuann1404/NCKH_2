@@ -206,3 +206,6 @@ DONE fixture checks: 15 browser smoke checks đạt, gồm DOM lớn~594KB/6000p
 
 
 05/10/2026 — SELECTED-FIT-BUNDLE-01 (D): xuất M0/M3 từ fit_fold cố định seed17/fold0, C/threshold chỉ chọn bằng validation, không refit. Bundle có hash từ điển fixture thực tế và provenance phân vùng/config/dataset, được nạp qua API --selected-fit không fit lúc startup. Parity 24 requests cho score/verdict đúng giữa offline và API sau lưu/tải; 77 Python, 13 Node và 18 Chromium checks đạt. Ca metadata/hash/version/provenance/threshold sai bị chặn. Làm trên codex/selected-fit-bundle từ develop; không thay bundle demo cũ, không gộp C hoặc mở training nghiên cứu. Lệnh và giới hạn ở DEVELOPMENT.
+
+
+06/10/2026 — PR #7 được Lead yêu cầu tích hợp develop sau review. Kiểm tra lại mã ghép: 77 Python tests và 13 Node tests đạt; mã chương trình khớp branch selected-fit đã qua 18 Chromium checks. Người dùng xác nhận thủ công login có cảnh báo/ô mật khẩu, ordinary không cảnh báo, tắt API báo chưa nhận kết quả hợp lệ. Đây là nghiệm thu demo trên máy D; Windows chưa được kiểm độc lập. Giữ main nguyên và không mở training thật. Đồng bộ Work_Space_2: V1 không dùng Kappa/PLAN-01 do AI hỗ trợ chọn nhãn; V2 chưa duyệt và còn lỗi nguồn/gán nhãn mù/tests, DEV-01 C vẫn pending. Việc tích hợp PR #7 không cấp nghiệm thu cho các phần dữ liệu này.
