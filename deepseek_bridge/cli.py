@@ -2,6 +2,14 @@ import argparse
 import sys
 from pathlib import Path
 
+# Đảm bảo in tiếng Việt chuẩn trên Windows console
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 from .config import DeepSeekConfig
 from .client import DeepSeekClient
 from .token_guard import TokenGuard
