@@ -1,0 +1,8 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Trang đăng nhập mô phỏng NCKH</title></head>
+<body style="font:16px/1.6 system-ui;max-width:720px;margin:64px auto;padding:24px">
+<h1>Trang đăng nhập mô phỏng</h1><p>Chỉ dành cho kiểm thử NCKH. Không nhập thông tin thật.</p>
+<form onsubmit="event.preventDefault()"><label>Tài khoản <input name="account" type="email" value="SECRET_ACCOUNT"></label><br><label>Mật khẩu <input name="password" type="password" value="SECRET_PASSWORD"></label><br><textarea>SECRET_NOTE</textarea><br><button>Đăng nhập mô phỏng</button></form>
+<p><a href="ordinary.html?token=SECRET_QUERY#SECRET_FRAGMENT">Chuyển sang trang thông thường</a></p>
+<button id="dynamic" onclick="document.querySelector('#later').textContent='Nội dung động đã xuất hiện'">Thêm nội dung động</button><p id="later"></p>
+<button id="spa" onclick="history.pushState({},'', '?view=SECRET_SPA'); document.querySelector('#later').textContent='Đã chuyển trang SPA'">Chuyển SPA</button>
+</body></html>

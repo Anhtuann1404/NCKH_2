@@ -1,6 +1,6 @@
 # Technical specification v0.1
 
-Trạng thái: thiết kế khởi đầu, chưa triển khai. Phạm vi theo đề cương đã duyệt. Tham chiếu: đề cương 5.2c–f.
+Trạng thái: đã có preprocessing/features DEV-01, khung kiểm run-plan/metrics và FastAPI–MV3 mock chạy bằng fixture. Đã có TF-IDF/LR, grouped CV và bootstrap mô phỏng; chưa có model/API suy luận từ dữ liệu thật hoặc pipeline đã khóa. Phạm vi theo đề cương đã duyệt. Tham chiếu: đề cương 5.2c–f.
 
 ## Kiến trúc
 
@@ -60,6 +60,19 @@ HTML loại script, inline handler và giá trị điền trong biểu mẫu/tex
 
 Không thu phím bấm, cookie, storage, mật khẩu/OTP hay lịch sử duyệt. Làm sạch không bảo đảm xóa mọi thông tin cá nhân trong văn bản; demo chỉ chạy trên trang được phép và có công tắc bật phân tích nội dung. Nội dung gửi máy chủ cục bộ cũng cần được giải thích trong giao diện.
 
+### Scaffold hiện có — DEV-01
+
+- `prepare_snapshot(url, html, capture_mode=...)` chỉ nhận URL/HTML/chế độ; `extract(snapshot)` từ chối dataset row chứa label/target. Mode/version kiểm đầu vào, không đưa vào vector.
+- URL bỏ userinfo/fragment, thay giá trị query bằng `_redacted_`, giữ thứ tự và query key lặp, chuẩn hóa host/port/IDNA. Path và query key còn có thể chứa thông tin cá nhân; quy tắc xử lý token path cần chốt trước run chính.
+- HTMLParser từ thư viện chuẩn không fetch tài nguyên hay chạy script. Loại script/style/template/noscript/object/embed, event handler, thuộc tính ngoài danh sách, giá trị input, nội dung textarea/contenteditable/hidden và comments. URL trong thuộc tính được làm sạch và giải tương đối theo URL trang.
+- DOM draft gồm số thẻ, form/input/iframe/image, link và link cùng/khác **hostname**; không có script count hoặc metadata nguồn. Text trích thô gồm title; trainer MODEL-PREP-02 đã fit TF-IDF chỉ trên inner-train của fixture.
+- `DomainRule` kiểm hostname/path scope, subdomain chỉ khi cho phép; UGC lấn át quy tắc nhà cung cấp rộng. Chỉ thử bằng tổ chức `.test` mô phỏng, chưa có danh mục thương hiệu chính thức. M3/B-rule có bản fixture với alias/form/login, chưa phải bộ tín hiệu nghiên cứu đã khóa.
+- Version `snapshot-dev-0`/`features-dev-0` phân biệt rõ với `snapshot-v1` mới là đề xuất trong hợp đồng API. Không dùng scaffold để tự đánh dấu freeze preprocessing hoặc training readiness.
+
+Giới hạn cần giải quyết trước khóa pipeline: HTMLParser không dựng DOM theo đầy đủ quy tắc trình duyệt; bản hiện tại bỏ qua `<base>` và CSS visibility, không phải bộ lọc an toàn để render HTML. Dùng IDNA của Python, chưa kiểm parity với URL WHATWG phía extension. So sánh link theo hostname không thay eTLD+1, phân nhóm miền hoặc xác minh quyền sở hữu; PSL/grouping thuộc phần bàn giao của C. Domain rule hiện là primitive bảo thủ, chưa tải bằng chứng/historical validity từ dictionary thật. Không đưa text fixture vào đánh giá nghiên cứu.
+
+Tài liệu parser/URL chính thức: [HTMLParser](https://docs.python.org/3/library/html.parser.html), [urllib.parse](https://docs.python.org/3/library/urllib.parse.html). Thư viện phân tách URL không tự kiểm mọi trường hợp; scaffold bổ sung kiểm HTTP(S), hostname, whitespace/control, escaping và giới hạn.
+
 ## Snapshot và phản hồi
 
 - Điều hướng mới tạo `navigation_id`; mỗi snapshot có `request_id`, `dom_revision` và `phase`.
@@ -73,6 +86,14 @@ Không thu phím bấm, cookie, storage, mật khẩu/OTP hay lịch sử duyệ
 
 Manifest phải có model_id, variant, score_semantics, model checksum, feature/preprocessing version, dictionary checksum, environment lock, training data/split/config hashes và ngưỡng vận hành. Ngưỡng 5% là điểm nghiên cứu; dùng demo phải chọn cấu hình riêng từ validation phát triển và ghi FPR đo được. Bundle phục vụ demo được fit lại trên phần phát triển cho phép; không lấy một mô hình fold test làm bằng chứng hiệu năng toàn hệ thống.
 
+### Mock đã triển khai — EXT-01
+
+FastAPI đọc schema request trực tiếp từ OpenAPI v0.1, từ chối trường thừa; middleware kiểm Host/origin/token, preflight và giới hạn byte trước parse, rate limit. Mock scenarios chọn từ CLI, không nhận label/target/scenario trong snapshot; điểm và ngưỡng cố định chỉ thử UI. Version dev-0, health `model_ready=false`, metadata `mock-only-*`, limitation bắt buộc `mock_response_not_model_result`. Demo synthetic đã có bundle loader/checksum/version/readiness và kiểm parity trên fixture. API phục vụ mô hình nghiên cứu vẫn chờ dữ liệu và mô hình đã nghiệm thu.
+
+MV3 dùng service worker gọi loopback, content script ở frame chính tạo snapshot, popup bật/tắt và consent nội dung. Storage token giới hạn trusted contexts; session state không chứa URL/HTML/token. Kiểm document_id với webNavigation trước nhận snapshot; request tuần tự từng tab, hủy request cũ và bỏ response không khớp identity. Worker khởi động lại chuyển pending thành chưa đánh giá được. Khung demo chưa có ad block, model ONNX hoặc đo latency mô hình thật.
+
+Evaluation dùng groups được cung cấp và threshold từ validation. Grouped CV, TF-IDF/LR và paired bootstrap đã chạy bằng fixture ở MODEL-PREP-02. Chưa tính public suffix/grouping dữ liệu thật hoặc temporal analysis; thực nghiệm chính chờ các bước khóa nguồn/nhãn/groups, giữ giao thức đã duyệt.
+
 ## Quyết định kỹ thuật hiện tại
 
 - ADR-001: API localhost cho demo đầu tiên; ưu tiên dùng lại pipeline Python. Chuyển mô hình vào trình duyệt là tối ưu sau khi có bundle đúng.
@@ -80,5 +101,10 @@ Manifest phải có model_id, variant, score_semantics, model checksum, feature/
 - ADR-003: backend không crawler; không thực thi nội dung được gửi.
 - ADR-004: dùng chung preprocessing; mọi thay đổi biểu diễn phải tăng version và đánh giá tác động.
 - ADR-005: hạ tầng người dùng/tenant là quan hệ chưa xác minh; không whitelist theo nhà cung cấp cho M3 hoặc B-rule.
+- ADR-006 (04/10/2026): mock dev-0 chạy cùng shape API v0.1, ID/model/limitation ghi rõ synthetic; không tự thay example snapshot-v1 thành version đã khóa. API/extension có dependency version lock, trainer thật chưa có.
 
 Stack/ADR là quyết định triển khai có thể tinh chỉnh có ghi nhận; RQ, phạm vi và giao thức nghiên cứu vẫn theo đề cương.
+
+## Trainer mô phỏng đã triển khai
+
+Factory tại `training/pipeline.py`; metadata labels/groups nằm ngoài PreparedSnapshot. `evaluation/grouped.py` tạo fold cố định dùng chung mọi variant; `training/experiment.py` fit/tune trên inner train/validation, không refit sau chọn threshold. `evaluation/bootstrap.py` lấy mẫu toàn nhóm theo cặp, riêng seed. CLI `scripts/run_synthetic_experiment.py` chỉ tạo fixture. Chi tiết tham số, hạn chế và lệnh trong DEVELOPMENT.

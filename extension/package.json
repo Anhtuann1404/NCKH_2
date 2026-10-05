@@ -1,0 +1,19 @@
+{
+  "name": "nckh-phishing-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && node build.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:browser": "npm run build && node tests/browser-smoke.mjs",
+    "benchmark": "npm run build && node tests/browser-smoke.mjs --latency-samples 30",
+    "test:parity": "npm run build && node tests/snapshot-parity.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.4",
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0",
+    "typescript": "7.0.2"
+  }
+}
