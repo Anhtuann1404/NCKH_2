@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import time
 from typing import Any, Dict, List, Optional, Set
@@ -381,11 +382,18 @@ def validate_manifest_preflight(
             f"DICTIONARY CHƯA KHÓA: Manifest '{manifest_path}' khai báo dictionary_version='{manifest_dict_ver}' đang ở trạng thái pending."
         )
 
-    # 7. Số lượng mẫu (sample_count) phải là số nguyên >= 0
+    # 7. Số lượng mẫu (sample_count) phải là số nguyên dương, không nhận boolean
     manifest_total = manifest_data["sample_count"]
-    if not isinstance(manifest_total, int) or manifest_total < 0:
+    if isinstance(manifest_total, bool) or not isinstance(manifest_total, int) or manifest_total <= 0:
         raise ValueError(
-            f"LỖI MANIFEST: sample_count trong manifest phải là số nguyên không âm (nhận: {manifest_total})."
+            f"LỖI MANIFEST: sample_count trong manifest phải là số nguyên dương, không nhận boolean hoặc <= 0 (nhận: {manifest_total!r})."
+        )
+
+    # Riêng REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu theo kế hoạch đã chốt
+    manifest_dataset_id = str(manifest_data["dataset_id"]).strip()
+    if manifest_dataset_id == "REAL-PILOT-32-V1" and manifest_total != 32:
+        raise ValueError(
+            f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu theo kế hoạch đã chốt (nhận: {manifest_total})."
         )
 
     # =========================================================================
@@ -420,6 +428,29 @@ def validate_manifest_preflight(
     if len(cb_bytes.strip()) < 100:
         raise ValueError(f"LỖI NỘI DUNG CODEBOOK: Tệp codebook tại '{actual_cb_path}' rỗng hoặc không đủ nội dung quy chuẩn.")
 
+    # Đọc trạng thái và phiên bản thực tế từ metadata codebook trên đĩa
+    cb_text = cb_bytes.decode("utf-8", errors="replace")
+    cb_ver_match = re.search(r"\*\*Phiên bản:\*\*\s*(.+)", cb_text)
+    cb_status_match = re.search(r"\*\*Trạng thái:\*\*\s*(.+)", cb_text)
+    actual_cb_ver = cb_ver_match.group(1).strip().strip("`* ") if cb_ver_match else ""
+    actual_cb_status = cb_status_match.group(1).split("(")[0].strip().strip("`* ") if cb_status_match else ""
+
+    if not actual_cb_status or actual_cb_status != "locked" or "pending" in actual_cb_status.lower() or "pending" in actual_cb_ver.lower():
+        raise ValueError(
+            f"ARTIFACT CODEBOOK CHƯA KHÓA: Tệp codebook tại '{actual_cb_path}' có trạng thái thực tế là '{actual_cb_status}' "
+            f"(phiên bản '{actual_cb_ver}'). Bắt buộc codebook trên đĩa phải ở trạng thái 'locked' và không pending."
+        )
+    if actual_cb_status != cb_status:
+        raise ValueError(
+            f"SAI KHÁC TRẠNG THÁI CODEBOOK ĐĨA: Tệp codebook trên đĩa có trạng thái '{actual_cb_status}', "
+            f"không khớp với trạng thái khai báo trong manifest ('{cb_status}')."
+        )
+    if actual_cb_ver.lstrip("v") != manifest_cb_ver.lstrip("v"):
+        raise ValueError(
+            f"SAI KHÁC PHIÊN BẢN CODEBOOK ĐĨA: Tệp codebook trên đĩa có phiên bản '{actual_cb_ver}', "
+            f"không khớp với phiên bản khai báo trong manifest ('{manifest_cb_ver}')."
+        )
+
     # 3. Mã băm tệp Từ điển configs/dictionary_v1.json (dictionary_sha256) và kiểm tra nội dung thực tế
     manifest_dict_hash = str(manifest_data["dictionary_sha256"]).strip()
     actual_dict_path = dictionary_path or (PROJECT_ROOT / "configs" / "dictionary_v1.json")
@@ -442,6 +473,25 @@ def validate_manifest_preflight(
     except Exception as e:
         raise ValueError(f"LỖI NỘI DUNG DICTIONARY: Tệp từ điển tại '{actual_dict_path}' không hợp lệ: {e}")
 
+    # Đọc trạng thái và phiên bản thực tế từ dictionary trên đĩa
+    actual_dict_status = str(dict_json.get("status", "")).strip()
+    actual_dict_version = str(dict_json.get("version", "")).strip()
+    if not actual_dict_status or actual_dict_status != "locked" or "pending" in actual_dict_status.lower() or "pending" in actual_dict_version.lower():
+        raise ValueError(
+            f"ARTIFACT DICTIONARY CHƯA KHÓA: Tệp từ điển tại '{actual_dict_path}' có trạng thái thực tế là '{actual_dict_status}' "
+            f"(phiên bản '{actual_dict_version}'). Bắt buộc từ điển trên đĩa phải ở trạng thái 'locked' và không pending."
+        )
+    if actual_dict_status != dict_status:
+        raise ValueError(
+            f"SAI KHÁC TRẠNG THÁI DICTIONARY ĐĨA: Tệp từ điển trên đĩa có trạng thái '{actual_dict_status}', "
+            f"không khớp với trạng thái khai báo trong manifest ('{dict_status}')."
+        )
+    if actual_dict_version.lstrip("v") != manifest_dict_ver.lstrip("v"):
+        raise ValueError(
+            f"SAI KHÁC PHIÊN BẢN DICTIONARY ĐĨA: Tệp từ điển trên đĩa có phiên bản '{actual_dict_version}', "
+            f"không khớp với phiên bản khai báo trong manifest ('{manifest_dict_ver}')."
+        )
+
     # =========================================================================
     # D. ĐỐI CHIẾU CHÉO METADATA GIỮA GÓI BLIND VIEW VÀ MANIFEST
     # =========================================================================
@@ -457,8 +507,8 @@ def validate_manifest_preflight(
 
     # 2. Số lượng mẫu (sample_count)
     samples = dataset_data.get("samples", [])
-    if not isinstance(samples, list):
-        raise ValueError("LỖI GÓI VIEW: Trường 'samples' phải là một danh sách.")
+    if not isinstance(samples, list) or len(samples) <= 0:
+        raise ValueError("LỖI GÓI VIEW: Trường 'samples' phải là một danh sách các mẫu không rỗng.")
     total_samples = len(samples)
     if total_samples != manifest_total:
         raise ValueError(
@@ -466,10 +516,21 @@ def validate_manifest_preflight(
             f"nhưng manifest khai báo {manifest_total} mẫu."
         )
     view_total_samples = dataset_data.get("total_samples")
-    if view_total_samples is not None and int(view_total_samples) != manifest_total:
+    if view_total_samples is not None:
+        if isinstance(view_total_samples, bool) or not isinstance(view_total_samples, int) or view_total_samples <= 0:
+            raise ValueError(
+                f"LỖI GÓI VIEW: total_samples trong gói view phải là số nguyên dương, không nhận boolean hoặc <= 0 (nhận: {view_total_samples!r})."
+            )
+        if int(view_total_samples) != manifest_total:
+            raise ValueError(
+                f"SAI KHÁC SỐ MẪU: Gói view có total_samples={view_total_samples}, "
+                f"không khớp manifest ({manifest_total})."
+            )
+
+    # Riêng REAL-PILOT-32-V1 yêu cầu gói view đúng 32 mẫu theo kế hoạch đã chốt
+    if (manifest_dataset_id == "REAL-PILOT-32-V1" or dataset_id == "REAL-PILOT-32-V1") and total_samples != 32:
         raise ValueError(
-            f"SAI KHÁC SỐ MẪU: Gói view có total_samples={view_total_samples}, "
-            f"không khớp manifest ({manifest_total})."
+            f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói REAL-PILOT-32-V1 yêu cầu gói view có đúng 32 mẫu theo kế hoạch đã chốt (nhận: {total_samples})."
         )
 
     # 3. Sampling plan version
@@ -497,18 +558,28 @@ def validate_manifest_preflight(
         )
 
     view_cb_ver = dataset_data.get("codebook_version")
-    if view_cb_ver and str(view_cb_ver).strip() != manifest_cb_ver:
+    if view_cb_ver and str(view_cb_ver).strip().lstrip("v") != manifest_cb_ver.lstrip("v"):
         raise ValueError(
             f"SAI KHÁC PHIÊN BẢN CODEBOOK TRONG GÓI: Metadata gói view khai báo codebook_version='{view_cb_ver}', "
             f"không khớp manifest ('{manifest_cb_ver}')."
         )
 
     view_dict_ver = dataset_data.get("dictionary_version")
-    if view_dict_ver and str(view_dict_ver).strip() != manifest_dict_ver:
+    if view_dict_ver and str(view_dict_ver).strip().lstrip("v") != manifest_dict_ver.lstrip("v"):
         raise ValueError(
             f"SAI KHÁC PHIÊN BẢN DICTIONARY TRONG GÓI: Metadata gói view khai báo dictionary_version='{view_dict_ver}', "
             f"không khớp manifest ('{manifest_dict_ver}')."
         )
+
+    # 5. Đối chiếu phiên bản codebook trên từng mẫu
+    for sample in samples:
+        if isinstance(sample, dict):
+            s_cb_ver = sample.get("codebook_version")
+            if s_cb_ver is not None and str(s_cb_ver).strip().lstrip("v") != manifest_cb_ver.lstrip("v"):
+                raise ValueError(
+                    f"SAI KHÁC PHIÊN BẢN CODEBOOK TRÊN MẪU: Mẫu '{sample.get('sample_id')}' khai báo "
+                    f"codebook_version='{s_cb_ver}', không khớp với phiên bản đã kiểm chứng từ manifest ('{manifest_cb_ver}')."
+                )
 
     # =========================================================================
     # E. KIỂM TRA TÍNH DUY NHẤT VÀ HỢP LỆ CỦA SAMPLE_ID TRONG GÓI VIEW
@@ -539,6 +610,8 @@ def annotate_interactive_session(
     dry_run: bool = False,
     cli_codebook_version: str | None = None,
     cli_random_subset: bool | None = None,
+    codebook_path: Path | None = None,
+    dictionary_path: Path | None = None,
 ) -> None:
     """Phiên làm việc gán nhãn có bấm giờ tương tác."""
     if not input_path.exists():
@@ -585,15 +658,28 @@ def annotate_interactive_session(
         or is_real_session
     )
 
+    manifest_data = None
     if requires_manifest:
         actual_manifest_path = manifest_path or (PROJECT_ROOT / "configs" / "pilot_manifest.json")
-        validate_manifest_preflight(actual_manifest_path, input_path, data)
+        manifest_data = validate_manifest_preflight(
+            actual_manifest_path,
+            input_path,
+            data,
+            codebook_path=codebook_path,
+            dictionary_path=dictionary_path,
+        )
 
     codebook_hash = str(data.get("codebook_sha256") or data.get("codebook_hash") or "")
     if not codebook_hash:
-        cb_path = PROJECT_ROOT / "docs" / "CODEBOOK_V1.md"
+        cb_path = codebook_path or (PROJECT_ROOT / "docs" / "CODEBOOK_V1.md")
         if cb_path.exists():
             codebook_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
+
+    # Xác định phiên bản codebook đã được kiểm chứng
+    if manifest_data:
+        verified_cb_version = str(manifest_data.get("codebook_version", "")).strip()
+    else:
+        verified_cb_version = str(data.get("codebook_version") or cli_codebook_version or "").strip()
 
     # Nếu chạy dry-run và output không được chỉ định tên riêng, dùng file dry-run để cách ly
     actual_output_path = output_path
@@ -612,7 +698,7 @@ def annotate_interactive_session(
         expected_dataset_hash=dataset_hash,
         expected_dataset_id=dataset_id if dataset_id != "UNKNOWN" else None,
         expected_codebook_hash=codebook_hash or None,
-        expected_codebook_version=data.get("codebook_version") or cli_codebook_version or None,
+        expected_codebook_version=verified_cb_version or None,
         expected_sampling_plan_version=sampling_plan_version or None,
         current_samples_by_id=samples_by_id,
         is_real_session=is_real_session,
@@ -633,6 +719,15 @@ def annotate_interactive_session(
     for idx, sample in enumerate(remaining_samples, len(done_ids) + 1):
         sid = sample.get("sample_id", "UNKNOWN")
 
+        # BẮT BUỘC KIỂM TRA PHIÊN BẢN TRÊN MẪU TRƯỚC KHI HIỂN THỊ
+        if verified_cb_version:
+            s_cb_ver = sample.get("codebook_version")
+            if s_cb_ver is not None and str(s_cb_ver).strip().lstrip("v") != verified_cb_version.lstrip("v"):
+                raise ValueError(
+                    f"SAI KHÁC PHIÊN BẢN CODEBOOK TRÊN MẪU: Mẫu '{sid}' khai báo "
+                    f"codebook_version='{s_cb_ver}', không khớp với phiên bản đã kiểm chứng '{verified_cb_version}'."
+                )
+
         # BẮT ĐẦU ĐỒNG HỒ BẤM GIỜ NGAY TRƯỚC KHI HIỂN THỊ ĐỂ TÍNH CẢ THỜI GIAN ĐỌC
         start_time = time.perf_counter()
 
@@ -642,12 +737,15 @@ def annotate_interactive_session(
         # Tính hash nội dung của mẫu hiện tại bằng hàm canonical compute_sample_content_hash
         sample_content_hash = compute_sample_content_hash(sample)
 
-        # Đọc động codebook_version và random_subset
-        codebook_version = (
-            cli_codebook_version
-            or sample.get("codebook_version")
-            or data.get("codebook_version")
-        )
+        # Phiên bản codebook luôn lấy theo phiên bản đã kiểm chứng từ manifest/gói đã duyệt
+        if verified_cb_version:
+            codebook_version = verified_cb_version
+        else:
+            codebook_version = (
+                cli_codebook_version
+                or sample.get("codebook_version")
+                or data.get("codebook_version")
+            )
         if not isinstance(codebook_version, str) or not codebook_version.strip():
             raise ValueError("Thiếu codebook_version trong metadata hoặc tham số CLI.")
         if cli_random_subset is not None:

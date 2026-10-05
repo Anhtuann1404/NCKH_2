@@ -1108,17 +1108,34 @@ class TestProvenanceAndKappaPairing:
         """Thay đổi riêng dataset_type làm sai lệch hash view -> bị chặn tại preflight."""
         import scripts.annotate_cli as cli
         input_path = tmp_path / "view.json"
-        dataset_id = "REAL-PILOT-32-V1"
+        dataset_id = "TEST-TAMPER"
         sp_ver = "PILOT-PLAN-V1-FULL-OVERLAP"
-        export_blind_view([], input_path, dataset_id=dataset_id, dataset_type="blind_view", sampling_plan_version=sp_ver)
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Content</p>"}],
+            input_path,
+            dataset_id=dataset_id,
+            dataset_type="blind_view",
+            sampling_plan_version=sp_ver,
+        )
         original_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
 
+        dummy_cb = tmp_path / "CODEBOOK.md"
+        dummy_cb.write_text("# Codebook\n**Phiên bản:** `v1.0.0`\n**Trạng thái:** `locked`\n" + "Rules content " * 20, encoding="utf-8")
+        cb_hash = hashlib.sha256(dummy_cb.read_bytes()).hexdigest()
+
+        dummy_dict = tmp_path / "dictionary.json"
+        dummy_dict.write_text(json.dumps({
+            "dictionary_id": "org_dictionary_v1",
+            "version": "1.0.0",
+            "status": "locked",
+            "organizations": [{"id": f"org_{i}"} for i in range(14)],
+        }), encoding="utf-8")
+        dict_hash = hashlib.sha256(dummy_dict.read_bytes()).hexdigest()
+
         manifest_path = tmp_path / "manifest.json"
-        cb_hash = hashlib.sha256((Path(__file__).resolve().parent.parent / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-        dict_hash = hashlib.sha256((Path(__file__).resolve().parent.parent / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
         manifest_path.write_text(json.dumps({
             "dataset_id": dataset_id,
-            "sample_count": 0,
+            "sample_count": 1,
             "sampling_plan_version": sp_ver,
             "codebook_version": "1.0.0",
             "codebook_status": "locked",
@@ -1137,29 +1154,43 @@ class TestProvenanceAndKappaPairing:
         input_path.write_text(json.dumps(view_content), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM VIEW"):
-            cli.validate_manifest_preflight(manifest_path, input_path, view_content)
+            cli.validate_manifest_preflight(
+                manifest_path, input_path, view_content,
+                codebook_path=dummy_cb, dictionary_path=dummy_dict
+            )
 
     def test_tamper_file_after_locking_fails_preflight(self, tmp_path):
         """Sửa tệp sau khóa (codebook hoặc dictionary) bị chặn tại preflight."""
         import scripts.annotate_cli as cli
         input_path = tmp_path / "view.json"
-        dataset_id = "REAL-PILOT-32-V1"
+        dataset_id = "TEST-TAMPER"
         sp_ver = "PILOT-PLAN-V1-FULL-OVERLAP"
-        export_blind_view([], input_path, dataset_id=dataset_id, dataset_type="real_pilot_ready", sampling_plan_version=sp_ver)
+        export_blind_view(
+            [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Content</p>"}],
+            input_path,
+            dataset_id=dataset_id,
+            dataset_type="real_pilot_ready",
+            sampling_plan_version=sp_ver,
+        )
         view_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
 
         dummy_cb = tmp_path / "CODEBOOK.md"
-        dummy_cb.write_text("# Codebook\n" + "Rules content " * 20, encoding="utf-8")
+        dummy_cb.write_text("# Codebook\n**Phiên bản:** `v1.0.0`\n**Trạng thái:** `locked`\n" + "Rules content " * 20, encoding="utf-8")
         cb_hash = hashlib.sha256(dummy_cb.read_bytes()).hexdigest()
 
         dummy_dict = tmp_path / "dictionary.json"
-        dummy_dict.write_text(json.dumps({"organizations": [{"id": f"org_{i}"} for i in range(14)]}), encoding="utf-8")
+        dummy_dict.write_text(json.dumps({
+            "dictionary_id": "org_dictionary_v1",
+            "version": "1.0.0",
+            "status": "locked",
+            "organizations": [{"id": f"org_{i}"} for i in range(14)],
+        }), encoding="utf-8")
         dict_hash = hashlib.sha256(dummy_dict.read_bytes()).hexdigest()
 
         manifest_path = tmp_path / "manifest.json"
         manifest_path.write_text(json.dumps({
             "dataset_id": dataset_id,
-            "sample_count": 0,
+            "sample_count": 1,
             "sampling_plan_version": sp_ver,
             "codebook_version": "1.0.0",
             "codebook_status": "locked",
@@ -1178,7 +1209,7 @@ class TestProvenanceAndKappaPairing:
             cli.validate_manifest_preflight(
                 manifest_path,
                 input_path,
-                {"samples": [], "dataset_id": dataset_id, "sampling_plan_version": sp_ver},
+                {"samples": [{"sample_id": "S1"}], "dataset_id": dataset_id, "sampling_plan_version": sp_ver},
                 codebook_path=dummy_cb,
                 dictionary_path=dummy_dict,
             )
@@ -1406,9 +1437,18 @@ class TestResumeStrictProvenanceAndManifestChecks:
             sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
         )
         view_hash = hashlib.sha256(blind_file.read_bytes()).hexdigest()
-        root = Path(__file__).resolve().parent.parent
-        cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-        dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        dummy_cb = tmp_path / "LOCKED_CB.md"
+        dummy_cb.write_text("# Codebook\n**Phiên bản:** `v1.0.0`\n**Trạng thái:** `locked`\n" + "Rules content " * 20, encoding="utf-8")
+        cb_hash = hashlib.sha256(dummy_cb.read_bytes()).hexdigest()
+
+        dummy_dict = tmp_path / "locked_dict.json"
+        dummy_dict.write_text(json.dumps({
+            "dictionary_id": "org_dictionary_v1",
+            "version": "1.0.0",
+            "status": "locked",
+            "organizations": [{"id": f"org_{i}"} for i in range(14)],
+        }), encoding="utf-8")
+        dict_hash = hashlib.sha256(dummy_dict.read_bytes()).hexdigest()
 
         manifest_file = tmp_path / "manifest.json"
         manifest_file.write_text(json.dumps({
@@ -1442,7 +1482,10 @@ class TestResumeStrictProvenanceAndManifestChecks:
         }
         out_file.write_text(json.dumps(bad_rec) + "\n", encoding="utf-8")
         with pytest.raises(ValueError, match="THIẾU PROVENANCE"):
-            cli_module.annotate_interactive_session("A", blind_file, out_file, manifest_path=manifest_file)
+            cli_module.annotate_interactive_session(
+                "A", blind_file, out_file, manifest_path=manifest_file,
+                codebook_path=dummy_cb, dictionary_path=dummy_dict
+            )
 
         # 2. Chuẩn bị file cũ với ĐÚNG ĐẦY ĐỦ 6 TRƯỜNG PROVENANCE cho SMP-001
         valid_rec_1 = validate_annotation_record({
@@ -1476,7 +1519,10 @@ class TestResumeStrictProvenanceAndManifestChecks:
         # 3. Tiếp tục phiên: CLI chỉ nhập SMP-002, bỏ qua SMP-001 và không ghi trùng
         mock_inputs_s2 = ["2", "1", "1", "Office", "google", "google", "1", "1", "valid s2", "n"]
         with patch("builtins.input", side_effect=mock_inputs_s2):
-            cli_module.annotate_interactive_session("A", blind_file, out_file, manifest_path=manifest_file)
+            cli_module.annotate_interactive_session(
+                "A", blind_file, out_file, manifest_path=manifest_file,
+                codebook_path=dummy_cb, dictionary_path=dummy_dict
+            )
 
         records_after = [json.loads(line) for line in out_file.read_text(encoding="utf-8").strip().split("\n")]
         assert len(records_after) == 2, f"Kỳ vọng đúng 2 bản ghi, thực tế có {len(records_after)}"
@@ -1485,7 +1531,10 @@ class TestResumeStrictProvenanceAndManifestChecks:
 
         # 4. Khi chạy lại gói đã hoàn thành: không ghi thêm bất kỳ dòng trùng nào
         with patch("builtins.input", side_effect=[]):
-            cli_module.annotate_interactive_session("A", blind_file, out_file, manifest_path=manifest_file)
+            cli_module.annotate_interactive_session(
+                "A", blind_file, out_file, manifest_path=manifest_file,
+                codebook_path=dummy_cb, dictionary_path=dummy_dict
+            )
 
         records_final = [json.loads(line) for line in out_file.read_text(encoding="utf-8").strip().split("\n")]
         assert len(records_final) == 2, "Chạy lại gói đã hoàn thành không được sinh thêm bản ghi trùng!"
@@ -1545,10 +1594,32 @@ class TestResumeStrictProvenanceAndManifestChecks:
             )
 
     @staticmethod
-    def _make_m(view_hash, **kwargs):
+    def _make_locked_artifacts(tmp_path):
+        cb_file = tmp_path / "MOCK_CODEBOOK_LOCKED.md"
+        dict_file = tmp_path / "mock_dictionary_locked.json"
+        cb_content = (
+            "# SỔ TAY QUY TẮC GÁN NHÃN\n\n"
+            "**Phiên bản:** `v1.0.0`\n"
+            "**Trạng thái:** `locked`\n"
+            + "Quy tắc gán nhãn chuẩn hóa cho dự án NCKH_2. " * 10
+        )
+        cb_file.write_text(cb_content, encoding="utf-8")
+        dict_data = {
+            "dictionary_id": "org_dictionary_v1",
+            "version": "1.0.0",
+            "status": "locked",
+            "organizations": [{"name": f"Org_{i}"} for i in range(14)],
+        }
+        dict_file.write_text(json.dumps(dict_data), encoding="utf-8")
+        cb_hash = hashlib.sha256(cb_file.read_bytes()).hexdigest()
+        dict_hash = hashlib.sha256(dict_file.read_bytes()).hexdigest()
+        return cb_file, dict_file, cb_hash, dict_hash
+
+    @staticmethod
+    def _make_m(view_hash, cb_hash=None, dict_hash=None, **kwargs):
         root = Path(__file__).resolve().parent.parent
-        cb_h = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-        dict_h = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        cb_h = cb_hash or hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        dict_h = dict_hash or hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
         base = {
             "dataset_id": "TEST-REAL",
             "sample_count": 1,
@@ -1604,10 +1675,14 @@ class TestResumeStrictProvenanceAndManifestChecks:
             cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m4)
 
         # 5. Số mẫu không khớp
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
         m5 = tmp_path / "m5.json"
-        m5.write_text(json.dumps(self._make_m(view_hash, sample_count=99)), encoding="utf-8")
+        m5.write_text(json.dumps(self._make_m(view_hash, cb_hash=cb_hash, dict_hash=dict_hash, sample_count=99)), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC SỐ MẪU"):
-            cli_module.annotate_interactive_session("A", input_blind, out_file, manifest_path=m5)
+            cli_module.annotate_interactive_session(
+                "A", input_blind, out_file, manifest_path=m5,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
 
     def test_cli_manifest_checked_before_displaying_any_sample(self, tmp_path, cli_module):
         """CLI bắt buộc kiểm tra manifest trước khi hiển thị bất kỳ mẫu nào; không được lộ mẫu khi manifest chưa duyệt."""
@@ -1792,6 +1867,7 @@ class TestResumeStrictProvenanceAndManifestChecks:
 
     def test_manifest_preflight_rejects_dictionary_disk_hash_mismatch(self, tmp_path, cli_module):
         """Preflight từ chối nếu dictionary_sha256 trong manifest không khớp configs/dictionary_v1.json trên đĩa."""
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
         input_blind = tmp_path / "view.json"
         export_blind_view(
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
@@ -1804,6 +1880,8 @@ class TestResumeStrictProvenanceAndManifestChecks:
         m_file = tmp_path / "m_dict_mismatch.json"
         m_file.write_text(json.dumps(self._make_m(
             view_hash,
+            cb_hash=cb_hash,
+            dict_hash="fake_dict_hash_mismatch_12345",
             dataset_id="TEST-DS",
             sampling_plan_version="PLAN-V1",
             sample_count=1,
@@ -1811,13 +1889,14 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM DICTIONARY"):
-            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
 
     def test_manifest_preflight_rejects_view_metadata_hash_mismatch(self, tmp_path, cli_module):
         """Preflight từ chối nếu metadata gói view khai báo hash codebook/dictionary không khớp manifest."""
-        root = Path(__file__).resolve().parent.parent
-        cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-        dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
 
         input_blind = tmp_path / "view.json"
         export_blind_view(
@@ -1835,6 +1914,8 @@ class TestResumeStrictProvenanceAndManifestChecks:
         m_file = tmp_path / "m_valid.json"
         m_file.write_text(json.dumps(self._make_m(
             view_hash,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
             dataset_id="TEST-DS",
             sampling_plan_version="PLAN-V1",
             sample_count=1,
@@ -1843,7 +1924,10 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM CODEBOOK TRONG GÓI"):
-            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
 
         # Giả lập metadata gói view khai báo sai khác hash dictionary
         data["codebook_sha256"] = cb_hash
@@ -1852,6 +1936,8 @@ class TestResumeStrictProvenanceAndManifestChecks:
         view_hash2 = hashlib.sha256(input_blind.read_bytes()).hexdigest()
         m_file.write_text(json.dumps(self._make_m(
             view_hash2,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
             dataset_id="TEST-DS",
             sampling_plan_version="PLAN-V1",
             sample_count=1,
@@ -1860,10 +1946,14 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
 
         with pytest.raises(ValueError, match="SAI KHÁC MÃ BĂM DICTIONARY TRONG GÓI"):
-            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
 
     def test_manifest_preflight_rejects_dataset_id_and_sampling_plan_mismatch(self, tmp_path, cli_module):
         """Preflight từ chối nếu dataset_id hoặc sampling_plan_version không khớp manifest."""
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
         input_blind = tmp_path / "view.json"
         export_blind_view(
             [{"sample_id": "S1", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
@@ -1878,28 +1968,36 @@ class TestResumeStrictProvenanceAndManifestChecks:
         # 1. Mismatch dataset_id
         m_file.write_text(json.dumps(self._make_m(
             view_hash,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
             dataset_id="DIFFERENT-ID",
             sampling_plan_version="PLAN-V1",
             sample_count=1,
         )), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC DATASET_ID"):
-            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
 
         # 2. Mismatch sampling_plan_version
         m_file.write_text(json.dumps(self._make_m(
             view_hash,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
             dataset_id="PACKAGE-ID-1",
             sampling_plan_version="PLAN-V2",
             sample_count=1,
         )), encoding="utf-8")
         with pytest.raises(ValueError, match="SAI KHÁC SAMPLING_PLAN"):
-            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
 
     def test_manifest_preflight_passes_when_all_conditions_and_hashes_valid(self, tmp_path, cli_module):
         """Preflight thành công mỹ mãn khi tất cả trạng thái nghiệm thu và mã băm đĩa đều khớp hoàn hảo."""
-        root = Path(__file__).resolve().parent.parent
-        cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-        dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
 
         input_blind = tmp_path / "view.json"
         export_blind_view(
@@ -1920,6 +2018,8 @@ class TestResumeStrictProvenanceAndManifestChecks:
         m_file = tmp_path / "m_good.json"
         manifest_payload = self._make_m(
             view_hash,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
             dataset_id="VALID-PILOT-V1",
             sampling_plan_version="PLAN-V1",
             sample_count=2,
@@ -1930,9 +2030,165 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )
         m_file.write_text(json.dumps(manifest_payload), encoding="utf-8")
 
-        res = cli_module.validate_manifest_preflight(m_file, input_blind, data)
+        res = cli_module.validate_manifest_preflight(
+            m_file, input_blind, data,
+            codebook_path=cb_file, dictionary_path=dict_file
+        )
         assert res["ready_for_annotation"] is True
         assert res["blind_view_sha256"] == view_hash
+
+    def test_lead_d_probe_artifact_pending_when_manifest_locked_fails(self, tmp_path, cli_module):
+        """Lead D probe: Codebook/Dictionary hiện tại trên đĩa còn pending_review; nếu manifest ghi locked và hash khớp thì preflight bắt buộc phải ném lỗi."""
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "SMP-001", "url": "https://test.invalid/", "html": "<p>Test</p>"}],
+            input_blind,
+            dataset_id="TEST-REAL",
+            sampling_plan_version="PLAN-V1",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+
+        root = Path(__file__).resolve().parent.parent
+        real_cb_hash = hashlib.sha256((root / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
+        real_dict_hash = hashlib.sha256((root / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+
+        m_file = tmp_path / "fake_locked_manifest.json"
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            cb_hash=real_cb_hash,
+            dict_hash=real_dict_hash,
+            codebook_status="locked",
+            dictionary_status="locked",
+            codebook_version="v1.0.0",
+            dictionary_version="1.0.0",
+        )), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="ARTIFACT CODEBOOK CHƯA KHÓA"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data)
+
+    def test_lead_d_probe_sample_with_mismatched_codebook_version_fails(self, tmp_path, cli_module):
+        """Lead D probe: Mẫu có codebook_version='WRONG-VERSION' bị từ chối ngay trước khi hiển thị; không ghi annotation theo version chưa kiểm."""
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
+        input_blind = tmp_path / "view_wrong_sample_cb.json"
+        samples = [
+            {"sample_id": "SMP-001", "url": "https://test.invalid/1", "html": "<p>P1</p>", "codebook_version": "v1.0.0"},
+            {"sample_id": "SMP-002", "url": "https://test.invalid/2", "html": "<p>P2</p>", "codebook_version": "WRONG-VERSION"},
+        ]
+        export_blind_view(
+            samples,
+            input_blind,
+            dataset_id="TEST-REAL",
+            sampling_plan_version="PLAN-V1",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+
+        m_file = tmp_path / "m.json"
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash,
+            cb_hash=cb_hash,
+            dict_hash=dict_hash,
+            codebook_version="v1.0.0",
+            sample_count=2,
+        )), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="SAI KHÁC PHIÊN BẢN CODEBOOK TRÊN MẪU"):
+            cli_module.validate_manifest_preflight(
+                m_file, input_blind, data,
+                codebook_path=cb_file, dictionary_path=dict_file
+            )
+
+        from unittest.mock import patch
+        out_file = tmp_path / "A_wrong_sample.jsonl"
+        with patch.object(cli_module, "display_sample_and_allow_reading") as mock_display:
+            with pytest.raises(ValueError, match="SAI KHÁC PHIÊN BẢN CODEBOOK TRÊN MẪU"):
+                cli_module.annotate_interactive_session(
+                    "A", input_blind, out_file, manifest_path=m_file,
+                    codebook_path=cb_file, dictionary_path=dict_file, dry_run=True
+                )
+            assert mock_display.call_count == 0
+
+    def test_lead_d_probe_sample_count_zero_boolean_empty_fails(self, tmp_path, cli_module):
+        """Lead D probe: sample_count=0, boolean (True/False), hoặc samples=[] bị từ chối triệt để."""
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
+        input_blind = tmp_path / "view.json"
+        export_blind_view(
+            [{"sample_id": "SMP-001", "url": "https://test.invalid/", "html": "<p>Hi</p>"}],
+            input_blind,
+            dataset_id="TEST-REAL",
+            sampling_plan_version="PLAN-V1",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+
+        m_file = tmp_path / "m.json"
+
+        # a) sample_count = 0
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash, cb_hash=cb_hash, dict_hash=dict_hash, sample_count=0
+        )), encoding="utf-8")
+        with pytest.raises(ValueError, match="sample_count trong manifest phải là số nguyên dương"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
+
+        # b) sample_count = True (boolean)
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash, cb_hash=cb_hash, dict_hash=dict_hash, sample_count=True
+        )), encoding="utf-8")
+        with pytest.raises(ValueError, match="không nhận boolean"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
+
+        # c) samples = [] (gói rỗng)
+        empty_blind = tmp_path / "empty_view.json"
+        empty_data = {
+            "dataset_id": "TEST-REAL",
+            "sampling_plan_version": "PLAN-V1",
+            "samples": [],
+        }
+        empty_blind.write_text(json.dumps(empty_data), encoding="utf-8")
+        empty_hash = hashlib.sha256(empty_blind.read_bytes()).hexdigest()
+        m_file.write_text(json.dumps(self._make_m(
+            empty_hash, cb_hash=cb_hash, dict_hash=dict_hash, sample_count=1
+        )), encoding="utf-8")
+        with pytest.raises(ValueError, match="danh sách các mẫu không rỗng"):
+            cli_module.validate_manifest_preflight(m_file, empty_blind, empty_data, codebook_path=cb_file, dictionary_path=dict_file)
+
+    def test_lead_d_probe_real_pilot_32_wrong_count_fails(self, tmp_path, cli_module):
+        """Lead D probe: Gói REAL-PILOT-32-V1 yêu cầu đúng 32 mẫu theo kế hoạch đã chốt; sai số lượng phải lỗi."""
+        cb_file, dict_file, cb_hash, dict_hash = self._make_locked_artifacts(tmp_path)
+        input_blind = tmp_path / "pilot_view_wrong_count.json"
+        # Tạo 31 mẫu thay vì 32
+        samples_31 = [{"sample_id": f"PILOT-{i:03d}", "url": f"https://test.invalid/{i}", "html": "<p>P</p>"} for i in range(1, 32)]
+        export_blind_view(
+            samples_31,
+            input_blind,
+            dataset_id="REAL-PILOT-32-V1",
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
+        )
+        view_hash = hashlib.sha256(input_blind.read_bytes()).hexdigest()
+        data = json.loads(input_blind.read_text(encoding="utf-8"))
+
+        m_file = tmp_path / "m_real32.json"
+
+        # Manifest khai báo 31 mẫu cho REAL-PILOT-32-V1 -> lỗi
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash, cb_hash=cb_hash, dict_hash=dict_hash,
+            dataset_id="REAL-PILOT-32-V1",
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
+            sample_count=31,
+        )), encoding="utf-8")
+        with pytest.raises(ValueError, match="Gói REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
+
+        # Manifest khai báo 32 mẫu nhưng gói view chỉ có 31 mẫu -> lỗi
+        m_file.write_text(json.dumps(self._make_m(
+            view_hash, cb_hash=cb_hash, dict_hash=dict_hash,
+            dataset_id="REAL-PILOT-32-V1",
+            sampling_plan_version="PILOT-PLAN-V1-FULL-OVERLAP",
+            sample_count=32,
+        )), encoding="utf-8")
+        with pytest.raises(ValueError, match="Gói view có 31 mẫu, nhưng manifest khai báo 32 mẫu"):
+            cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
 
 
 

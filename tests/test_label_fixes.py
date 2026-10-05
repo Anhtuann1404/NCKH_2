@@ -96,8 +96,26 @@ def test_real_pilot_ready_allows_session_init(tmp_path, capsys):
     output = tmp_path / "A.jsonl"
     manifest_path = tmp_path / "mock_manifest.json"
     view_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
-    cb_hash = hashlib.sha256((ROOT / "docs" / "CODEBOOK_V1.md").read_bytes()).hexdigest()
-    dict_hash = hashlib.sha256((ROOT / "configs" / "dictionary_v1.json").read_bytes()).hexdigest()
+    cb_path = tmp_path / "MOCK_CB.md"
+    cb_path.write_text(
+        "# SỔ TAY QUY TẮC GÁN NHÃN\n\n"
+        "**Phiên bản:** `v1.0.0`\n"
+        "**Trạng thái:** `locked`\n"
+        + "Quy tắc gán nhãn chuẩn hóa cho dự án NCKH_2. " * 10,
+        encoding="utf-8",
+    )
+    dict_path = tmp_path / "mock_dict.json"
+    dict_path.write_text(
+        json.dumps({
+            "dictionary_id": "org_dictionary_v1",
+            "version": "1.0.0",
+            "status": "locked",
+            "organizations": [{"name": f"Org_{i}"} for i in range(14)],
+        }),
+        encoding="utf-8",
+    )
+    cb_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
+    dict_hash = hashlib.sha256(dict_path.read_bytes()).hexdigest()
 
     manifest_path.write_text(json.dumps({
         "dataset_id": dataset_id,
@@ -113,8 +131,52 @@ def test_real_pilot_ready_allows_session_init(tmp_path, capsys):
         "codebook_sha256": cb_hash,
         "dictionary_sha256": dict_hash,
     }), encoding="utf-8")
-    # Với gói rỗng nhưng ready và manifest đã duyệt đầy đủ contract, session khởi động thành công và báo đã hoàn thành
-    cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path, dry_run=True)
+
+    # 1. Gói rỗng hoặc sample_count <= 0 bị từ chối
+    with pytest.raises(ValueError, match="sample_count"):
+        cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path, dry_run=True, codebook_path=cb_path, dictionary_path=dict_path)
+
+    # 2. Gói có mẫu hợp lệ và đã hoàn thành toàn bộ
+    samples = [{"sample_id": "SMP-01", "url": "https://test.invalid/", "html": "<p>Content</p>"}]
+    export_blind_view(
+        samples,
+        input_path,
+        dataset_id=dataset_id,
+        dataset_type="real_pilot_ready",
+        sampling_plan_version=sp_ver,
+    )
+    view_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps({
+        "dataset_id": dataset_id,
+        "sample_count": 1,
+        "sampling_plan_version": sp_ver,
+        "codebook_version": "1.0.0",
+        "codebook_status": "locked",
+        "dictionary_version": "1.0.0",
+        "dictionary_status": "locked",
+        "acceptance": {"B": "approved", "D": "approved"},
+        "ready_for_annotation": True,
+        "blind_view_sha256": view_hash,
+        "codebook_sha256": cb_hash,
+        "dictionary_sha256": dict_hash,
+    }), encoding="utf-8")
+
+    from phishing.annotation.blind_view import compute_sample_content_hash
+    content_hash = compute_sample_content_hash(json.loads(input_path.read_text(encoding="utf-8"))["samples"][0])
+    output.write_text(json.dumps({
+        "annotator_id": "A",
+        "sample_id": "SMP-01",
+        "pass_id": 1,
+        "is_dry_run": False,
+        "dataset_id": dataset_id,
+        "dataset_hash": view_hash,
+        "codebook_version": "1.0.0",
+        "codebook_hash": cb_hash,
+        "sampling_plan_version": sp_ver,
+        "sample_content_hash": content_hash,
+    }) + "\n", encoding="utf-8")
+
+    cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path, dry_run=False, codebook_path=cb_path, dictionary_path=dict_path)
     out = capsys.readouterr().out
     assert "hoàn thành toàn bộ các mẫu" in out
 
