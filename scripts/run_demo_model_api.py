@@ -15,14 +15,21 @@ def main():
     parser.add_argument('--token-file', type=Path, default=Path('.env.phishing.local'))
     parser.add_argument('--bundle', type=Path, default=Path('artifacts/models/synthetic-demo-observed-v1'),
                         help='Trusted locally built demo bundle; created once if missing')
+    parser.add_argument("--selected-fit", action="store_true", help="Load a separately exported fixture CV-fit bundle; no startup fitting")
     args = parser.parse_args()
     try:
         settings = MockSettings(local_token(args.token_file), args.extension_id, port=args.port, requests_per_minute=args.requests_per_minute)
     except (ValueError, OSError):
         parser.error('Invalid extension ID or local token configuration.')
+    model_class = SyntheticDemoModel
+    if args.selected_fit:
+        from phishing.serving.selected_demo import SelectedSyntheticModel
+        model_class = SelectedSyntheticModel
+        if not args.bundle.exists():
+            parser.error("Selected-fit bundle is missing; build it first at an explicit --bundle path.")
     try:
         if args.bundle.exists():
-            backend = SyntheticDemoModel.load(args.bundle)
+            backend = model_class.load(args.bundle)
             print('Loaded local synthetic demo bundle; no training at startup.')
         else:
             backend = SyntheticDemoModel()

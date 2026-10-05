@@ -28,6 +28,9 @@ for (const name of ['manifest.json', 'background.js', 'core.js']) {
 const sampleArg = process.argv.indexOf('--latency-samples');
 const latencyCount = sampleArg < 0 ? 0 : Number(process.argv[sampleArg + 1]);
 if (!Number.isInteger(latencyCount) || latencyCount < 0 || latencyCount > 200) throw new Error('Latency samples must be an integer from 0 to 200.');
+const selectedBundleArg = process.argv.indexOf('--selected-fit-bundle');
+const selectedBundle = selectedBundleArg < 0 ? null : path.resolve(project, process.argv[selectedBundleArg + 1] ?? '');
+if (selectedBundleArg >= 0 && !process.argv[selectedBundleArg + 1]) throw new Error('Selected-fit bundle path required.');
 const latencyRows = [];
 const checks = [];
 const apiBodies = [];
@@ -68,7 +71,7 @@ async function startAPI(scenario = 'warning', delay = 0) {
   let occupied = false;
   try { await fetch(`${apiOrigin}/health`); occupied = true; } catch { /* no service listening */ }
   if (occupied) throw new Error('Port 8765 is already in use; this test will not stop an unrelated service.');
-  processAPI = spawn(python, (scenario === 'synthetic_model' ? ['scripts/run_demo_model_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--requests-per-minute', '300'] : ['scripts/run_mock_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--scenario', scenario, '--delay-ms', String(delay)]), {
+  processAPI = spawn(python, (scenario === 'synthetic_model' ? ['scripts/run_demo_model_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--requests-per-minute', '300', ...(selectedBundle ? ['--selected-fit', '--bundle', selectedBundle] : [])] : ['scripts/run_mock_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--scenario', scenario, '--delay-ms', String(delay)]), {
     cwd: project, env: { ...process.env, PYTHONPATH: 'src', PHISHING_LOCAL_API_TOKEN: token }, stdio: ['ignore', 'ignore', 'pipe'],
   });
   let stderr = '';
@@ -158,6 +161,9 @@ try {
   checks.push('navigation_drops_old_result');
 
   await startAPI('synthetic_model');
+  const servedBundle = await (await fetch(`${apiOrigin}/v1/model`, { headers: { Authorization: `Bearer ${token}`, Origin: `chrome-extension://${extensionId}` } })).json();
+  assert.equal(servedBundle.bundle_id, selectedBundle ? 'synthetic-demo-selected-fit-v1' : 'synthetic-demo-tfidf-lr-v1');
+  if (selectedBundle) checks.push('selected_cv_fit_bundle_served');
   await page.goto(`${origin}/login.html`);
   await eventually(async () => (await savedState())?.demo_kind === 'synthetic_model' && (await savedState())?.phase === 'url_content' && (await savedState())?.status === 'completed', 'fitted TF-IDF model result through extension');
   assert.equal((await savedState()).mock, false);
@@ -258,7 +264,7 @@ try {
         summary[phase][field] = { n: values.length, p50_ms: percentile(values, 0.5), p95_ms: percentile(values, 0.95) };
       }
     }
-    const bundleManifest = JSON.parse(await readFile(path.join(project, 'artifacts/models/synthetic-demo-observed-v1/manifest.json'), 'utf8'));
+    const bundleManifest = JSON.parse(await readFile(path.join(selectedBundle ?? path.join(project, 'artifacts/models/synthetic-demo-observed-v1'), 'manifest.json'), 'utf8'));
     const latencyReport = { checked_at: report.checked_at, research_evidence: false,
       scope: 'headless Chromium loopback synthetic integration; sequential settled requests',
       client_roundtrip_definition: 'service worker before serialization/fetch through response parse/validation; includes retry delay if any',

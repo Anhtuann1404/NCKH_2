@@ -203,3 +203,6 @@ DONE fixture checks: 15 browser smoke checks đạt, gồm DOM lớn~594KB/6000p
 
 
 05/10/2026 — DEVELOP-INTEGRATION-01 (D): review PR #4/#5/#6 và ghép trên nhánh kiểm tra riêng từ develop; xung đột nhật ký được giải quyết bằng cách giữ cả hai mục. 71 Python, 13 Node và 17 Chromium checks đạt. Hai lượt fixture mặc định có 10 tệp giống từng byte; reporter xuất 48 summary rows/30 comparisons, error inspector xuất 32 cases và xác minh hash đầu vào. Checker vẫn research_training_allowed=false. Tích hợp phần D vào develop theo yêu cầu Lead; main giữ nguyên, các nhánh C chưa nghiệm thu không được ghép. Điều kiện nối model thật và lệnh chạy đã cập nhật DEVELOPMENT. Artifacts chỉ lưu local/ignored; output/ người dùng và API đang chạy được bảo toàn.
+
+
+05/10/2026 — SELECTED-FIT-BUNDLE-01 (D): xuất M0/M3 từ fit_fold cố định seed17/fold0, C/threshold chỉ chọn bằng validation, không refit. Bundle có hash từ điển fixture thực tế và provenance phân vùng/config/dataset, được nạp qua API --selected-fit không fit lúc startup. Parity 24 requests cho score/verdict đúng giữa offline và API sau lưu/tải; 77 Python, 13 Node và 18 Chromium checks đạt. Ca metadata/hash/version/provenance/threshold sai bị chặn. Làm trên codex/selected-fit-bundle từ develop; không thay bundle demo cũ, không gộp C hoặc mở training nghiên cứu. Lệnh và giới hạn ở DEVELOPMENT.
