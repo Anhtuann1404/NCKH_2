@@ -83,6 +83,12 @@ Status: DONE — tích hợp dữ liệu mô phỏng, chưa đủ điều kiện
 
 [Pipeline](../src/phishing/training/pipeline.py), [synthetic dataset](../src/phishing/training/synthetic.py), [grouped splits](../src/phishing/evaluation/grouped.py), [paired bootstrap](../src/phishing/evaluation/bootstrap.py), [runner](../src/phishing/training/experiment.py), [CLI](../scripts/run_synthetic_experiment.py), [13 tests](../tests/test_training_pipeline.py). Đã chạy 160 trang/40 nhóm, outer 5 × 3 seed, M0–M3/B-rule + 3 ablation, chọn C và ngưỡng validation, paired group-bootstrap 2000 lượt riêng từng seed. 48 Python tests đạt. Artifacts có manifest/code hash và dấu synthetic-only; chi tiết/lệnh tại DEVELOPMENT. Chưa gọi dữ liệu thật, chưa hoàn thiện dictionary/fuzzy/B-rule nghiên cứu hoặc temporal, chưa xuất bundle thật. B audit khi đã nhận việc; D tiếp tục phần không phụ thuộc dữ liệu.
 
+### ERROR-ANALYSIS-01 — Đọc lỗi M2–M3 trên fixture
+
+Status: DONE phần công cụ mô phỏng, chờ nhóm review PR vào develop. Owner: D. Nhánh codex/synthetic-error-analysis từ develop; không phụ thuộc mã ingestion C hoặc PR báo cáo #4.
+
+[CLI](../scripts/analyze_synthetic_errors.py) xuất error_cases.csv và error_summary.json từ run đã lưu: M3 sửa/sai thêm, cả hai sai, FP/FN riêng từng mô hình và ca thiếu ngưỡng, tách seed × FPR. Kiểm cohort/group/fold/threshold/decision và hash artifact nếu run có; ghi rõ recorded_only cho run cũ. Không fit, không chọn lại ngưỡng, không đọc raw URL/HTML và không nhận scope dữ liệu thật. 65 Python tests đạt; chạy phân tích run fixture 160 mẫu/40 nhóm với ba seed, hai FPR đạt. Artifacts nằm trong artifacts/runs (ignored). B kiểm lệnh PowerShell theo DEVELOPMENT; chưa xác minh trên Windows thực tế. Không thay giao thức hoặc mở training nghiên cứu.
+
 ## Đội nhóm cần điền
 
 - A — họ tên: chưa điền; giờ/tuần: chưa điền.
