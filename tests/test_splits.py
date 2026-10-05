@@ -725,3 +725,140 @@ class TestLeadDProbesRegression:
         backup_dirs = list(out_dir.parent.glob(f".backup_{out_dir.name}_*"))
         assert len(backup_dirs) == 0, "Thư mục backup chưa được dọn dẹp sạch!"
 
+    def test_backup_preserved_when_rollback_itself_fails(self, tmp_path: Path, monkeypatch) -> None:
+        """Lead D phản biện Điểm 1: Khi rollback bị lỗi (copy2 khôi phục thất bại),
+
+        khối finally KHÔNG ĐƯỢC XÓA backup; phải giữ nguyên thư mục backup và báo rõ đường dẫn.
+        """
+        import hashlib
+        import shutil
+        import contextlib
+        import io
+        from scripts.data import generate_splits
+
+        # 1. Chạy run 1 ban đầu tạo sẵn 4 artifacts
+        out_dir = tmp_path / "splits_output"
+        records_run1 = [
+            {"sample_id": f"OLD_{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            for i in range(20)
+        ]
+        in_file1 = tmp_path / "corpus1.jsonl"
+        in_file1.write_text("\n".join(json.dumps(r) for r in records_run1) + "\n", encoding="utf-8")
+
+        buf_out = io.StringIO()
+        buf_err = io.StringIO()
+        with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+            generate_splits.main([
+                "--input", str(in_file1),
+                "--output-dir", str(out_dir),
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        original_hashes = {
+            f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+            for f in out_dir.iterdir() if f.is_file()
+        }
+        assert len(original_hashes) == 4
+
+        # 2. Chuẩn bị run 2
+        records_run2 = [
+            {"sample_id": f"NEW_{i}", "url": f"https://new{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-02-{i+1:02d}"}
+            for i in range(20)
+        ]
+        in_file2 = tmp_path / "corpus2.jsonl"
+        in_file2.write_text("\n".join(json.dumps(r) for r in records_run2) + "\n", encoding="utf-8")
+
+        # Mock: Lỗi ở tệp thứ hai khi chuyển staging -> out_dir
+        real_move = shutil.move
+        move_call_count = 0
+
+        def flaky_move(src, dst):
+            nonlocal move_call_count
+            if str(out_dir) in str(dst):
+                move_call_count += 1
+                if move_call_count >= 2:
+                    raise OSError("Probe simulated transfer crash on 2nd file")
+            return real_move(src, dst)
+
+        # Mock: Lỗi khi copy2 trong quá trình khôi phục từ backup
+        def flaky_copy2(src, dst, **kwargs):
+            raise OSError("Probe simulated disk write failure during restore")
+
+        monkeypatch.setattr(shutil, "move", flaky_move)
+        monkeypatch.setattr(shutil, "copy2", flaky_copy2)
+
+        # Chạy run 2 với --overwrite -> bắt buộc phải raise ngoại lệ và thông báo backup được bảo lưu
+        with pytest.raises(Exception) as exc_info:
+            with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+                generate_splits.main([
+                    "--input", str(in_file2),
+                    "--output-dir", str(out_dir),
+                    "-k", "3",
+                    "--seeds", "42",
+                    "--overwrite",
+                ])
+
+        # 3. KIỂM ĐỊNH BẢO LƯU BACKUP:
+        # Thư mục backup KHÔNG ĐƯỢC BỊ XÓA!
+        backup_dirs = list(out_dir.parent.glob(f".backup_{out_dir.name}_*"))
+        assert len(backup_dirs) == 1, "Thư mục backup bị xóa mất khi rollback thất bại!"
+        preserved_backup = backup_dirs[0]
+
+        # Kiểm tra nội dung trong thư mục backup vẫn nguyên vẹn 100% 4 artifact của run 1
+        backup_hashes = {
+            f.name: hashlib.sha256(f.read_bytes()).hexdigest()
+            for f in preserved_backup.iterdir() if f.is_file()
+        }
+        assert backup_hashes == original_hashes, "Nội dung trong backup bị suy suyển!"
+
+        # Thông báo lỗi hoặc stderr phải chỉ rõ đường dẫn backup để phục hồi thủ công
+        err_output = buf_err.getvalue()
+        assert str(preserved_backup) in err_output or str(preserved_backup) in str(exc_info.value)
+
+    def test_temporal_and_grouped_split_unlabeled_status_not_evaluable(self) -> None:
+        """Lead D phản biện Điểm 2: Tập dữ liệu chưa có nhãn (has_labels=False)
+
+        phải trả status='not_evaluable' trên toàn bộ temporal train/validation/test
+        và is_usable=False trên grouped k-fold; nhưng vẫn xuất cấu trúc split để audit.
+        """
+        # 20 mẫu không có nhãn (tất cả là unlabeled)
+        unlabeled_records = [
+            {
+                "sample_id": f"UNL_{i:03d}",
+                "url": f"https://example{i}.com/page",
+                "group_id": f"example{i}.com",
+                "class_label": "unlabeled",
+                "collected_at": f"2025-03-{i+1:02d}",
+            }
+            for i in range(20)
+        ]
+
+        # 1. Temporal split
+        temp_res = generate_temporal_split(unlabeled_records)
+        assert temp_res["status"] == "not_evaluable"
+        assert temp_res["evaluability"]["train"]["status"] == "not_evaluable"
+        assert temp_res["evaluability"]["validation"]["status"] == "not_evaluable"
+        assert temp_res["evaluability"]["test"]["status"] == "not_evaluable"
+        assert "no labels" in temp_res["evaluability"]["train"]["reason"].lower() or "unlabeled" in temp_res["evaluability"]["train"]["reason"].lower()
+
+        # Vẫn xuất cấu trúc phân chia thời gian để audit
+        assert len(temp_res["train_indices"]) > 0
+        assert len(temp_res["train_date_range"]) == 2
+
+        # 2. Grouped k-fold split
+        group_res = generate_grouped_kfold(
+            records=unlabeled_records,
+            n_splits=3,
+            seeds=[42],
+        )
+        assert 42 in group_res
+        for fold in group_res[42]:
+            assert fold["is_usable"] is False
+            assert fold["class_sufficiency"]["status"] == "unlabeled"
+            assert "no labels" in fold["unusable_reason"].lower() or "unlabeled" in fold["unusable_reason"].lower()
+            # Cấu trúc index vẫn đầy đủ để audit
+            assert len(fold["train_indices"]) > 0
+            assert len(fold["test_indices"]) > 0
+
+

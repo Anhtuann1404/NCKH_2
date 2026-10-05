@@ -609,6 +609,7 @@ def test_evaluate_kappa_pilot_rejects_altered_random_subset(tmp_path):
     assert "cờ 'random_subset' không khớp kế hoạch pilot đã khóa" in proc.stderr or "LỖI TẬP MẪU KAPPA" in proc.stderr
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not (PROJECT_ROOT / "data" / "annotations" / "blind_view_pilot_real.json").is_file(),
     reason="Chỉ chạy khi có dữ liệu thật blind_view_pilot_real.json trên môi trường tích hợp",

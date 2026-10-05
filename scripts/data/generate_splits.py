@@ -431,6 +431,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             shutil.copytree(output_dir, backup_dir)
 
         publish_success = False
+        rollback_completed = False
         try:
             # Xử lý rõ ràng artifact temporal của run trước khi overwrite hoặc skip (Khắc phục Probe 3)
             old_temporal = output_dir / "temporal_splits.json"
@@ -454,16 +455,38 @@ def main(argv: Optional[List[str]] = None) -> int:
                     shutil.rmtree(item, ignore_errors=True)
 
             if backup_dir and backup_dir.exists():
-                for bkp_item in backup_dir.iterdir():
-                    if bkp_item.is_file():
-                        shutil.copy2(bkp_item, output_dir / bkp_item.name)
-                    elif bkp_item.is_dir():
-                        shutil.copytree(bkp_item, output_dir / bkp_item.name)
-                print(f"[!] Đã khôi phục hoàn toàn trạng thái artifacts trước đó từ backup.", file=sys.stderr)
+                try:
+                    for bkp_item in backup_dir.iterdir():
+                        if bkp_item.is_file():
+                            shutil.copy2(bkp_item, output_dir / bkp_item.name)
+                        elif bkp_item.is_dir():
+                            shutil.copytree(bkp_item, output_dir / bkp_item.name)
+                    rollback_completed = True
+                    print(f"[!] Đã khôi phục hoàn toàn trạng thái artifacts trước đó từ backup.", file=sys.stderr)
+                except Exception as rb_exc:
+                    rollback_completed = False
+                    print(
+                        f"[CRITICAL] Khôi phục từ backup thất bại: {rb_exc}. "
+                        f"BẢO LƯU THƯ MỤC BACKUP ĐẦY ĐỦ TẠI: {backup_dir} ĐỂ PHỤC HỒI THỦ CÔNG.",
+                        file=sys.stderr,
+                    )
+                    raise RuntimeError(
+                        f"Công bố artifacts thất bại ({exc}) và quá trình rollback cũng gặp lỗi ({rb_exc}). "
+                        f"Thư mục backup nguyên vẹn được bảo lưu tại: {backup_dir}"
+                    ) from exc
+            else:
+                rollback_completed = True
             raise
         finally:
             if backup_dir and backup_dir.exists():
-                shutil.rmtree(backup_dir, ignore_errors=True)
+                if publish_success or rollback_completed:
+                    shutil.rmtree(backup_dir, ignore_errors=True)
+                else:
+                    print(
+                        f"[!] BẢO LƯU BACKUP AN TOÀN: Không xóa thư mục sao lưu tại {backup_dir} "
+                        f"để phục hồi thủ công do rollback không hoàn tất.",
+                        file=sys.stderr,
+                    )
 
         print(f"[+] Saved Group index: {output_dir / 'groups.json'} ({len(group_counts)} groups)")
         print(f"[+] Saved Grouped {args.n_splits}-Fold splits: {output_dir / 'grouped_5fold_splits.json'}")

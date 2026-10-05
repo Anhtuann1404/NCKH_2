@@ -325,6 +325,8 @@ def generate_grouped_kfold(
 
             if not has_labels:
                 class_status = "unlabeled"
+                is_usable = False
+                unusable_reasons.append("Corpus has no labels (all samples unlabeled); not eligible for model evaluation")
             elif len(all_corpus_labels) < 2:
                 class_status = "insufficient_classes"
                 is_usable = False
@@ -589,7 +591,10 @@ def generate_temporal_split(
     if len(raw_train_entries) == 0:
         train_eval_status = "not_evaluable"
         train_eval_reason = "Train set is empty"
-    elif has_labels:
+    elif not has_labels:
+        train_eval_status = "not_evaluable"
+        train_eval_reason = "Corpus has no labels (all samples unlabeled); not eligible for model evaluation"
+    else:
         if len(all_labels) < 2 or missing_corpus_targets:
             train_eval_status = "not_evaluable"
             train_eval_reason = (
@@ -606,7 +611,10 @@ def generate_temporal_split(
     if len(clean_val_entries) == 0:
         val_eval_status = "not_evaluable"
         val_eval_reason = "All validation samples purged due to group overlap with train"
-    elif has_labels:
+    elif not has_labels:
+        val_eval_status = "not_evaluable"
+        val_eval_reason = "Corpus has no labels (all samples unlabeled); not eligible for model evaluation"
+    else:
         if len(all_labels) < 2 or missing_corpus_targets:
             val_eval_status = "not_evaluable"
             val_eval_reason = (
@@ -623,7 +631,10 @@ def generate_temporal_split(
     if len(clean_test_entries) == 0:
         test_eval_status = "not_evaluable"
         test_eval_reason = "All test samples purged due to group overlap with past (train/val)"
-    elif has_labels:
+    elif not has_labels:
+        test_eval_status = "not_evaluable"
+        test_eval_reason = "Corpus has no labels (all samples unlabeled); not eligible for model evaluation"
+    else:
         if len(all_labels) < 2 or missing_corpus_targets:
             test_eval_status = "not_evaluable"
             test_eval_reason = (
