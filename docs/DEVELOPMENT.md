@@ -440,3 +440,22 @@ UI chỉ hiển thị mã tín hiệu đã biết bằng câu chữ cố định
 Sau khi cập nhật nhánh, chạy `npm run build` tại extension rồi bấm Reload ở chrome://extensions. Dừng API demo cũ trong terminal bằng Ctrl+C và chạy lại launcher với ID extension của máy mình. Mặc định bundle mới là `artifacts/models/synthetic-demo-observed-v1`: lần đầu tạo từ fixture, lần sau tải local không fit. Bundle cũ được giữ nguyên vì loader kiểm source hash và sẽ từ chối bundle tạo từ mã nguồn khác. Không dùng bundle từ người lạ.
 
 Kiểm tra: 62 Python tests, 13 Node tests và 17 Chromium smoke checks đạt trên macOS; ảnh popup ở artifacts/smoke/observed-popup.png (ignored). Chưa kiểm trực tiếp Windows. Không đọc pilot/corpus thật, không mở training nghiên cứu và không thay giao thức đã duyệt.
+
+
+### Kiểm tra tích hợp develop — 05/10/2026
+
+Phần D của PR #4/#5/#6 được review và kiểm tra chung trên nhánh codex/d-develop-integration trước khi đưa vào develop. 71 Python tests, 13 Node tests và 17 Chromium smoke checks đạt. Hai lượt runner mặc định (160 mẫu hư cấu/40 nhóm, 5 outer fold × 3 seed, 8 variants, 2.000 bootstrap) cho 10 tệp kết quả giống nhau từng byte. Có 48 dòng summary, 30 paired comparisons và 32 dòng ca lỗi; hash đầu vào của inspector khớp run manifest. Đây là kiểm tra phần mềm trên fixture, không là bằng chứng hiệu quả phát hiện website thật.
+
+Chạy từ repo gốc (đặt tên output mới cho mỗi lượt):
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/check_training_inputs.py --demo-fixture
+PYTHONPATH=src .venv/bin/python scripts/run_synthetic_experiment.py --output artifacts/runs/my-fixture-run
+PYTHONPATH=src .venv/bin/python scripts/analyze_synthetic_errors.py --run artifacts/runs/my-fixture-run --output artifacts/runs/my-fixture-errors
+```
+
+Runner dùng cohort chung, nhóm không giao nhau và chọn C/threshold bằng validation; test chỉ đánh giá. Reporter không gộp seed thành mẫu độc lập; inspector dùng nguyên ngưỡng đã lưu, kiểm hashes và không ghi đè run. Unit tests kiểm đầu vào sai, trộn nhóm/ID, nhãn/quyết định lệch, thiếu operating point, hash bị sửa và bảo vệ output cũ. Checker input fixture vẫn trả research_training_allowed=false.
+
+Lượt nghiệm thu local nằm ở artifacts/runs/develop-integration-20261005 và develop-integration-errors-20261005 (ignored). Không ngắt API 8765 của người dùng. Windows cần B kiểm độc lập.
+
+Điều kiện nối model thật: corpus/index/exclusion và nhãn cuối đã nghiệm thu; vấn đề tiếp xúc nhãn AI của pilot đã được xử lý; split/group và dictionary/codebook đã khóa; preprocessing/capture mode phù hợp luồng serving. Sau đó D mới kiểm readiness theo hợp đồng C, xuất bundle đúng preprocessing/dictionary/feature version và threshold validation, rồi kiểm parity API–extension. Runner hiện tại chỉ nhận fixture, không tự chuyển bundle demo thành model nghiên cứu và không tự mở training thật.
