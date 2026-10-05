@@ -459,3 +459,26 @@ Runner dùng cohort chung, nhóm không giao nhau và chọn C/threshold bằng 
 Lượt nghiệm thu local nằm ở artifacts/runs/develop-integration-20261005 và develop-integration-errors-20261005 (ignored). Không ngắt API 8765 của người dùng. Windows cần B kiểm độc lập.
 
 Điều kiện nối model thật: corpus/index/exclusion và nhãn cuối đã nghiệm thu; vấn đề tiếp xúc nhãn AI của pilot đã được xử lý; split/group và dictionary/codebook đã khóa; preprocessing/capture mode phù hợp luồng serving. Sau đó D mới kiểm readiness theo hợp đồng C, xuất bundle đúng preprocessing/dictionary/feature version và threshold validation, rồi kiểm parity API–extension. Runner hiện tại chỉ nhận fixture, không tự chuyển bundle demo thành model nghiên cứu và không tự mở training thật.
+
+
+### Xuất một CV-fit mô phỏng sang API–extension
+
+Chế độ selected-fit cố định seed 17/fold 0 trước khi xem test, dùng fit_fold hiện có cho M0/M3. C được chọn bằng validation AP (hòa chọn C nhỏ), ngưỡng chọn trên validation tại FPR mục tiêu 5%, không refit với validation. Đây là một bundle kiểm thử serving, không là mô hình tổng hợp từ CV hoặc kết quả nghiên cứu. Test metrics từ fit_fold không dùng để chọn bundle và không xuất vào provenance.
+
+```sh
+PYTHONPATH=src .venv/bin/python scripts/build_demo_bundle.py --selected-fit --output artifacts/models/my-selected-fit
+PYTHONPATH=src .venv/bin/python scripts/run_demo_model_api.py --selected-fit --bundle artifacts/models/my-selected-fit --extension-id YOUR_EXTENSION_ID
+```
+
+Output phải là đường dẫn mới, không ghi đè bundle cũ. API selected-fit bắt buộc bundle đã tồn tại; thiếu/sai sẽ dừng, không tự fit hoặc chuyển sang demo khác. Chỉ dùng bundle tự tạo cục bộ: joblib có thể thực thi mã, checksum không xác thực một người gửi đáng tin cậy. Không nạp bundle tải lên hay nhận từ nguồn ngoài.
+
+Manifest lưu preprocessing/feature/runtime/source versions & hashes, predictor checksum, hash từ điển fixture thực tế, config/dataset hashes, ID các phân vùng, seed/fold, C và chỉ số validation. Loader kiểm metadata/provenance trước deserialize; sau load kiểm từ điển trong predictor và tái tính validation để đối chiếu threshold/AP/metrics. Không fit trên load path. Scope luôn synthetic_fixture_only, research_evidence=false, chưa nối hợp đồng corpus C hoặc mở training thật.
+
+Kiểm tra Chromium bằng bundle này (đường dẫn tương đối tính từ repo gốc):
+
+```sh
+cd extension
+npm run test:browser -- --selected-fit-bundle artifacts/models/my-selected-fit
+```
+
+Lượt nghiệm thu: 77 Python tests, 13 Node tests và 18 Chromium checks đạt. Parity kiểm 24 request URL-only/stored_html/rendered_dom từ outer-test fixture: score và verdict khớp pipeline offline sau lưu/tải; empty content vẫn unable_to_assess. Các ca thiếu metadata, sai checksum/versions/identity/provenance và threshold bị sửa đều bị từ chối. Bundle tham chiếu local ở artifacts/models/selected-fit-reviewed-v1; các artifact bị ignore. Chưa kiểm trực tiếp Windows. Demo mặc định và API đang chạy của người dùng được giữ nguyên.
