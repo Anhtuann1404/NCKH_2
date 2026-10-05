@@ -1,0 +1,90 @@
+================================================================================
+TỔNG HỢP TIN NHẮN BÀN GIAO GÓI REAL-PILOT-32-V1 GỬI THÀNH VIÊN A VÀ THÀNH VIÊN B
+Dự án: NCKH_2 — Phát hiện website phishing mạo danh tổ chức
+Gói dữ liệu: REAL-PILOT-32-V1 (v1.0.0 đã kích hoạt)
+================================================================================
+
+--------------------------------------------------------------------------------
+MỤC 1: TIN NHẮN GỬI RIÊNG CHO THÀNH VIÊN A (Trần Hồng Khải)
+(Kèm file đính kèm: data/annotations/blind_view_pilot_real.json)
+--------------------------------------------------------------------------------
+
+Chào Khải (Thành viên A),
+
+Gói dữ liệu Blind View REAL-PILOT-32-V1 (v1.0.0) đã được Lead D chính thức phê duyệt nghiệm thu và kích hoạt mở đợt gán nhãn Pass 1 tại commit cd15fe5.
+
+1. Khải chạy lệnh sau để kéo mã nguồn và manifest kích hoạt mới nhất:
+   git pull origin feat/data-pipeline
+
+2. Tớ gửi kèm file `blind_view_pilot_real.json` qua tin nhắn riêng này (do file dữ liệu thật được bảo mật, không đưa lên Git):
+   - Dung lượng: 22,485 bytes
+   - Mã SHA-256: 8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749
+   - Số lượng mẫu: Đúng 32 mẫu (ID từ PILOT-001 đến PILOT-032).
+   -> Khải lưu file này vào đúng thư mục: data/annotations/blind_view_pilot_real.json
+
+3. Lệnh khởi chạy phiên gán nhãn Pass 1 có bấm giờ của Khải:
+   python scripts/annotate_cli.py --annotator A --input data/annotations/blind_view_pilot_real.json --output data/annotations/A/labels_pass1.jsonl --pass 1
+
+4. Một số lưu ý quan trọng:
+   - Độc lập mù: Không trao đổi kết quả với B trong suốt Pass 1.
+   - Không dùng AI để quyết định nhãn.
+   - Đồng hồ bấm giờ tự động tính cả thời gian đọc toàn văn và duyệt trang ('v', 'm'), Khải tập trung khi mở từng mẫu nhé.
+   - Nếu bị gián đoạn, chỉ cần chạy lại câu lệnh trên, CLI sẽ tự động resume từ mẫu kế tiếp.
+
+Chúc Khải hoàn thành tốt lượt gán nhãn Pass 1!
+
+--------------------------------------------------------------------------------
+MỤC 2: TIN NHẮN GỬI RIÊNG CHO THÀNH VIÊN B (Phùng Tấn Minh)
+(Kèm file đính kèm: data/annotations/blind_view_pilot_real.json)
+--------------------------------------------------------------------------------
+
+Chào Minh (Thành viên B),
+
+Gói dữ liệu Blind View REAL-PILOT-32-V1 (v1.0.0) đã được Lead D chính thức phê duyệt nghiệm thu và kích hoạt mở đợt gán nhãn Pass 1 tại commit cd15fe5.
+
+1. Minh chạy lệnh sau để kéo mã nguồn và manifest kích hoạt mới nhất:
+   git pull origin feat/data-pipeline
+
+2. Tớ gửi kèm file `blind_view_pilot_real.json` qua tin nhắn riêng này (do file dữ liệu thật được bảo mật, không đưa lên Git):
+   - Dung lượng: 22,485 bytes
+   - Mã SHA-256: 8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749
+   - Số lượng mẫu: Đúng 32 mẫu (ID từ PILOT-001 đến PILOT-032).
+   -> Minh lưu file này vào đúng thư mục: data/annotations/blind_view_pilot_real.json
+
+3. Lệnh khởi chạy phiên gán nhãn Pass 1 có bấm giờ của Minh:
+   python scripts/annotate_cli.py --annotator B --input data/annotations/blind_view_pilot_real.json --output data/annotations/B/labels_pass1.jsonl --pass 1
+
+4. Một số lưu ý quan trọng:
+   - Độc lập mù: Không trao đổi kết quả với A trong suốt Pass 1.
+   - Không dùng AI để quyết định nhãn.
+   - Đồng hồ bấm giờ tự động tính cả thời gian đọc toàn văn và duyệt trang ('v', 'm'), Minh tập trung khi mở từng mẫu nhé.
+   - Nếu bị gián đoạn, chỉ cần chạy lại câu lệnh trên, CLI sẽ tự động resume từ mẫu kế tiếp.
+
+Chúc Minh hoàn thành tốt lượt gán nhãn Pass 1!
+
+--------------------------------------------------------------------------------
+MỤC 3: TIN NHẮN GỬI CHUNG VÀO NHÓM CHAT (CHO CẢ A VÀ B)
+--------------------------------------------------------------------------------
+
+Thông báo tới Thành viên A (Trần Hồng Khải) và Thành viên B (Phùng Tấn Minh):
+
+Lead D đã chính thức phê duyệt và kích hoạt gói dữ liệu thật REAL-PILOT-32-V1 (v1.0.0). Hai bạn có thể bắt đầu phiên gán nhãn Pass 1 độc lập có bấm giờ ngay từ bây giờ:
+
+1. Kéo cập nhật Git mới nhất:
+   git pull origin feat/data-pipeline
+
+2. Nhận file dữ liệu `blind_view_pilot_real.json` qua tin nhắn riêng từ tớ, đặt vào:
+   data/annotations/blind_view_pilot_real.json
+   (Kiểm tra mã SHA-256: 8be1c642e5534eeaad01b0ab9d2e8fc6d428ec131585631102a791e0f8d9a749)
+
+3. Lệnh chạy Pass 1:
+   - A: python scripts/annotate_cli.py --annotator A --input data/annotations/blind_view_pilot_real.json --output data/annotations/A/labels_pass1.jsonl --pass 1
+   - B: python scripts/annotate_cli.py --annotator B --input data/annotations/blind_view_pilot_real.json --output data/annotations/B/labels_pass1.jsonl --pass 1
+
+4. Quy tắc bắt buộc:
+   - Độc lập 100%, không xem kết quả của nhau trong suốt Pass 1.
+   - Không dùng AI quyết định nhãn.
+   - Sau khi hoàn thành, gửi lại tệp labels_pass1.jsonl cho C để tính chỉ số Cohen's Kappa và xuất báo cáo bất đồng thuận cho Lead D.
+
+Chi tiết hướng dẫn đầy đủ xem tại docs/BAN_GIAO_PASS1_CHO_A_VA_B.txt.
+================================================================================
