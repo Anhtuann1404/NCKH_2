@@ -38,6 +38,10 @@ import csv
 import hashlib
 import io
 import json
+import re
+import shutil
+import tempfile
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Set, Tuple, Union
@@ -49,7 +53,7 @@ from phishing.data.grouping import extract_group_id
 from phishing.preprocessing import PreparedSnapshot, prepare_snapshot
 from phishing.preprocessing.urls import normalize_url
 
-ADAPTER_VERSION = "2.0.0"
+ADAPTER_VERSION = "2.1.0"
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +82,7 @@ class CorpusRecord:
     url_error: Optional[str]
     source_label: str  # "phishing", "benign", hoặc "out_of_scope:..." / "unlabeled"
     raw_source_label: str  # Nhãn nguyên bản từ nguồn
-    label_status: str  # "verified_binary", "out_of_scope", "missing"
+    label_status: str  # "source_binary_unverified", "out_of_scope", "missing"
     target: Optional[str]
     source_tier: Optional[str] = None  # PhishVN tier: gold, silver, bronze, tier1...
     source_sub_source: Optional[str] = None  # PhishVN sub-source
@@ -157,6 +161,10 @@ class CorpusRecord:
             )
 
         html_to_use = html_content if html_content is not None else self.raw_html
+        if self.html_sha256 and (html_to_use is None or _compute_sha256(html_to_use) != self.html_sha256):
+            raise ValueError("Snapshot HTML checksum mismatch")
+        if self.capture_mode == "url_only" and html_to_use is not None:
+            raise ValueError("URL-only record cannot silently acquire HTML")
         if self.capture_mode != "url_only" and html_to_use is None:
             raise ValueError(
                 f"Bản ghi có capture_mode='{self.capture_mode}' nhưng không có nội dung HTML để nạp snapshot."
@@ -286,7 +294,7 @@ def adapt_source_row_to_record(
     # 5. Ánh xạ nhãn nghiêm ngặt (Khắc phục Probe 2)
     # Tuyệt đối không tự động đổi nhãn thiếu hoặc ngoài phạm vi thành benign
     label_exclusion: Optional[str] = None
-    raw_source_label = str(raw_label or "").strip()
+    raw_source_label = str(raw_label if raw_label is not None else "").strip()
     raw_lower = raw_source_label.lower()
 
     if not raw_source_label:
@@ -295,10 +303,10 @@ def adapt_source_row_to_record(
         label_exclusion = "missing_source_label"
     elif raw_lower in {"phish", "phishing", "1", "true"}:
         source_label = "phishing"
-        label_status = "verified_binary"
+        label_status = "source_binary_unverified"
     elif raw_lower in {"benign", "0", "false"}:
         source_label = "benign"
-        label_status = "verified_binary"
+        label_status = "source_binary_unverified"
     elif raw_lower in {"malware", "defacement"}:
         source_label = f"out_of_scope:{raw_source_label}"
         label_status = "out_of_scope"
@@ -309,7 +317,9 @@ def adapt_source_row_to_record(
         label_exclusion = f"unsupported_label:{raw_source_label}"
 
     # 6. Bảo toàn capture_mode đã xác minh (Khắc phục Probe 7)
-    if capture_mode:
+    if capture_mode is not None:
+        if capture_mode not in {"stored_html", "rendered_dom", "url_only"}:
+            raise ValueError("Invalid capture_mode")
         actual_capture_mode = capture_mode
     elif raw_html is not None:
         actual_capture_mode = "stored_html"
@@ -318,6 +328,8 @@ def adapt_source_row_to_record(
 
     # 7. Tổng hợp lý do loại trừ (Exclusion Reasons)
     exclusion_reasons: List[str] = []
+    if group_id == "unknown":
+        exclusion_reasons.append("invalid_group_id")
     if not is_valid_url:
         exclusion_reasons.append(f"invalid_url: {url_err}")
     if checksum_exclusion:
@@ -371,6 +383,36 @@ def adapt_source_row_to_record(
     )
 
 
+def file_sha256(path: Path) -> str:
+    with path.open("rb") as handle:
+        return hashlib.file_digest(handle, "sha256").hexdigest()
+
+
+def verify_source_file(path: Path, manifest_path, source_id: str) -> tuple[dict, dict]:
+    if manifest_path is None:
+        raise ValueError("Real ingestion requires a source manifest")
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    revision = manifest.get("revision")
+    if manifest.get("source_id") != source_id or not isinstance(revision, str) or not revision.strip() or revision in {"unverified", "unspecified"}:
+        raise ValueError("Source identity/revision mismatch")
+    if source_id == "phreshphish" and (manifest.get("source_split") != "train"
+            or not re.fullmatch(r"[0-9a-f]{40}", revision)):
+        raise ValueError("Require pinned train revision; official test is not eligible")
+    if manifest.get("source_split") not in {"train", "unspecified"}:
+        raise ValueError("Unsupported source split")
+    matches = [e for e in manifest.get("files", [])
+               if Path(e.get("relative_path", "")).name == path.name and e.get("file_name") == path.name]
+    if len(matches) != 1:
+        raise ValueError("Source file not uniquely present in manifest")
+    entry = matches[0]
+    expected = entry.get("source_metadata_lfs_sha256") or entry.get("locally_verified_sha256") or entry.get("sha256")
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise ValueError("Manifest lacks byte SHA-256")
+    if type(entry.get("byte_size")) is not int or entry["byte_size"] != path.stat().st_size or file_sha256(path) != expected:
+        raise ValueError("Source file byte checksum/size mismatch")
+    return manifest, entry
+
+
 def load_phreshphish_shard(
     shard_path: Union[str, Path],
     *,
@@ -382,7 +424,7 @@ def load_phreshphish_shard(
 ) -> Iterator[CorpusRecord]:
     """Nạp các bản ghi từ một tệp Parquet của PhreshPhish.
 
-    ID ổn định: PP-<shard_stem>-R<row_offset:06d>.
+    ID ổn định: PP-<revision>-<shard_stem>-R<row_offset:06d>.
     Đối soát xuất xứ với configs/source_manifest.json.
     """
     import pyarrow.parquet as pq
@@ -394,70 +436,45 @@ def load_phreshphish_shard(
     shard_stem = path.stem  # ví dụ 'train-000'
     shard_name = path.name
 
-    # 1. Kiểm tra đối chiếu xuất xứ với source_manifest.json
-    source_revision = "unverified"
-    source_split = "unverified"
-    manifest_match = False
-
-    if source_manifest_path is not None:
-        man_p = Path(source_manifest_path)
-        if man_p.is_file():
-            man_data = json.loads(man_p.read_text(encoding="utf-8"))
-            source_revision = man_data.get("revision", "unverified")
-            source_split = man_data.get("source_split", "train")
-            # Tìm shard trong danh mục files
-            for f_info in man_data.get("files", []):
-                if f_info.get("file_name") == shard_name or f_info.get("relative_path", "").endswith(shard_name):
-                    manifest_match = True
-                    break
-
-    if is_real_data_mode and source_manifest_path and not manifest_match:
-        raise ValueError(
-            f"Shard '{shard_name}' không tìm thấy trong danh mục nguồn source_manifest.json!"
-        )
-
-    # 2. Đọc bảng Parquet
-    table = pq.read_table(
-        path,
-        columns=["url", "html", "label", "sha256", "date", "lang"],
-    )
-
+    if limit is not None and (type(limit) is not int or limit < 0):
+        raise ValueError("limit must be a nonnegative integer")
+    if is_real_data_mode:
+        if exclusion_registry is None or verify_checksum is not True:
+            raise ValueError("Real ingestion requires registry and checksum verification")
+        manifest, entry = verify_source_file(path, source_manifest_path, "phreshphish")
+        source_revision, source_split = manifest["revision"], manifest["source_split"]
+    else:
+        source_revision, source_split = "unverified", "unverified"
+    source_sha = file_sha256(path)
+    parquet = pq.ParquetFile(path)
+    required = {"url", "html", "label", "date"}
+    if not required <= set(parquet.schema.names):
+        raise ValueError("Missing source schema columns")
+    columns = sorted(required | ({"sha256", "lang"} & set(parquet.schema.names)))
     count = 0
-    for row_idx, row in enumerate(table.to_pylist()):
-        if limit is not None and count >= limit:
-            break
-
-        sample_id = f"PP-{shard_stem}-R{row_idx:06d}"
-        locator = {
-            "source_id": "phreshphish",
-            "shard": shard_name,
-            "row_offset": row_idx,
-        }
-
-        record = adapt_source_row_to_record(
-            sample_id=sample_id,
-            source_id="phreshphish",
-            source_revision=source_revision,
-            source_split=source_split,
-            locator=locator,
-            raw_url=row.get("url") or "",
-            raw_html=row.get("html"),
-            raw_date=row.get("date"),
-            raw_label=row.get("label"),
-            target=None,
-            language=str(row.get("lang") or "unknown"),
-            capture_mode="stored_html" if row.get("html") is not None else "url_only",
-            exclusion_registry=exclusion_registry,
-            precomputed_html_sha256=row.get("sha256"),
-            is_real_data_mode=is_real_data_mode,
-        )
-        yield record
-        count += 1
+    for batch in parquet.iter_batches(batch_size=128, columns=columns):
+        for row in batch.to_pylist():
+            if limit is not None and count >= limit:
+                return
+            locator = {"source_id": "phreshphish", "shard": path.name,
+                       "row_offset": count, "source_file_sha256": source_sha}
+            yield adapt_source_row_to_record(
+                sample_id=f"PP-{source_revision}-{shard_stem}-R{count:06d}",
+                source_id="phreshphish", source_revision=source_revision,
+                source_split=source_split, locator=locator,
+                raw_url=row.get("url") or "", raw_html=row.get("html"),
+                raw_date=row.get("date"), raw_label=row.get("label"), target=None,
+                language=str(row.get("lang") or "unknown"),
+                capture_mode="stored_html" if row.get("html") is not None else "url_only",
+                exclusion_registry=exclusion_registry, precomputed_html_sha256=row.get("sha256"),
+                is_real_data_mode=is_real_data_mode)
+            count += 1
 
 
 def load_phishvn_records(
     source_path: Union[str, Path],
     *,
+    source_manifest_path: Optional[Union[str, Path]] = None,
     exclusion_registry: Optional[ExclusionRegistry] = None,
     limit: Optional[int] = None,
     is_real_data_mode: bool = True,
@@ -465,45 +482,58 @@ def load_phishvn_records(
     """Nạp các bản ghi từ nguồn PhishVN (tệp ZIP hoặc CSV).
 
     Bảo toàn source_tier (gold/silver/bronze) và source_sub_source.
-    ID ổn định: PVN-<file_stem>-R<row_offset:06d>.
+    ID ổn định: PVN-<revision>-<file_stem>-<file_hash>-R<row_offset:06d>.
     """
     path = Path(source_path)
     if not path.is_file():
         raise FileNotFoundError(f"Không tìm thấy tệp PhishVN tại '{path}'")
 
-    csv_bytes = b""
-    file_identifier = path.stem
-    if path.suffix.lower() == ".zip":
-        with zipfile.ZipFile(path) as archive:
-            candidate_files = [f for f in archive.namelist() if f.endswith("dataset_url.csv")]
-            if not candidate_files:
-                raise ValueError("Không tìm thấy tệp 'dataset_url.csv' trong kho lưu trữ ZIP PhishVN.")
-            csv_bytes = archive.read(candidate_files[0])
-            file_identifier = "dataset_url"
-    elif path.suffix.lower() == ".csv":
-        csv_bytes = path.read_bytes()
+    if is_real_data_mode:
+        if exclusion_registry is None:
+            raise ValueError("Real ingestion requires exclusion registry")
+        manifest, _ = verify_source_file(path, source_manifest_path, "phishvn")
+        revision, split = manifest["revision"], manifest["source_split"]
     else:
-        raise ValueError(f"Định dạng nguồn PhishVN không được hỗ trợ: '{path.suffix}'")
-
-    reader = csv.DictReader(io.StringIO(csv_bytes.decode("utf-8-sig")))
+        revision, split = "unverified", "unverified"
+    source_sha = file_sha256(path)
+    def iter_rows():
+        if path.suffix.lower() == ".zip":
+            with zipfile.ZipFile(path) as archive:
+                matches = [name for name in archive.namelist() if name.endswith("dataset_url.csv")]
+                if len(matches) != 1:
+                    raise ValueError("Require exactly one dataset_url.csv in archive")
+                with archive.open(matches[0]) as raw, io.TextIOWrapper(raw, encoding="utf-8-sig") as text:
+                    reader = csv.DictReader(text)
+                    if not {"url", "label"} <= set(reader.fieldnames or []):
+                        raise ValueError("PhishVN schema missing url/label")
+                    yield from reader
+        elif path.suffix.lower() == ".csv":
+            with path.open(encoding="utf-8-sig", newline="") as text:
+                reader = csv.DictReader(text)
+                if not {"url", "label"} <= set(reader.fieldnames or []):
+                    raise ValueError("PhishVN schema missing url/label")
+                yield from reader
+        else:
+            raise ValueError("Unsupported PhishVN source format")
 
     count = 0
-    for row_idx, row in enumerate(reader):
+    for row_idx, row in enumerate(iter_rows()):
         if limit is not None and count >= limit:
             break
 
-        sample_id = f"PVN-{file_identifier}-R{row_idx:06d}"
+        sample_id = f"PVN-{revision}-{path.stem}-{source_sha}-R{row_idx:06d}"
         locator = {
             "source_id": "phishvn",
             "file": path.name,
+            "source_file_sha256": source_sha,
             "row_offset": row_idx,
         }
 
         record = adapt_source_row_to_record(
             sample_id=sample_id,
             source_id="phishvn",
-            source_revision="v3.1.0_open",
-            source_split=row.get("split") or "train",
+            source_revision=revision,
+            source_split=split,
             locator=locator,
             raw_url=row.get("url") or "",
             raw_html=None,
@@ -552,32 +582,29 @@ def reconstitute_html_from_locator(
         shard_name = locator.get("shard")
         if not shard_name:
             raise ValueError("Locator thiếu 'shard'")
-        shard_path = base_dir / shard_name
-        if not shard_path.is_file():
-            # Thử tìm trực tiếp
-            shard_path = Path(shard_name)
-        if not shard_path.is_file():
-            raise FileNotFoundError(f"Không tìm thấy shard tại '{shard_path}'")
-
-        table = pq.read_table(shard_path, columns=["html"])
-        html_list = table["html"].to_pylist()
-        if row_offset < 0 or row_offset >= len(html_list):
-            raise IndexError(f"row_offset={row_offset} vượt quá số dòng ({len(html_list)})")
-
-        html_content = html_list[row_offset]
-        if html_content is not None and expected_sha is not None:
-            computed_sha = _compute_sha256(html_content)
-            if computed_sha != expected_sha:
-                raise ValueError(
-                    f"TOÀN VẸN THẤT BẠI: HTML đọc lại có sha256={computed_sha}, "
-                    f"không khớp với index={expected_sha}"
-                )
-        return html_content
+        shard_path = (base_dir / shard_name).resolve()
+        if not shard_path.is_relative_to(base_dir.resolve()):
+            raise ValueError("Locator escapes source root")
+        if type(row_offset) is not int or row_offset < 0:
+            raise ValueError("Invalid row offset")
+        if locator.get("source_file_sha256") and file_sha256(shard_path) != locator["source_file_sha256"]:
+            raise ValueError("Source shard checksum mismatch")
+        offset = 0
+        for batch in pq.ParquetFile(shard_path).iter_batches(batch_size=128, columns=["html"]):
+            if row_offset < offset + batch.num_rows:
+                html_content = batch.column(0)[row_offset - offset].as_py()
+                if expected_sha is not None and (html_content is None or _compute_sha256(html_content) != expected_sha):
+                    raise ValueError("HTML checksum mismatch or missing content")
+                return html_content
+            offset += batch.num_rows
+        raise IndexError("Row offset outside shard")
 
     elif source_id == "synthetic":
         # Hỗ trợ fixture / synthetic JSONL
         file_name = locator.get("file")
-        fpath = base_dir / file_name if file_name else base_dir
+        fpath = (base_dir / file_name).resolve() if file_name else base_dir.resolve()
+        if not fpath.is_relative_to(base_dir.resolve()) or type(row_offset) is not int or row_offset < 0:
+            raise ValueError("Invalid fixture locator")
         if not fpath.is_file():
             raise FileNotFoundError(f"Không tìm thấy fixture file '{fpath}'")
         with open(fpath, "r", encoding="utf-8") as f:
@@ -585,21 +612,20 @@ def reconstitute_html_from_locator(
                 if idx == row_offset:
                     row = json.loads(line)
                     html = row.get("html") or row.get("raw_html")
-                    if html and expected_sha:
-                        computed_sha = _compute_sha256(html)
-                        if computed_sha != expected_sha:
-                            raise ValueError("Mã băm HTML không khớp")
+                    if expected_sha and (html is None or _compute_sha256(html) != expected_sha):
+                        raise ValueError("Mã băm HTML không khớp hoặc mất nội dung")
                     return html
         return None
 
     return None
 
 
-def filter_eligible_records(records: Iterable[CorpusRecord]) -> List[CorpusRecord]:
+def filter_eligible_records(records: Iterable[CorpusRecord], *, require_date: bool = False) -> List[CorpusRecord]:
     """Chọn lọc tập bản ghi đủ điều kiện nghiên cứu (không bị loại trừ bởi ExclusionRegistry hay lỗi)."""
     return [
         r for r in records
-        if r.exclusion_reason is None and r.is_valid_url and r.date_status == "valid"
+        if r.exclusion_reason is None and r.is_valid_url and r.date_status != "invalid"
+        and (not require_date or r.date_status == "valid")
     ]
 
 
@@ -616,11 +642,18 @@ def join_verified_labels_and_filter_eligible(
     3. Áp dụng chốt chặn phòng vệ ExclusionRegistry một lần nữa nếu được cung cấp.
     4. Trả về tập dữ liệu sạch, an toàn, sẵn sàng cho Grouped K-Fold / Temporal Split.
     """
+    if exclusion_registry is None:
+        raise ValueError("Verified-label join requires exclusion registry")
+    exclusion_registry.assert_training_allowed()
     eligible_joined: List[Dict[str, Any]] = []
+    seen = set()
 
     for idx_rec in index_records:
         sid = idx_rec.get("sample_id")
-        if not sid or sid not in labels_vault:
+        if not sid or sid in seen:
+            raise ValueError("Missing/duplicate index sample_id")
+        seen.add(sid)
+        if sid not in labels_vault:
             continue
 
         vault_entry = labels_vault[sid]
@@ -638,7 +671,14 @@ def join_verified_labels_and_filter_eligible(
         if label_status != "verified_binary":
             continue
 
-        verified_label = vault_entry.get("source_label")
+        # A source adapter cannot confer verification. Require final-label provenance.
+        if (vault_entry.get("sample_id") != sid
+                or vault_entry.get("html_sha256") != idx_rec.get("html_sha256")
+                or not vault_entry.get("verification_method")
+                or not vault_entry.get("verified_by")
+                or not vault_entry.get("verification_evidence")):
+            continue
+        verified_label = vault_entry.get("class_label")
         if verified_label not in {"phishing", "benign"}:
             continue
 
@@ -668,7 +708,7 @@ def join_verified_labels_and_filter_eligible(
     return eligible_joined
 
 
-def build_corpus_index(
+def _build_corpus_index(
     records: Iterable[CorpusRecord],
     *,
     output_index_path: Optional[Union[str, Path]] = None,
@@ -756,11 +796,11 @@ def build_corpus_index(
         "total_excluded_records": sum(exclusion_counts.values()),
         "exclusion_breakdown": exclusion_counts,
         # CHỐT CHẶN HUẤN LUYỆN (Khắc phục Probe 1)
-        "ready_for_training": False if training_blocked else (total_records > 0 and sum(exclusion_counts.values()) == 0),
-        "training_readiness_status": "audit_only_training_blocked" if training_blocked else "ready",
+        "ready_for_training": False,
+        "training_readiness_status": "audit_only_training_blocked" if training_blocked else "audit_only_labels_unverified",
         "readiness_reason": (
             "Training is blocked per ARS guidelines (pilot exclusion registry active, audit in progress)"
-            if training_blocked else "All records verified eligible"
+            if training_blocked else "Source labels are not final verified labels; index is audit-only"
         ),
     }
 
@@ -769,12 +809,12 @@ def build_corpus_index(
 
     if output_index_path is not None:
         idx_p = Path(output_index_path)
-        manifest["index_file_sha256"] = _compute_sha256(idx_p.read_bytes())
+        manifest["index_file_sha256"] = file_sha256(idx_p)
         manifest["index_relative_path"] = str(idx_p)
 
     if output_vault_path is not None:
         v_p = Path(output_vault_path)
-        manifest["vault_file_sha256"] = _compute_sha256(v_p.read_bytes())
+        manifest["vault_file_sha256"] = file_sha256(v_p)
         manifest["vault_relative_path"] = str(v_p)
 
     if output_manifest_path is not None:
@@ -783,6 +823,58 @@ def build_corpus_index(
         man_p.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     return total_records, manifest
+
+
+def build_corpus_index(records: Iterable[CorpusRecord], **kwargs) -> Tuple[int, Dict[str, Any]]:
+    """Stage all outputs before publication; preserve previous files on any read/write failure."""
+    keys = ("output_index_path", "output_vault_path", "output_manifest_path")
+    targets = {key: Path(kwargs[key]).resolve() for key in keys if kwargs.get(key) is not None}
+    if not targets:
+        return _build_corpus_index(records, **kwargs)
+    parents = {path.parent for path in targets.values()}
+    if len(parents) != 1 or len(set(targets.values())) != len(targets):
+        raise ValueError("Index, vault and manifest must have distinct paths in one dedicated run directory")
+    parent = next(iter(parents))
+    parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=".index-staging-", dir=parent.parent))
+    backup = staging / "backup"
+    backup.mkdir()
+    published = []
+    preserve_backup = False
+    try:
+        staged_kwargs = dict(kwargs)
+        for key, path in targets.items():
+            staged_kwargs[key] = staging / path.name
+        count, manifest = _build_corpus_index(records, **staged_kwargs)
+        for key, field in (("output_index_path", "index_relative_path"), ("output_vault_path", "vault_relative_path")):
+            if key in targets:
+                manifest[field] = str(targets[key])
+        if "output_manifest_path" in targets:
+            (staging / targets["output_manifest_path"].name).write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        for path in targets.values():
+            if path.exists():
+                shutil.copy2(path, backup / path.name)
+        try:
+            for path in targets.values():
+                os.replace(staging / path.name, path)
+                published.append(path)
+        except Exception as error:
+            try:
+                for path in published:
+                    saved = backup / path.name
+                    if saved.exists():
+                        shutil.copy2(saved, path)
+                    else:
+                        path.unlink(missing_ok=True)
+            except Exception as rollback_error:
+                preserve_backup = True
+                raise RuntimeError(f"Index rollback failed; retained backup: {backup}") from rollback_error
+            raise error
+        return count, manifest
+    finally:
+        if not preserve_backup:
+            shutil.rmtree(staging)
 
 
 def extract_labels_vault(records: Iterable[CorpusRecord]) -> Dict[str, Dict[str, Any]]:

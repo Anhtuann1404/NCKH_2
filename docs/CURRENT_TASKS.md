@@ -13,7 +13,7 @@ Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày 
 - DONE — scaffold DEV-01 của D: preprocessing URL/HTML, URL/DOM/text draft, primitive domain/UGC, CLI fixture, môi trường và 17 unittest; chưa là pipeline đã khóa.
 - PENDING_REVIEW — DATA-01: C đã hoàn tất audit date 56 shards (498.255 dòng), strict date parser, exclusion registry (20 pilot samples với trạng thái unresolved mapping), khóa môi trường dữ liệu win32/CPython 3.13; chờ Lead D nghiệm thu.
 - PENDING_REVIEW — DATA-02: C đã hoàn tất cập nhật domain matcher dùng chung (ưu tiên UGC không phụ thuộc thứ tự), xử lý forms.office.com và S3/Azure/GCS, sửa Kappa khi Pe=1, cập nhật dictionary_v1.json (SHA-256: `61acff28ad48322ff7d4fc1ff5ef4a1a440cee70651192c0999bac94fea36d28`) và CODEBOOK_V1.md sang trạng thái pending_review; chờ B rà soát và D nghiệm thu.
-- DONE (phần C) — import/index dữ liệu cho DEV-01: CorpusRecord chuẩn hóa 11 trường DATA_PROTOCOL.md, to_prepared_snapshot chống rò rỉ nhãn, adapter PhreshPhish & PhishVN, tích hợp ExclusionRegistry, CLI index_corpus.py; 10/10 unittests đạt (181/181 toàn dự án).
+- PENDING_REVIEW (phần C) — import/index dữ liệu cho DEV-01: CorpusRecord chuẩn hóa 11 trường DATA_PROTOCOL.md, to_prepared_snapshot chống rò rỉ nhãn, adapter PhreshPhish & PhishVN, tích hợp ExclusionRegistry, CLI index_corpus.py; 10/10 unittests đạt (181/181 toàn dự án).
 - TODO — pilot nhãn (A và B đang thực hiện Pass 1), dữ liệu chính, mô hình, API và extension.
 
 `TODO` chưa làm; `IN_PROGRESS` đang có công việc thực; `BLOCKED` có phụ thuộc cụ thể; `DONE` có sản phẩm kiểm tra được; `PENDING_REVIEW` đã hoàn thành kỹ thuật kèm bằng chứng, chờ nghiệm thu. Không đánh dấu DONE chỉ vì đã có mô tả.
@@ -51,50 +51,35 @@ Bằng chứng: [dictionary_v1.json](../configs/dictionary_v1.json), [CODEBOOK_V
 
 ### LABEL-01 — View mù và pilot có bấm giờ
 
-Status: PENDING_REVIEW (Đã xử lý sự cố pilot V1; V1 bị vô hiệu hóa và đóng băng nguyên trạng; đã xây dựng gói mới REAL-PILOT-32-V2 gồm 32 mẫu sạch kiểm định 3 tầng, manifest V2 ở trạng thái pending_lead_acceptance, exclusion registry cô lập 84 mẫu; sẵn sàng chờ Lead D nghiệm thu trước khi mở gán nhãn). Owner: C tạo view & rào chắn; A/B đọc độc lập 100% thủ công không dùng AI. Phụ thuộc: DATA-02.
+Status: PENDING_REVIEW / BLOCKED_REBUILD_REQUIRED. Owner: C; D hỗ trợ vá mã.
+V1 invalidated, giữ mọi bằng chứng cũ. V2 hiện tại chưa chứng minh nguồn thật và
+nhãn từng nằm trên Git chung; chưa được dùng cho Kappa/PLAN-01. Manifest vẫn đóng.
+Builder mới đọc source rows đã kiểm hash; không có dữ liệu thật mới được tạo trong bản vá.
+C/D còn phải bàn giao raw exposure evidence, shard nguồn và xác nhận phạm vi A/B đã xem.
+Hướng dẫn: [báo cáo V2](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).
+Registry 84 là tổng lượt entry; chưa phải số mẫu duy nhất đã dedup.
 
-Đã hoàn thành toàn diện phần việc của Thành viên C (bao gồm xử lý sự cố pilot V1 do A thừa nhận dùng AI và 20 mẫu trùng tập dượt):
-1. **Đóng băng nguyên trạng và vô hiệu hóa REAL-PILOT-32-V1:**
-   - Cập nhật [`configs/pilot_manifest.json`](../configs/pilot_manifest.json) sang `status: "invalidated"`, `ready_for_annotation: false`, bổ sung `invalidation_metadata`.
-   - Giữ nguyên toàn bộ tệp nhãn của A/B, blind view và logs của V1 để phục vụ kiểm toán khoa học; loại bỏ vĩnh viễn khỏi việc tính Cohen's Kappa hoặc nghiệm thu PLAN-01.
-2. **Xây dựng gói pilot mới REAL-PILOT-32-V2:**
-   - 32 mẫu thực tế độc lập (20 phishing, 12 benign).
-   - Kiểm định đối chiếu 3 tầng (URL, raw HTML byte SHA-256, domain group eTLD+1): 0 trùng URL, 0 trùng HTML, 0 trùng domain group với V1 và tập dượt; 32 domain groups độc lập hoàn toàn.
-   - Script tạo gói: [`build_real_pilot_v2.py`](../scripts/data/build_real_pilot_v2.py).
-3. **Mù hóa tuyệt đối và bảo mật nguồn gốc:**
-   - Blind view [`data/annotations/blind_view_pilot_real_v2.json`](../data/annotations/blind_view_pilot_real_v2.json) (SHA-256: `b5249858c2dfe8531f5d4f8ccca5ef70d6f107f882d5853117ca1eec0e80c48b`) ẩn 100% nhãn nguồn, target tổ chức, domain group.
-   - Restricted source mapping [`data/raw/pilot_v2/source_mapping.json`](../data/raw/pilot_v2/source_mapping.json) lưu trữ cục bộ bảo mật cho C và Lead D.
-   - Manifest V2 [`configs/pilot_manifest_v2.json`](../configs/pilot_manifest_v2.json) khóa ở trạng thái `pending_lead_acceptance`, `ready_for_annotation: false`, `acceptance: {"D": "pending", "B": "pending"}`.
-4. **Cô lập dữ liệu trong Exclusion Registry:**
-   - Cập nhật [`data/exclusion_registry.json`](../data/exclusion_registry.json) bổ sung entry `EXCL-PILOT-02`, nâng tổng số mẫu cô lập lên 84 (20 kỹ thuật + 32 V1 + 32 V2), khóa cứng huấn luyện (`training_blocked: true`).
-5. **Tài liệu và Kiểm thử:**
-   - Báo cáo sự cố: [`docs/PILOT_INCIDENT_REPORT.md`](PILOT_INCIDENT_REPORT.md).
-   - Báo cáo bàn giao V2: [`docs/BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md`](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).
-   - Bộ kiểm thử hồi quy [`tests/test_pilot_v2.py`](../tests/test_pilot_v2.py): 6/6 tests passed. Toàn bộ dự án đạt 209/209 tests passed (100%).
+### DEV-01 — Scaffold parser/features và ingestion
 
+Status: PENDING_REVIEW (phần ingestion C). D giữ quyền nghiệm thu.
+Bản vá D 06/10/2026:
+- Dữ liệu thật bắt buộc registry và source manifest riêng đúng nguồn; kiểm SHA/size,
+  revision/split/schema trước nạp. Không gắn official train cho tệp chỉ trùng tên.
+- PhreshPhish Parquet và PhishVN CSV/ZIP đọc theo batch/stream; ID chứa revision,
+  shard hoặc hash file và row. Bảo toàn tier/sub-source, ngày và capture mode.
+- Source label chỉ mang trạng thái source_binary_unverified. Vault này không phải
+  ground truth; join cần class_label cuối, verified_by/method/evidence, sample ID và
+  HTML hash trùng index; registry.assert_training_allowed phải chạy trước fit join.
+- Index luôn audit-only, không trở thành training-ready chỉ do đổi cờ registry.
+  Stage cả index/vault/manifest trước publish; lỗi read/write giữ run cũ, rollback
+  lỗi giữ backup để phục hồi. Index không chứa raw URL/HTML/nhãn/target.
+- Snapshot và locator kiểm hash nội dung; nhóm tenant lấy trước che query;
+  thiếu ngày vẫn dùng được cho grouped audit, temporal yêu cầu ngày hợp lệ.
+- CLI PhishVN cần --source-manifest của PhishVN do C xác minh; không dùng manifest
+  PhreshPhish để suy ra revision của PhishVN. Không tải hoặc mở corpus thật trong bản vá.
 
-### PLAN-01 — Khóa quy mô và kế hoạch audit
-
-Status: TODO. Owner: D + A/B/C. Phụ thuộc: LABEL-01.
-
-Áp dụng quy tắc 2.000→1.200 nếu trung bình >5 phút/phishing hoặc thiếu giờ; nếu vẫn quá tải thì ghi quy mô thấp hơn trước kết quả. Khóa mẫu 30% ngẫu nhiên, audit lớp ~200 và tiêu chí hard benign. Done khi có sampling plan, seed, giờ dự phòng và quyết định cỡ mẫu.
-
-### DEV-01 — Scaffold parser/features và môi trường
-
-Status: PENDING_REVIEW (C đã hoàn tất phần import/index; D đã hoàn tất phần scaffold và demo). Owner: D (preprocessing/features/serving); C (import/index dữ liệu). Phụ thuộc: có thể chuẩn bị bằng fixture trước DATA-02.
-
-Tạo môi trường, khóa dependency, module preprocessing và fixture domain/UGC/HTML không có nội dung thật. Done khi fixture chứng minh không thực thi HTML, không fetch mạng, không dùng labels/metadata làm features. Chưa huấn luyện tập chính ở bước này.
-
-**Bằng chứng phần D (04/10/2026):** [preprocessing](../src/phishing/preprocessing/__init__.py), [features](../src/phishing/features/__init__.py), [domain rules](../src/phishing/features/domains.py), [CLI](../scripts/inspect_snapshot.py), [tests](../tests/test_preprocessing.py), [domain tests](../tests/test_domain_rules.py), [fixture](../tests/fixtures/synthetic_login.html), [environment](../configs/dev_environment.lock.json). 17 tests đạt và CLI chạy bằng CPython 3.14.6; lệnh ở DEVELOPMENT. Version dev-0, chưa fit TF-IDF/mô hình, chưa phân nhóm eTLD+1 và chưa kiểm parity DOM trình duyệt.
-
-**Bằng chứng phần C (05/10/2026):** [loader](../src/phishing/data/loader.py), [CLI index_corpus](../scripts/data/index_corpus.py), [tests](../tests/test_loader.py). Đạt 12/12 unittests (tổng dự án 194/194 passed):
-1. **Chốt loại trừ pilot đóng kín:** Không cho phép nạp real data nếu thiếu `ExclusionRegistry` (chỉ cho phép khi có cờ tường minh `--allow-unverified-fixture` dành cho fixture kiểm thử). `to_prepared_snapshot()` ném `ValueError` ngay khi gặp mẫu bị đánh dấu loại trừ, chặn đứng 100% rò rỉ vào feature extractor của D. Cung cấp hàm `filter_eligible_records` và `join_verified_labels_and_filter_eligible` để sàng lọc mẫu hợp lệ trước split/fit. Khóa trạng thái trong manifest: `ready_for_training=False`, `training_readiness_status="audit_only_training_blocked"`.
-2. **Ánh xạ nhãn chặt chẽ theo schema:** Nhãn rỗng/thiếu được gán `missing_source_label`, nhãn ngoài phạm vi phân loại (malware, defacement trong PhishVN) được gán `out_of_scope_label`, tuyệt đối không tự ý chuyển thành benign. Bảo toàn thông tin `source_tier` (gold/silver/bronze) và `source_sub_source` của PhishVN.
-3. **ID ổn định theo shard/offset và an toàn đa shard:** ID ràng buộc định danh shard và row offset (`PP-{shard}-R{row:06d}`, `PVN-{file}-R{row:06d}`), không phụ thuộc thứ tự xử lý. Hỗ trợ chạy đa shard qua `--shards` và `--source-manifest`. CLI có cơ chế bảo vệ chống ghi đè: từ chối chạy vào thư mục output đã có artifacts trừ khi có cờ `--overwrite`. Xử lý streaming tuần tự theo batch, không giữ toàn bộ raw HTML trong RAM.
-4. **Kiểm tra Checksum và nguồn gốc dữ liệu:** Tính toán SHA-256 từ nội dung HTML thực tế; phát hiện mismatch và tự động đánh dấu loại trừ (`html_sha256_mismatch`). Đối chiếu shards với `source_manifest.json`. Ghi nhận đầy đủ mã băm SHA-256 của các tệp nguồn, phiên bản adapter (`2.0.0`), exclusion registry SHA-256 trong manifest.
-5. **Grouping tenant chuẩn xác từ unredacted URL:** Trích xuất `group_id` từ URL chuẩn tắc ban đầu trước khi che mờ query values với `_redacted_`, đảm bảo phân biệt chính xác tenant của forms.office.com (`tenant:forms.office.com:id=...`) giữa các tenant khác nhau, trong khi `normalized_url` ở snapshot vẫn che query values.
-6. **Tách biệt rõ ràng Technical Index và Restricted Vault:** `corpus_index.jsonl` chỉ chứa `locator`, `normalized_url`, `group_id`, `html_sha256`... tuyệt đối không chứa `raw_url`, `source_label`, `target`. Kho `restricted_vault.jsonl` lưu riêng biệt raw URLs và nhãn mặt đất. Cung cấp hàm `reconstitute_html_from_locator` đọc lại HTML chính xác từ shard và kiểm tra mã băm.
-7. **Bảo toàn Date metadata và Capture mode:** Phân định rõ 3 trạng thái ngày `valid` / `missing` / `invalid` (ngày sai lịch 2024-02-30 đánh dấu `invalid`). Bảo toàn `capture_mode` (`rendered_dom` không bị hạ cấp thành `stored_html`).
+Bằng chứng: tests/test_loader.py, tests/test_data_repair.py. Chờ C/D chạy integration
+trên shard thật và hồ sơ nhãn cuối; không mở training trong đợt sửa này.
 
 ### DATA-03 — Engine phân chia Grouped 5-Fold & Temporal Split
 
@@ -109,7 +94,7 @@ Status: PENDING_REVIEW. Owner: C. Phụ thuộc: DATA-01, DATA-02.
    - [`tests/test_evaluate_kappa.py`](../tests/test_evaluate_kappa.py): Toàn bộ unit test pilot sử dụng fixture tự sinh độc lập và truyền trực tiếp `--pilot-manifest` của fixture vào câu lệnh CLI, loại bỏ hoàn toàn việc fallback về đường dẫn mặc định chứa dữ liệu hạn chế, bảo đảm 100% pass trên checkout sạch.
    - Bổ sung đánh dấu `@pytest.mark.integration` cho test dùng manifest/gói thật (`test_evaluate_kappa_real_default_manifest`).
    - Bổ sung cấu hình `addopts = --capture=sys` trong [`pytest.ini`](../pytest.ini) để bảo đảm stream capture an toàn trong bộ nhớ RAM, chống lỗi cạn dung lượng đĩa hệ thống.
-6. **Bằng chứng kiểm thử:** Đạt 36/36 tests tại [`test_splits.py`](../tests/test_splits.py) (bao gồm test bảo lưu backup khi rollback lỗi và test dữ liệu unlabeled), 15/15 tests tại [`test_evaluate_kappa.py`](../tests/test_evaluate_kappa.py). Toàn bộ dự án đạt 211/211 tests pass (100% trên môi trường đầy đủ) và 210 passed, 1 deselected (trên checkout sạch với `-m "not integration"`).
+6. **Bằng chứng kiểm thử:** Đạt 36/36 tests tại [`test_splits.py`](../tests/test_splits.py) (bao gồm test bảo lưu backup khi rollback lỗi và test dữ liệu unlabeled), 15/15 tests tại [`test_evaluate_kappa.py`](../tests/test_evaluate_kappa.py). Các số toàn suite trước đây là báo cáo của C; kiểm tra độc lập tại 69dbe24: 206 passed, 4 failed, 1 deselected trên checkout sạch. Bản vá D bổ sung unit test tự chứa và tách các test cần gói riêng.
 
 Bằng chứng: [grouping.py](../src/phishing/data/grouping.py), [splits.py](../src/phishing/data/splits.py), [generate_splits.py](../scripts/data/generate_splits.py), [evaluate_kappa.py](../scripts/evaluate_kappa.py), [test_splits.py](../tests/test_splits.py), [test_evaluate_kappa.py](../tests/test_evaluate_kappa.py).
 
@@ -173,3 +158,7 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 - Hỗ trợ đa nguồn: Viết adapter cho cả PhreshPhish Parquet shards và PhishVN CSV/ZIP, kèm scheme fallback xác định cho URL và strict date parser.
 - Viết CLI `scripts/data/index_corpus.py` hỗ trợ đa nền tảng UTF-8, xuất `corpus_index.jsonl` và `index_manifest.json` ghi nhận đầy đủ mã băm SHA-256.
 - Bổ sung 10 unit tests tại `tests/test_loader.py`. Toàn bộ dự án đạt 181/181 unit tests pass (100%). Sẵn sàng bàn giao cho Lead D.
+
+06/10/2026 — D hỗ trợ C trên nhánh codex/c-pilot-v2-repair: sửa nguồn/provenance, snapshot integrity, nhãn nguồn chưa kiểm chứng, index staging; V2 xây lại từ nguồn đã kiểm hash. DATA-03/DEV-01/LABEL-01 tiếp tục PENDING_REVIEW; không mở huấn luyện hay pilot thật.
+
+Kiểm thử bản vá D: 225 passed, 5 integration deselected, 32 subtests passed (`python -m pytest tests -q -m "not integration"`). 5 integration test cần gói hạn chế chưa được nghiệm thu; không ghi chúng là passed.

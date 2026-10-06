@@ -120,6 +120,17 @@ VALID_DOMAIN_ROLES = frozenset({
 })
 
 
+def assert_pilot_review_status(manifest: Dict[str, Any]) -> None:
+    """Common gate for annotation and evaluation; hashes alone do not confer approval."""
+    if manifest.get("status") in {"invalidated", "blocked_rebuild_required"}:
+        raise ValueError("PILOT BLOCKED: invalidated/unverified package cannot be opened")
+    if manifest.get("dataset_id") == "REAL-PILOT-32-V2":
+        if (manifest.get("source_verification_status") != "verified_pinned_train_rows"
+                or manifest.get("exposure_review") != {"A": "approved", "B": "approved", "D": "approved"}
+                or type(manifest.get("sample_count")) is not int or manifest["sample_count"] != 32):
+            raise ValueError("PILOT V2 BLOCKED: source/exposure/count review incomplete")
+
+
 def assert_neutral_sample_id(sample_id: Any) -> None:
     """Kiểm tra mã định danh mẫu phải là ID trung tính do C cấp, cấm chứa nhãn hay tên tổ chức."""
     sid_str = str(sample_id).strip()

@@ -28,6 +28,7 @@ Kiểm tra toàn diện 7 điểm probe và chỉ đạo nghiệm thu của Lead
 """
 
 import json
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -145,7 +146,7 @@ def test_to_prepared_snapshot_blocks_excluded_record():
         excluded_rec.to_prepared_snapshot()
 
 
-def test_filter_eligible_records_and_join_verified_labels():
+def test_filter_eligible_records_and_join_verified_labels(tmp_path):
     """Kiểm tra chọn tập đủ điều kiện và gộp nhãn đã kiểm chứng trước split/fit."""
     records = [
         CorpusRecord(
@@ -207,7 +208,14 @@ def test_filter_eligible_records_and_join_verified_labels():
     index_dicts = [r.to_index_dict() for r in records]
     vault = {r.sample_id: r.to_vault_dict() for r in records}
 
-    joined = join_verified_labels_and_filter_eligible(index_dicts, vault)
+    reg_path = tmp_path / "verified-registry.json"
+    reg_path.write_text(json.dumps({"training_blocked": False, "exclusions": [{"exclusion_id": "fixture-exclusion", "mapping_status": "resolved", "rows_api_revision_pinned": True, "samples": [{"url_sha256": "0" * 64}]}]}))
+    registry = ExclusionRegistry(reg_path)
+    # Imported source vault alone is never ground truth.
+    assert join_verified_labels_and_filter_eligible(index_dicts, vault, registry) == []
+    vault["S1"].update(class_label="phishing", html_sha256="h1", verified_by="reviewer",
+                       verification_method="manual_adjudication", verification_evidence="restricted-log")
+    joined = join_verified_labels_and_filter_eligible(index_dicts, vault, registry)
     assert len(joined) == 1
     assert joined[0]["sample_id"] == "S1"
     assert joined[0]["class_label"] == "phishing"
@@ -420,7 +428,7 @@ def test_capture_mode_rendered_dom_preserved():
         raw_url="https://dom-rendered.org/",
         normalized_url="https://dom-rendered.org/",
         group_id="domain:dom-rendered.org",
-        html_sha256="sha",
+        html_sha256=hashlib.sha256(b"<html><body>DOM snapshot</body></html>").hexdigest(),
         source_provided_html_sha256=None,
         html_integrity_status="computed_only",
         language="en",
@@ -465,8 +473,8 @@ def test_multi_shard_stable_unique_sample_ids(tmp_path):
     recs0 = list(load_phreshphish_shard(shard0, is_real_data_mode=False))
     recs1 = list(load_phreshphish_shard(shard1, is_real_data_mode=False))
 
-    assert recs0[0].sample_id == "PP-train-000-R000000"
-    assert recs1[0].sample_id == "PP-train-001-R000000"
+    assert recs0[0].sample_id == "PP-unverified-train-000-R000000"
+    assert recs1[0].sample_id == "PP-unverified-train-001-R000000"
     assert recs0[0].sample_id != recs1[0].sample_id
 
 

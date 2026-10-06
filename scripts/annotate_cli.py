@@ -44,6 +44,9 @@ from phishing.annotation import (
 )
 
 
+from phishing.annotation.blind_view import assert_pilot_review_status
+
+
 CLASS_LABEL_CHOICES = {
     "1": "phishing",
     "2": "benign",
@@ -306,6 +309,8 @@ def validate_manifest_preflight(
     except Exception as e:
         raise ValueError(f"LỖI MANIFEST: Tệp manifest '{manifest_path}' không đúng định dạng JSON: {e}")
 
+    assert_pilot_review_status(manifest_data)
+
     # =========================================================================
     # A. BẮT BUỘC ĐỦ CÁC TRƯỜNG CONTRACT TRONG MANIFEST
     # =========================================================================
@@ -391,7 +396,7 @@ def validate_manifest_preflight(
 
     # Riêng REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu theo kế hoạch đã chốt
     manifest_dataset_id = str(manifest_data["dataset_id"]).strip()
-    if manifest_dataset_id == "REAL-PILOT-32-V1" and manifest_total != 32:
+    if manifest_dataset_id in {"REAL-PILOT-32-V1", "REAL-PILOT-32-V2"} and manifest_total != 32:
         raise ValueError(
             f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu theo kế hoạch đã chốt (nhận: {manifest_total})."
         )

@@ -101,14 +101,14 @@ def _load_jsonl_records(
 
             yield adapt_source_row_to_record(
                 sample_id=sample_id,
-                source_id=row.get("source_id", "synthetic"),
-                source_revision=row.get("source_revision", "fixture-dev-0"),
-                source_split=row.get("source_split", "train"),
+                source_id="synthetic",
+                source_revision="fixture-dev-0",
+                source_split="unverified",
                 locator=locator,
                 raw_url=row.get("url") or row.get("raw_url") or "",
                 raw_html=row.get("html") or row.get("raw_html"),
                 raw_date=row.get("date") or row.get("collected_at"),
-                raw_label=row.get("label") or row.get("source_label"),
+                raw_label=row.get("label", row.get("source_label")),
                 target=row.get("target"),
                 language=str(row.get("lang") or row.get("language") or "en"),
                 capture_mode=row.get("capture_mode"),
@@ -176,6 +176,10 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.limit is not None and args.limit < 0:
+        parser.error("--limit must be nonnegative")
+    if args.allow_unverified_fixture and args.source in {"phreshphish", "phishvn"}:
+        parser.error("--allow-unverified-fixture is only for jsonl/synthetic")
 
     # 1. Bảo vệ chống ghi đè (Atomic / Non-overwrite Protection - Khắc phục Probe 3)
     output_dir = Path(args.output_dir)
@@ -183,7 +187,7 @@ def main() -> None:
     manifest_file = output_dir / "index_manifest.json"
     vault_file = output_dir / "restricted_vault.jsonl"
 
-    if (index_file.exists() or manifest_file.exists()) and not args.overwrite:
+    if output_dir.exists() and any(output_dir.iterdir()) and not args.overwrite:
         logger.error(
             f"Thư mục output '{output_dir}' đã chứa artifacts chỉ mục cũ. "
             "Yêu cầu dùng thư mục run mới hoặc truyền rõ cờ '--overwrite' để ghi đè."
@@ -242,6 +246,9 @@ def main() -> None:
         logger.error("Yêu cầu chỉ định ít nhất một trong '--input-path' hoặc '--shards'.")
         sys.exit(1)
 
+    if not input_files or len({p.resolve() for p in input_files}) != len(input_files):
+        parser.error("Input list is empty or contains duplicate shards")
+
     # 4. Tính toán mã băm của các tệp nguồn (Khắc phục Probe 4)
     file_hashes: List[Dict[str, Any]] = []
     for f in input_files:
@@ -278,6 +285,7 @@ def main() -> None:
             elif args.source == "phishvn":
                 shard_iter = load_phishvn_records(
                     f,
+                    source_manifest_path=source_manifest_path,
                     exclusion_registry=reg,
                     limit=remaining_limit,
                     is_real_data_mode=is_real_data,
@@ -287,7 +295,7 @@ def main() -> None:
                     f,
                     exclusion_registry=reg,
                     limit=remaining_limit,
-                    id_prefix=args.id_prefix or "SYNTH",
+                    id_prefix=(args.id_prefix or "SYNTH") + "-" + _compute_file_sha256(f),
                 )
 
             for rec in shard_iter:
@@ -310,7 +318,12 @@ def main() -> None:
 
     training_blocked = True
     if reg is not None:
-        training_blocked = reg.training_blocked
+        try:
+            reg.assert_training_allowed()
+        except RuntimeError:
+            training_blocked = True
+        else:
+            training_blocked = False
 
     total_records, manifest = build_corpus_index(
         record_generator(),

@@ -410,12 +410,15 @@ def evaluate(
             raise ValueError(f"Không thể đọc manifest pilot ({manifest_file}): {exc}") from exc
 
         # 4a. Kiểm tra trạng thái và chữ ký phê duyệt của manifest
+        from phishing.annotation.blind_view import assert_pilot_review_status
+        assert_pilot_review_status(manifest_data)
+
         acceptance = manifest_data.get("acceptance", {})
         if not isinstance(acceptance, dict) or acceptance.get("D") != "approved":
             raise ValueError("Manifest pilot chưa được Lead D phê duyệt (acceptance.D != 'approved').")
         if acceptance.get("B") != "approved":
             raise ValueError("Manifest pilot chưa được Annotator B phê duyệt (acceptance.B != 'approved').")
-        if not manifest_data.get("ready_for_annotation"):
+        if manifest_data.get("ready_for_annotation") is not True:
             raise ValueError("Manifest pilot chưa ở trạng thái sẵn sàng (ready_for_annotation != true).")
 
         # 4b. Kiểm tra số lượng và danh sách sample_id

@@ -13,7 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 import pytest
-import tldextract
+from phishing.data.grouping import extract_group_id
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_V1_PATH = REPO_ROOT / "configs" / "pilot_manifest.json"
@@ -52,11 +52,12 @@ class TestPilotIncidentAndV2Package:
         assert m2["sample_count"] == 32
         assert m2["source_class_counts"] == {"phish": 20, "benign": 12}
         assert m2["ready_for_annotation"] is False
-        assert m2["status"] == "pending_lead_acceptance"
+        assert m2["status"] == "blocked_rebuild_required"
         assert m2["acceptance"] == {"B": "pending", "D": "pending"}
         assert m2["is_synthetic"] is False
         assert m2["official_test_used"] is False
 
+    @pytest.mark.integration
     def test_v2_manifest_checksums_match_actual_files(self):
         """Mã băm trong manifest V2 phải khớp 100% với nội dung các artifact trên đĩa."""
         m2 = json.loads(MANIFEST_V2_PATH.read_text(encoding="utf-8"))
@@ -77,6 +78,7 @@ class TestPilotIncidentAndV2Package:
         assert m2["codebook_sha256"] == _sha256(codebook_path.read_bytes())
         assert m2["dictionary_sha256"] == _sha256(dict_path.read_bytes())
 
+    @pytest.mark.integration
     def test_v2_blind_view_has_zero_leakage(self):
         """Blind view V2 phải chứa đúng 32 mẫu và hoàn toàn ẩn thông tin nhãn, gợi ý."""
         assert BLIND_VIEW_V2_PATH.exists()
@@ -100,6 +102,7 @@ class TestPilotIncidentAndV2Package:
         assert len(sample_ids) == 32
         assert sample_ids == {f"PILOT-{i:03d}" for i in range(1, 33)}
 
+    @pytest.mark.integration
     def test_strict_three_tier_deduplication_between_v2_and_previous(self):
         """Kiểm định 3 tầng chống trùng lặp: V2 không trùng URL, HTML, hoặc domain group với V1/tập dượt."""
         # 1. Thu thập dữ liệu cấm từ V1 và tập dượt
@@ -108,26 +111,22 @@ class TestPilotIncidentAndV2Package:
         forbidden_domain_groups = set()
 
         # Từ V1
+        assert BLIND_VIEW_V1_PATH.exists()
         if BLIND_VIEW_V1_PATH.exists():
             bv1 = json.loads(BLIND_VIEW_V1_PATH.read_text(encoding="utf-8"))
             for s in bv1.get("samples", []):
                 u = s["url"].strip().lower()
                 forbidden_urls.add(u)
-                ext = tldextract.extract(u)
-                dom = ext.top_domain_under_public_suffix
-                if dom:
-                    forbidden_domain_groups.add(dom.lower())
+                forbidden_domain_groups.add(extract_group_id(u))
 
         # Từ tập dượt
+        assert PRACTICE_VIEW_PATH.exists()
         if PRACTICE_VIEW_PATH.exists():
             bvp = json.loads(PRACTICE_VIEW_PATH.read_text(encoding="utf-8"))
             for s in bvp.get("samples", []):
                 u = s["url"].strip().lower()
                 forbidden_urls.add(u)
-                ext = tldextract.extract(u)
-                dom = ext.top_domain_under_public_suffix
-                if dom:
-                    forbidden_domain_groups.add(dom.lower())
+                forbidden_domain_groups.add(extract_group_id(u))
 
         # Từ Exclusion Registry (V1 hashes)
         reg = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
@@ -163,6 +162,7 @@ class TestPilotIncidentAndV2Package:
         # Đảm bảo V2 có đúng 32 domain groups độc nhất
         assert len(v2_domain_groups) == 32, f"V2 có domain group trùng lặp nội bộ: {len(v2_domain_groups)} != 32"
 
+    @pytest.mark.integration
     def test_exclusion_registry_contains_both_v1_and_v2(self):
         """Exclusion registry phải cô lập cả V1 (32 mẫu) và V2 (32 mẫu), cấm huấn luyện."""
         from phishing.data.exclusion import ExclusionRegistry

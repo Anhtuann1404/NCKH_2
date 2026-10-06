@@ -7,7 +7,7 @@
     "benign": 12
   },
   "ready_for_annotation": false,
-  "status": "pending_lead_acceptance",
+  "status": "blocked_rebuild_required",
   "codebook_version": "1.0.0",
   "codebook_status": "locked",
   "dictionary_version": "1.0.0",
@@ -32,11 +32,18 @@
       "overlap_with_audit": 0,
       "domain_overlap_with_v1_practice": 0,
       "unique_domain_groups_in_v2": 32,
-      "verification_status": "passed_strict_3_tier_check"
+      "verification_status": "not_accepted_requires_complete_evidence"
     }
   },
   "acceptance": {
     "B": "pending",
     "D": "pending"
-  }
+  },
+  "source_verification_status": "unverified_literal_records",
+  "exposure_review": {
+    "A": "pending",
+    "B": "pending",
+    "D": "pending"
+  },
+  "rebuild_reason": "Source rows not verified; labels published in shared Git. Preserve old hashes/exclusions; rebuild from verified train rows."
 }
