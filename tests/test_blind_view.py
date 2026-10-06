@@ -651,6 +651,7 @@ class TestCLIResumeAndIsolation:
             ],
             input_blind,
             dataset_id="MINI-TEST",
+            is_synthetic=True,
         )
 
         target_output = tmp_path / "A_pilot.jsonl"
@@ -2249,7 +2250,6 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
         with pytest.raises(ValueError, match="Gói view có 31 mẫu, nhưng manifest khai báo 32 mẫu"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
-
 
 
 

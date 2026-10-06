@@ -301,6 +301,7 @@ def _create_pilot_fixture(target_dir: Path):
         "dataset_id": "REAL-PILOT-32-V1",
         "is_synthetic": False,
         "sample_count": 32,
+        "sampling_plan_version": "PILOT-PLAN-V1-FULL-OVERLAP",
         "samples": samples,
     }
     bv_file = target_dir / "blind_view_pilot_real.json"
@@ -346,6 +347,51 @@ def _load_fixture_pilot_records(annotator_id: str, fixture_dir: Path) -> tuple[l
         )
         recs.append(rec)
     return recs, man_file
+
+
+def test_v2_kappa_selects_v2_manifest_and_rejects_wrong_package_or_hash(tmp_path, monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('fixture_evaluate_kappa', EVAL_SCRIPT)
+    evaluator = importlib.util.module_from_spec(spec); spec.loader.exec_module(evaluator)
+    monkeypatch.setattr(evaluator, 'PROJECT_ROOT', tmp_path)
+    configs = tmp_path / 'configs'; configs.mkdir()
+    view_path, _, view, manifest = _create_pilot_fixture(tmp_path / 'pilot_fixture')
+    view['dataset_id'] = 'REAL-PILOT-32-V2'
+    view['sampling_plan_version'] = 'PILOT-PLAN-V2-FULL-OVERLAP'
+    view_path.write_text(json.dumps(view, ensure_ascii=False), encoding='utf-8')
+    view_hash = hashlib.sha256(view_path.read_bytes()).hexdigest()
+    manifest.update(dataset_id='REAL-PILOT-32-V2', status='approved',
+        blind_view_sha256=view_hash, sampling_plan_version='PILOT-PLAN-V2-FULL-OVERLAP',
+        source_verification_status='verified_pinned_train_rows',
+        exposure_review={'A': 'approved', 'B': 'approved', 'D': 'approved'})
+    v2_manifest = configs / 'pilot_manifest_v2.json'
+    v2_manifest.write_text(json.dumps(manifest), encoding='utf-8')
+    records = {}
+    for annotator in ('A', 'B'):
+        rows = [_make_sample_record(annotator, sample['sample_id'],
+            dataset_id='REAL-PILOT-32-V2', dataset_hash=view_hash,
+            codebook_hash=manifest['codebook_sha256'],
+            sampling_plan_version=manifest['sampling_plan_version'],
+            sample_content_hash=compute_sample_content_hash(sample)) for sample in view['samples']]
+        path = tmp_path / f'{annotator}.jsonl'
+        path.write_text('\n'.join(json.dumps(row) for row in rows) + '\n', encoding='utf-8')
+        records[annotator] = (path, rows)
+    a_path, a_rows = records['A']; b_path, b_rows = records['B']
+    assert evaluator.evaluate(a_path, b_path)['pilot_32_verified'] is True
+    wrong_manifest = configs / 'pilot_manifest.json'
+    wrong_manifest.write_text(json.dumps(dict(manifest, dataset_id='REAL-PILOT-32-V1')))
+    with pytest.raises(ValueError, match='nhầm manifest V1/V2'):
+        evaluator.evaluate(a_path, b_path, pilot_manifest_path=wrong_manifest)
+    b_rows[0]['dataset_hash'] = '0' * 64
+    b_path.write_text('\n'.join(json.dumps(row) for row in b_rows) + '\n', encoding='utf-8')
+    with pytest.raises(ValueError, match='dataset_hash'):
+        evaluator.evaluate(a_path, b_path)
+    b_rows[0]['dataset_hash'] = view_hash
+    b_path.write_text('\n'.join(json.dumps(row) for row in b_rows) + '\n', encoding='utf-8')
+    manifest['status'] = 'pending_lead_acceptance'
+    v2_manifest.write_text(json.dumps(manifest), encoding='utf-8')
+    with pytest.raises(ValueError, match='PILOT V2 BLOCKED'):
+        evaluator.evaluate(a_path, b_path)
 
 
 def test_evaluate_kappa_pilot_32_validation(tmp_path):
@@ -760,4 +806,3 @@ def test_evaluate_kappa_strict_pass_id_validation(tmp_path):
     )
     assert proc.returncode == 2
     assert "sai kiểu dữ liệu (float: 1.0)" in proc.stderr
-

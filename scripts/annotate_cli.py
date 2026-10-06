@@ -44,7 +44,7 @@ from phishing.annotation import (
 )
 
 
-from phishing.annotation.blind_view import assert_pilot_review_status
+from phishing.annotation.blind_view import assert_pilot_review_status, default_pilot_manifest_path
 
 
 CLASS_LABEL_CHOICES = {
@@ -394,11 +394,11 @@ def validate_manifest_preflight(
             f"LỖI MANIFEST: sample_count trong manifest phải là số nguyên dương, không nhận boolean hoặc <= 0 (nhận: {manifest_total!r})."
         )
 
-    # Riêng REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu theo kế hoạch đã chốt
+    # Cả hai phiên bản pilot thật đều phải đủ 32 mẫu.
     manifest_dataset_id = str(manifest_data["dataset_id"]).strip()
     if manifest_dataset_id in {"REAL-PILOT-32-V1", "REAL-PILOT-32-V2"} and manifest_total != 32:
         raise ValueError(
-            f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói REAL-PILOT-32-V1 yêu cầu manifest sample_count đúng 32 mẫu theo kế hoạch đã chốt (nhận: {manifest_total})."
+            f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói {manifest_dataset_id} yêu cầu manifest sample_count đúng 32 mẫu (nhận: {manifest_total})."
         )
 
     # =========================================================================
@@ -509,6 +509,11 @@ def validate_manifest_preflight(
             f"SAI KHÁC DATASET_ID: Gói view có dataset_id='{dataset_id}', "
             f"không khớp manifest ('{manifest_dataset_id}')."
         )
+    if manifest_dataset_id in {"REAL-PILOT-32-V1", "REAL-PILOT-32-V2"}:
+        if dataset_data.get("is_synthetic") is not False:
+            raise ValueError("LỖI GÓI VIEW: Pilot thật phải khai báo is_synthetic=false.")
+    if "is_synthetic" in manifest_data and dataset_data.get("is_synthetic") is not manifest_data["is_synthetic"]:
+        raise ValueError("SAI KHÁC IS_SYNTHETIC: Gói view không khớp manifest.")
 
     # 2. Số lượng mẫu (sample_count)
     samples = dataset_data.get("samples", [])
@@ -532,10 +537,9 @@ def validate_manifest_preflight(
                 f"không khớp manifest ({manifest_total})."
             )
 
-    # Riêng REAL-PILOT-32-V1 yêu cầu gói view đúng 32 mẫu theo kế hoạch đã chốt
-    if (manifest_dataset_id == "REAL-PILOT-32-V1" or dataset_id == "REAL-PILOT-32-V1") and total_samples != 32:
+    if manifest_dataset_id in {"REAL-PILOT-32-V1", "REAL-PILOT-32-V2"} and total_samples != 32:
         raise ValueError(
-            f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói REAL-PILOT-32-V1 yêu cầu gói view có đúng 32 mẫu theo kế hoạch đã chốt (nhận: {total_samples})."
+            f"LỖI SỐ LƯỢNG MẪU PILOT THẬT: Gói {manifest_dataset_id} yêu cầu gói view có đúng 32 mẫu (nhận: {total_samples})."
         )
 
     # 3. Sampling plan version
@@ -635,11 +639,13 @@ def annotate_interactive_session(
     dataset_hash = hashlib.sha256(input_bytes).hexdigest()
     dataset_id = str(data.get("dataset_id", "UNKNOWN"))
     dataset_type = str(data.get("dataset_type", "blind_view"))
-    is_synthetic = bool(data.get("is_synthetic", False))
+    if "is_synthetic" in data and type(data["is_synthetic"]) is not bool:
+        raise ValueError("LỖI GÓI VIEW: is_synthetic phải là boolean.")
+    is_synthetic = data.get("is_synthetic", False)
     sampling_plan_version = str(data.get("sampling_plan_version", "") or "")
 
     is_real_session = (not dry_run) and (not is_synthetic)
-    is_real_pilot = (dataset_id == "REAL-PILOT-32-V1") or (dataset_type in {"real_pilot_ready", "real_pilot_pending_review"})
+    is_real_pilot = dataset_id in {"REAL-PILOT-32-V1", "REAL-PILOT-32-V2"} or dataset_type.startswith("real_pilot")
 
     # Khóa cờ ghi đè qua CLI trong phiên gán nhãn người thật / phiên thực tế / gói pilot thật
     if (not dry_run) or is_real_session or is_real_pilot:
@@ -657,15 +663,14 @@ def annotate_interactive_session(
     # RÀO CHẮN MANIFEST TOÀN DIỆN: Bắt buộc kiểm tra manifest trước khi hiển thị bất kỳ mẫu nào
     requires_manifest = (
         manifest_path is not None
-        or dataset_id == "REAL-PILOT-32-V1"
-        or dataset_type in {"real_pilot_ready", "real_pilot_pending_review"}
-        or sampling_plan_version == "PILOT-PLAN-V1-FULL-OVERLAP"
-        or is_real_session
+        or not is_synthetic
+        or is_real_pilot
+        or sampling_plan_version.startswith("PILOT-PLAN-")
     )
 
     manifest_data = None
     if requires_manifest:
-        actual_manifest_path = manifest_path or (PROJECT_ROOT / "configs" / "pilot_manifest.json")
+        actual_manifest_path = manifest_path or default_pilot_manifest_path(dataset_id, PROJECT_ROOT)
         manifest_data = validate_manifest_preflight(
             actual_manifest_path,
             input_path,

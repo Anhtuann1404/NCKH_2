@@ -11,6 +11,7 @@ import pytest
 import pyarrow as pa
 import pyarrow.parquet as pq
 from phishing.data.exclusion import ExclusionRegistry
+from phishing.annotation import export_blind_view
 from phishing.data.loader import (adapt_source_row_to_record, load_phreshphish_shard,
     build_corpus_index, reconstitute_html_from_locator, filter_eligible_records,
     join_verified_labels_and_filter_eligible, load_phishvn_records)
@@ -213,6 +214,55 @@ def test_v2_manifest_cannot_be_opened_by_toggling_approval(tmp_path):
         cli.validate_manifest_preflight(path, tmp_path / 'missing-view.json', {})
 
 
+def test_v2_dry_run_requires_approved_v2_manifest_before_display(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location('fixture_annotation_cli', ROOT / 'scripts/annotate_cli.py')
+    cli = importlib.util.module_from_spec(spec); spec.loader.exec_module(cli)
+    monkeypatch.setattr(cli, 'PROJECT_ROOT', tmp_path)
+    (tmp_path / 'configs').mkdir(); (tmp_path / 'docs').mkdir()
+    cb = tmp_path / 'docs/CODEBOOK_V1.md'; dictionary = tmp_path / 'configs/dictionary_v1.json'
+    shutil.copy2(ROOT / 'docs/CODEBOOK_V1.md', cb)
+    shutil.copy2(ROOT / 'configs/dictionary_v1.json', dictionary)
+    view_path = tmp_path / 'v2.json'
+    export_blind_view([{'sample_id': f'PILOT-{i:03d}',
+                        'url': f'https://fixture-{i}.example.com/',
+                        'html': '<p>Invented fixture</p>', 'codebook_version': '1.0.0'}
+                       for i in range(1, 33)], view_path, dataset_id='REAL-PILOT-32-V2',
+                      dataset_type='real_pilot_v2_pending_acceptance', is_synthetic=False,
+                      sampling_plan_version='PILOT-PLAN-V2-FULL-OVERLAP')
+    manifest_path = tmp_path / 'configs/pilot_manifest_v2.json'
+    manifest = {'dataset_id': 'REAL-PILOT-32-V2', 'is_synthetic': False, 'sample_count': 32,
+        'sampling_plan_version': 'PILOT-PLAN-V2-FULL-OVERLAP', 'codebook_version': '1.0.0',
+        'codebook_status': 'locked', 'dictionary_version': '1.0.0', 'dictionary_status': 'locked',
+        'codebook_sha256': hashlib.sha256(cb.read_bytes()).hexdigest(),
+        'dictionary_sha256': hashlib.sha256(dictionary.read_bytes()).hexdigest(),
+        'blind_view_sha256': hashlib.sha256(view_path.read_bytes()).hexdigest(),
+        'source_verification_status': 'verified_pinned_train_rows',
+        'exposure_review': {'A': 'approved', 'B': 'approved', 'D': 'approved'},
+        'status': 'pending_lead_acceptance', 'acceptance': {'B': 'pending', 'D': 'pending'},
+        'ready_for_annotation': False}
+    manifest_path.write_text(json.dumps(manifest))
+    output = tmp_path / 'labels.jsonl'
+    with monkeypatch.context() as preflight_guard:
+        preflight_guard.setattr(cli, 'display_sample_and_allow_reading',
+                                lambda *_args, **_kwargs: pytest.fail('Displayed sample before manifest approval'))
+        with pytest.raises(ValueError, match='BLOCKED'):
+            cli.annotate_interactive_session('A', view_path, output, dry_run=True)
+        generic = tmp_path / 'generic_real.json'
+        export_blind_view([{'sample_id': 'SMP-001', 'url': 'https://fixture.example.com/',
+                            'html': '<p>Invented fixture</p>'}], generic,
+                          dataset_id='OTHER-REAL-DATA', is_synthetic=False)
+        with pytest.raises(ValueError, match='--manifest'):
+            cli.annotate_interactive_session('A', generic, output, dry_run=True)
+    assert not output.exists() and not (tmp_path / 'labels.dryrun.jsonl').exists()
+    manifest.update(status='approved', acceptance={'B': 'approved', 'D': 'approved'},
+                    ready_for_annotation=True)
+    manifest_path.write_text(json.dumps(manifest))
+    cli.annotate_interactive_session('A', view_path, output, dry_run=True)
+    rows = [json.loads(line) for line in (tmp_path / 'labels.dryrun.jsonl').read_text().splitlines()]
+    assert len(rows) == 32 and {r['dataset_id'] for r in rows} == {'REAL-PILOT-32-V2'}
+    assert {r['dataset_hash'] for r in rows} == {manifest['blind_view_sha256']}
+
+
 def test_builder_verified_fixture_end_to_end_pending_and_preflight(tmp_path):
     """Toy Parquet exercises contracts only; it is not a real research pilot."""
     builder = load_script('build_real_pilot_v2')
@@ -263,7 +313,7 @@ def test_builder_verified_fixture_end_to_end_pending_and_preflight(tmp_path):
         cli.validate_manifest_preflight(mf_path, view_path, view,
             repo / 'docs/CODEBOOK_V1.md', repo / 'configs/dictionary_v1.json')
     # Only this toy fixture is approved to exercise the consumer contract; no repo approval changes.
-    mf.update(acceptance={'B': 'approved', 'D': 'approved'}, ready_for_annotation=True,
+    mf.update(status='approved', acceptance={'B': 'approved', 'D': 'approved'}, ready_for_annotation=True,
               exposure_review={'A': 'approved', 'B': 'approved', 'D': 'approved'})
     mf_path.write_text(json.dumps(mf))
     assert cli.validate_manifest_preflight(mf_path, view_path, view,
@@ -318,7 +368,7 @@ def test_index_preserves_backup_if_rollback_fails(tmp_path, monkeypatch):
 def test_common_pilot_gate_blocks_annotation_and_evaluation(field):
     from phishing.annotation.blind_view import assert_pilot_review_status
     mf = {"dataset_id": "REAL-PILOT-32-V2", "sample_count": 32,
-        "status": "pending_lead_acceptance", "source_verification_status": "verified_pinned_train_rows",
+        "status": "approved", "source_verification_status": "verified_pinned_train_rows",
         "exposure_review": {"A": "approved", "B": "approved", "D": "approved"}}
     mf[field] = "blocked_rebuild_required" if field == "status" else "unverified"
     with pytest.raises(ValueError, match="BLOCKED"): assert_pilot_review_status(mf)

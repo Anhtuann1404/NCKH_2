@@ -35,7 +35,7 @@ def test_resume_rejects_non_object_duplicate_and_wrong_mode(tmp_path):
 
 def test_cli_reads_metadata_and_rejects_string_boolean(tmp_path):
     input_path, output = tmp_path / "view.json", tmp_path / "out.jsonl"
-    data = export_blind_view([{"sample_id": "S01", "url": "https://site.invalid/", "text": "Text", "random_subset": False, "codebook_version": "review-v2"}], input_path)
+    data = export_blind_view([{"sample_id": "S01", "url": "https://site.invalid/", "text": "Text", "random_subset": False, "codebook_version": "review-v2"}], input_path, is_synthetic=True)
     cli.annotate_interactive_session("A", input_path, output, dry_run=True)
     record = json.loads((tmp_path / "out.dryrun.jsonl").read_text())
     assert record["codebook_version"] == "review-v2" and record["random_subset"] is False

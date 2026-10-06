@@ -381,13 +381,18 @@ def evaluate(
         )
     shared_ids = sorted(ids_a)
 
-    # 4. Kiểm tra nghiệm thu REAL-PILOT-32-V1 nếu được yêu cầu hoặc khi phát hiện dữ liệu pilot thật
+    # 4. Nhận diện phiên bản pilot từ provenance, không mặc định V1 cho bản ghi V2.
+    known_pilot_ids = {"REAL-PILOT-32-V1", "REAL-PILOT-32-V2"}
+    detected_pilot_ids = {r.get("dataset_id") for r in records_a + records_b
+                          if r.get("dataset_id") in known_pilot_ids}
+    if len(detected_pilot_ids) > 1:
+        raise ValueError("LỖI ĐA GÓI: Bản ghi trộn V1 và V2 trong cùng lượt Kappa.")
+    detected_pilot_id = next(iter(detected_pilot_ids), None)
     is_pilot_mode = (
         verify_pilot_32
         or (pilot_manifest_path is not None)
         or any(
-            r.get("dataset_id") == "REAL-PILOT-32-V1"
-            or str(r.get(SAMPLE_ID_FIELD, "")).startswith("PILOT-")
+            r.get("dataset_id") in known_pilot_ids or str(r.get(SAMPLE_ID_FIELD, "")).startswith("PILOT-")
             for r in records_a + records_b
         )
     )
@@ -398,7 +403,8 @@ def evaluate(
             if not manifest_file.is_file():
                 raise FileNotFoundError(f"Không tìm thấy tệp manifest pilot: {manifest_file}")
         else:
-            manifest_file = PROJECT_ROOT / "configs" / "pilot_manifest.json"
+            from phishing.annotation.blind_view import default_pilot_manifest_path
+            manifest_file = default_pilot_manifest_path(detected_pilot_id or "REAL-PILOT-32-V1", PROJECT_ROOT)
             if not manifest_file.is_file():
                 raise FileNotFoundError(
                     f"Chế độ nghiệm thu pilot được kích hoạt nhưng không tìm thấy manifest mặc định: {manifest_file}"
@@ -408,6 +414,8 @@ def evaluate(
             manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
         except Exception as exc:
             raise ValueError(f"Không thể đọc manifest pilot ({manifest_file}): {exc}") from exc
+        if detected_pilot_id and manifest_data.get("dataset_id") != detected_pilot_id:
+            raise ValueError("dataset_id không khớp manifest đã duyệt: nhầm manifest V1/V2.")
 
         # 4a. Kiểm tra trạng thái và chữ ký phê duyệt của manifest
         from phishing.annotation.blind_view import assert_pilot_review_status
@@ -492,6 +500,10 @@ def evaluate(
             bv_data = json.loads(actual_bv_bytes.decode("utf-8"))
         except Exception as exc:
             raise ValueError(f"Không thể phân tích cú pháp JSON của blind view ({bv_path}): {exc}") from exc
+        if bv_data.get("dataset_id") != expected_pkg_id or bv_data.get("is_synthetic") is not False:
+            raise ValueError("Blind view không khớp dataset_id/is_synthetic của pilot thật đã duyệt.")
+        if bv_data.get("sampling_plan_version") != expected_sampling_plan:
+            raise ValueError("Blind view không khớp sampling_plan_version của manifest đã duyệt.")
 
         bv_samples = bv_data.get("samples", [])
         if len(bv_samples) != expected_count:

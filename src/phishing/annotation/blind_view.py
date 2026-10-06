@@ -125,10 +125,20 @@ def assert_pilot_review_status(manifest: Dict[str, Any]) -> None:
     if manifest.get("status") in {"invalidated", "blocked_rebuild_required"}:
         raise ValueError("PILOT BLOCKED: invalidated/unverified package cannot be opened")
     if manifest.get("dataset_id") == "REAL-PILOT-32-V2":
-        if (manifest.get("source_verification_status") != "verified_pinned_train_rows"
+        if (manifest.get("status") != "approved"
+                or manifest.get("source_verification_status") != "verified_pinned_train_rows"
                 or manifest.get("exposure_review") != {"A": "approved", "B": "approved", "D": "approved"}
                 or type(manifest.get("sample_count")) is not int or manifest["sample_count"] != 32):
             raise ValueError("PILOT V2 BLOCKED: source/exposure/count review incomplete")
+
+
+def default_pilot_manifest_path(dataset_id: str, project_root: Path) -> Path:
+    """Resolve only known real pilot versions; unknown real packages need --manifest."""
+    names = {"REAL-PILOT-32-V1": "pilot_manifest.json",
+             "REAL-PILOT-32-V2": "pilot_manifest_v2.json"}
+    if dataset_id not in names:
+        raise ValueError(f"LỖI MANIFEST: Gói thật '{dataset_id}' cần chỉ định --manifest.")
+    return project_root / "configs" / names[dataset_id]
 
 
 def assert_neutral_sample_id(sample_id: Any) -> None:
