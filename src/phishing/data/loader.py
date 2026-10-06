@@ -88,6 +88,7 @@ class CorpusRecord:
     source_sub_source: Optional[str] = None  # PhishVN sub-source
     exclusion_reason: Optional[str] = None
     raw_html: Optional[str] = None  # Tạm thời trong RAM khi xử lý, không lưu vào index
+    source_provided_url_sha256: Optional[str] = None
 
     def to_index_dict(self) -> Dict[str, Any]:
         """Xuất từ điển chỉ mục kỹ thuật (Technical Index) phục vụ corpus_index.jsonl.
@@ -106,6 +107,7 @@ class CorpusRecord:
             "group_id": self.group_id,
             "html_sha256": self.html_sha256,
             "html_integrity_status": self.html_integrity_status,
+            "source_provided_url_sha256": self.source_provided_url_sha256,
             "language": self.language,
             "capture_mode": self.capture_mode,
             "collected_at": self.collected_at,
@@ -230,6 +232,7 @@ def adapt_source_row_to_record(
     source_sub_source: Optional[str] = None,
     exclusion_registry: Optional[ExclusionRegistry] = None,
     precomputed_html_sha256: Optional[str] = None,
+    precomputed_url_sha256: Optional[str] = None,
     is_real_data_mode: bool = False,
 ) -> CorpusRecord:
     """Chuyển đổi một dòng dữ liệu thô từ nguồn thành CorpusRecord chuẩn hóa."""
@@ -334,6 +337,10 @@ def adapt_source_row_to_record(
         exclusion_reasons.append(f"invalid_url: {url_err}")
     if checksum_exclusion:
         exclusion_reasons.append(checksum_exclusion)
+    if precomputed_url_sha256 and (
+        not isinstance(raw_url, str) or _compute_sha256(raw_url) != str(precomputed_url_sha256).strip().lower()
+    ):
+        exclusion_reasons.append("url_sha256_mismatch")
     if label_exclusion:
         exclusion_reasons.append(label_exclusion)
     if date_status == "invalid":
@@ -380,6 +387,7 @@ def adapt_source_row_to_record(
         source_sub_source=source_sub_source,
         exclusion_reason=combined_exclusion,
         raw_html=raw_html,
+        source_provided_url_sha256=precomputed_url_sha256,
     )
 
 
@@ -466,7 +474,7 @@ def load_phreshphish_shard(
                 raw_date=row.get("date"), raw_label=row.get("label"), target=None,
                 language=str(row.get("lang") or "unknown"),
                 capture_mode="stored_html" if row.get("html") is not None else "url_only",
-                exclusion_registry=exclusion_registry, precomputed_html_sha256=row.get("sha256"),
+                exclusion_registry=exclusion_registry, precomputed_url_sha256=row.get("sha256"),
                 is_real_data_mode=is_real_data_mode)
             count += 1
 

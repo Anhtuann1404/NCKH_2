@@ -129,17 +129,17 @@ class ExclusionRegistry:
             return True
         if self._group_hashes and isinstance(url, str):
             try:
-                import tldextract
-            except ImportError as err:
-                raise ImportError(
-                    "Thư viện tldextract bắt buộc phải được cài đặt để phân tách nhóm tên miền "
-                    "bảo thủ theo Public Suffix List (PSL). Không được phép fallback để tránh rò rỉ dữ liệu."
-                ) from err
-            # Offline bundled PSL, including private tenant suffixes; no network.
-            extractor = tldextract.TLDExtract(suffix_list_urls=(), include_psl_private_domains=True)
-            domain = extractor(url).top_domain_under_public_suffix
-            if domain and hashlib.sha256(domain.encode()).hexdigest() in self._group_hashes:
-                return True
+                import tldextract  # Required PSL dependency; reuse the shared offline extractor below.
+            except ImportError as error:
+                raise ImportError("tldextract bắt buộc phải được cài đặt để kiểm nhóm loại trừ") from error
+            from phishing.data.grouping import extract_group_id
+            group = extract_group_id(url)
+            if group != "unknown":
+                if hashlib.sha256(group.encode()).hexdigest() in self._group_hashes:
+                    return True
+                # Accept retained legacy bare-domain hashes without another PSL/cache.
+                if group.startswith("domain:") and hashlib.sha256(group[7:].encode()).hexdigest() in self._group_hashes:
+                    return True
         if sample.get("group_sha256") in self._group_hashes:
             return True
         # 1. Kiểm tra trực tiếp theo summary_fingerprint_hash (hoặc alias sample_content_hash) đã khai báo

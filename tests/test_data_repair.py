@@ -294,3 +294,24 @@ def test_common_pilot_gate_blocks_annotation_and_evaluation(field):
         "exposure_review": {"A": "approved", "B": "approved", "D": "approved"}}
     mf[field] = "blocked_rebuild_required" if field == "status" else "unverified"
     with pytest.raises(ValueError, match="BLOCKED"): assert_pilot_review_status(mf)
+
+
+def test_phreshphish_sha256_is_url_hash_not_html_hash(tmp_path):
+    path, mf = shard(tmp_path)
+    source_url = 'https://fixture.example/'
+    expected = hashlib.sha256(source_url.encode()).hexdigest()
+    pq.write_table(pa.table({'url': [source_url], 'html': ['<p>Fixture</p>'],
+        'label': [0], 'date': ['2025-01-01'], 'sha256': [expected]}), path)
+    manifest = json.loads(mf.read_text())
+    manifest['files'][0].update(byte_size=path.stat().st_size,
+        source_metadata_lfs_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+    mf.write_text(json.dumps(manifest))
+    record = list(load_phreshphish_shard(path, source_manifest_path=mf, exclusion_registry=reg(tmp_path)))[0]
+    assert record.exclusion_reason is None
+    assert record.source_provided_url_sha256 == expected
+    assert record.source_provided_html_sha256 is None
+    assert record.html_sha256 == hashlib.sha256(b'<p>Fixture</p>').hexdigest()
+    invalid = adapt_source_row_to_record(sample_id='fixture', source_id='phreshphish',
+        source_revision='fixture', source_split='unverified', locator={}, raw_url=source_url,
+        raw_html='<p>Fixture</p>', raw_date=None, raw_label=0, precomputed_url_sha256='0' * 64)
+    assert invalid.exclusion_reason == 'url_sha256_mismatch'

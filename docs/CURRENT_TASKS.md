@@ -1,6 +1,29 @@
 # Current tasks
 
-Cập nhật 04/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
+Cập nhật 06/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
+
+## Tiếp quản phần C — 06/10/2026
+
+Owner tạm thời: D thực hiện pipeline dữ liệu khi C mất quyền truy cập tài khoản/máy.
+Giữ vai trò A/B gán nhãn độc lập, B hỗ trợ review; không tự ký duyệt gói hoặc mở training.
+Nhánh làm việc: codex/c-data-recovery, tiếp nối 97f59cd; main/develop giữ nguyên.
+
+Đã khôi phục hai shard train-000 (49.639.686 bytes) và train-055 (20.213.199 bytes)
+từ revision đã khóa; cả hai khớp SHA-256 byte. Tìm lại raw20 với batch hash khớp
+registry; đối chiếu chính xác URL+HTML khôi phục 20/20 mẫu kỹ thuật và 32/32 mẫu V1.
+Mapping hạn chế nằm trong data/raw/recovery; chưa công bố raw/mapping lên Git.
+V1 vẫn invalidated, không dùng để đo Kappa/PLAN-01; registry vẫn training_blocked.
+
+Audit ingestion thực tế train-000: 1.000 dòng, 1.000 ngày/URL hợp lệ. Cột sha256
+khớp URL ở 1.000/1.000 dòng và không khớp HTML; adapter đã tách hash URL nguồn khỏi
+hash HTML tự tính. Run sai trước sửa được giữ lại; run mới ở
+`data/processed/recovery/train000-index-urlhash-fixed` vẫn audit-only.
+Locator kiểm lại dòng đầu/cuối khớp HTML hash. Exclusion dùng grouping/PSL offline
+chung, không tạo extractor cache riêng mỗi bản ghi.
+
+Bằng chứng công khai chỉ có metadata/counts/hash: [recovery_status.json](../data/source_audit/phreshphish/recovery_status.json).
+Tiếp theo: kiểm hồ sơ V2 từng công bố và phạm vi A/B đã xem; xây pilot mới pending,
+review mapping phục hồi trước mở gán. Không coi các mẫu đã phục hồi là nhãn cuối đã xác minh.
 
 ## Trạng thái có bằng chứng
 
@@ -162,3 +185,13 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 06/10/2026 — D hỗ trợ C trên nhánh codex/c-pilot-v2-repair: sửa nguồn/provenance, snapshot integrity, nhãn nguồn chưa kiểm chứng, index staging; V2 xây lại từ nguồn đã kiểm hash. DATA-03/DEV-01/LABEL-01 tiếp tục PENDING_REVIEW; không mở huấn luyện hay pilot thật.
 
 Kiểm thử bản vá D: 225 passed, 5 integration deselected, 32 subtests passed (`python -m pytest tests -q -m "not integration"`). 5 integration test cần gói hạn chế chưa được nghiệm thu; không ghi chúng là passed.
+
+06/10/2026 — C takeover: bản vá hash URL/HTML và grouping exclusion; unit suite 226 passed, 5 integration deselected, 32 subtests passed. Integration ingestion train-000 và locator spotchecks đã chạy thực tế; chưa chạy nghiệm thu pilot mới.
+
+Tái lập mapping phục hồi (C/D, output hạn chế):
+
+```bash
+python scripts/data/recover_pilot_mapping.py --raw20 /Users/yingjunn_/Study_/NCKH_2/data/source_audit/phreshphish/pilot_20_rows.json --source-root data/raw/phreshphish --shards data/train-000.parquet data/train-055.parquet --output data/raw/recovery/pilot_mapping-recheck.json
+```
+
+Script kiểm hash batch/shards và so byte URL+HTML; không đọc nhãn/target và không sửa registry hay phê duyệt. Mỗi lần dùng output mới, không ghi đè bằng chứng.

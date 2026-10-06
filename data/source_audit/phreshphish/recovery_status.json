@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-06",
+  "owner": "D covering unavailable C",
+  "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+  "verified_shards": [
+    {
+      "file_name": "train-000.parquet",
+      "byte_size": 49639686,
+      "source_metadata_lfs_sha256": "9a9c693a95daeddb127c4446df4c5673b3f1a39e457ffe964b9849069bd739fe"
+    },
+    {
+      "file_name": "train-055.parquet",
+      "byte_size": 20213199,
+      "source_metadata_lfs_sha256": "205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0"
+    }
+  ],
+  "raw20_exact_url_html_matches": 20,
+  "v1_exact_url_html_matches": 32,
+  "mapping_review_status": "pending_independent_review",
+  "v1_status": "invalidated_no_reuse_for_kappa_or_plan01",
+  "train000_index_records": 1000,
+  "locator_spotchecks_passed": 2,
+  "train000_sha256_url_matches": 1000,
+  "train000_sha256_html_matches": 0,
+  "hash_semantics_note": "Verified only on train-000; adapter validates each available source URL hash and computes HTML hash independently.",
+  "training_blocked": true,
+  "pilot_ready": false,
+  "raw_data_committed": false,
+  "private_mapping_evidence_hashes": {
+    "raw20_mapping_check.json": "7c7ea17d9a1e56e815a6864e14ade6b5a37ccfb916c753778e2e513b83f561ca",
+    "v1_mapping_check.json": "009b2a2f2be25a370a0ac81a7e52026d72f13e003d9740897db8c436a3d1f771",
+    "pilot_mapping_reproducible.json": "31aa501b40562d3a7abc3f5cc2ff2620d9e7c823d69a7506b32c190e4bd8abcb"
+  },
+  "remaining": [
+    "Recover/verify prior V2 exposure history and confirm A/B exposure scope",
+    "Prepare new pending pilot with complete exposure checks",
+    "B/D review reconstructed mappings and real-data integration before opening annotation"
+  ],
+  "recovery_script": "scripts/data/recover_pilot_mapping.py",
+  "recovery_script_sha256": "976615cbf3ecbf322391f57643fb41bfa9437ad3dafae5802ccf037b7f822c1f"
+}

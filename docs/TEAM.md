@@ -26,6 +26,9 @@ Cập nhật 04/10/2026. D là người dùng/chủ nhiệm đã nhận lead, m�
 
 ## C — Owner nguồn, pipeline dữ liệu và view mù
 
+**Tiếp quản tạm thời 06/10/2026:** Theo yêu cầu của người dùng, D nhận thực hiện phần pipeline của C trong thời gian C mất tài khoản và máy hỏng. A/B tiếp tục gán độc lập; B hỗ trợ kiểm lại bàn giao. Việc kiêm nhiệm không tự chuyển pending thành approved và không thay đổi giao thức nghiên cứu đã chốt.
+
+
 **Trách nhiệm:** khóa revision/checksum, kiểm riêng date, quản lý quyền nguồn, dictionary/codebook từ nguồn ngoài, xuất view mù; lấy mẫu kiểm chéo trước kết quả; chuẩn hóa index, QC, nhóm miền/trùng và tạo split theo protocol. C là người khác A/B và không tiết lộ label/target/score/nhãn người kia trong lượt độc lập.
 
 **Sở hữu:** manifest nguồn, dictionary/codebook version, blind export, sampling/group/split manifests, công cụ gán nhãn/đồng thuận; `scripts/data/`, `src/phishing/data/`, `src/phishing/annotation/`, `configs/` phần dữ liệu và dữ liệu hạn chế. C không là owner huấn luyện model.
