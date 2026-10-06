@@ -90,6 +90,26 @@ của A được giữ cùng khu vực với SHA-256
 `69e6fd7826ddfbcb07b1bd0af2521de542baf616b4a96e10e8b374c81d66d445`.
 Đây chỉ là nghiệm thu kỹ thuật một lượt; chưa kiểm tính hợp lệ của thời gian
 ngoài CLI, chưa đối chiếu nhãn B, chưa tính Kappa/PLAN-01 hoặc mở huấn luyện.
+
+06/10/2026 14:53 UTC — D tiếp nhận file Pass 1 V2 gốc của B, SHA-256
+`6f63750d71827d06f999af828f5724bdd67e584fbdddf3a0263882983a8d4db8`.
+Tiền kiểm độc lập bằng `scripts/data/receive_pass1_v2.py` trả `accepted` về
+mặt kỹ thuật: đúng 32 ID, annotator B, Pass 1, provenance/hash mẫu và plan V2,
+không dry-run/synthetic; 32 thời gian hữu hạn dương, tổng 6743,03 giây theo
+CLI. File gốc và receipt được giữ nguyên trong `data/labels/intake_v2/B/`
+(gitignored), không so sánh nhãn với A. B tự báo trong chính phiên gán nhãn
+đã dùng AI dịch nội dung một số mẫu, giải thích trường nhập và hướng dẫn đối
+chiếu codebook. Theo R-A09 của codebook khóa, D phân loại **lượt B không đủ
+điều kiện human-only**: không dùng nhãn B V2 để tính Kappa và không dùng thời
+gian B V2 để chốt PLAN-01. Không lựa riêng các mẫu “không dùng AI” vì phạm vi
+hỗ trợ theo mẫu chưa được xác minh và hướng dẫn codebook có thể ảnh hưởng cả
+phiên. Kết quả A V2 được bảo lưu, chưa có cặp đánh giá hợp lệ. B cần giữ lịch
+sử hỗ trợ AI và ghi phạm vi mẫu/prompt để kiểm toán trong kênh hạn chế; không
+đưa nội dung mẫu hay nhãn lên Git. Manifest phát hành V2 giữ nguyên như bằng
+chứng lịch sử; quyết định loại lượt B này là addendum sau phát hành. Bước tiếp
+theo: một người gán nhãn mới chưa xem V2 và chưa biết nhãn nguồn có thể gán
+độc lập V2; nếu không có, tạo gói mới cho A/B sau khi khóa quy trình không
+dùng AI. Chưa chạy Kappa hoặc mở training.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 
