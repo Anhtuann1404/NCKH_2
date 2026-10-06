@@ -112,12 +112,22 @@ class TestPilotIncidentAndV2Package:
 
     @pytest.mark.integration
     @pytest.mark.skipif(not SOURCE_MAPPING_V2_PATH.exists(), reason="Restricted V2 mapping is local only")
-    def test_strict_three_tier_deduplication_between_v2_and_previous(self):
+    def test_strict_three_tier_deduplication_between_v2_and_previous(self, tmp_path: Path):
         """Đối chiếu URL, HTML, nhóm và view hash với tất cả lô cũ bằng chứng hạn chế."""
         from scripts.data.build_real_pilot_v2 import check_deduplication, load_blocked_entities
         mapping_v2 = json.loads(SOURCE_MAPPING_V2_PATH.read_text(encoding="utf-8"))
         assert len(mapping_v2) == 32
-        blocked = load_blocked_entities(PRIOR_EVIDENCE_PATH, EXCLUSION_REGISTRY_PATH)
+        # Registry chính đã có V2. Chỉ fixture đối chiếu lịch sử bỏ đúng entry V2 mới;
+        # builder và registry thật vẫn kiểm tất cả entry khi chọn mẫu mới.
+        registry = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
+        v2_id = "EXCL-PILOT-02-REBUILD-e039c774ef5f"
+        prior_entries = [e for e in registry["exclusions"] if e["exclusion_id"] != v2_id]
+        assert len(prior_entries) == len(registry["exclusions"]) - 1
+        assert registry["training_blocked"] is True
+        registry["exclusions"] = prior_entries
+        prior_registry = tmp_path / "prior_registry.json"
+        prior_registry.write_text(json.dumps(registry), encoding="utf-8")
+        blocked = load_blocked_entities(PRIOR_EVIDENCE_PATH, prior_registry)
         check_deduplication(mapping_v2, blocked)
 
     @pytest.mark.integration
