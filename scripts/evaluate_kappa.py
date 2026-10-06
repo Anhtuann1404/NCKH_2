@@ -624,6 +624,7 @@ def evaluate(
 
     return {
         "pass": PASS_NAME,
+        "pilot_dataset_id": manifest_data["dataset_id"] if is_pilot_mode else None,
         "rater_a": {
             "file": str(rater_a_path),
             "record_count": len(records_a),
@@ -687,7 +688,7 @@ def build_markdown(payload: dict[str, Any]) -> str:
     out.append(f"- **Số mẫu ghép cặp**: {payload['paired_sample_count']}")
     out.append(f"- **Số ca bất đồng thuận**: {payload['disagreement_count']}")
     if payload.get("pilot_32_verified"):
-        out.append("- **Xác thực REAL-PILOT-32-V1**: \u2705 Đủ 32/32 mẫu chuẩn.")
+        out.append(f"- **Xác thực {payload['pilot_dataset_id']}**: \u2705 Đủ 32/32 mẫu chuẩn.")
     out.append("")
 
     for field_key in (CLASS_LABEL_FIELD, PRIMARY_ORG_FIELD):

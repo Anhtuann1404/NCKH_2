@@ -377,7 +377,10 @@ def test_v2_kappa_selects_v2_manifest_and_rejects_wrong_package_or_hash(tmp_path
         path.write_text('\n'.join(json.dumps(row) for row in rows) + '\n', encoding='utf-8')
         records[annotator] = (path, rows)
     a_path, a_rows = records['A']; b_path, b_rows = records['B']
-    assert evaluator.evaluate(a_path, b_path)['pilot_32_verified'] is True
+    result = evaluator.evaluate(a_path, b_path)
+    assert result['pilot_32_verified'] is True
+    assert 'REAL-PILOT-32-V2' in evaluator.build_markdown(result)
+    assert 'REAL-PILOT-32-V1' not in evaluator.build_markdown(result)
     wrong_manifest = configs / 'pilot_manifest.json'
     wrong_manifest.write_text(json.dumps(dict(manifest, dataset_id='REAL-PILOT-32-V1')))
     with pytest.raises(ValueError, match='nhầm manifest V1/V2'):
