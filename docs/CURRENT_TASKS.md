@@ -29,9 +29,14 @@ Gói V2 đề xuất mới nằm trong `data/raw/recovery/pilot-v2-proposed-2026
 32 mẫu (20 phish, 12 benign theo nhãn nguồn), 32 nhóm độc lập; view SHA-256
 `e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc`.
 Chỉ công bố [metadata/hash](../data/source_audit/phreshphish/recovery_status.json),
-không đưa view, ánh xạ hay nhãn nguồn lên Git. D đối soát nguồn/ánh xạ hạn chế;
+không đưa view, ánh xạ hay nhãn nguồn lên Git. D đã nghiệm thu kỹ thuật nguồn/ánh xạ
+và giữ một mẫu không có page_text vì vẫn có URL/tiêu đề. Manifest mặc định V2
+revision `V2-D-APPROVED-B-PENDING-1` có hash
+`d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603`;
+lưu hash bản pending trước đó `be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac`.
 B chỉ kiểm metadata, hash và schema của view mù, không xem nội dung trước Pass 1;
-manifest đề xuất vẫn `ready_for_annotation=false`, B/D pending. Không coi nhãn nguồn
+`acceptance.D=approved`, `acceptance.B=pending`, `ready_for_annotation=false`.
+Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 
 ## Trạng thái có bằng chứng
@@ -87,8 +92,8 @@ Status: PENDING_REVIEW / BLOCKED_REBUILD_REQUIRED. Owner: C; D hỗ trợ vá m�
 V1 invalidated, giữ mọi bằng chứng cũ. V2 hiện tại chưa chứng minh nguồn thật và
 nhãn từng nằm trên Git chung; chưa được dùng cho Kappa/PLAN-01. Manifest vẫn đóng.
 Builder mới đọc source rows đã kiểm hash; không có dữ liệu thật mới được tạo trong bản vá.
-C/D đã dựng bằng chứng loại trừ và nguồn cục bộ cho gói đề xuất; D còn phải
-nghiệm thu nguồn/ánh xạ, B kiểm toàn vẹn gói mù trước khi thay manifest cũ.
+C/D đã dựng bằng chứng loại trừ và nguồn cục bộ cho gói đề xuất; D đã duyệt kỹ thuật.
+B còn phải kiểm toàn vẹn gói mù. Sau đó D mới đối chiếu manifest cuối và mở Pass 1.
 Theo xác nhận của Lead D, A/B chưa được bàn giao V2 và chưa đọc thông tin V2;
 đây là xác nhận điều phối của Lead, không phải bằng chứng A/B đã gán V2.
 Hướng dẫn: [báo cáo V2](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).

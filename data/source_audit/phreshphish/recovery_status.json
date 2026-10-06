@@ -27,7 +27,7 @@
   "pilot_ready": false,
   "raw_data_committed": false,
   "v2_rebuild_proposal": {
-    "status": "pending_independent_B_D_review",
+    "status": "D_technical_approved_B_pending",
     "source_shards": ["data/train-000.parquet", "data/train-055.parquet"],
     "selection_seed": 2026,
     "candidate_pool_within_date_window": 624,
@@ -39,6 +39,8 @@
     "prior_exposure_evidence_sha256": "5d71e74dd99b120e480edc1dadfb1c44f15c3c6c57bc343d546907dd15d96772",
     "blind_view_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
     "private_manifest_sha256": "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac",
+    "d_approved_b_pending_manifest_sha256": "d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603",
+    "acceptance": {"D": "approved", "B": "pending"},
     "training_blocked": true,
     "ready_for_annotation": false
   },
@@ -56,8 +58,8 @@
     "pilot_mapping_reproducible.json": "31aa501b40562d3a7abc3f5cc2ff2620d9e7c823d69a7506b32c190e4bd8abcb"
   },
   "remaining": [
-    "D reviews restricted source locators and mapping; B verifies only blind-view integrity metadata without pre-reading samples",
-    "After approval, publish the new view and manifest through restricted handoff; retain all old invalidated evidence",
+    "Transfer only the blind view to B through a private channel for hash/schema/count verification without pre-reading sample content",
+    "After B review, D verifies the final manifest and separately orders Pass 1; retain old invalidated evidence",
     "Keep main-model training blocked until separate label/QC gate passes"
   ],
   "recovery_script": "scripts/data/recover_pilot_mapping.py",

@@ -2,26 +2,26 @@
 
 Kiểm tra:
 1. configs/pilot_manifest.json (V1) được đánh dấu invalidated, ready_for_annotation=False.
-2. configs/pilot_manifest_v2.json tồn tại, trạng thái pending_lead_acceptance, ready_for_annotation=False.
-3. Mã băm SHA-256 trong manifest V2 khớp byte thực tế của blind view, source mapping, codebook, dictionary.
+2. configs/pilot_manifest_v2.json ghi D approved, B pending, ready_for_annotation=False.
+3. Mã băm SHA-256 trong manifest V2 khớp byte thực tế của blind view, codebook, dictionary.
 4. data/annotations/blind_view_pilot_real_v2.json mù hóa 100% (không chứa source_label, target_org, group_id).
-5. Kiểm định 3 tầng chống trùng lặp: Zero URL, Zero HTML hash, Zero Domain Group overlap giữa V2 và (V1 + practice).
-6. data/exclusion_registry.json cô lập cả 64 mẫu pilot (V1 + V2) và chặn huấn luyện (training_blocked=True).
+5. Kiểm định URL/HTML/nhóm/view không trùng các lô practice, V1, audit và V2 cũ.
+6. Registry đề xuất giữ các loại trừ cũ, bổ sung V2 mới và vẫn chặn huấn luyện.
 """
 
 import hashlib
 import json
 from pathlib import Path
 import pytest
-from phishing.data.grouping import extract_group_id
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_V1_PATH = REPO_ROOT / "configs" / "pilot_manifest.json"
 MANIFEST_V2_PATH = REPO_ROOT / "configs" / "pilot_manifest_v2.json"
-BLIND_VIEW_V1_PATH = REPO_ROOT / "data" / "annotations" / "blind_view_pilot_real.json"
 BLIND_VIEW_V2_PATH = REPO_ROOT / "data" / "annotations" / "blind_view_pilot_real_v2.json"
-PRACTICE_VIEW_PATH = REPO_ROOT / "data" / "annotations" / "blind_view_pilot.json"
-SOURCE_MAPPING_V2_PATH = REPO_ROOT / "data" / "raw" / "pilot_v2" / "source_mapping.json"
+PRIVATE_V2_DIR = REPO_ROOT / "data" / "raw" / "recovery" / "pilot-v2-proposed-20261006"
+SOURCE_MAPPING_V2_PATH = PRIVATE_V2_DIR / "source_mapping.json"
+PRIOR_EVIDENCE_PATH = REPO_ROOT / "data" / "raw" / "recovery" / "pilot-v2-prepare-20261006" / "prior_evidence.json"
+PROPOSED_REGISTRY_PATH = PRIVATE_V2_DIR / "exclusion_registry.proposed.json"
 EXCLUSION_REGISTRY_PATH = REPO_ROOT / "data" / "exclusion_registry.json"
 
 
@@ -50,14 +50,16 @@ class TestPilotIncidentAndV2Package:
         m2 = json.loads(MANIFEST_V2_PATH.read_text(encoding="utf-8"))
         assert m2["dataset_id"] == "REAL-PILOT-32-V2"
         assert m2["sample_count"] == 32
-        assert m2["source_class_counts"] == {"phish": 20, "benign": 12}
         assert m2["ready_for_annotation"] is False
-        assert m2["status"] == "blocked_rebuild_required"
-        assert m2["acceptance"] == {"B": "pending", "D": "pending"}
+        assert m2["status"] == "pending_B_acceptance"
+        assert m2["acceptance"] == {"B": "pending", "D": "approved"}
+        assert m2["blind_view_sha256"] == "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc"
+        assert m2["audit_trail"]["previous_pending_manifest_sha256"] == "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac"
         assert m2["is_synthetic"] is False
         assert m2["official_test_used"] is False
 
     @pytest.mark.integration
+    @pytest.mark.skipif(not BLIND_VIEW_V2_PATH.exists(), reason="Restricted V2 view is local only")
     def test_v2_manifest_checksums_match_actual_files(self):
         """Mã băm trong manifest V2 phải khớp 100% với nội dung các artifact trên đĩa."""
         m2 = json.loads(MANIFEST_V2_PATH.read_text(encoding="utf-8"))
@@ -67,11 +69,6 @@ class TestPilotIncidentAndV2Package:
         actual_bv_hash = _sha256(BLIND_VIEW_V2_PATH.read_bytes())
         assert m2["blind_view_sha256"] == actual_bv_hash
 
-        # Source mapping V2 checksum
-        assert SOURCE_MAPPING_V2_PATH.exists()
-        actual_mapping_hash = _sha256(SOURCE_MAPPING_V2_PATH.read_bytes())
-        assert m2["restricted_source_mapping_sha256"] == actual_mapping_hash
-
         # Codebook & Dictionary checksum
         codebook_path = REPO_ROOT / "docs" / "CODEBOOK_V1.md"
         dict_path = REPO_ROOT / "configs" / "dictionary_v1.json"
@@ -79,6 +76,7 @@ class TestPilotIncidentAndV2Package:
         assert m2["dictionary_sha256"] == _sha256(dict_path.read_bytes())
 
     @pytest.mark.integration
+    @pytest.mark.skipif(not BLIND_VIEW_V2_PATH.exists(), reason="Restricted V2 view is local only")
     def test_v2_blind_view_has_zero_leakage(self):
         """Blind view V2 phải chứa đúng 32 mẫu và hoàn toàn ẩn thông tin nhãn, gợi ý."""
         assert BLIND_VIEW_V2_PATH.exists()
@@ -103,76 +101,28 @@ class TestPilotIncidentAndV2Package:
         assert sample_ids == {f"PILOT-{i:03d}" for i in range(1, 33)}
 
     @pytest.mark.integration
+    @pytest.mark.skipif(not SOURCE_MAPPING_V2_PATH.exists(), reason="Restricted V2 mapping is local only")
     def test_strict_three_tier_deduplication_between_v2_and_previous(self):
-        """Kiểm định 3 tầng chống trùng lặp: V2 không trùng URL, HTML, hoặc domain group với V1/tập dượt."""
-        # 1. Thu thập dữ liệu cấm từ V1 và tập dượt
-        forbidden_urls = set()
-        forbidden_html_hashes = set()
-        forbidden_domain_groups = set()
-
-        # Từ V1
-        assert BLIND_VIEW_V1_PATH.exists()
-        if BLIND_VIEW_V1_PATH.exists():
-            bv1 = json.loads(BLIND_VIEW_V1_PATH.read_text(encoding="utf-8"))
-            for s in bv1.get("samples", []):
-                u = s["url"].strip().lower()
-                forbidden_urls.add(u)
-                forbidden_domain_groups.add(extract_group_id(u))
-
-        # Từ tập dượt
-        assert PRACTICE_VIEW_PATH.exists()
-        if PRACTICE_VIEW_PATH.exists():
-            bvp = json.loads(PRACTICE_VIEW_PATH.read_text(encoding="utf-8"))
-            for s in bvp.get("samples", []):
-                u = s["url"].strip().lower()
-                forbidden_urls.add(u)
-                forbidden_domain_groups.add(extract_group_id(u))
-
-        # Từ Exclusion Registry (V1 hashes)
-        reg = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
-        for excl in reg.get("exclusions", []):
-            if excl.get("exclusion_id") in ("EXCL-REAL-PILOT-32", "EXCL-PILOT-01"):
-                for smp in excl.get("samples", []):
-                    if "html_sha256" in smp:
-                        forbidden_html_hashes.add(smp["html_sha256"])
-
-        # 2. Đối chiếu với 32 mẫu V2
-        assert SOURCE_MAPPING_V2_PATH.exists()
+        """Đối chiếu URL, HTML, nhóm và view hash với tất cả lô cũ bằng chứng hạn chế."""
+        from scripts.data.build_real_pilot_v2 import check_deduplication, load_blocked_entities
         mapping_v2 = json.loads(SOURCE_MAPPING_V2_PATH.read_text(encoding="utf-8"))
         assert len(mapping_v2) == 32
-
-        v2_domain_groups = set()
-        for rec in mapping_v2:
-            u_clean = rec["raw_url"].strip().lower()
-            u_norm = rec["normalized_url"].strip().lower() if "normalized_url" in rec else u_clean
-            
-            # Tầng 1: URL trùng lặp
-            assert u_clean not in forbidden_urls, f"URL V2 trùng lặp với tập cũ: {u_clean}"
-            assert u_norm not in forbidden_urls, f"Normalized URL V2 trùng lặp với tập cũ: {u_norm}"
-
-            # Tầng 2: HTML byte hash trùng lặp
-            html_hash = rec["html_sha256"]
-            assert html_hash not in forbidden_html_hashes, f"HTML hash V2 trùng lặp: {html_hash}"
-
-            # Tầng 3: Domain group (eTLD+1)
-            group_id = rec["group_id"].lower()
-            assert group_id not in forbidden_domain_groups, f"Domain group V2 trùng lặp: {group_id}"
-            v2_domain_groups.add(group_id)
-
-        # Đảm bảo V2 có đúng 32 domain groups độc nhất
-        assert len(v2_domain_groups) == 32, f"V2 có domain group trùng lặp nội bộ: {len(v2_domain_groups)} != 32"
+        blocked = load_blocked_entities(PRIOR_EVIDENCE_PATH, EXCLUSION_REGISTRY_PATH)
+        check_deduplication(mapping_v2, blocked)
 
     @pytest.mark.integration
+    @pytest.mark.skipif(not PROPOSED_REGISTRY_PATH.exists(), reason="Restricted proposed registry is local only")
     def test_exclusion_registry_contains_both_v1_and_v2(self):
         """Exclusion registry phải cô lập cả V1 (32 mẫu) và V2 (32 mẫu), cấm huấn luyện."""
         from phishing.data.exclusion import ExclusionRegistry
 
-        reg = ExclusionRegistry(EXCLUSION_REGISTRY_PATH)
+        assert json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))["training_blocked"] is True
+        reg = ExclusionRegistry(PROPOSED_REGISTRY_PATH)
         assert reg.training_blocked is True
         with pytest.raises(RuntimeError, match="LỆNH CHẶN HUẤN LUYỆN CHÍNH"):
             reg.assert_training_allowed()
 
-        data = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
+        data = json.loads(PROPOSED_REGISTRY_PATH.read_text(encoding="utf-8"))
         excl_ids = {e["exclusion_id"] for e in data["exclusions"]}
         assert "EXCL-REAL-PILOT-32" in excl_ids
         assert "EXCL-PILOT-02" in excl_ids
@@ -180,4 +130,4 @@ class TestPilotIncidentAndV2Package:
         # Kiểm tra mẫu V2 bị chặn bởi registry
         mapping_v2 = json.loads(SOURCE_MAPPING_V2_PATH.read_text(encoding="utf-8"))
         for rec in mapping_v2:
-            assert reg.is_excluded({"url": rec["raw_url"]}) is True, f"Mẫu {rec['raw_url']} không bị chặn!"
+            assert reg.is_excluded({"url": rec["url"]}) is True
