@@ -144,6 +144,22 @@ Giữ các ghi nhận mâu thuẫn trước như audit trail, không sửa nhãn
 gian. Lượt thay thế D chưa bắt đầu và tạm hủy. Sau mốc quyết định này mới
 được chạy Kappa A–B trên 32 mẫu gốc; PLAN-01 chỉ chốt sau khi kiểm tra thêm
 tính hợp lệ của thời gian đo CLI. Training vẫn khóa.
+
+06/10/2026 — Sau commit quyết định `0e1bf82`, D chạy công cụ
+`scripts/evaluate_kappa.py` trên đúng hai file gốc đã nhận của A/B, manifest
+V2 phát hành và `--verify-pilot-32`; provenance/hash của 32 cặp đạt. Kết quả
+pilot trước phân xử: `class_label` Cohen's κ=0,3139, đồng thuận quan sát
+18/32 (56,25%); bất đồng lớp 14 mẫu. Công cụ ghi 26 mẫu bất đồng ở ít nhất
+một trong hai trường lớp/tổ chức. `primary_org` κ thô=0,3309, đồng thuận
+15/32; **chưa dùng làm kết luận cuối** vì mã tổ chức còn biến thể chữ hoa/thường
+và tên tự do phải chuẩn hóa theo codebook trước tính lại. File JSON/Markdown
+chi tiết nằm trong `data/labels/intake_v2/` (gitignored), SHA-256 lần lượt
+`c1df5c4ab47f488fe68f09fa3e75b1ebe8f2d3ffca70f04cfb6e62098ef9b707`
+và `ae75d1d0c38a88ff8ef29baaa4cff77bb6e45606f1d3c427454efaab25c50c23`.
+Đây là chỉ số pilot 32 mẫu nhỏ, không phải chất lượng mô hình. Thời gian CLI
+A tổng 1666,64 giây, B tổng 6743,03 giây (chênh khoảng 4 lần); cần xác minh
+cách hai người tính thời gian và các quãng nghỉ trước khi dùng cho PLAN-01.
+Chưa phân xử, chưa sửa nhãn gốc, chưa mở training.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

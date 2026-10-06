@@ -57,7 +57,18 @@
       "prior_exclusion_status": "superseded_before_label_comparison"
     },
     "decision_at_utc": "2026-10-06T14:53:17Z",
-    "kappa_computed": false,
+    "kappa_computed": true,
+    "pilot_kappa": {
+      "decision_commit_before_evaluation": "0e1bf82",
+      "paired_sample_count": 32,
+      "class_label_kappa": 0.3139,
+      "class_label_observed_agreement": 0.5625,
+      "class_label_disagreements": 14,
+      "primary_org_raw_kappa": 0.3309,
+      "primary_org_status": "provisional_pending_locked_codebook_normalization",
+      "any_field_disagreements": 26,
+      "restricted_result_json_sha256": "c1df5c4ab47f488fe68f09fa3e75b1ebe8f2d3ffca70f04cfb6e62098ef9b707"
+    },
     "training_blocked": true,
     "replacement_rater_plan": {
       "annotator_id": "D",
