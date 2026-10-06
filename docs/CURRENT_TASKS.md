@@ -22,7 +22,7 @@ Locator kiểm lại dòng đầu/cuối khớp HTML hash. Exclusion dùng group
 chung, không tạo extractor cache riêng mỗi bản ghi.
 
 Bằng chứng công khai chỉ có metadata/counts/hash: [recovery_status.json](../data/source_audit/phreshphish/recovery_status.json).
-Tiếp theo: kiểm hồ sơ V2 từng công bố và phạm vi A/B đã xem; xây pilot mới pending,
+Tiếp theo: kiểm hồ sơ V2 từng công bố; xây pilot mới pending,
 review mapping phục hồi trước mở gán. Không coi các mẫu đã phục hồi là nhãn cuối đã xác minh.
 
 ## Trạng thái có bằng chứng
@@ -78,7 +78,9 @@ Status: PENDING_REVIEW / BLOCKED_REBUILD_REQUIRED. Owner: C; D hỗ trợ vá m�
 V1 invalidated, giữ mọi bằng chứng cũ. V2 hiện tại chưa chứng minh nguồn thật và
 nhãn từng nằm trên Git chung; chưa được dùng cho Kappa/PLAN-01. Manifest vẫn đóng.
 Builder mới đọc source rows đã kiểm hash; không có dữ liệu thật mới được tạo trong bản vá.
-C/D còn phải bàn giao raw exposure evidence, shard nguồn và xác nhận phạm vi A/B đã xem.
+C/D còn phải bàn giao bằng chứng mẫu từng công bố và nguồn của pilot mới.
+Theo xác nhận của Lead D, A/B chưa được bàn giao V2 và chưa đọc thông tin V2;
+đây là xác nhận điều phối của Lead, không phải bằng chứng A/B đã gán V2.
 Hướng dẫn: [báo cáo V2](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).
 Registry 84 là tổng lượt entry; chưa phải số mẫu duy nhất đã dedup.
 
@@ -195,3 +197,14 @@ python scripts/data/recover_pilot_mapping.py --raw20 /Users/yingjunn_/Study_/NCK
 ```
 
 Script kiểm hash batch/shards và so byte URL+HTML; không đọc nhãn/target và không sửa registry hay phê duyệt. Mỗi lần dùng output mới, không ghi đè bằng chứng.
+
+06/10/2026 — Đối chiếu hồ sơ A tại 11f23d02166e16b8ea614043b3f12b30f0489224:
+A báo cáo đã nhận V1 v1.0.0 (view hash 8be1c642…), đã hoàn thành 32/32 Pass 1 và
+bảo lưu file kết quả hash 005a4ed5e274797b5d8057b31a691ddfc61ef16de2f98b9fb59a43af2a8ea30e.
+D đã đọc hồ sơ trên Git; chưa nhận/băm độc lập file nhãn A để xác minh hash báo cáo.
+V1 invalidated, nhãn/timing không dùng Kappa/PLAN-01. A báo chưa nhận/mở/gán view V2.
+Lead D xác nhận C chỉ gửi V2 cho D để hoàn thiện và đã thông báo trước cho A/B;
+A/B chưa đọc thông tin V2. Việc bản mã cũ chứa nhãn trên Git là vấn đề quản lý
+bằng chứng nguồn, không được suy thành A/B đã tiếp xúc với nhãn V2.
+Góp ý UI của A là review
+câu chữ tĩnh, chưa là kiểm thử extension trực tiếp. Không mở pilot từ báo cáo này.
