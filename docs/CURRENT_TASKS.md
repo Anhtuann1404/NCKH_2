@@ -78,6 +78,18 @@ không coi là A đã nhận hỗ trợ chọn nhãn. Căn cứ mới này thay 
 đã phát hành trong lúc B đang gán và cập nhật hồ sơ khóa sau khi kết thúc
 Pass 1. Chỉ tính Kappa/PLAN-01 sau khi nhận đủ hai lượt hợp lệ và kiểm tra
 provenance; registry huấn luyện vẫn khóa.
+
+06/10/2026 — D tiếp nhận file Pass 1 V2 gốc của A từ ZIP bàn giao, SHA-256
+`8da2e16dcd40b280ac0e7c3e4f56ebe74c0ea31f00cb727f2b84dcec65112e4c`.
+`scripts/data/receive_pass1_v2.py` trả `accepted` cho đúng 32 bản ghi:
+ID duy nhất PILOT-001..032, Pass 1 của A, gói/view/codebook/plan và hash nội
+dung từng mẫu khớp manifest đã phát hành, không phải dry-run/synthetic, thời
+gian là số hợp lệ và registry huấn luyện vẫn khóa. File nguyên byte và receipt
+được giữ trong `data/labels/intake_v2/A/` (gitignored); báo cáo kỹ thuật gốc
+của A được giữ cùng khu vực với SHA-256
+`69e6fd7826ddfbcb07b1bd0af2521de542baf616b4a96e10e8b374c81d66d445`.
+Đây chỉ là nghiệm thu kỹ thuật một lượt; chưa kiểm tính hợp lệ của thời gian
+ngoài CLI, chưa đối chiếu nhãn B, chưa tính Kappa/PLAN-01 hoặc mở huấn luyện.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 
