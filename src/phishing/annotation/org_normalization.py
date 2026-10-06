@@ -71,19 +71,29 @@ def normalize_primary_org(
 ) -> tuple[str, str]:
     """Chuẩn hóa một nhãn tổ chức.
     
+    Quy tắc ARS & Lead D yêu cầu:
+    - Giữ riêng biệt 3 trạng thái không xác định: 'unknown', 'no_clear_target', 'multi_target'.
+    - Tuyệt đối KHÔNG gộp 'no_clear_target' hay 'multi_target' vào 'unknown'.
+    - Tuyệt đối KHÔNG suy đoán tổ chức mục tiêu chỉ từ observed_service.
+    
     Returns:
         tuple[normalized_org, catalog_status]:
             - (org_id, "in_catalog") nếu thuộc 14 tổ chức trong từ điển
             - (token, "outside_catalog") nếu là tổ chức ngoài danh mục
+            - ("no_clear_target", "unresolved") nếu là trang lừa đảo chung không mục tiêu
+            - ("multi_target", "unresolved") nếu có nhiều mục tiêu ngang hàng
             - ("unknown", "unresolved") nếu rỗng, unknown, none, null
     """
     token = normalize_token(raw_org)
 
-    if not token or token in {"unknown", "none", "null", "unresolved", "no_clear_target"}:
-        return "unknown", "unresolved"
+    if token == "no_clear_target":
+        return "no_clear_target", "unresolved"
 
     if token == "multi_target":
         return "multi_target", "unresolved"
+
+    if not token or token in {"unknown", "none", "null", "unresolved"}:
+        return "unknown", "unresolved"
 
     if alias_mapping is not None and token in alias_mapping:
         return alias_mapping[token], "in_catalog"
@@ -91,11 +101,31 @@ def normalize_primary_org(
     return token, "outside_catalog"
 
 
+def validate_org_consistency(record: dict[str, Any]) -> None:
+    """Xác thực tính nhất quán giữa primary_org_status và primary_org.
+    
+    Yêu cầu Lead D: Báo lỗi khi thiếu primary_org nhưng trạng thái là identified;
+    và cấm suy đoán tổ chức mục tiêu từ observed_service.
+    """
+    sid = record.get("sample_id", "unnamed_sample")
+    status = record.get("primary_org_status")
+    raw_org = record.get("primary_org")
+    token = normalize_token(raw_org)
+
+    if status == "identified":
+        if not token or token in {"unknown", "none", "null", "unresolved", "no_clear_target", "multi_target"}:
+            raise ValueError(
+                f"Mâu thuẫn logic tại mẫu '{sid}': primary_org_status='identified' "
+                f"nhưng primary_org bị thiếu, rỗng hoặc là '{raw_org}'."
+            )
+
+
 def compare_org_agreement(
     records_a: Sequence[dict[str, Any]],
     records_b: Sequence[dict[str, Any]],
     alias_mapping: dict[str, str] | None = None,
     require_provenance: bool = True,
+    validate_consistency: bool = True,
 ) -> dict[str, Any]:
     """So sánh độ đồng thuận primary_org thô và sau chuẩn hóa giữa hai annotator.
     
@@ -105,6 +135,14 @@ def compare_org_agreement(
 
     if alias_mapping is None:
         alias_mapping = build_org_alias_mapping()
+
+    if validate_consistency:
+        for r in records_a:
+            if not r.get("is_dry_run"):
+                validate_org_consistency(r)
+        for r in records_b:
+            if not r.get("is_dry_run"):
+                validate_org_consistency(r)
 
     idx_a = {r["sample_id"]: r for r in records_a if not r.get("is_dry_run")}
     idx_b = {r["sample_id"]: r for r in records_b if not r.get("is_dry_run")}

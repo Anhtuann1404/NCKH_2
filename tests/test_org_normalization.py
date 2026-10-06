@@ -72,11 +72,50 @@ def test_normalize_primary_org_in_and_outside_catalog():
     assert norm == "robinhood"
     assert status == "outside_catalog"
 
-    # 3. Unknown / Unresolved
-    for unk in ["", "unknown", "None", None, "no_clear_target", "null"]:
+    # 3. Giữ riêng biệt 3 trạng thái unresolved theo yêu cầu của Lead D
+    for unk in ["", "unknown", "None", None, "null"]:
         norm, status = normalize_primary_org(unk, mapping)
         assert norm == "unknown"
         assert status == "unresolved"
+
+    norm_nc, status_nc = normalize_primary_org("no_clear_target", mapping)
+    assert norm_nc == "no_clear_target"
+    assert status_nc == "unresolved"
+
+    norm_mt, status_mt = normalize_primary_org("multi_target", mapping)
+    assert norm_mt == "multi_target"
+    assert status_mt == "unresolved"
+
+
+def test_validate_org_consistency_when_identified():
+    from phishing.annotation.org_normalization import validate_org_consistency
+
+    # Hợp lệ: identified có tên tổ chức rõ ràng
+    valid_rec = {"sample_id": "P-01", "primary_org_status": "identified", "primary_org": "microsoft"}
+    validate_org_consistency(valid_rec)
+
+    # Vi phạm: identified nhưng để trống hoặc unknown/no_clear_target/multi_target
+    for bad_val in [None, "", "   ", "unknown", "no_clear_target", "multi_target"]:
+        bad_rec = {"sample_id": "P-02", "primary_org_status": "identified", "primary_org": bad_val}
+        with pytest.raises(ValueError, match="Mâu thuẫn logic"):
+            validate_org_consistency(bad_rec)
+
+
+def test_no_inference_from_observed_service():
+    """Quy tắc ARS: Tuyệt đối không tự ý suy tổ chức mục tiêu chỉ từ observed_service."""
+    mapping = build_org_alias_mapping()
+
+    # Dù observed_service có là dịch vụ của Microsoft/Google, nếu primary_org là unknown thì vẫn giữ nguyên unknown
+    rec = {
+        "sample_id": "P-03",
+        "primary_org": "unknown",
+        "primary_org_status": "unknown",
+        "observed_service": "Outlook 365",
+    }
+    norm, status = normalize_primary_org(rec["primary_org"], mapping)
+    assert norm == "unknown"
+    assert status == "unresolved"
+    assert norm != "microsoft"
 
 
 def test_compare_org_agreement_synthetic():
@@ -89,16 +128,16 @@ def test_compare_org_agreement_synthetic():
     # Mẫu 3: Bất đồng thật sự (Google vs Apple)
     # Mẫu 4: Cùng outside catalog (Garena vs garena) -> lệch thô (hoa/thường), trùng sau chuẩn hóa
     records_a = [
-        {"sample_id": "S1", "primary_org": "microsoft", "class_label": "phishing"},
-        {"sample_id": "S2", "primary_org": "Facebook", "class_label": "phishing"},
-        {"sample_id": "S3", "primary_org": "google", "class_label": "phishing"},
-        {"sample_id": "S4", "primary_org": "Garena", "class_label": "phishing"},
+        {"sample_id": "S1", "primary_org": "microsoft", "class_label": "phishing", "primary_org_status": "identified"},
+        {"sample_id": "S2", "primary_org": "Facebook", "class_label": "phishing", "primary_org_status": "identified"},
+        {"sample_id": "S3", "primary_org": "google", "class_label": "phishing", "primary_org_status": "identified"},
+        {"sample_id": "S4", "primary_org": "Garena", "class_label": "phishing", "primary_org_status": "identified"},
     ]
     records_b = [
-        {"sample_id": "S1", "primary_org": "microsoft", "class_label": "phishing"},
-        {"sample_id": "S2", "primary_org": "meta", "class_label": "phishing"},
-        {"sample_id": "S3", "primary_org": "apple", "class_label": "phishing"},
-        {"sample_id": "S4", "primary_org": "garena", "class_label": "phishing"},
+        {"sample_id": "S1", "primary_org": "microsoft", "class_label": "phishing", "primary_org_status": "identified"},
+        {"sample_id": "S2", "primary_org": "meta", "class_label": "phishing", "primary_org_status": "identified"},
+        {"sample_id": "S3", "primary_org": "apple", "class_label": "phishing", "primary_org_status": "identified"},
+        {"sample_id": "S4", "primary_org": "garena", "class_label": "phishing", "primary_org_status": "identified"},
     ]
 
     res = compare_org_agreement(records_a, records_b, mapping, require_provenance=False)
