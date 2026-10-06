@@ -45,8 +45,13 @@ duyệt exposure_review của D sau kiểm tra độc lập. Registry chính đ�
 registry `54f950cf3c417e2450a63ed792a6e4711dd3480e221bc15c19e1902379ea97d4`.
 Manifest revision `V2-REGISTRY-VERIFIED-FINAL-D-PENDING-1` có SHA-256
 `74aa940c339648ca20335e1f872ec335cda9b995e23fbd0fbd86dca5b81bf09e`.
-D còn đối chiếu manifest cuối và phát lệnh Pass 1 riêng; CLI tiếp tục chặn
-lượt gán thật vì `ready_for_annotation=false`.
+06/10/2026 — D đối chiếu commit 848ba58, full pytest 234 pass/1 skip/32 subtests,
+kiểm registry 32/32 và mở Pass 1 gán nhãn người độc lập có bấm giờ. Manifest
+revision `V2-PASS1-RELEASE-1`, SHA-256
+`63f50697d6acbe75183237860f33a063a0f6e054f31f4ad4b5b0401a894c86f7`:
+`status=approved`, `ready_for_annotation=true`. A/B chỉ chạy sau khi nhận đúng
+view hash `e039c774…`, dùng đầu ra V2 riêng, không dùng AI và không trao đổi nhãn
+trong Pass 1. V1 vẫn invalidated; registry vẫn `training_blocked=true`.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

@@ -24,10 +24,10 @@
   "train000_sha256_html_matches": 0,
   "hash_semantics_note": "Verified only on train-000; adapter validates each available source URL hash and computes HTML hash independently.",
   "training_blocked": true,
-  "pilot_ready": false,
+  "pilot_ready": true,
   "raw_data_committed": false,
   "v2_rebuild_proposal": {
-    "status": "registry_verified_32_of_32_pending_final_lead_release",
+    "status": "approved_for_independent_timed_pass1",
     "source_shards": ["data/train-000.parquet", "data/train-055.parquet"],
     "selection_seed": 2026,
     "candidate_pool_within_date_window": 624,
@@ -42,6 +42,7 @@
     "d_approved_b_pending_manifest_sha256": "d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603",
     "d_and_b_approved_manifest_sha256": "ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f",
     "registry_verified_manifest_sha256": "74aa940c339648ca20335e1f872ec335cda9b995e23fbd0fbd86dca5b81bf09e",
+    "released_manifest_sha256": "63f50697d6acbe75183237860f33a063a0f6e054f31f4ad4b5b0401a894c86f7",
     "exclusion_registry_sha256": "54f950cf3c417e2450a63ed792a6e4711dd3480e221bc15c19e1902379ea97d4",
     "new_v2_registry_coverage": "32/32",
     "registry_coverage_basis": "Restricted source_mapping URL fingerprints checked against canonical ExclusionRegistry",
@@ -50,7 +51,7 @@
     "exposure_review_A_provenance": "Lead D confirms A has not viewed V2; not an A self-attestation",
     "exposure_review_D_provenance": "Lead D approved after independent review",
     "training_blocked": true,
-    "ready_for_annotation": false
+    "ready_for_annotation": true
   },
   "annotator_b_exposure_attestation": {
     "received_via": "Lead D forwarding B's direct statement on 2026-10-06",
@@ -77,7 +78,7 @@
     "pilot_mapping_reproducible.json": "31aa501b40562d3a7abc3f5cc2ff2620d9e7c823d69a7506b32c190e4bd8abcb"
   },
   "remaining": [
-    "D verifies the final manifest and separately orders Pass 1; retain old invalidated evidence",
+    "A/B receive the exact-hash blind view privately and perform independent timed Pass 1 without AI; retain old invalidated evidence",
     "Keep main-model training blocked until separate label/QC gate passes"
   ],
   "recovery_script": "scripts/data/recover_pilot_mapping.py",

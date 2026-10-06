@@ -44,13 +44,15 @@ class TestPilotIncidentAndV2Package:
         assert inv.get("superseded_by") == "REAL-PILOT-32-V2"
 
     def test_v2_manifest_structure_and_lock_status(self):
-        """V2 manifest phải có dataset_id chuẩn, ready_for_annotation=False và chờ duyệt."""
+        """V2 chỉ mở Pass 1 sau duyệt nguồn, view, loại trừ và tiếp xúc."""
         assert MANIFEST_V2_PATH.exists()
         m2 = json.loads(MANIFEST_V2_PATH.read_text(encoding="utf-8"))
         assert m2["dataset_id"] == "REAL-PILOT-32-V2"
         assert m2["sample_count"] == 32
-        assert m2["ready_for_annotation"] is False
-        assert m2["status"] == "pending_final_lead_release"
+        assert m2["ready_for_annotation"] is True
+        assert m2["status"] == "approved"
+        assert m2["release_decision"]["scope"] == "Pass 1 independent timed human annotation only"
+        assert m2["audit_trail"]["previous_registry_verified_manifest_sha256"] == "74aa940c339648ca20335e1f872ec335cda9b995e23fbd0fbd86dca5b81bf09e"
         assert m2["acceptance"] == {"B": "approved", "D": "approved"}
         assert m2["exposure_review"] == {"A": "approved", "B": "approved", "D": "approved"}
         assert "Lead D" in m2["exposure_review_provenance"]["A"]

@@ -2,8 +2,8 @@
   "dataset_id": "REAL-PILOT-32-V2",
   "is_synthetic": false,
   "sample_count": 32,
-  "status": "pending_final_lead_release",
-  "ready_for_annotation": false,
+  "status": "approved",
+  "ready_for_annotation": true,
   "acceptance": {
     "B": "approved",
     "D": "approved"
@@ -28,13 +28,20 @@
     "D": "approved"
   },
   "official_test_used": false,
-  "manifest_revision": "V2-REGISTRY-VERIFIED-FINAL-D-PENDING-1",
+  "manifest_revision": "V2-PASS1-RELEASE-1",
   "audit_trail": {
     "previous_pending_manifest_sha256": "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac",
     "previous_blocked_manifest_sha256": "ce7140f06cefb35fc8684e6891de2b2377a0768b1f7c1a0e5e194bfaca59e312",
     "approved_view_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
     "previous_d_approved_b_pending_manifest_sha256": "d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603",
-    "previous_d_and_b_approved_manifest_sha256": "ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f"
+    "previous_d_and_b_approved_manifest_sha256": "ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f",
+    "previous_registry_verified_manifest_sha256": "74aa940c339648ca20335e1f872ec335cda9b995e23fbd0fbd86dca5b81bf09e"
+  },
+  "release_decision": {
+    "approved_by": "Lead D",
+    "released_at_utc": "2026-10-06T08:58:03Z",
+    "scope": "Pass 1 independent timed human annotation only",
+    "validation": "234 passed, 1 skipped, 32 subtests passed; V2 registry coverage 32/32"
   },
   "lead_technical_review": {
     "D": "approved",

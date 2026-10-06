@@ -208,7 +208,9 @@ def test_v2_manifest_cannot_be_opened_by_toggling_approval(tmp_path):
     spec = importlib.util.spec_from_file_location('annotation_cli', ROOT / 'scripts' / 'annotate_cli.py')
     cli = importlib.util.module_from_spec(spec); spec.loader.exec_module(cli)
     mf = json.loads((ROOT / 'configs' / 'pilot_manifest_v2.json').read_text())
-    mf.update(ready_for_annotation=True, acceptance={'B': 'approved', 'D': 'approved'})
+    # Model the historical invalidated package, regardless of the current V2 release.
+    mf.update(status='blocked_rebuild_required', ready_for_annotation=True,
+              acceptance={'B': 'approved', 'D': 'approved'})
     path = tmp_path / 'manifest.json'; path.write_text(json.dumps(mf))
     with pytest.raises(ValueError, match='BLOCKED'):
         cli.validate_manifest_preflight(path, tmp_path / 'missing-view.json', {})
