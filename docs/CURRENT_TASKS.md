@@ -63,6 +63,21 @@ chạy, giữ nhãn và thời gian gốc. Không tính Kappa hay dùng thời g
 PLAN-01 trước khi D chốt sự cố. Chưa kết luận vô hiệu hóa toàn gói V2; giữ
 manifest chung mở để B có thể resume, registry huấn luyện vẫn khóa. Không lưu
 nội dung mẫu hoặc hội thoại AI trong Git.
+
+06/10/2026 13:37 UTC — D chốt rà soát tiếp xúc dựa trên lời xác nhận A chuyển
+qua Lead: A chỉ dán V2 vào một chat AI, chưa đọc nội dung mẫu hoặc bật đồng hồ
+Pass 1; A chưa đọc phản hồi AI tại thời điểm báo cáo. Theo A, AI chỉ hướng dẫn
+kiểm hash và báo phạm vi tiếp xúc, nhận xét hash văn bản dán không khớp hash
+tệp gốc; không đưa nhãn, tổ chức mục tiêu hay phân tích từng mẫu. A giữ lịch
+sử chat/file, không dùng phản hồi AI khi gán nhãn. D cho phép A bắt đầu Pass 1
+V2 thủ công có bấm giờ từ tệp view gốc đúng SHA-256; B tiếp tục lượt độc lập
+đang chạy. Đây là quyết định dựa trên tự báo cáo, chưa kiểm chứng độc lập lịch
+sử chat. Ghi nhận việc đưa view vào dịch vụ AI như sự cố tiếp xúc dữ liệu;
+không coi là A đã nhận hỗ trợ chọn nhãn. Căn cứ mới này thay thế câu khẳng
+định cũ trong manifest rằng A hoàn toàn chưa tiếp xúc V2; giữ nguyên manifest
+đã phát hành trong lúc B đang gán và cập nhật hồ sơ khóa sau khi kết thúc
+Pass 1. Chỉ tính Kappa/PLAN-01 sau khi nhận đủ hai lượt hợp lệ và kiểm tra
+provenance; registry huấn luyện vẫn khóa.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 
