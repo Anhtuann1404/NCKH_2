@@ -138,25 +138,33 @@ def load_verified_candidates(selection_path: Path, source_root: Path, manifest_p
 
 
 def load_blocked_entities(evidence_path: Path, registry_path: Path) -> dict[str, set[str]]:
-    """Require complete raw exposure batches, including audit and former V2.
-
-    C/D must verify evidence file hashes against their retained handoff records.
-    Missing raw inputs are a blocker, not permission to assert zero overlap.
-    """
+    """Require complete, hashed fingerprint batches for every prior exposure."""
     blocked = {key: set() for key in record_fingerprints('https://shape.example/', '<p>shape</p>')}
     packages = read_json(evidence_path).get('packages', [])
     expected_counts = {'practice': 20, 'v1': 32, 'audit': 20, 'v2_unverified': 32}
     if len(packages) != 4 or {p.get('kind') for p in packages} != set(expected_counts):
         raise ValueError('Require practice, V1, audit and unverified V2 exposure evidence')
     for package in packages:
-        path = (evidence_path.parent / package['path']).resolve()
+        name = package.get('path')
+        if not isinstance(name, str) or Path(name).name != name:
+            raise ValueError('Prior exposure path must be a file beside the evidence manifest')
+        path = (evidence_path.parent / name).resolve()
         if file_hash(path) != package['sha256']:
             raise ValueError('Prior exposure checksum mismatch')
         records = read_json(path)
         if not isinstance(records, list) or len(records) != expected_counts[package['kind']]:
             raise ValueError('Incomplete prior exposure batch')
+        seen = set()
         for row in records:
-            for key, value in record_fingerprints(row['url'], row['html']).items():
+            if (not isinstance(row, dict) or not {'url_sha256', 'html_sha256'} <= set(row)
+                    or not set(row) <= set(blocked)):
+                raise ValueError('Prior exposure requires URL/HTML fingerprints')
+            if row['url_sha256'] in seen:
+                raise ValueError('Duplicate prior exposure URL within batch')
+            seen.add(row['url_sha256'])
+            for key, value in row.items():
+                if not isinstance(value, str) or not re.fullmatch(r'[0-9a-f]{64}', value):
+                    raise ValueError('Malformed prior exposure fingerprint')
                 blocked[key].add(value)
     registry = read_json(registry_path)
     if registry.get('training_blocked') is not True:
@@ -182,6 +190,7 @@ def check_deduplication(records: list[dict], blocked: dict[str, set[str]]) -> No
 def build_real_pilot_v2(selection: Path, source_root: Path, prior_evidence: Path,
                         output: Path, repo_root: Path = REPO_ROOT) -> Path:
     """Never overwrite an existing package, registry, manifest or approvals."""
+    repo_root, output = repo_root.resolve(), output.resolve()
     if output.exists():
         raise FileExistsError('Output already exists; preserve previous evidence')
     private_root = (repo_root / 'data' / 'raw').resolve()

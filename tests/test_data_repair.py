@@ -176,6 +176,33 @@ def test_builder_rejects_missing_exposure_and_detects_group_content_overlap(tmp_
     assert builder.record_fingerprints('https://fixture.example/login', ' <p>Fixture</p>')['html_sha256'] != fp['html_sha256']
 
 
+def test_prior_exposure_accepts_partial_invalid_url_hashes_but_not_missing_content(tmp_path):
+    builder = load_script('build_real_pilot_v2')
+    packages = []
+    for kind, count in [('practice', 20), ('v1', 32), ('audit', 20), ('v2_unverified', 32)]:
+        rows = [{'url_sha256': hashlib.sha256(f'{kind}-{i}'.encode()).hexdigest(),
+                 'html_sha256': hashlib.sha256(f'html-{kind}-{i}'.encode()).hexdigest()}
+                for i in range(count)]
+        path = tmp_path / f'{kind}.json'; path.write_text(json.dumps(rows))
+        packages.append({'kind': kind, 'path': path.name, 'sha256': builder.file_hash(path)})
+    evidence = tmp_path / 'evidence.json'; evidence.write_text(json.dumps({'packages': packages}))
+    blocked = builder.load_blocked_entities(evidence, reg(tmp_path).path)
+    assert len(blocked['url_sha256']) == 105  # 104 exposure rows plus registry fixture.
+    assert not blocked['normalized_url_sha256']
+    packages[0]['path'] = '../outside.json'
+    evidence.write_text(json.dumps({'packages': packages}))
+    with pytest.raises(ValueError, match='path'):
+        builder.load_blocked_entities(evidence, reg(tmp_path).path)
+    packages[0]['path'] = 'practice.json'
+    practice_path = tmp_path / 'practice.json'
+    rows = json.loads(practice_path.read_text()); del rows[0]['html_sha256']
+    practice_path.write_text(json.dumps(rows))
+    packages[0]['sha256'] = builder.file_hash(practice_path)
+    evidence.write_text(json.dumps({'packages': packages}))
+    with pytest.raises(ValueError, match='URL/HTML'):
+        builder.load_blocked_entities(evidence, reg(tmp_path).path)
+
+
 def test_v2_manifest_cannot_be_opened_by_toggling_approval(tmp_path):
     spec = importlib.util.spec_from_file_location('annotation_cli', ROOT / 'scripts' / 'annotate_cli.py')
     cli = importlib.util.module_from_spec(spec); spec.loader.exec_module(cli)
@@ -212,8 +239,9 @@ def test_builder_verified_fixture_end_to_end_pending_and_preflight(tmp_path):
     packages = []
     for kind, count in [('practice', 20), ('v1', 32), ('audit', 20), ('v2_unverified', 32)]:
         path = inputs / (kind + '.json')
-        path.write_text(json.dumps([{'url': f'https://fixture-prior-{kind.replace("_", "-")}-{i}.com/',
-            'html': f'<p>Invented prior {kind} {i}</p>'} for i in range(count)]))
+        path.write_text(json.dumps([builder.record_fingerprints(
+            f'https://fixture-prior-{kind.replace("_", "-")}-{i}.com/',
+            f'<p>Invented prior {kind} {i}</p>') for i in range(count)]))
         packages.append({'kind': kind, 'path': path.name, 'sha256': builder.file_hash(path)})
     prior = inputs / 'prior.json'; prior.write_text(json.dumps({'packages': packages}))
     original_registry = registry_path.read_bytes()

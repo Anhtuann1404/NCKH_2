@@ -22,8 +22,16 @@ Locator kiểm lại dòng đầu/cuối khớp HTML hash. Exclusion dùng group
 chung, không tạo extractor cache riêng mỗi bản ghi.
 
 Bằng chứng công khai chỉ có metadata/counts/hash: [recovery_status.json](../data/source_audit/phreshphish/recovery_status.json).
-Tiếp theo: kiểm hồ sơ V2 từng công bố; xây pilot mới pending,
-review mapping phục hồi trước mở gán. Không coi các mẫu đã phục hồi là nhãn cuối đã xác minh.
+Đã đối chiếu 32 mẫu V2 cũ từ literal Git 27a7170 với registry bằng hash URL/HTML;
+chỉ dùng làm tập loại trừ. Script `prepare_real_pilot_v2_inputs.py` chọn có seed 2026 từ
+hai shard train đã kiểm hash, sau khi loại tập dượt/V1/audit/V2 cũ và trùng nhóm.
+Gói V2 đề xuất mới nằm trong `data/raw/recovery/pilot-v2-proposed-20261006` cục bộ:
+32 mẫu (20 phish, 12 benign theo nhãn nguồn), 32 nhóm độc lập; view SHA-256
+`e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc`.
+Chỉ công bố [metadata/hash](../data/source_audit/phreshphish/recovery_status.json),
+không đưa view, ánh xạ hay nhãn nguồn lên Git. B/D cần đối soát riêng gói và nguồn;
+manifest đề xuất vẫn `ready_for_annotation=false`, B/D pending. Không coi nhãn nguồn
+là nhãn cuối đã xác minh và không mở huấn luyện.
 
 ## Trạng thái có bằng chứng
 
@@ -78,7 +86,8 @@ Status: PENDING_REVIEW / BLOCKED_REBUILD_REQUIRED. Owner: C; D hỗ trợ vá m�
 V1 invalidated, giữ mọi bằng chứng cũ. V2 hiện tại chưa chứng minh nguồn thật và
 nhãn từng nằm trên Git chung; chưa được dùng cho Kappa/PLAN-01. Manifest vẫn đóng.
 Builder mới đọc source rows đã kiểm hash; không có dữ liệu thật mới được tạo trong bản vá.
-C/D còn phải bàn giao bằng chứng mẫu từng công bố và nguồn của pilot mới.
+C/D đã dựng bằng chứng loại trừ và nguồn cục bộ cho gói đề xuất; B/D còn phải
+nghiệm thu độc lập trước khi thay manifest cũ và bàn giao view qua kênh hạn chế.
 Theo xác nhận của Lead D, A/B chưa được bàn giao V2 và chưa đọc thông tin V2;
 đây là xác nhận điều phối của Lead, không phải bằng chứng A/B đã gán V2.
 Hướng dẫn: [báo cáo V2](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).

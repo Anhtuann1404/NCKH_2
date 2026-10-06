@@ -26,15 +26,31 @@
   "training_blocked": true,
   "pilot_ready": false,
   "raw_data_committed": false,
+  "v2_rebuild_proposal": {
+    "status": "pending_independent_B_D_review",
+    "source_shards": ["data/train-000.parquet", "data/train-055.parquet"],
+    "selection_seed": 2026,
+    "candidate_pool_within_date_window": 624,
+    "invalid_source_rows_skipped": 29,
+    "prior_exposure_counts": {"practice": 20, "v1": 32, "audit": 20, "old_v2_unverified": 32},
+    "selected_source_class_counts": {"phish": 20, "benign": 12},
+    "selected_unique_group_count": 32,
+    "selection_sha256": "e88b9361daa5927dc872f9c22f249edf1780bc5412775e742a2396277bb00926",
+    "prior_exposure_evidence_sha256": "5d71e74dd99b120e480edc1dadfb1c44f15c3c6c57bc343d546907dd15d96772",
+    "blind_view_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
+    "private_manifest_sha256": "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac",
+    "training_blocked": true,
+    "ready_for_annotation": false
+  },
   "private_mapping_evidence_hashes": {
     "raw20_mapping_check.json": "7c7ea17d9a1e56e815a6864e14ade6b5a37ccfb916c753778e2e513b83f561ca",
     "v1_mapping_check.json": "009b2a2f2be25a370a0ac81a7e52026d72f13e003d9740897db8c436a3d1f771",
     "pilot_mapping_reproducible.json": "31aa501b40562d3a7abc3f5cc2ff2620d9e7c823d69a7506b32c190e4bd8abcb"
   },
   "remaining": [
-    "Recover/verify prior V2 exposure history and confirm A/B exposure scope",
-    "Prepare new pending pilot with complete exposure checks",
-    "B/D review reconstructed mappings and real-data integration before opening annotation"
+    "B/D independently review reconstructed exposure evidence, source locators and pending V2 package",
+    "After approval, publish the new view and manifest through restricted handoff; retain all old invalidated evidence",
+    "Keep main-model training blocked until separate label/QC gate passes"
   ],
   "recovery_script": "scripts/data/recover_pilot_mapping.py",
   "recovery_script_sha256": "976615cbf3ecbf322391f57643fb41bfa9437ad3dafae5802ccf037b7f822c1f"
