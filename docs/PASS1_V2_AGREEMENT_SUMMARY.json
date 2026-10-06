@@ -1,0 +1,34 @@
+{
+  "sample_count": 32,
+  "confusion_matrix": {
+    "benign": {
+      "benign": 8,
+      "phishing": 6,
+      "insufficient_evidence": 1
+    },
+    "phishing": {
+      "benign": 0,
+      "phishing": 9,
+      "insufficient_evidence": 1
+    },
+    "insufficient_evidence": {
+      "benign": 4,
+      "phishing": 2,
+      "insufficient_evidence": 1
+    }
+  },
+  "disagreement_patterns": {
+    "A=phishing / B=insufficient_evidence": 1,
+    "A=benign / B=phishing": 6,
+    "A=insufficient_evidence / B=benign": 4,
+    "A=benign / B=insufficient_evidence": 1,
+    "A=insufficient_evidence / B=phishing": 2
+  },
+  "org_agreement_summary": {
+    "raw_agreement_count": 15,
+    "raw_kappa": 0.3309,
+    "normalized_agreement_count": 19,
+    "normalized_kappa": 0.4858,
+    "resolved_by_normalization_count": 4
+  }
+}

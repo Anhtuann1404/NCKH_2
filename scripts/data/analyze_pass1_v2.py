@@ -22,6 +22,13 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from phishing.annotation import compute_cohens_kappa
 from phishing.annotation.org_normalization import (
     build_org_alias_mapping,
@@ -113,6 +120,15 @@ def generate_restricted_disagreement_table(
         class_diff = (class_a != class_b)
         org_diff = (norm_org_a != norm_org_b)
 
+        # Kiểm tra mâu thuẫn logic: identified nhưng org là unknown/rỗng
+        anomaly_a = None
+        if ra.get("primary_org_status") == "identified" and norm_org_a in {"unknown", "no_clear_target", "multi_target"}:
+            anomaly_a = f"identified_with_{norm_org_a}"
+
+        anomaly_b = None
+        if rb.get("primary_org_status") == "identified" and norm_org_b in {"unknown", "no_clear_target", "multi_target"}:
+            anomaly_b = f"identified_with_{norm_org_b}"
+
         row_info = {
             "sample_id": sid,
             "class_label_a": class_a,
@@ -123,6 +139,8 @@ def generate_restricted_disagreement_table(
             "primary_org_norm_a": norm_org_a,
             "primary_org_norm_b": norm_org_b,
             "org_disagreement": org_diff,
+            "consistency_anomaly_a": anomaly_a,
+            "consistency_anomaly_b": anomaly_b,
             "difficult_case_a": ra.get("difficult_case", False),
             "difficult_case_b": rb.get("difficult_case", False),
             "evidence_note_a": ra.get("evidence_note", ""),
@@ -134,8 +152,11 @@ def generate_restricted_disagreement_table(
             class_disagreements.append(row_info)
         if org_diff:
             org_disagreements.append(row_info)
-        if class_diff or org_diff:
+        if class_diff or org_diff or anomaly_a or anomaly_b:
             all_disagreements.append(row_info)
+
+    anomalies_count_a = sum(1 for r in all_disagreements if r["consistency_anomaly_a"])
+    anomalies_count_b = sum(1 for r in all_disagreements if r["consistency_anomaly_b"])
 
     return {
         "total_samples": len(recs_a),
@@ -143,6 +164,8 @@ def generate_restricted_disagreement_table(
         "class_disagreement_count": len(class_disagreements),
         "org_disagreement_count": len(org_disagreements),
         "overlap_both_count": len([r for r in all_disagreements if r["class_disagreement"] and r["org_disagreement"]]),
+        "consistency_anomalies_a_count": anomalies_count_a,
+        "consistency_anomalies_b_count": anomalies_count_b,
         "disagreements": all_disagreements,
     }
 
@@ -190,8 +213,14 @@ def main() -> int:
     recs_a, recs_b = verify_intake_files(args.rater_a, args.rater_b)
     alias_mapping = build_org_alias_mapping()
 
-    # 1. So sánh tổ chức
-    org_comp = compare_org_agreement(recs_a, recs_b, alias_mapping, require_provenance=True)
+    # 1. So sánh tổ chức (tính toán khảo sát với validate_consistency=False)
+    org_comp = compare_org_agreement(
+        recs_a,
+        recs_b,
+        alias_mapping,
+        require_provenance=True,
+        validate_consistency=False,
+    )
 
     # 2. Bảng hạn chế
     restricted_data = generate_restricted_disagreement_table(recs_a, recs_b, alias_mapping)
@@ -206,6 +235,11 @@ def main() -> int:
     table_file = args.out_restricted / "adjudication_disagreement_table.json"
     table_file.write_text(json.dumps(restricted_data, ensure_ascii=False, indent=2), encoding="utf-8")
     table_hash = compute_file_sha256(table_file)
+
+    # Lưu bảng ánh xạ alias kèm hash
+    mapping_file = args.out_restricted / "org_alias_mapping.json"
+    mapping_file.write_text(json.dumps(alias_mapping, ensure_ascii=False, indent=2), encoding="utf-8")
+    mapping_hash = compute_file_sha256(mapping_file)
 
     # 3. Bảng tổng hợp công khai
     summary = generate_public_summary_matrix(recs_a, recs_b)
