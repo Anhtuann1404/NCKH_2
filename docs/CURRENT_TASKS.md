@@ -110,6 +110,17 @@ chứng lịch sử; quyết định loại lượt B này là addendum sau phá
 theo: một người gán nhãn mới chưa xem V2 và chưa biết nhãn nguồn có thể gán
 độc lập V2; nếu không có, tạo gói mới cho A/B sau khi khóa quy trình không
 dùng AI. Chưa chạy Kappa hoặc mở training.
+
+06/10/2026 — D làm rõ rằng việc nghiệm thu/bàn giao V2 chỉ qua đối soát kỹ
+thuật; theo tự xác nhận của D, D chưa đọc nội dung hoặc nhãn/target theo từng
+mẫu, cũng chưa xem nhãn từng mẫu của A/B. D đã biết tổng nguồn 20/12 và phân
+bố nhãn tổng hợp B 17/12/3, được ghi nhận như tiếp xúc thông tin tổng hợp.
+D có thể làm người gán nhãn thay thế nếu giữ tách biệt toàn bộ mapping,
+file A/B, không dùng AI, chỉ mở view mù gốc khi bắt đầu đồng hồ, và ghi đúng
+`annotator_id=D` trong một lượt Pass 1 riêng. Đây là thay đổi người gán nhãn
+pilot so với kế hoạch A/B, không phải gán lại lượt B. `annotate_cli.py` và
+`receive_pass1_v2.py` cho phép mã D; Kappa A–D chỉ được tính sau khi D hoàn
+thành và file được nghiệm thu độc lập. Không dùng kết quả B đã loại.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

@@ -75,3 +75,14 @@ def test_receive_preserves_rejected_file_without_replacing_accepted(tmp_path, mo
     assert rejected["file_sha256"] != accepted["file_sha256"]
     assert (tmp_path / "inbox/A" / f"{accepted['file_sha256']}.jsonl").is_file()
     assert (tmp_path / "inbox/A" / f"{rejected['file_sha256']}.jsonl").is_file()
+
+
+def test_receive_replacement_rater_keeps_distinct_identity(tmp_path, monkeypatch):
+    manifest, records = _fixture(tmp_path, monkeypatch)
+    for record in records:
+        record["annotator_id"] = "D"
+    source = tmp_path / "D.jsonl"
+    source.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+    receipt = intake.receive(source, "D", tmp_path / "inbox", manifest)
+    assert receipt["status"] == "accepted"
+    assert (tmp_path / "inbox/D" / f"{receipt['file_sha256']}.jsonl").is_file()

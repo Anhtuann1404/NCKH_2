@@ -53,7 +53,14 @@
     },
     "decision_at_utc": "2026-10-06T14:53:17Z",
     "kappa_computed": false,
-    "training_blocked": true
+    "training_blocked": true,
+    "replacement_rater_plan": {
+      "annotator_id": "D",
+      "status": "eligible_by_self_attestation_not_started",
+      "sample_level_source_or_peer_labels_seen": false,
+      "aggregate_information_seen": "source_class_counts_20_12_and_B_class_counts_17_12_3",
+      "conditions": "blind_original_view_only; separate timed Pass 1; no AI; no A/B per-sample labels; intake before Kappa"
+    }
   },
   "raw_data_committed": false,
   "v2_rebuild_proposal": {
