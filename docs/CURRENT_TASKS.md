@@ -99,9 +99,10 @@ không dry-run/synthetic; 32 thời gian hữu hạn dương, tổng 6743,03 gi�
 CLI. File gốc và receipt được giữ nguyên trong `data/labels/intake_v2/B/`
 (gitignored), không so sánh nhãn với A. B tự báo trong chính phiên gán nhãn
 đã dùng AI dịch nội dung một số mẫu, giải thích trường nhập và hướng dẫn đối
-chiếu codebook. Theo R-A09 của codebook khóa, D phân loại **lượt B không đủ
-điều kiện human-only**: không dùng nhãn B V2 để tính Kappa và không dùng thời
-gian B V2 để chốt PLAN-01. Không lựa riêng các mẫu “không dùng AI” vì phạm vi
+chiếu codebook. Theo R-A09 của codebook khóa, D phân loại lượt B **không đủ
+điều kiện cho phân tích chính human-only**: không dùng nhãn B V2 để tính Kappa
+chính và không dùng thời gian B V2 để chốt PLAN-01. Không lựa riêng các mẫu
+“không dùng AI” vì phạm vi
 hỗ trợ theo mẫu chưa được xác minh và hướng dẫn codebook có thể ảnh hưởng cả
 phiên. Kết quả A V2 được bảo lưu, chưa có cặp đánh giá hợp lệ. B cần giữ lịch
 sử hỗ trợ AI và ghi phạm vi mẫu/prompt để kiểm toán trong kênh hạn chế; không
@@ -120,7 +121,18 @@ file A/B, không dùng AI, chỉ mở view mù gốc khi bắt đầu đồng h�
 `annotator_id=D` trong một lượt Pass 1 riêng. Đây là thay đổi người gán nhãn
 pilot so với kế hoạch A/B, không phải gán lại lượt B. `annotate_cli.py` và
 `receive_pass1_v2.py` cho phép mã D; Kappa A–D chỉ được tính sau khi D hoàn
-thành và file được nghiệm thu độc lập. Không dùng kết quả B đã loại.
+thành và file được nghiệm thu độc lập. Không dùng kết quả B trong phân tích chính.
+
+06/10/2026 — Lead chuyển lời làm rõ của B: AI chỉ dùng để dịch vì B không
+hiểu ngôn ngữ của một số mẫu; B tự quyết định toàn bộ nhãn, không nhận đáp án
+hay gợi ý nhãn từ AI. Điều này xác nhận nhãn là quyết định của con người và
+không nên mô tả là AI gán nhãn thay B. Báo cáo ban đầu còn nêu AI giải thích
+trường nhập và hướng dẫn đối chiếu codebook; phạm vi này chưa được đối chiếu
+với lịch sử chat. Dù chỉ dịch, việc dùng AI trên nội dung mẫu trong phiên vẫn
+là hỗ trợ theo nghĩa của R-A09 đã khóa. Vì vậy quyết định không dùng lượt B
+cho **Kappa/PLAN-01 chính** giữ nguyên; sau khi khóa cặp A–D, có thể tính
+Kappa A–B như phân tích thăm dò, gắn nhãn rõ `AI-assisted translation`, không
+trộn với kết quả human-only. Giữ nguyên file gốc và lịch sử hỗ trợ của B.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

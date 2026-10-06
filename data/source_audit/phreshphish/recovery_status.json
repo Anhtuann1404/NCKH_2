@@ -48,8 +48,10 @@
       "file_sha256": "6f63750d71827d06f999af828f5724bdd67e584fbdddf3a0263882983a8d4db8",
       "technical_status": "accepted_32_of_32",
       "recorded_seconds_total": 6743.03,
-      "AI_assistance_reported": "translation_of_some_samples_and_codebook_field_guidance_during_pass1",
-      "analytic_status": "excluded_from_kappa_and_plan01_non_human_only"
+      "AI_assistance_initial_report": "translation_of_some_samples_and_codebook_field_guidance_during_pass1",
+      "AI_assistance_clarification_via_lead": "translation_only_for_foreign_language_samples; B says all label decisions were their own and AI supplied no answers or label suggestions",
+      "codebook_guidance_scope": "not_yet_reconciled_with_initial_report",
+      "analytic_status": "excluded_from_preregistered_human_only_kappa_and_plan01; exploratory_AI_assisted_comparison_only"
     },
     "decision_at_utc": "2026-10-06T14:53:17Z",
     "kappa_computed": false,
