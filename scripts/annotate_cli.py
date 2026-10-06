@@ -642,6 +642,8 @@ def annotate_interactive_session(
     if "is_synthetic" in data and type(data["is_synthetic"]) is not bool:
         raise ValueError("LỖI GÓI VIEW: is_synthetic phải là boolean.")
     is_synthetic = data.get("is_synthetic", False)
+    if dry_run and not is_synthetic:
+        raise ValueError("DRY-RUN BỊ CẤM: --dry-run chỉ dùng cho gói mô phỏng is_synthetic=true.")
     sampling_plan_version = str(data.get("sampling_plan_version", "") or "")
 
     is_real_session = (not dry_run) and (not is_synthetic)

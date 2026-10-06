@@ -214,10 +214,9 @@ def test_v2_manifest_cannot_be_opened_by_toggling_approval(tmp_path):
         cli.validate_manifest_preflight(path, tmp_path / 'missing-view.json', {})
 
 
-def test_v2_dry_run_requires_approved_v2_manifest_before_display(tmp_path, monkeypatch):
+def make_v2_cli_fixture(tmp_path):
     spec = importlib.util.spec_from_file_location('fixture_annotation_cli', ROOT / 'scripts/annotate_cli.py')
     cli = importlib.util.module_from_spec(spec); spec.loader.exec_module(cli)
-    monkeypatch.setattr(cli, 'PROJECT_ROOT', tmp_path)
     (tmp_path / 'configs').mkdir(); (tmp_path / 'docs').mkdir()
     cb = tmp_path / 'docs/CODEBOOK_V1.md'; dictionary = tmp_path / 'configs/dictionary_v1.json'
     shutil.copy2(ROOT / 'docs/CODEBOOK_V1.md', cb)
@@ -241,26 +240,55 @@ def test_v2_dry_run_requires_approved_v2_manifest_before_display(tmp_path, monke
         'status': 'pending_lead_acceptance', 'acceptance': {'B': 'pending', 'D': 'pending'},
         'ready_for_annotation': False}
     manifest_path.write_text(json.dumps(manifest))
+    return cli, view_path, manifest_path, manifest
+
+
+def test_v2_pending_and_approved_both_reject_dry_run_before_display(tmp_path, monkeypatch):
+    cli, view_path, manifest_path, manifest = make_v2_cli_fixture(tmp_path)
+    monkeypatch.setattr(cli, 'PROJECT_ROOT', tmp_path)
     output = tmp_path / 'labels.jsonl'
     with monkeypatch.context() as preflight_guard:
         preflight_guard.setattr(cli, 'display_sample_and_allow_reading',
-                                lambda *_args, **_kwargs: pytest.fail('Displayed sample before manifest approval'))
-        with pytest.raises(ValueError, match='BLOCKED'):
-            cli.annotate_interactive_session('A', view_path, output, dry_run=True)
+                                lambda *_args, **_kwargs: pytest.fail('Displayed real sample during dry-run'))
+        for approved in (False, True):
+            if approved:
+                manifest.update(status='approved', acceptance={'B': 'approved', 'D': 'approved'},
+                                ready_for_annotation=True)
+                manifest_path.write_text(json.dumps(manifest))
+            with pytest.raises(ValueError, match='DRY-RUN BỊ CẤM'):
+                cli.annotate_interactive_session('A', view_path, output, dry_run=True)
         generic = tmp_path / 'generic_real.json'
         export_blind_view([{'sample_id': 'SMP-001', 'url': 'https://fixture.example.com/',
                             'html': '<p>Invented fixture</p>'}], generic,
                           dataset_id='OTHER-REAL-DATA', is_synthetic=False)
-        with pytest.raises(ValueError, match='--manifest'):
+        with pytest.raises(ValueError, match='DRY-RUN BỊ CẤM'):
             cli.annotate_interactive_session('A', generic, output, dry_run=True)
     assert not output.exists() and not (tmp_path / 'labels.dryrun.jsonl').exists()
+    synthetic = tmp_path / 'synthetic.json'
+    export_blind_view([{'sample_id': 'SMP-002', 'url': 'https://fixture.example.com/',
+                        'html': '<p>Invented fixture</p>', 'codebook_version': '1.0.0'}],
+                      synthetic, dataset_id='SYNTHETIC-FIXTURE', is_synthetic=True)
+    cli.annotate_interactive_session('A', synthetic, tmp_path / 'toy.jsonl', dry_run=True)
+    toy = json.loads((tmp_path / 'toy.dryrun.jsonl').read_text())
+    assert toy['is_dry_run'] is True and toy['is_synthetic'] is True
+
+
+def test_v2_approved_fixture_allows_manual_annotation(tmp_path, monkeypatch):
+    from itertools import cycle
+    cli, view_path, manifest_path, manifest = make_v2_cli_fixture(tmp_path)
+    monkeypatch.setattr(cli, 'PROJECT_ROOT', tmp_path)
     manifest.update(status='approved', acceptance={'B': 'approved', 'D': 'approved'},
                     ready_for_annotation=True)
     manifest_path.write_text(json.dumps(manifest))
-    cli.annotate_interactive_session('A', view_path, output, dry_run=True)
-    rows = [json.loads(line) for line in (tmp_path / 'labels.dryrun.jsonl').read_text().splitlines()]
+    replies = cycle(['2', '2', '3', '', '', '', '3', '5', 'Fixture evidence', ''])
+    monkeypatch.setattr('builtins.input', lambda _prompt: next(replies))
+    monkeypatch.setattr(cli, 'display_sample_and_allow_reading', lambda *_args, **_kwargs: None)
+    output = tmp_path / 'manual.jsonl'
+    cli.annotate_interactive_session('A', view_path, output, dry_run=False)
+    rows = [json.loads(line) for line in output.read_text().splitlines()]
     assert len(rows) == 32 and {r['dataset_id'] for r in rows} == {'REAL-PILOT-32-V2'}
     assert {r['dataset_hash'] for r in rows} == {manifest['blind_view_sha256']}
+    assert all(r['is_dry_run'] is False and r['is_synthetic'] is False for r in rows)
 
 
 def test_builder_verified_fixture_end_to_end_pending_and_preflight(tmp_path):

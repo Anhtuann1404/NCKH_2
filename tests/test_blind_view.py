@@ -1721,8 +1721,8 @@ class TestResumeStrictProvenanceAndManifestChecks:
             # Khẳng định tuyệt đối: hàm hiển thị mẫu KHÔNG BAO GIỜ được gọi
             assert mock_display.call_count == 0
 
-    def test_cli_manifest_checked_even_in_dry_run_for_real_pilot(self, tmp_path, cli_module):
-        """CLI vẫn kiểm tra manifest ngay cả khi có cờ --dry-run nếu là gói pilot thật; tuyệt đối không bỏ qua manifest."""
+    def test_cli_rejects_dry_run_for_real_pilot_before_display(self, tmp_path, cli_module):
+        """Pilot thật không được dùng dry-run, dù manifest đang ở trạng thái nào."""
         from unittest.mock import patch
 
         input_blind = tmp_path / "real_view_dryrun_check.json"
@@ -1749,11 +1749,12 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
 
         with patch.object(cli_module, "display_sample_and_allow_reading") as mock_display:
-            with pytest.raises(ValueError, match="CHƯA SẴN SÀNG"):
+            with pytest.raises(ValueError, match="DRY-RUN BỊ CẤM"):
                 cli_module.annotate_interactive_session(
                     "A", input_blind, out_file, manifest_path=unready_manifest, dry_run=True
                 )
             assert mock_display.call_count == 0
+            assert not out_file.exists() and not (tmp_path / "A_dryrun_check.dryrun.jsonl").exists()
 
     def test_manifest_preflight_rejects_missing_blind_view_sha256(self, tmp_path, cli_module):
         """Preflight từ chối nếu manifest thiếu trường bắt buộc blind_view_sha256."""
@@ -2166,7 +2167,7 @@ class TestResumeStrictProvenanceAndManifestChecks:
             with pytest.raises(ValueError, match="SAI KHÁC PHIÊN BẢN CODEBOOK TRÊN MẪU"):
                 cli_module.annotate_interactive_session(
                     "A", input_blind, out_file, manifest_path=m_file,
-                    codebook_path=cb_file, dictionary_path=dict_file, dry_run=True
+                    codebook_path=cb_file, dictionary_path=dict_file, dry_run=False
                 )
             assert mock_display.call_count == 0
 
@@ -2250,7 +2251,6 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
         with pytest.raises(ValueError, match="Gói view có 31 mẫu, nhưng manifest khai báo 32 mẫu"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
-
 
 
 

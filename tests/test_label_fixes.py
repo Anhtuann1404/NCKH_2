@@ -149,7 +149,7 @@ def test_real_pilot_ready_allows_session_init(tmp_path, capsys):
 
     # 1. Gói rỗng hoặc sample_count <= 0 bị từ chối
     with pytest.raises(ValueError, match="sample_count"):
-        cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path, dry_run=True, codebook_path=cb_path, dictionary_path=dict_path)
+        cli.annotate_interactive_session("A", input_path, output, manifest_path=manifest_path, dry_run=False, codebook_path=cb_path, dictionary_path=dict_path)
 
     # 2. Gói có mẫu hợp lệ và đã hoàn thành toàn bộ
     samples = [{"sample_id": "SMP-01", "url": "https://test.invalid/", "html": "<p>Content</p>"}]
