@@ -29,7 +29,8 @@ Gói V2 đề xuất mới nằm trong `data/raw/recovery/pilot-v2-proposed-2026
 32 mẫu (20 phish, 12 benign theo nhãn nguồn), 32 nhóm độc lập; view SHA-256
 `e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc`.
 Chỉ công bố [metadata/hash](../data/source_audit/phreshphish/recovery_status.json),
-không đưa view, ánh xạ hay nhãn nguồn lên Git. B/D cần đối soát riêng gói và nguồn;
+không đưa view, ánh xạ hay nhãn nguồn lên Git. D đối soát nguồn/ánh xạ hạn chế;
+B chỉ kiểm metadata, hash và schema của view mù, không xem nội dung trước Pass 1;
 manifest đề xuất vẫn `ready_for_annotation=false`, B/D pending. Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 
@@ -86,8 +87,8 @@ Status: PENDING_REVIEW / BLOCKED_REBUILD_REQUIRED. Owner: C; D hỗ trợ vá m�
 V1 invalidated, giữ mọi bằng chứng cũ. V2 hiện tại chưa chứng minh nguồn thật và
 nhãn từng nằm trên Git chung; chưa được dùng cho Kappa/PLAN-01. Manifest vẫn đóng.
 Builder mới đọc source rows đã kiểm hash; không có dữ liệu thật mới được tạo trong bản vá.
-C/D đã dựng bằng chứng loại trừ và nguồn cục bộ cho gói đề xuất; B/D còn phải
-nghiệm thu độc lập trước khi thay manifest cũ và bàn giao view qua kênh hạn chế.
+C/D đã dựng bằng chứng loại trừ và nguồn cục bộ cho gói đề xuất; D còn phải
+nghiệm thu nguồn/ánh xạ, B kiểm toàn vẹn gói mù trước khi thay manifest cũ.
 Theo xác nhận của Lead D, A/B chưa được bàn giao V2 và chưa đọc thông tin V2;
 đây là xác nhận điều phối của Lead, không phải bằng chứng A/B đã gán V2.
 Hướng dẫn: [báo cáo V2](BAO_CAO_SU_CO_VA_BAN_GIAO_PILOT_V2.md).
@@ -217,3 +218,11 @@ A/B chưa đọc thông tin V2. Việc bản mã cũ chứa nhãn trên Git là 
 bằng chứng nguồn, không được suy thành A/B đã tiếp xúc với nhãn V2.
 Góp ý UI của A là review
 câu chữ tĩnh, chưa là kiểm thử extension trực tiếp. Không mở pilot từ báo cáo này.
+
+06/10/2026 — Lead D chuyển tiếp xác nhận trực tiếp từ B: B chưa xem script dựng V2,
+chưa xem bảng URL–nhãn V2 trên Git và cho biết hai tệp đó không có trong checkout
+`docs/member-b-start01` của B. B báo chỉ thao tác CLI mù trên PILOT-001–004 của V1,
+chưa tiếp xúc nhãn nguồn hay bất kỳ thông tin V2 nào. Đây là lời tự xác nhận của B
+do D chuyển tiếp; C chưa kiểm độc lập checkout B. Bốn lượt V1 được bảo lưu để audit,
+không đưa vào Kappa/PLAN-01. B sẵn sàng Pass 1 V2 sau khi gói sạch được phê duyệt
+và bàn giao riêng; hiện B chưa được phát view V2.

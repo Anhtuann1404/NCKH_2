@@ -42,13 +42,21 @@
     "training_blocked": true,
     "ready_for_annotation": false
   },
+  "annotator_b_exposure_attestation": {
+    "received_via": "Lead D forwarding B's direct statement on 2026-10-06",
+    "v2_script_or_label_table_viewed": false,
+    "v2_package_received_or_annotated": false,
+    "v1_blind_cli_samples_seen": 4,
+    "v1_results_eligible_for_kappa_or_plan01": false,
+    "checkout_claim_independently_verified_by_C": false
+  },
   "private_mapping_evidence_hashes": {
     "raw20_mapping_check.json": "7c7ea17d9a1e56e815a6864e14ade6b5a37ccfb916c753778e2e513b83f561ca",
     "v1_mapping_check.json": "009b2a2f2be25a370a0ac81a7e52026d72f13e003d9740897db8c436a3d1f771",
     "pilot_mapping_reproducible.json": "31aa501b40562d3a7abc3f5cc2ff2620d9e7c823d69a7506b32c190e4bd8abcb"
   },
   "remaining": [
-    "B/D independently review reconstructed exposure evidence, source locators and pending V2 package",
+    "D reviews restricted source locators and mapping; B verifies only blind-view integrity metadata without pre-reading samples",
     "After approval, publish the new view and manifest through restricted handoff; retain all old invalidated evidence",
     "Keep main-model training blocked until separate label/QC gate passes"
   ],
