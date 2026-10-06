@@ -2,7 +2,7 @@
 
 Kiểm tra:
 1. configs/pilot_manifest.json (V1) được đánh dấu invalidated, ready_for_annotation=False.
-2. configs/pilot_manifest_v2.json ghi D approved, B pending, ready_for_annotation=False.
+2. configs/pilot_manifest_v2.json ghi D/B approved, chờ lệnh mở Pass 1.
 3. Mã băm SHA-256 trong manifest V2 khớp byte thực tế của blind view, codebook, dictionary.
 4. data/annotations/blind_view_pilot_real_v2.json mù hóa 100% (không chứa source_label, target_org, group_id).
 5. Kiểm định URL/HTML/nhóm/view không trùng các lô practice, V1, audit và V2 cũ.
@@ -51,8 +51,10 @@ class TestPilotIncidentAndV2Package:
         assert m2["dataset_id"] == "REAL-PILOT-32-V2"
         assert m2["sample_count"] == 32
         assert m2["ready_for_annotation"] is False
-        assert m2["status"] == "pending_B_acceptance"
-        assert m2["acceptance"] == {"B": "pending", "D": "approved"}
+        assert m2["status"] == "pending_final_lead_release"
+        assert m2["acceptance"] == {"B": "approved", "D": "approved"}
+        assert m2["exposure_review"] == {"A": "pending", "B": "approved", "D": "pending"}
+        assert m2["blind_view_review_B"]["reported_sha256"] == m2["blind_view_sha256"]
         assert m2["blind_view_sha256"] == "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc"
         assert m2["audit_trail"]["previous_pending_manifest_sha256"] == "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac"
         assert m2["is_synthetic"] is False

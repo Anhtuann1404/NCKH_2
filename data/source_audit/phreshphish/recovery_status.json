@@ -27,7 +27,7 @@
   "pilot_ready": false,
   "raw_data_committed": false,
   "v2_rebuild_proposal": {
-    "status": "D_technical_approved_B_pending",
+    "status": "D_and_B_technical_approved_pending_final_lead_release",
     "source_shards": ["data/train-000.parquet", "data/train-055.parquet"],
     "selection_seed": 2026,
     "candidate_pool_within_date_window": 624,
@@ -40,17 +40,29 @@
     "blind_view_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
     "private_manifest_sha256": "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac",
     "d_approved_b_pending_manifest_sha256": "d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603",
-    "acceptance": {"D": "approved", "B": "pending"},
+    "d_and_b_approved_manifest_sha256": "ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f",
+    "acceptance": {"D": "approved", "B": "approved"},
     "training_blocked": true,
     "ready_for_annotation": false
   },
   "annotator_b_exposure_attestation": {
     "received_via": "Lead D forwarding B's direct statement on 2026-10-06",
     "v2_script_or_label_table_viewed": false,
-    "v2_package_received_or_annotated": false,
+    "v2_package_received": true,
+    "v2_package_annotated": false,
     "v1_blind_cli_samples_seen": 4,
     "v1_results_eligible_for_kappa_or_plan01": false,
     "checkout_claim_independently_verified_by_C": false
+  },
+  "annotator_b_blind_view_review": {
+    "received_via": "Lead D forwarding B's automated check on 2026-10-06",
+    "reported_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
+    "sample_count": 32,
+    "unique_sample_ids": 32,
+    "sample_fields_exactly_six_allowed": true,
+    "label_fields_found": false,
+    "sample_content_opened_before_pass1": false,
+    "annotate_cli_run": false
   },
   "private_mapping_evidence_hashes": {
     "raw20_mapping_check.json": "7c7ea17d9a1e56e815a6864e14ade6b5a37ccfb916c753778e2e513b83f561ca",
@@ -58,8 +70,7 @@
     "pilot_mapping_reproducible.json": "31aa501b40562d3a7abc3f5cc2ff2620d9e7c823d69a7506b32c190e4bd8abcb"
   },
   "remaining": [
-    "Transfer only the blind view to B through a private channel for hash/schema/count verification without pre-reading sample content",
-    "After B review, D verifies the final manifest and separately orders Pass 1; retain old invalidated evidence",
+    "D verifies the final manifest and separately orders Pass 1; retain old invalidated evidence",
     "Keep main-model training blocked until separate label/QC gate passes"
   ],
   "recovery_script": "scripts/data/recover_pilot_mapping.py",

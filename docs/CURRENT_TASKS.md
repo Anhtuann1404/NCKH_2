@@ -30,12 +30,17 @@ Gói V2 đề xuất mới nằm trong `data/raw/recovery/pilot-v2-proposed-2026
 `e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc`.
 Chỉ công bố [metadata/hash](../data/source_audit/phreshphish/recovery_status.json),
 không đưa view, ánh xạ hay nhãn nguồn lên Git. D đã nghiệm thu kỹ thuật nguồn/ánh xạ
-và giữ một mẫu không có page_text vì vẫn có URL/tiêu đề. Manifest mặc định V2
-revision `V2-D-APPROVED-B-PENDING-1` có hash
+và giữ một mẫu không có page_text vì vẫn có URL/tiêu đề. Manifest V2 trước khi
+B kiểm là revision `V2-D-APPROVED-B-PENDING-1`, có hash
 `d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603`;
 lưu hash bản pending trước đó `be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac`.
-B chỉ kiểm metadata, hash và schema của view mù, không xem nội dung trước Pass 1;
-`acceptance.D=approved`, `acceptance.B=pending`, `ready_for_annotation=false`.
+B đã báo kiểm tự động: hash view khớp, 32 ID duy nhất, đúng 6 trường cho phép,
+không có trường nhãn; B chưa mở nội dung mẫu hay chạy CLI. Manifest revision
+`V2-D-B-APPROVED-FINAL-D-PENDING-1` có SHA-256
+`ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f`;
+`acceptance.D=approved`, `acceptance.B=approved`, `ready_for_annotation=false`.
+D còn đối chiếu manifest cuối và phát lệnh Pass 1 riêng; exposure_review của A/D
+vẫn pending và CLI tiếp tục chặn lượt gán thật.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

@@ -2,10 +2,10 @@
   "dataset_id": "REAL-PILOT-32-V2",
   "is_synthetic": false,
   "sample_count": 32,
-  "status": "pending_B_acceptance",
+  "status": "pending_final_lead_release",
   "ready_for_annotation": false,
   "acceptance": {
-    "B": "pending",
+    "B": "approved",
     "D": "approved"
   },
   "codebook_version": "1.0.0",
@@ -23,15 +23,16 @@
   "psl_sha256": "b69315c085d53972724b8f2df111ffc329b0c84fe0a47d62c8c91655cc774a38",
   "exposure_review": {
     "A": "pending",
-    "B": "pending",
+    "B": "approved",
     "D": "pending"
   },
   "official_test_used": false,
-  "manifest_revision": "V2-D-APPROVED-B-PENDING-1",
+  "manifest_revision": "V2-D-B-APPROVED-FINAL-D-PENDING-1",
   "audit_trail": {
     "previous_pending_manifest_sha256": "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac",
     "previous_blocked_manifest_sha256": "ce7140f06cefb35fc8684e6891de2b2377a0768b1f7c1a0e5e194bfaca59e312",
-    "approved_view_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc"
+    "approved_view_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
+    "previous_d_approved_b_pending_manifest_sha256": "d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603"
   },
   "lead_technical_review": {
     "D": "approved",
@@ -40,5 +41,22 @@
   "annotator_exposure_attestations": {
     "A": "Lead D confirms no V2 exposure",
     "B": "B directly confirms no V2 exposure, forwarded by Lead D"
+  },
+  "blind_view_review_B": {
+    "reported_via": "Lead D forwarding B's independent automated review",
+    "reported_sha256": "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc",
+    "sample_count": 32,
+    "unique_ids": "PILOT-001..PILOT-032",
+    "sample_fields": [
+      "sample_id",
+      "url",
+      "page_text",
+      "structure_summary",
+      "random_subset",
+      "codebook_version"
+    ],
+    "no_label_fields": true,
+    "content_not_opened_before_pass1": true,
+    "annotate_cli_not_run": true
   }
 }
