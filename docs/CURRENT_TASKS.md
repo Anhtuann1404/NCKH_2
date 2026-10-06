@@ -52,6 +52,17 @@ revision `V2-PASS1-RELEASE-1`, SHA-256
 `status=approved`, `ready_for_annotation=true`. A/B chỉ chạy sau khi nhận đúng
 view hash `e039c774…`, dùng đầu ra V2 riêng, không dùng AI và không trao đổi nhãn
 trong Pass 1. V1 vẫn invalidated; registry vẫn `training_blocked=true`.
+
+06/10/2026 13:25 UTC — Sự cố tiếp xúc V2 trước lượt A: theo báo cáo chuyển cho
+Lead D, A đã dán nội dung 32 mẫu V2 vào một chat AI trước Pass 1 và chưa chạy
+Pass 1. A nói chưa nhận gợi ý nhãn V2 trong cuộc trò chuyện đó; hiện chưa rõ
+AI đã phản hồi gì khác hoặc A đã đọc nội dung mẫu khi chuẩn bị dán. B đã bắt
+đầu Pass 1 độc lập theo xác nhận của Lead. Quyết định tạm thời: A không bắt đầu
+hoặc xem thêm V2 cho đến khi ghi nhận phạm vi tiếp xúc; B tiếp tục lượt đang
+chạy, giữ nhãn và thời gian gốc. Không tính Kappa hay dùng thời gian của A cho
+PLAN-01 trước khi D chốt sự cố. Chưa kết luận vô hiệu hóa toàn gói V2; giữ
+manifest chung mở để B có thể resume, registry huấn luyện vẫn khóa. Không lưu
+nội dung mẫu hoặc hội thoại AI trong Git.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

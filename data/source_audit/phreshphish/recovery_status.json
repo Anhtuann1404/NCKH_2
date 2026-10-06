@@ -25,6 +25,15 @@
   "hash_semantics_note": "Verified only on train-000; adapter validates each available source URL hash and computes HTML hash independently.",
   "training_blocked": true,
   "pilot_ready": true,
+  "pass1_incident_status": {
+    "reported_at_utc": "2026-10-06T13:25:45Z",
+    "A": "hold_before_pass1_pending_ai_chat_exposure_review",
+    "B": "pass1_started_continue_independently",
+    "A_label_suggestions_reported_in_that_chat": false,
+    "AI_other_response_and_A_prior_reading": "unknown",
+    "pilot_v2_validity_decision": "undetermined",
+    "kappa_and_A_timing_ready": false
+  },
   "raw_data_committed": false,
   "v2_rebuild_proposal": {
     "status": "approved_for_independent_timed_pass1",
