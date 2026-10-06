@@ -254,12 +254,27 @@ def main() -> int:
     mapping_file = args.out_restricted / "org_alias_mapping.json"
     mapping_hash = write_canonical_json(mapping_file, alias_mapping)
 
-    # 3. Bảng tổng hợp công khai
+def build_public_summary_report(
+    recs_a: list[dict[str, Any]],
+    recs_b: list[dict[str, Any]],
+    restricted_data: dict[str, Any],
+    org_comp: dict[str, Any],
+) -> dict[str, Any]:
+    """Tạo báo cáo tổng hợp công khai: tính toàn bộ số liệu động từ dữ liệu, tuyệt đối không lộ sample ID."""
     summary = generate_public_summary_matrix(recs_a, recs_b)
-    anom_samples = set(
-        [r["sample_id"] for r in restricted_data["disagreements"] if r["consistency_anomaly_a"]]
-        + [r["sample_id"] for r in restricted_data["disagreements"] if r["consistency_anomaly_b"]]
+
+    # Tính động số ca bất đồng thô (lệch class HOẶC lệch primary_org thô)
+    raw_disagreements_count = sum(
+        1 for ra, rb in zip(recs_a, recs_b)
+        if ra.get("class_label") != rb.get("class_label")
+        or str(ra.get("primary_org", "unknown")) != str(rb.get("primary_org", "unknown"))
     )
+
+    anom_samples = set(
+        [r["sample_id"] for r in restricted_data["disagreements"] if r.get("consistency_anomaly_a")]
+        + [r["sample_id"] for r in restricted_data["disagreements"] if r.get("consistency_anomaly_b")]
+    )
+
     summary["org_agreement_summary"] = {
         "status": "provisional_consistency_anomalies_pending_adjudication",
         "description": "Kết quả Kappa tổ chức tạm thời trước phân xử do tồn tại các bản ghi mâu thuẫn logic (primary_org_status='identified' nhưng primary_org là 'unknown' hoặc 'no_clear_target')",
@@ -274,19 +289,66 @@ def main() -> int:
         "normalized_kappa": org_comp["normalized_kappa"],
         "resolved_by_normalization_count": org_comp["resolved_by_normalization_count"],
     }
+
     summary["disagreement_counts_reconciliation"] = {
-        "raw_disagreements_count": 26,
-        "raw_disagreements_definition": "Số ca có bất đồng ở ít nhất một trường lớp hoặc tổ chức thô trước chuẩn hóa",
+        "raw_disagreements_count": raw_disagreements_count,
+        "raw_disagreements_definition": "Số ca có bất đồng ở ít nhất một trường lớp hoặc tổ chức thô trước khi chuẩn hóa tổ chức",
         "adjudication_table_cases_count": restricted_data["total_disagreements"],
         "adjudication_table_definition": (
-            "Hợp của: (1) 14 ca bất đồng lớp, (2) 13 ca bất đồng tổ chức SAU chuẩn hóa, và (3) 11 ca duy nhất mang consistency anomaly; "
-            "4 cặp lệch thô (PILOT-002, 003, 020, 027) được giải quyết thành đồng thuận nhờ chuẩn hóa chữ hoa/thường"
+            "Hợp của các ca bất đồng lớp, các ca bất đồng tổ chức sau chuẩn hóa và các ca mang mâu thuẫn logic; "
+            "các cặp bất đồng thô được giải quyết nhờ chuẩn hóa biến thể cách viết không còn nằm trong nhóm bất đồng tổ chức"
         ),
         "class_disagreements": restricted_data["class_disagreement_count"],
         "normalized_org_disagreements": restricted_data["org_disagreement_count"],
         "both_class_and_org_disagreements": restricted_data["overlap_both_count"],
+        "unique_consistency_anomalies_count": len(anom_samples),
+        "resolved_by_normalization_count": org_comp["resolved_by_normalization_count"],
+    }
+    return summary
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--rater-a", type=Path, required=True, help="Tệp JSONL của Annotator A")
+    parser.add_argument("--rater-b", type=Path, required=True, help="Tệp JSONL của Annotator B")
+    parser.add_argument("--out-restricted", type=Path, default=PROJECT_ROOT / "data" / "labels" / "intake_v2",
+                        help="Thư mục xuất chi tiết hạn chế")
+    parser.add_argument("--out-summary", type=Path, default=PROJECT_ROOT / "docs" / "PASS1_V2_AGREEMENT_SUMMARY.json",
+                        help="Tệp xuất tổng hợp công khai")
+    args = parser.parse_args()
+
+    recs_a, recs_b = verify_intake_files(args.rater_a, args.rater_b)
+    alias_mapping = build_org_alias_mapping()
+
+    # 1. So sánh tổ chức (tính toán khảo sát với validate_consistency=False)
+    org_comp = compare_org_agreement(
+        recs_a,
+        recs_b,
+        alias_mapping,
+        require_provenance=True,
+        validate_consistency=False,
+    )
+
+    # 2. Bảng hạn chế
+    restricted_data = generate_restricted_disagreement_table(recs_a, recs_b, alias_mapping)
+    restricted_data["org_comparison_metrics"] = {
+        "status": "provisional_consistency_anomalies_pending_adjudication",
+        "raw_kappa": org_comp["raw_kappa"],
+        "normalized_kappa": org_comp["normalized_kappa"],
+        "resolved_by_normalization_count": org_comp["resolved_by_normalization_count"],
+        "resolved_pairs": org_comp["resolved_pairs"],
     }
 
+    args.out_restricted.mkdir(parents=True, exist_ok=True)
+    table_file = args.out_restricted / "adjudication_disagreement_table.json"
+    table_hash = write_canonical_json(table_file, restricted_data)
+
+    # Lưu bảng ánh xạ alias kèm hash dạng canonical bytes
+    mapping_file = args.out_restricted / "org_alias_mapping.json"
+    mapping_hash = write_canonical_json(mapping_file, alias_mapping)
+
+    # 3. Bảng tổng hợp công khai
+    summary = build_public_summary_report(recs_a, recs_b, restricted_data, org_comp)
     args.out_summary.parent.mkdir(parents=True, exist_ok=True)
     summary_hash = write_canonical_json(args.out_summary, summary)
 

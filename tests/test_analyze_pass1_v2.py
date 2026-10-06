@@ -128,3 +128,101 @@ def test_report_marks_org_kappa_provisional_on_consistency_anomalies():
     assert s1_entry["consistency_anomaly_a"] == "identified_with_unknown"
     assert s1_entry["consistency_anomaly_b"] is None
 
+
+def test_public_summary_forbids_sample_ids_and_pilot_tokens():
+    """Quy tắc ARS: Báo cáo công khai tuyệt đối không chứa khóa sample_id hoặc chuỗi PILOT-xxx."""
+    import re
+    from scripts.data.analyze_pass1_v2 import build_public_summary_report, generate_restricted_disagreement_table
+
+    alias_mapping = build_org_alias_mapping()
+    recs_a = [
+        {"sample_id": "PILOT-001", "class_label": "benign", "primary_org": "microsoft",
+         "primary_org_status": "identified", "evidence_note": "A note", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "PILOT-002", "class_label": "phishing", "primary_org": "google",
+         "primary_org_status": "identified", "evidence_note": "A note 2", "difficult_case": False, "is_dry_run": False},
+    ]
+    recs_b = [
+        {"sample_id": "PILOT-001", "class_label": "phishing", "primary_org": "microsoft",
+         "primary_org_status": "identified", "evidence_note": "B note", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "PILOT-002", "class_label": "phishing", "primary_org": "google",
+         "primary_org_status": "identified", "evidence_note": "B note 2", "difficult_case": False, "is_dry_run": False},
+    ]
+
+    restricted = generate_restricted_disagreement_table(recs_a, recs_b, alias_mapping)
+    org_comp = {
+        "raw_agreement_count": 2, "raw_kappa": 1.0, "normalized_agreement_count": 2,
+        "normalized_kappa": 1.0, "resolved_by_normalization_count": 0,
+    }
+
+    summary = build_public_summary_report(recs_a, recs_b, restricted, org_comp)
+    raw_json = json.dumps(summary, ensure_ascii=False)
+
+    # 1. Không rò rỉ mã mẫu dạng PILOT-xxx
+    assert re.search(r"PILOT-\d+", raw_json, re.IGNORECASE) is None
+    # 2. Không rò rỉ khóa sample_id
+    assert "sample_id" not in summary
+    assert "sample_id" not in summary.get("confusion_matrix", {})
+    assert "sample_id" not in summary.get("disagreement_counts_reconciliation", {})
+
+
+def test_reconciliation_counts_computed_dynamically_from_inputs():
+    """Kiểm tra các trường đối chiếu được tính toán động từ input, không bị ghi cứng."""
+    from scripts.data.analyze_pass1_v2 import build_public_summary_report, generate_restricted_disagreement_table
+
+    alias_mapping = build_org_alias_mapping()
+
+    # Trường hợp 1: 3 mẫu, 1 lệch class, 1 lệch org
+    recs_a1 = [
+        {"sample_id": "S1", "class_label": "benign", "primary_org": "microsoft",
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "S2", "class_label": "phishing", "primary_org": "google",
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "S3", "class_label": "phishing", "primary_org": "apple",
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+    ]
+    recs_b1 = [
+        {"sample_id": "S1", "class_label": "phishing", "primary_org": "microsoft",  # Lệch class
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "S2", "class_label": "phishing", "primary_org": "meta",       # Lệch org
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "S3", "class_label": "phishing", "primary_org": "apple",      # Trùng
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+    ]
+
+    res1 = generate_restricted_disagreement_table(recs_a1, recs_b1, alias_mapping)
+    org_comp1 = {
+        "raw_agreement_count": 2, "raw_kappa": 0.5, "normalized_agreement_count": 2,
+        "normalized_kappa": 0.5, "resolved_by_normalization_count": 0,
+    }
+    s1 = build_public_summary_report(recs_a1, recs_b1, res1, org_comp1)
+    reconcil1 = s1["disagreement_counts_reconciliation"]
+
+    # Động tính: S1 (lệch class) và S2 (lệch org) -> raw_disagreements_count = 2
+    assert reconcil1["raw_disagreements_count"] == 2
+    assert reconcil1["class_disagreements"] == 1
+    assert reconcil1["normalized_org_disagreements"] == 1
+    assert reconcil1["adjudication_table_cases_count"] == 2
+
+    # Trường hợp 2: Đồng thuận hoàn toàn cả 3 mẫu
+    recs_b2 = [
+        {"sample_id": "S1", "class_label": "benign", "primary_org": "microsoft",
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "S2", "class_label": "phishing", "primary_org": "google",
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+        {"sample_id": "S3", "class_label": "phishing", "primary_org": "apple",
+         "primary_org_status": "identified", "difficult_case": False, "is_dry_run": False},
+    ]
+    res2 = generate_restricted_disagreement_table(recs_a1, recs_b2, alias_mapping)
+    org_comp2 = {
+        "raw_agreement_count": 3, "raw_kappa": 1.0, "normalized_agreement_count": 3,
+        "normalized_kappa": 1.0, "resolved_by_normalization_count": 0,
+    }
+    s2 = build_public_summary_report(recs_a1, recs_b2, res2, org_comp2)
+    reconcil2 = s2["disagreement_counts_reconciliation"]
+
+    assert reconcil2["raw_disagreements_count"] == 0
+    assert reconcil2["class_disagreements"] == 0
+    assert reconcil2["normalized_org_disagreements"] == 0
+    assert reconcil2["adjudication_table_cases_count"] == 0
+
+

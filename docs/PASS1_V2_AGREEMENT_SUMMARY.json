@@ -40,11 +40,13 @@
   },
   "disagreement_counts_reconciliation": {
     "raw_disagreements_count": 26,
-    "raw_disagreements_definition": "Số ca có bất đồng ở ít nhất một trường lớp hoặc tổ chức thô trước chuẩn hóa",
+    "raw_disagreements_definition": "Số ca có bất đồng ở ít nhất một trường lớp hoặc tổ chức thô trước khi chuẩn hóa tổ chức",
     "adjudication_table_cases_count": 25,
-    "adjudication_table_definition": "Hợp của: (1) 14 ca bất đồng lớp, (2) 13 ca bất đồng tổ chức SAU chuẩn hóa, và (3) 11 ca duy nhất mang consistency anomaly; 4 cặp lệch thô (PILOT-002, 003, 020, 027) được giải quyết thành đồng thuận nhờ chuẩn hóa chữ hoa/thường",
+    "adjudication_table_definition": "Hợp của các ca bất đồng lớp, các ca bất đồng tổ chức sau chuẩn hóa và các ca mang mâu thuẫn logic; các cặp bất đồng thô được giải quyết nhờ chuẩn hóa biến thể cách viết không còn nằm trong nhóm bất đồng tổ chức",
     "class_disagreements": 14,
     "normalized_org_disagreements": 13,
-    "both_class_and_org_disagreements": 5
+    "both_class_and_org_disagreements": 5,
+    "unique_consistency_anomalies_count": 11,
+    "resolved_by_normalization_count": 4
   }
 }
