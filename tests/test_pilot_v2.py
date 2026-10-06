@@ -2,11 +2,11 @@
 
 Kiểm tra:
 1. configs/pilot_manifest.json (V1) được đánh dấu invalidated, ready_for_annotation=False.
-2. configs/pilot_manifest_v2.json ghi D/B approved, chờ lệnh mở Pass 1.
+2. configs/pilot_manifest_v2.json ghi D/B và exposure approved, vẫn chờ lệnh mở Pass 1.
 3. Mã băm SHA-256 trong manifest V2 khớp byte thực tế của blind view, codebook, dictionary.
 4. data/annotations/blind_view_pilot_real_v2.json mù hóa 100% (không chứa source_label, target_org, group_id).
 5. Kiểm định URL/HTML/nhóm/view không trùng các lô practice, V1, audit và V2 cũ.
-6. Registry đề xuất giữ các loại trừ cũ, bổ sung V2 mới và vẫn chặn huấn luyện.
+6. Registry chính giữ các loại trừ cũ, bổ sung V2 mới và vẫn chặn huấn luyện.
 """
 
 import hashlib
@@ -21,7 +21,6 @@ BLIND_VIEW_V2_PATH = REPO_ROOT / "data" / "annotations" / "blind_view_pilot_real
 PRIVATE_V2_DIR = REPO_ROOT / "data" / "raw" / "recovery" / "pilot-v2-proposed-20261006"
 SOURCE_MAPPING_V2_PATH = PRIVATE_V2_DIR / "source_mapping.json"
 PRIOR_EVIDENCE_PATH = REPO_ROOT / "data" / "raw" / "recovery" / "pilot-v2-prepare-20261006" / "prior_evidence.json"
-PROPOSED_REGISTRY_PATH = PRIVATE_V2_DIR / "exclusion_registry.proposed.json"
 EXCLUSION_REGISTRY_PATH = REPO_ROOT / "data" / "exclusion_registry.json"
 
 
@@ -53,8 +52,17 @@ class TestPilotIncidentAndV2Package:
         assert m2["ready_for_annotation"] is False
         assert m2["status"] == "pending_final_lead_release"
         assert m2["acceptance"] == {"B": "approved", "D": "approved"}
-        assert m2["exposure_review"] == {"A": "pending", "B": "approved", "D": "pending"}
+        assert m2["exposure_review"] == {"A": "approved", "B": "approved", "D": "approved"}
+        assert "Lead D" in m2["exposure_review_provenance"]["A"]
+        assert "not an A self-attestation" in m2["exposure_review_provenance"]["A"]
         assert m2["blind_view_review_B"]["reported_sha256"] == m2["blind_view_sha256"]
+        assert m2["exclusion_registry_sha256"] == _sha256(EXCLUSION_REGISTRY_PATH.read_bytes())
+        registry = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
+        rebuilt = next(e for e in registry["exclusions"] if e["exclusion_id"].startswith("EXCL-PILOT-02-REBUILD-"))
+        assert rebuilt["n_samples"] == len(rebuilt["samples"]) == 32
+        assert registry["training_blocked"] is True
+        assert all(set(s) == {"url_sha256", "normalized_url_sha256", "html_sha256",
+                              "group_sha256", "view_content_sha256"} for s in rebuilt["samples"])
         assert m2["blind_view_sha256"] == "e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc"
         assert m2["audit_trail"]["previous_pending_manifest_sha256"] == "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac"
         assert m2["is_synthetic"] is False
@@ -113,23 +121,22 @@ class TestPilotIncidentAndV2Package:
         check_deduplication(mapping_v2, blocked)
 
     @pytest.mark.integration
-    @pytest.mark.skipif(not PROPOSED_REGISTRY_PATH.exists(), reason="Restricted proposed registry is local only")
+    @pytest.mark.skipif(not SOURCE_MAPPING_V2_PATH.exists(), reason="Restricted V2 mapping is local only")
     def test_exclusion_registry_contains_both_v1_and_v2(self):
         """Exclusion registry phải cô lập cả V1 (32 mẫu) và V2 (32 mẫu), cấm huấn luyện."""
         from phishing.data.exclusion import ExclusionRegistry
 
         assert json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))["training_blocked"] is True
-        reg = ExclusionRegistry(PROPOSED_REGISTRY_PATH)
+        reg = ExclusionRegistry(EXCLUSION_REGISTRY_PATH)
         assert reg.training_blocked is True
         with pytest.raises(RuntimeError, match="LỆNH CHẶN HUẤN LUYỆN CHÍNH"):
             reg.assert_training_allowed()
 
-        data = json.loads(PROPOSED_REGISTRY_PATH.read_text(encoding="utf-8"))
+        data = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
         excl_ids = {e["exclusion_id"] for e in data["exclusions"]}
         assert "EXCL-REAL-PILOT-32" in excl_ids
         assert "EXCL-PILOT-02" in excl_ids
-
         # Kiểm tra mẫu V2 bị chặn bởi registry
         mapping_v2 = json.loads(SOURCE_MAPPING_V2_PATH.read_text(encoding="utf-8"))
-        for rec in mapping_v2:
-            assert reg.is_excluded({"url": rec["url"]}) is True
+        assert len(mapping_v2) == 32
+        assert all(reg.is_excluded({"url": rec["url"]}) for rec in mapping_v2)

@@ -39,8 +39,14 @@ không có trường nhãn; B chưa mở nội dung mẫu hay chạy CLI. Manife
 `V2-D-B-APPROVED-FINAL-D-PENDING-1` có SHA-256
 `ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f`;
 `acceptance.D=approved`, `acceptance.B=approved`, `ready_for_annotation=false`.
-D còn đối chiếu manifest cuối và phát lệnh Pass 1 riêng; exposure_review của A/D
-vẫn pending và CLI tiếp tục chặn lượt gán thật.
+D đã xác nhận A chưa xem V2 (đây là xác nhận của D, không phải A tự khai) và
+duyệt exposure_review của D sau kiểm tra độc lập. Registry chính đã bổ sung
+32 fingerprint V2 mới, kiểm đủ 32/32, giữ `training_blocked=true`; SHA-256
+registry `54f950cf3c417e2450a63ed792a6e4711dd3480e221bc15c19e1902379ea97d4`.
+Manifest revision `V2-REGISTRY-VERIFIED-FINAL-D-PENDING-1` có SHA-256
+`74aa940c339648ca20335e1f872ec335cda9b995e23fbd0fbd86dca5b81bf09e`.
+D còn đối chiếu manifest cuối và phát lệnh Pass 1 riêng; CLI tiếp tục chặn
+lượt gán thật vì `ready_for_annotation=false`.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

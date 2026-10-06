@@ -27,7 +27,7 @@
   "pilot_ready": false,
   "raw_data_committed": false,
   "v2_rebuild_proposal": {
-    "status": "D_and_B_technical_approved_pending_final_lead_release",
+    "status": "registry_verified_32_of_32_pending_final_lead_release",
     "source_shards": ["data/train-000.parquet", "data/train-055.parquet"],
     "selection_seed": 2026,
     "candidate_pool_within_date_window": 624,
@@ -41,7 +41,14 @@
     "private_manifest_sha256": "be60d69953f19d88bc1993ac20ffef46531ce4d4837d0a34560ea508bd8910ac",
     "d_approved_b_pending_manifest_sha256": "d762816c7bbfeef9d9e61e0c147f3a8d4c5f8971d44d70a9255a7de8342bc603",
     "d_and_b_approved_manifest_sha256": "ce8d242bcb735eed47d825beef55d519ff7c5a8649944c8041fbdead1e05061f",
+    "registry_verified_manifest_sha256": "74aa940c339648ca20335e1f872ec335cda9b995e23fbd0fbd86dca5b81bf09e",
+    "exclusion_registry_sha256": "54f950cf3c417e2450a63ed792a6e4711dd3480e221bc15c19e1902379ea97d4",
+    "new_v2_registry_coverage": "32/32",
+    "registry_coverage_basis": "Restricted source_mapping URL fingerprints checked against canonical ExclusionRegistry",
     "acceptance": {"D": "approved", "B": "approved"},
+    "exposure_review": {"A": "approved", "B": "approved", "D": "approved"},
+    "exposure_review_A_provenance": "Lead D confirms A has not viewed V2; not an A self-attestation",
+    "exposure_review_D_provenance": "Lead D approved after independent review",
     "training_blocked": true,
     "ready_for_annotation": false
   },

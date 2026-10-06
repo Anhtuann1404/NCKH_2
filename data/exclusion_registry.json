@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "version": "1.1.0",
-  "updated_at_utc": "2026-10-05T16:20:00Z",
+  "updated_at_utc": "2026-10-06T06:56:37.644271+00:00",
   "registry_status": "in_progress_unresolved",
   "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
-  "total_excluded_entries": 3,
-  "total_excluded_samples": 84,
+  "total_excluded_entries": 4,
+  "total_excluded_samples": 116,
   "exclusions": [
     {
       "exclusion_id": "EXCL-PILOT-01",
@@ -581,9 +581,246 @@
           "group_sha256": "11b05139e3ea200c2d421d0ea13d5e593da98dedf2157f477de881e5d1e1b5c2"
         }
       ]
+    },
+    {
+      "exclusion_id": "EXCL-PILOT-02-REBUILD-e039c774ef5f",
+      "dataset_id": "REAL-PILOT-32-V2",
+      "source": "phreshphish",
+      "split": "train",
+      "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "rows_api_revision_pinned": true,
+      "mapping_status": "resolved",
+      "action": "permanently_exclude_from_train_val_test",
+      "n_samples": 32,
+      "samples": [
+        {
+          "url_sha256": "1939b5a198969a54e345c3412e25859a23aed08f5cf2875819a6a8d2d5f6c9cf",
+          "normalized_url_sha256": "1939b5a198969a54e345c3412e25859a23aed08f5cf2875819a6a8d2d5f6c9cf",
+          "html_sha256": "7b01e6e5f1f82dbf7dbaf59d8bbb0ba2674799d1e0667ecf3694b32da2721834",
+          "group_sha256": "da8cbe7510ebeff1cb000d5afb3e7bdc5e9f9100d6370fbd9071d013d8521405",
+          "view_content_sha256": "ab93e0bed92ccad6c83342d3c08972915f75997d271a0b798406f9eb363b75a9"
+        },
+        {
+          "url_sha256": "67e2f33495e68392cc5329b90d32377e4e5f953f15255084ff8a870695adf748",
+          "normalized_url_sha256": "43b3d125708851a3f6498ec11530bfa83f346c44d3e5024f40d882996fd8615b",
+          "html_sha256": "837116f17ab41c7fe81261ad93149d3e687155489b0baab392befcf511b56030",
+          "group_sha256": "37e699870eaa4d2f134ef2cf35fbfb01c34b2bdb3a8b0172a90e2ba3dca44999",
+          "view_content_sha256": "6b1f9bb9220b16819e0976d2b8640d602d7842fe45dc4a84f95e7f1ec8922997"
+        },
+        {
+          "url_sha256": "babc070ff29d0ed074d4d105d980a10cec85273ba5d7c72c971ded9b01ad6a27",
+          "normalized_url_sha256": "babc070ff29d0ed074d4d105d980a10cec85273ba5d7c72c971ded9b01ad6a27",
+          "html_sha256": "bbef9146033d87518f30d04ab956ad9b382656bf071654515a53e652fbf6316f",
+          "group_sha256": "ed52e6c9817c914d5760e601b1033e3a41c695cfabc492288e541fc937a901e2",
+          "view_content_sha256": "005681661397961ea3caf8c9f1229b26164cca431a05b2b62177c1a65be97ecb"
+        },
+        {
+          "url_sha256": "677bb8ea953db140c335ec8b75a4e4afc31e0266a138a3b99c38e962ba601d32",
+          "normalized_url_sha256": "677bb8ea953db140c335ec8b75a4e4afc31e0266a138a3b99c38e962ba601d32",
+          "html_sha256": "093979dc931ddb281fa92cbe92163fbbe544c9bc781d414b912ba03caeb88342",
+          "group_sha256": "4d6cd6d0e7382bedef314ffac78f644c932ad4d7a4f9c59da6ed4fe4103e2ce4",
+          "view_content_sha256": "90f1418779ff8d53dd23400fb95024802538413e36def97e16e19dd3a8401bbb"
+        },
+        {
+          "url_sha256": "6470ce75dc7c46eb807e36cdc51b60ed5c2ec558daad586265e94e23745f2303",
+          "normalized_url_sha256": "6470ce75dc7c46eb807e36cdc51b60ed5c2ec558daad586265e94e23745f2303",
+          "html_sha256": "675353c324b08c6d60a007eea32626050f7ff527a24505f944de20b9cec35508",
+          "group_sha256": "b352b54418ded7b5e160def4b8aed03711b5022fd8baca2d1d08f265cca01746",
+          "view_content_sha256": "582fb91d0469f35e760ab5c9c35515562ca2487e0735916699030e083f5660b9"
+        },
+        {
+          "url_sha256": "24a234ae5397d6018e74b309de6a6cdc7ab068940be5e83cc4bda6c937d416d6",
+          "normalized_url_sha256": "24a234ae5397d6018e74b309de6a6cdc7ab068940be5e83cc4bda6c937d416d6",
+          "html_sha256": "814b1f4181cec7347afd3e002adc5ff48fff726db56301d58271e70a7aba5a88",
+          "group_sha256": "387c2611371f6bffaaeb1f01367301d936409d05a447d2e3235b8a48f5a75c3c",
+          "view_content_sha256": "67991535832b62244f10dc718ac9e909588b63d61dbb453b094bc20fe46fcacf"
+        },
+        {
+          "url_sha256": "abc6829f73a1e6fdebb9d18e000d9c5c5a9d286e2c8983247a8c33a898994d32",
+          "normalized_url_sha256": "abc6829f73a1e6fdebb9d18e000d9c5c5a9d286e2c8983247a8c33a898994d32",
+          "html_sha256": "69b060b556e9cca5fc70c295b3423e97d2183b442d63fb1818d5f7efa784fe37",
+          "group_sha256": "1a7babba3d7440219c5e5f4fd3ce5d80a6a5fd4af5662013106c10f64a1ec3ef",
+          "view_content_sha256": "cfb99116cc172c73128922a8fe2e5495f6235e15cd4970842deac84b6991363e"
+        },
+        {
+          "url_sha256": "a5243885ef9c69925fafce9977a7c6812ba8d4a79870f49b572f3d1c86a3ae56",
+          "normalized_url_sha256": "6800990e079423f3d0394c74aa06da7aa011eaecbab79dff0054baa858bf2569",
+          "html_sha256": "3a9986f6858082f1c314f3bd8613103865f3d676b9f5c917f30608b6f0683184",
+          "group_sha256": "eb46eaf8d827026e7c98d0b39134920e9c741e4339b9366ea450f8b13a1b7b6a",
+          "view_content_sha256": "1d809fb70120e815851338cf7fc09c81c12b799653cfd52fd4c11b09a8cf4b54"
+        },
+        {
+          "url_sha256": "e3e69bc9e425dbdc47220e920d2297c720a03d58f5d8bb1b75fdeba8a3b117bd",
+          "normalized_url_sha256": "e3e69bc9e425dbdc47220e920d2297c720a03d58f5d8bb1b75fdeba8a3b117bd",
+          "html_sha256": "3de1a69558a5c7a35483e0e769b597ddab8bbc68ad787f470514caca390a92a6",
+          "group_sha256": "186523341d54eabb9d753df005a7ba3f63385ef55d0bc566c18c9bebd0f930b2",
+          "view_content_sha256": "b015c7f690bee614523556d71604266e81e422daefa1ff4a949090538ce6a356"
+        },
+        {
+          "url_sha256": "e076d03a970892a090d1606ac55904b5e9ed22726e0845803bbefe1da410af44",
+          "normalized_url_sha256": "e076d03a970892a090d1606ac55904b5e9ed22726e0845803bbefe1da410af44",
+          "html_sha256": "77f26284dcd3fd13bdc1922469343c207e34da28fe2632fbfb3594c5edc01932",
+          "group_sha256": "ee2795bc322bb6bd5ff31327f42ec7218f92cbcb84d102e6fb63b92ff429ae74",
+          "view_content_sha256": "316b3f8293e3ee9264bce23976b132ae14b4e029592a93c21bcd402d9e714b21"
+        },
+        {
+          "url_sha256": "a4a71b1b2abbe25c028023acb9d40ffe875a717f0f84b5f278d2ad457ec027f2",
+          "normalized_url_sha256": "a4a71b1b2abbe25c028023acb9d40ffe875a717f0f84b5f278d2ad457ec027f2",
+          "html_sha256": "2592a1949b14393f715ef2fd14e2ecfdfc3d8b6ded71f4d46acca8fa95fcb888",
+          "group_sha256": "5dd6acf9216f6bccb89ea5ad5f97ec95633da8283859ad3a0d9a996e5fd7d138",
+          "view_content_sha256": "6cffbfe3f645852d4474de3c463f234cb315bb3a1e862a7e8d21972e2c53a2eb"
+        },
+        {
+          "url_sha256": "d19bd01cfd2c2e15974587beeaeea7eb11fec9fdc474f32e79029d766680d034",
+          "normalized_url_sha256": "d19bd01cfd2c2e15974587beeaeea7eb11fec9fdc474f32e79029d766680d034",
+          "html_sha256": "c3fbc9531036674c30a73366c24abe35676cb8b075774e95b7abfe73a1b95471",
+          "group_sha256": "b05f5aea73c9517cdd389d9a2e2f883c65075fc81dec59c238c70dd5911429b2",
+          "view_content_sha256": "19ae70030ce09ef5ec12cf159e6e0b4da9887213c81f4d76bc74b2312cd31d3f"
+        },
+        {
+          "url_sha256": "ee183d9b318b4f8d9cb0384bdf3462741d76b341689c9786f77756624ecb4263",
+          "normalized_url_sha256": "ee183d9b318b4f8d9cb0384bdf3462741d76b341689c9786f77756624ecb4263",
+          "html_sha256": "356aa82c5af1afe60526966eff895abc280df1b065d18ce266b0132f7f1b49b3",
+          "group_sha256": "512024ea56db207a380bbdd660a18b8ac94bd8a3ec58aeb859c408939bb5a798",
+          "view_content_sha256": "1398c754df1cabafa7c57165c3e848c206046c6e9ce28770adc6fb388e3c22e6"
+        },
+        {
+          "url_sha256": "773387d4ba5f2631b5dc012d71c8c76d98d12063abac7872077d1180265a8814",
+          "normalized_url_sha256": "773387d4ba5f2631b5dc012d71c8c76d98d12063abac7872077d1180265a8814",
+          "html_sha256": "22e7c30fefe84804e776c9c10938151c9e54c4372890a5fe355d73fce4b9264c",
+          "group_sha256": "2ad7eda2d53e7bd3b11d820e150841114279557935ec57d4197dc60967d5571f",
+          "view_content_sha256": "e644701e7e7a1afe585bc4b3a8fbe7bd76526b5e17f6f8ddf29902c8c4dc000a"
+        },
+        {
+          "url_sha256": "9094d94a6a77e4303c5311ae1783c9068a82db3ceba52ec32132a19232e5b6ab",
+          "normalized_url_sha256": "9094d94a6a77e4303c5311ae1783c9068a82db3ceba52ec32132a19232e5b6ab",
+          "html_sha256": "c184a874dd4d3a7fa2c43f1cd57c6a8a1148f747e692dea098f9ee0d39069a1d",
+          "group_sha256": "e242286118fd69b45759151748715ae5ed7e8cec47a5e78be6c0a86588422fce",
+          "view_content_sha256": "6457df678a587760edffb31cf161c71f485017c5a196eb9f807bc50f79f2f5ec"
+        },
+        {
+          "url_sha256": "f99ca504745a298ddf17736395f95590d01ff7f5f9815c3fbd146549e48aac2e",
+          "normalized_url_sha256": "f99ca504745a298ddf17736395f95590d01ff7f5f9815c3fbd146549e48aac2e",
+          "html_sha256": "97e960ae0499e0b632b807f46de09194232f5be00e8e1fe3db6234488b58e0ae",
+          "group_sha256": "3f7f198915cfafeddd6ac8deec0f2dfe51f750ece6ae3beb9cf17a81eda093c1",
+          "view_content_sha256": "d2173db080d9343146451256aa6f2026895d17b125b70db2ea34cc56ae00cdfe"
+        },
+        {
+          "url_sha256": "e7cbc318c9e7fa03f190f6813226a6566191b38d8674ca8f8c454207bc348675",
+          "normalized_url_sha256": "e7cbc318c9e7fa03f190f6813226a6566191b38d8674ca8f8c454207bc348675",
+          "html_sha256": "860981fb028819079609e1f79bee522fb683da988d4da5b404ea7667de12f777",
+          "group_sha256": "cf70133f6093f60f8468015865419546d9881bb43ac65d797a6dcb6439f075e9",
+          "view_content_sha256": "b1a8a0584d7da656677a4f15b552d4a7a7f15e17d158c15686c4a3b49fc42d49"
+        },
+        {
+          "url_sha256": "f999f099cd29f4651a040435e59c5141029c9a1421d63ff7f040190c385e14b3",
+          "normalized_url_sha256": "f999f099cd29f4651a040435e59c5141029c9a1421d63ff7f040190c385e14b3",
+          "html_sha256": "b3433c81c36b830229ad44a526debfd1dae896ff43c16af57b835c8786cced04",
+          "group_sha256": "2d574fd3a0cf719cd2fbf55d3f218826fad443affb9c90224d2a4a0e02eba566",
+          "view_content_sha256": "1620ac465729a21c1470e4aafcf94da6966c119a46da3d3de8a61e435eed78f2"
+        },
+        {
+          "url_sha256": "3ecd91810ac4902fa5c0f8dda0172a533dd830fdc9d4f9f85114d2df4fcce8ac",
+          "normalized_url_sha256": "3ecd91810ac4902fa5c0f8dda0172a533dd830fdc9d4f9f85114d2df4fcce8ac",
+          "html_sha256": "46e3d10f941a941ba76c570424f20de14211b70790cbebdec73009abcef87788",
+          "group_sha256": "1cf9fa3a666261116afc6bce8cf2110b36dc185e9ccabeef4c1c19d8ec23a107",
+          "view_content_sha256": "0b0072b4a1374622afb7991b2c87c46febad12a02e15d82d6d20dd0a48eadf46"
+        },
+        {
+          "url_sha256": "27338eb0d342237a4ec8abde827c7fd857cd18e3d53850ae0d72eb60a6fdaceb",
+          "normalized_url_sha256": "27338eb0d342237a4ec8abde827c7fd857cd18e3d53850ae0d72eb60a6fdaceb",
+          "html_sha256": "da9026972cd5275d42fa83b4d98728144d133521a20bb070afe87eb6cfffc3ac",
+          "group_sha256": "03180c4dfc06cf50d76ac3459b974af8cee4bb92bd594167a2b99cff6a4365b0",
+          "view_content_sha256": "21165e752fc30bceef0032f3a0ff8411288fe13cb2d49107c6942f5ad7718114"
+        },
+        {
+          "url_sha256": "70be3954da02ba7fab14e4bc36e70ceadf3b1deee3038cbf994b6e7933e8a484",
+          "normalized_url_sha256": "70be3954da02ba7fab14e4bc36e70ceadf3b1deee3038cbf994b6e7933e8a484",
+          "html_sha256": "e2fe8dbf6a9de80e13ed0522c3819032c9b479c41bc6b670552a3c3fc0a4581c",
+          "group_sha256": "7d7b6c96c8190ace7dc099b028e40add66ce268f9cdd6152eb8d3a5c6346869c",
+          "view_content_sha256": "cfd8ea7fbf56426fee71a14c7eca3476007dcb137c8c2595e6fcdc62c42e5932"
+        },
+        {
+          "url_sha256": "9713b0f59968492556ae2603e8621b7893ba2a176fe286c4c5792335d5a1a58e",
+          "normalized_url_sha256": "9713b0f59968492556ae2603e8621b7893ba2a176fe286c4c5792335d5a1a58e",
+          "html_sha256": "45e0a1e444469d2d7d786fe69b58b7f300dda451ffc12ad858d4aea6d1ca3f09",
+          "group_sha256": "1862ae566868daf71dbc82c869e2462d5588738a6cfc799388b58d0395e18a10",
+          "view_content_sha256": "9d8b05bbbe0f8f05f1a5e8f6f8ec70b5cc569e5d09770748ae3ed1287a6c096a"
+        },
+        {
+          "url_sha256": "4e5c1c9ddd3e963b62c0a00163618fc0ff50a170e49fd579629352b7b5549eeb",
+          "normalized_url_sha256": "4e5c1c9ddd3e963b62c0a00163618fc0ff50a170e49fd579629352b7b5549eeb",
+          "html_sha256": "c35e38fd16d6102aaebea1c60f2fc6a2768428edc9c8dd95c91f25853769b4f0",
+          "group_sha256": "3abf08628fce2b069e26d5fb6fffedbe533404bde3169b4bfbb865eff1b56860",
+          "view_content_sha256": "140f5bd58d92de848bffb26918fa2652c9aa2c8df544c0e32ca2c58cedd99a82"
+        },
+        {
+          "url_sha256": "53726484a08df3a841a99aedff9f90e666523086f30e2c3dfb9632ed993b3629",
+          "normalized_url_sha256": "53726484a08df3a841a99aedff9f90e666523086f30e2c3dfb9632ed993b3629",
+          "html_sha256": "3515b34bca0ce8e0807373c35855f4743343d614a14068d7e32109261f30e2c9",
+          "group_sha256": "9f2fc0b3a828484cb00ef6e19c39845293dc83445ccb062600d3762d1485bf70",
+          "view_content_sha256": "74da4b2abc3874f453135b969d00372b1c8302e1873ae57c3e1c55b06725fc92"
+        },
+        {
+          "url_sha256": "21e8897292c4ce1e50945dcf0f7cb18b54842e16e176083be1b8d51546601f9d",
+          "normalized_url_sha256": "21e8897292c4ce1e50945dcf0f7cb18b54842e16e176083be1b8d51546601f9d",
+          "html_sha256": "9de2e639283d774ce488a03038041076cd0cf64b238e543fee4a99f65bbcdff1",
+          "group_sha256": "84f4e1451b4b7d19bd7f90af24630e1ef16d2edecc77fe959109bf8e9554d3d7",
+          "view_content_sha256": "e5c90fba39070595cbefd92311078efab1fd792c04bbb3735f6fef90a9594acc"
+        },
+        {
+          "url_sha256": "b72d0f6968170f2b21568e219e573a8f8c79961e114bd3eae6c8133afec892c8",
+          "normalized_url_sha256": "37e1beee1ab3f251128107b7d26a0fc003c4edb2961376d4cb004cd02aac85b5",
+          "html_sha256": "d1486e2e68fc301ff3bd6951914a7edb54829a7cb191b7f7b89a92f93f2ddac2",
+          "group_sha256": "db5ec9d9c3fa75ff4f966cc59942d40e5d1a68bd04bd28dab9e6a46c2214b309",
+          "view_content_sha256": "14557b9f11dce5f02b885d01b86466e20d538df93aca47d905a38ac18e9fbefc"
+        },
+        {
+          "url_sha256": "2478aba7610b3967c379cdecffc37119c531888b7d43440366cb2b72353e769e",
+          "normalized_url_sha256": "2478aba7610b3967c379cdecffc37119c531888b7d43440366cb2b72353e769e",
+          "html_sha256": "aa697ac9b3923ad51b63f83be5caaf5f51433480b471baf14cef0c4109ab88fa",
+          "group_sha256": "13a8bd72fac87f04b02da036af76702c04e4f5bdc15a9169135a64177b605bad",
+          "view_content_sha256": "6146c362be21e4f03f3a03765838d5f4bb87e6390e6233aa50f25bc86daf50dd"
+        },
+        {
+          "url_sha256": "3b2a61e61ed69089e2de0fb6909733def08322fa97e30a1eea4c28f6139f5848",
+          "normalized_url_sha256": "3b2a61e61ed69089e2de0fb6909733def08322fa97e30a1eea4c28f6139f5848",
+          "html_sha256": "68e142551b46f91d05e4bd5e8f18a8b4b7281522738f34affa67d5445f48b273",
+          "group_sha256": "86c5294becc19f60181d7506f3fec37fc1a38ed4ae8858fda6cd47c7fdeb6967",
+          "view_content_sha256": "8f227717e6fdca1adc8d892fb1d1d370235487a7fb96e06b4d98e878ff74d985"
+        },
+        {
+          "url_sha256": "c4377d24ab11e7aeb1de3731a5dd36bec1c14e5af4f4c1a51c5e100a98ca3c33",
+          "normalized_url_sha256": "c4377d24ab11e7aeb1de3731a5dd36bec1c14e5af4f4c1a51c5e100a98ca3c33",
+          "html_sha256": "8a3bffeebef62d25d8f7114ecc9a5fc53efb61851c5d64227e3962e98a0120ed",
+          "group_sha256": "230e5617863df5cc13cae4edba7dd18517f898c8b43c5cb50911a9888a30c17f",
+          "view_content_sha256": "7547141546eb990ef82a14ddde2d8aacb209e0c9d54d92e4054bb0ae9ab47392"
+        },
+        {
+          "url_sha256": "1050c1095c43dab66d7f975444203470e5a9e2f6288799dc92229452915d58f9",
+          "normalized_url_sha256": "1050c1095c43dab66d7f975444203470e5a9e2f6288799dc92229452915d58f9",
+          "html_sha256": "da86c2e276162a6e7a620d27e3bb7ff67af0000028c3cf2499115f0dcb0cca87",
+          "group_sha256": "cf4d264bb666601d5ca6f7ce66212a5e1d204baaabb0d1fed06354894912bd9a",
+          "view_content_sha256": "88f7010c1279bb7e5089d3f44c036908c49dd062a8855d939015b8df5a6a3225"
+        },
+        {
+          "url_sha256": "323a74f9846cb10133a72208da2d7f0033dc172018c35c32be222dc989a219c0",
+          "normalized_url_sha256": "323a74f9846cb10133a72208da2d7f0033dc172018c35c32be222dc989a219c0",
+          "html_sha256": "403651bc3400a956e717c36472c84af358a88aabf3444372a6749d9b059734cd",
+          "group_sha256": "65d99590a088a9b3b47f801359cd6526cdb39857e9ec2cd61c351039bb43aa4c",
+          "view_content_sha256": "28355186c9483e50462fbc3c36624ede93e8d95c80aa19bc47e7f7efe8c004ad"
+        },
+        {
+          "url_sha256": "036288270e92fddc213d8c82739c1c7ad5e09e4d36f58e5299dff6ab66c480a7",
+          "normalized_url_sha256": "036288270e92fddc213d8c82739c1c7ad5e09e4d36f58e5299dff6ab66c480a7",
+          "html_sha256": "252bf936f327ec67ca877403c9afabeb8d3fa99e3f13d0f286786389eb90336b",
+          "group_sha256": "315ba63765339954367322a4c8ff7bcd8f0588a1475716d87e0c20b93f45efc9",
+          "view_content_sha256": "b84275befbddb6cd315822aece4438df8cd89262d3e00a713fe416fd62f2b63f"
+        }
+      ]
     }
   ],
   "training_blocked": true,
   "training_block_reason": "Pilot mapping remains unresolved (rows_api_revision_pinned=false). Main model training is strictly blocked until 1-to-1 byte content matching to pinned revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a is resolved.",
-  "counting_note": "84 mẫu (bao gồm 32 mẫu pilot V1 và 32 mẫu pilot V2) cô lập vĩnh viễn chống rò rỉ dữ liệu."
+  "counting_note": "Entry memberships, not deduplicated unique samples; prior exclusions preserved."
 }
