@@ -1,5 +1,7 @@
 # Phần báo cáo của A — phương pháp nhãn và bằng chứng nội dung
 
+Cập nhật 06/10/2026: A đã hoàn thành 32 bản ghi V1, kiểm kỹ thuật đạt, nhưng nhóm đã vô hiệu hóa REAL-PILOT-32-V1 do sự cố độc lập/nguồn và trùng tập dượt. Không dùng nhãn, Kappa hoặc timing V1 làm kết quả nghiên cứu/PLAN-01; giữ nguyên hồ sơ để audit. REAL-PILOT-32-V2 chưa nghiệm thu/mở gán nhãn. Các câu “chưa có annotation thật” trong bản thảo dưới mô tả thời điểm soạn ban đầu; hiện chưa có pilot hợp lệ để báo cáo kết quả.
+
 Chuẩn bị 04/10/2026, cập nhật trạng thái/disclosure 05/10/2026. **Bản thảo mô tả phương pháp dự kiến**, dựa trên đề cương 5.2b–c và DATA_PROTOCOL. Chưa có annotation thật, pilot thời gian hoặc phân xử; không sử dụng đoạn này như báo cáo kết quả đã thực hiện.
 
 ## Quy trình dự kiến

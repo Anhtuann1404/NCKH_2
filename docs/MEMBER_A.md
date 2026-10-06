@@ -1,5 +1,22 @@
 # Hồ sơ công việc thành viên A
 
+## Trạng thái hiện hành — 06/10/2026
+
+Đối chiếu `feat/data-pipeline` tại `d8020f4` và `develop` tại `e175562`. Manifest V1 đã có `status=invalidated`, `ready_for_annotation=false`, `usable_for_kappa_or_plan01=false`. Kết quả A V1 có 32 bản ghi nhưng không còn là kết quả pilot được nghiệm thu; giữ nguyên file, hash, log và gói bàn giao làm bằng chứng. Không sửa nhãn, chạy lại V1 hoặc dùng 52,22 phút V1 cho PLAN-01.
+
+Manifest REAL-PILOT-32-V2 ghi B/D `pending`, `ready_for_annotation=false`; A-PILOT tiếp tục BLOCKED. Chưa mở, đọc hoặc gán mẫu V2. Chờ C sửa các lỗi còn mở, bàn giao file cùng version/hash được nghiệm thu và Lead phát lệnh; lưu lượt V2 riêng, không ghi đè V1. Kết luận xử lý V1 được ghi trong tài liệu nhóm `docs/PILOT_INCIDENT_REPORT.md` trên nhánh C; hồ sơ A không tự bổ sung lời xác nhận cá nhân chưa được người dùng cung cấp trong chat này.
+
+### Phản hồi câu chữ UI demo cho D
+
+Theo `docs/DEVELOPMENT.md` trên develop, A có thể thử UI fixture và báo thông báo khó hiểu. Đã rà tĩnh `extension/static/popup.html`, `extension/src/popup.ts` và các chuỗi hiển thị trong `extension/src/core.ts`; **chưa chạy extension hoặc thử UI trực tiếp**, không phải nghiệm thu chức năng hay nghiên cứu.
+
+- Nhãn DEMO MÔ PHỎNG, cảnh báo mô hình hư cấu và thông báo lỗi khác với kết quả không phát hiện đã có trong mã giao diện.
+- Gợi ý D xem xét: đổi “Cho phép phân tích nội dung trang” thành “Cho phép gửi nội dung trang đến API trên máy này” để quyền gửi dễ hiểu ngay tại checkbox; đoạn giải thích bên dưới đã nêu việc gửi.
+- Gợi ý D xem xét: bổ sung “không chứng minh trang an toàn hoặc lừa đảo” vào lời giải thích tín hiệu quan sát, vì người mới có thể coi ô mật khẩu/miền chưa xác minh là kết luận lớp. Đây là nhận xét câu chữ, chưa phải lỗi chức năng được tái hiện.
+- Phần thử trực tiếp trên fixture (bật/tắt, consent, login/ordinary, API lỗi, đổi trang) vẫn chưa thực hiện bởi A; không lấy thời gian demo làm PLAN-01.
+
+Phần bên dưới là hồ sơ chuẩn bị ngày 05/10/2026; trạng thái hiện hành trong mục này được ưu tiên khi có khác biệt.
+
 Cập nhật 05/10/2026. Người dùng phiên làm việc này xác nhận là **A — Trần Hồng Khải**, ngân sách **49 giờ/tuần**; D vẫn giữ vai trò lead/model/API–extension. Số tuần thực có và khung giờ cụ thể chưa chốt. Tài liệu cụ thể hóa [TEAM](TEAM.md), [DATA_PROTOCOL](DATA_PROTOCOL.md) và đề cương mục 5.2b–c, không thay giao thức đã duyệt.
 
 ## Kết quả đã chuẩn bị

@@ -1,6 +1,14 @@
 # Kiểm tra bàn giao của C cho A
 
-## Trạng thái hiện hành — 05/10/2026
+## Trạng thái hiện hành — 06/10/2026
+
+Fetch nhánh C tại `d8020f4bdb19dd2556cbec493df063a6e45c086e`: manifest V1 có `status=invalidated`, `ready_for_annotation=false`, `usable_for_kappa_or_plan01=false`, thay bằng REAL-PILOT-32-V2. Tài liệu nhóm tại `docs/PILOT_INCIDENT_REPORT.md` ghi kết luận vô hiệu hóa V1 và bảo toàn bằng chứng; A giữ nguyên kết quả 32 mẫu, hash `005a4ed5e274797b5d8057b31a691ddfc61ef16de2f98b9fb59a43af2a8ea30e`. Kiểm kỹ thuật từng đạt không đồng nghĩa V1 là pilot hợp lệ về phương pháp.
+
+Manifest V2: B/D `pending`, `ready_for_annotation=false`, sampling plan `PILOT-PLAN-V2-FULL-OVERLAP`. Không mở file V2 hoặc dùng lệnh/snapshot V1 để chạy V2; chỉ nhận bộ tệp nhất quán sau nghiệm thu và lệnh Lead. Không dùng nhãn/timing V1 cho Kappa/PLAN-01, không sửa hoặc ghi đè file/log cũ.
+
+Bằng chứng kiểm hash và trạng thái hiện hành lưu local tại `data/annotations/A/evidence_preservation_20261006.json`; không đưa nhãn/view hoặc báo cáo chứa dữ liệu hạn chế lên Git. Phần dưới giữ lịch sử, không còn là lệnh mở pilot hiện hành.
+
+## Trạng thái trước bàn giao đã duyệt — 05/10/2026
 
 Đã fetch `feat/data-pipeline`, HEAD `edc88877a9d866896fc6afdaca5996a83b75dc77`. Thông báo C mở pilot tại 3a8528a đã bị Lead yêu cầu thu hồi; manifest mới nhất ghi B `approved`, D `pending`, `ready_for_annotation=false`. A chưa bắt đầu và chưa có nhãn/thời gian thật. Không dùng tuyên bố mở pilot cũ làm lệnh bắt đầu.
 

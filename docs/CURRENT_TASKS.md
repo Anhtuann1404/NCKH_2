@@ -1,5 +1,14 @@
 # Current tasks
 
+## Cập nhật A — 06/10/2026
+
+- DONE — cập nhật hồ sơ A theo manifest C tại `d8020f4`: V1 invalidated, không dùng Kappa/PLAN-01; giữ 32 nhãn gốc và log để audit. Hash file A được kiểm lại trước cập nhật, không sửa nhãn.
+- BLOCKED — A-PILOT V2: manifest `configs/pilot_manifest_v2.json` còn B/D pending và ready_for_annotation=false; chờ bàn giao/khóa và lệnh Lead, chưa mở mẫu mới.
+- DONE phần rà câu chữ tĩnh — UI fixture của D tại develop `e175562`: phản hồi về checkbox consent và giới hạn tín hiệu ở [MEMBER_A](MEMBER_A.md). Chưa thử UI trực tiếp; không gọi là nghiệm thu chức năng.
+- A-REPORT còn IN_PROGRESS: phương pháp đã soạn, phần kết quả phải chờ pilot hợp lệ. V1 chỉ là bằng chứng sự cố, không thay pilot hợp lệ.
+
+Các bảng/trạng thái bên dưới là lịch sử khởi động và ngày 05/10; không dùng để mở lại V1 hoặc suy V2 đã duyệt.
+
 Cập nhật phần A ngày 05/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức. Các trạng thái công việc C/D bên dưới là khung khởi động; không dùng để suy rằng công việc trên nhánh C chưa triển khai. Trạng thái bàn giao A mới nhất nằm trong mục phần việc A và nhật ký.
 
 ## Trạng thái có bằng chứng
