@@ -133,6 +133,17 @@ là hỗ trợ theo nghĩa của R-A09 đã khóa. Vì vậy quyết định kh�
 cho **Kappa/PLAN-01 chính** giữ nguyên; sau khi khóa cặp A–D, có thể tính
 Kappa A–B như phân tích thăm dò, gắn nhãn rõ `AI-assisted translation`, không
 trộn với kết quả human-only. Giữ nguyên file gốc và lịch sử hỗ trợ của B.
+
+06/10/2026 15:08 UTC — Trước khi xem đồng thuận A–B, Lead D chuyển xác nhận
+riêng trực tiếp của B: B **không dùng AI trong toàn bộ Pass 1 V2**; thông tin
+trước đó về việc dùng AI là báo cáo AI soạn sai. Đây là xác nhận do Lead
+chuyển, chưa kiểm độc lập lịch sử chat; áp dụng cùng chuẩn xác nhận người gán
+nhãn đã dùng với A. D thu hồi quyết định loại lượt B khỏi phân tích chính và
+khôi phục điều kiện human-only cho file B nguyên byte SHA-256 `6f63750d…`.
+Giữ các ghi nhận mâu thuẫn trước như audit trail, không sửa nhãn hoặc thời
+gian. Lượt thay thế D chưa bắt đầu và tạm hủy. Sau mốc quyết định này mới
+được chạy Kappa A–B trên 32 mẫu gốc; PLAN-01 chỉ chốt sau khi kiểm tra thêm
+tính hợp lệ của thời gian đo CLI. Training vẫn khóa.
 Không coi nhãn nguồn
 là nhãn cuối đã xác minh và không mở huấn luyện.
 

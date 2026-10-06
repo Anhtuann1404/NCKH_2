@@ -42,7 +42,7 @@
     "A": {
       "file_sha256": "8da2e16dcd40b280ac0e7c3e4f56ebe74c0ea31f00cb727f2b84dcec65112e4c",
       "technical_status": "accepted_32_of_32",
-      "analytic_status": "retained_pending_independent_second_rater"
+      "analytic_status": "eligible_for_primary_A_B_pilot_kappa_after_B_correction"
     },
     "B": {
       "file_sha256": "6f63750d71827d06f999af828f5724bdd67e584fbdddf3a0263882983a8d4db8",
@@ -51,14 +51,17 @@
       "AI_assistance_initial_report": "translation_of_some_samples_and_codebook_field_guidance_during_pass1",
       "AI_assistance_clarification_via_lead": "translation_only_for_foreign_language_samples; B says all label decisions were their own and AI supplied no answers or label suggestions",
       "codebook_guidance_scope": "not_yet_reconciled_with_initial_report",
-      "analytic_status": "excluded_from_preregistered_human_only_kappa_and_plan01; exploratory_AI_assisted_comparison_only"
+      "analytic_status": "eligible_for_primary_A_B_pilot_kappa_by_direct_B_attestation_relayed_by_Lead_D",
+      "correction_reported_at_utc": "2026-10-06T15:08:00Z",
+      "correction_basis": "Lead D reports B separately confirmed no AI use during any V2 Pass 1 annotation; prior AI-written usage report was wrong; chat history not independently reviewed",
+      "prior_exclusion_status": "superseded_before_label_comparison"
     },
     "decision_at_utc": "2026-10-06T14:53:17Z",
     "kappa_computed": false,
     "training_blocked": true,
     "replacement_rater_plan": {
       "annotator_id": "D",
-      "status": "eligible_by_self_attestation_not_started",
+      "status": "cancelled_before_start_after_B_correction",
       "sample_level_source_or_peer_labels_seen": false,
       "aggregate_information_seen": "source_class_counts_20_12_and_B_class_counts_17_12_3",
       "conditions": "blind_original_view_only; separate timed Pass 1; no AI; no A/B per-sample labels; intake before Kappa"
