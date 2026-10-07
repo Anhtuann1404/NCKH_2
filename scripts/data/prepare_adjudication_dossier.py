@@ -122,6 +122,7 @@ def prepare_dossier(
         },
         "priority_3_org_only_disagreements": {
             "count": len(org_only_disagreements),
+            "description": "Cùng nhãn lớp, không có mâu thuẫn logic, nhưng trường tổ chức khác nhau sau chuẩn hóa.",
             "cases": org_only_disagreements,
         },
     }
@@ -171,12 +172,14 @@ def render_agenda_markdown(dossier: dict[str, Any]) -> str:
     for c in p2["cases"]:
         lines.append(f"- **`{c['sample_id']}`**: A=`{c['primary_org_norm_a']}` (anomaly: {c['consistency_anomaly_a']}) | B=`{c['primary_org_norm_b']}` (anomaly: {c['consistency_anomaly_b']})")
         lines.append(f"  + URL: `{c['url_preview']}` | Title: `{c['title_preview']}`")
-        lines.append(f"  + Trọng tâm: Làm rõ người gán nhãn thực sự nhận diện được tổ chức nào hay bấm nhầm trạng thái status sang identified?")
+        lines.append(f"  + Trọng tâm: Làm rõ người gán nhãn thực tế nhận diện được tổ chức nào theo bằng chứng quan sát, hay trường trạng thái primary_org_status vô tình được lưu là 'identified' khi tên tổ chức chưa được xác định?")
         lines.append("")
 
     # Nhóm 3
     p3 = dossier["priority_3_org_only_disagreements"]
-    lines.append(f"## 3. ƯU TIÊN 3: {p3['count']} CA BẤT ĐỒNG TỔ CHỨC ĐƠN THUẦN (Sau chuẩn hóa, cùng class_label)")
+    lines.append(f"## 3. ƯU TIÊN 3: {p3['count']} CA BẤT ĐỒNG TỔ CHỨC ĐƠN THUẦN")
+    lines.append("")
+    lines.append("Cùng nhãn lớp, không có mâu thuẫn logic, nhưng trường tổ chức khác nhau sau chuẩn hóa.")
     lines.append("")
     for c in p3["cases"]:
         lines.append(f"- **`{c['sample_id']}`**: Cùng lớp `{c['class_label_a']}` | A=`{c['primary_org_norm_a']}` vs B=`{c['primary_org_norm_b']}`")

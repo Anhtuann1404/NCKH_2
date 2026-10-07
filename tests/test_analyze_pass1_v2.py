@@ -226,3 +226,75 @@ def test_reconciliation_counts_computed_dynamically_from_inputs():
     assert reconcil2["adjudication_table_cases_count"] == 0
 
 
+def test_prepare_adjudication_dossier_synthetic(tmp_path):
+    """Kiểm tra prepare_dossier và render_agenda_markdown phân nhóm đúng và đúng câu từ chuẩn."""
+    from scripts.data.prepare_adjudication_dossier import prepare_dossier, render_agenda_markdown
+
+    blind_view = {
+        "dataset_id": "TEST-V2",
+        "samples": [
+            {"sample_id": "S1", "url_hint": "http://s1.test", "title": "S1", "page_text": "Text 1"},
+            {"sample_id": "S2", "url_hint": "http://s2.test", "title": "S2", "page_text": "Text 2"},
+            {"sample_id": "S3", "url_hint": "http://s3.test", "title": "S3", "page_text": "Text 3"},
+        ]
+    }
+    bv_path = tmp_path / "blind_view.json"
+    bv_path.write_text(json.dumps(blind_view), encoding="utf-8")
+
+    disagreement_table = {
+        "total_disagreements": 3,
+        "disagreements": [
+            {
+                "sample_id": "S1",
+                "class_label_a": "benign", "class_label_b": "phishing",
+                "class_disagreement": True,
+                "primary_org_raw_a": "unknown", "primary_org_raw_b": "unknown",
+                "primary_org_norm_a": "unknown", "primary_org_norm_b": "unknown",
+                "org_disagreement": False,
+                "consistency_anomaly_a": None, "consistency_anomaly_b": None,
+            },
+            {
+                "sample_id": "S2",
+                "class_label_a": "benign", "class_label_b": "benign",
+                "class_disagreement": False,
+                "primary_org_raw_a": "unknown", "primary_org_raw_b": "unknown",
+                "primary_org_norm_a": "unknown", "primary_org_norm_b": "unknown",
+                "org_disagreement": False,
+                "consistency_anomaly_a": "identified_with_unknown", "consistency_anomaly_b": None,
+            },
+            {
+                "sample_id": "S3",
+                "class_label_a": "phishing", "class_label_b": "phishing",
+                "class_disagreement": False,
+                "primary_org_raw_a": "microsoft", "primary_org_raw_b": "unknown",
+                "primary_org_norm_a": "microsoft", "primary_org_norm_b": "unknown",
+                "org_disagreement": True,
+                "consistency_anomaly_a": None, "consistency_anomaly_b": None,
+            },
+        ]
+    }
+    dt_path = tmp_path / "disagreements.json"
+    dt_path.write_text(json.dumps(disagreement_table), encoding="utf-8")
+
+    dossier = prepare_dossier(disagreement_table_path=dt_path, blind_view_path=bv_path)
+
+    # 1. Kiểm tra phân rã 3 ca vào đúng 3 nhóm
+    assert dossier["priority_1_class_disagreements"]["count"] == 1
+    assert dossier["priority_1_class_disagreements"]["cases"][0]["sample_id"] == "S1"
+
+    assert dossier["priority_2_consistency_anomalies"]["total_samples_affected"] == 1
+    assert dossier["priority_2_consistency_anomalies"]["cases"][0]["sample_id"] == "S2"
+
+    assert dossier["priority_3_org_only_disagreements"]["count"] == 1
+    assert dossier["priority_3_org_only_disagreements"]["cases"][0]["sample_id"] == "S3"
+    assert "Cùng nhãn lớp, không có mâu thuẫn logic, nhưng trường tổ chức khác nhau sau chuẩn hóa." in dossier["priority_3_org_only_disagreements"]["description"]
+
+    # 2. Kiểm tra agenda markdown
+    agenda = render_agenda_markdown(dossier)
+    assert "## 3. ƯU TIÊN 3: 1 CA BẤT ĐỒNG TỔ CHỨC ĐƠN THUẦN" in agenda
+    assert "Cùng nhãn lớp, không có mâu thuẫn logic, nhưng trường tổ chức khác nhau sau chuẩn hóa." in agenda
+    assert "chọn nhầm dropdown" not in agenda
+    assert "bấm nhầm" not in agenda
+
+
+
