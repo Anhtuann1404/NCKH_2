@@ -4,7 +4,7 @@
 
 V2 đã được Lead mở tại `aae91a79c191d2a59696ecbf7c1cea1641e54bce`; A đã nhận file gốc 232.840 bytes, SHA-256 `e039c774ef5ff11b36786ccc8c762254974d89a4f4bfa7d5bc46b12e323ad1dc`, kiểm manifest/codebook/dictionary đạt và hoàn thành 32/32 mẫu Pass 1. Kết quả A hash `8da2e16dcd40b280ac0e7c3e4f56ebe74c0ea31f00cb727f2b84dcec65112e4c`, không sửa. Codebook 1.0.0; sampling plan `PILOT-PLAN-V2-FULL-OVERLAP`.
 
-Kiểm kỹ thuật và ZIP bàn giao lưu local ở `data/annotations/A/pass1_v2_technical_validation.json`, `handoff_A_v2_pass1_8da2e16dcd40.zip`; nhãn/view/log không đưa lên Git. Giờ CLI toàn lượt 1.666,64 giây chưa được xác nhận tính hợp lệ ngoài log, chưa dùng PLAN-01. Chờ B khóa và lệnh Lead/C; không tự chạy lại hoặc mở Pass 2.
+Kiểm kỹ thuật và ZIP bàn giao lưu local ở `data/annotations/A/pass1_v2_technical_validation.json`, `handoff_A_v2_pass1_8da2e16dcd40.zip`; nhãn/view/log không đưa lên Git. Giờ CLI toàn lượt 1.666,64 giây chưa được xác nhận tính hợp lệ ngoài log, chưa dùng PLAN-01. B đã hoàn thành Pass 1 theo thông báo mới của Lead được A chuyển trong chat ngày 07/10/2026. Chờ lệnh riêng của Lead mở phân xử; không tự chạy lại hoặc mở Pass 2.
 
 Trong chat, Lead đã cho phép A tiếp tục sau khai báo dán V2 vào chat AI và lời xác nhận của A; hỗ trợ AI đối với V2 chỉ là kiểm kỹ thuật/công cụ, không phân tích/gợi ý nhãn. Không xóa hoặc viết lại lịch sử tiếp xúc. Tài liệu metadata trên Git không thay lời xác nhận cá nhân.
 

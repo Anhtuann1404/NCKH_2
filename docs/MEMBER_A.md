@@ -6,10 +6,10 @@
 
 A đã hoàn thành 32/32 mẫu Pass 1 REAL-PILOT-32-V2 bằng công cụ `aae91a7`. Kiểm kỹ thuật đạt: ID đủ/độc nhất, provenance/hash/phiên bản khớp; không đánh giá lại nhãn bằng AI. File local `data/annotations/A/labels_v2_pass1.jsonl`, SHA-256 `8da2e16dcd40b280ac0e7c3e4f56ebe74c0ea31f00cb727f2b84dcec65112e4c`, giữ nguyên. Gói bàn giao local `handoff_A_v2_pass1_8da2e16dcd40.zip` đã chuẩn bị; chưa khẳng định người nhận đã nhận tệp nếu chưa có xác nhận.
 
-CLI ghi 1.666,64 giây (27,78 phút) trên toàn lượt A V2. Đây chưa là timing được nghiệm thu; lời xác nhận thao tác được giữ riêng trong hồ sơ local, chưa đủ để xác nhận toàn bộ timing. Chưa phân nhóm nguồn để tính phút/phishing và không dùng cho PLAN-01. Lead đã yêu cầu A giữ nguyên lượt, chờ B hoàn thành; A không tự tính Kappa hoặc sửa lượt gốc.
+CLI ghi 1.666,64 giây (27,78 phút) trên toàn lượt A V2. Đây chưa là timing được nghiệm thu; lời xác nhận thao tác được giữ riêng trong hồ sơ local, chưa đủ để xác nhận toàn bộ timing. Chưa phân nhóm nguồn để tính phút/phishing và không dùng cho PLAN-01. Theo thông báo mới của Lead được A chuyển trong chat ngày 07/10/2026, B đã hoàn thành Pass 1. Lead yêu cầu A giữ nguyên lượt và chờ lệnh riêng mở phân xử; A không tự tính Kappa hoặc sửa lượt gốc.
 
 - A-PILOT V2: DONE phần nhập/kiểm kỹ thuật A; nghiệm thu timing/đồng thuận toàn pilot còn chờ nhóm.
-- A-RESOLVE: BLOCKED, chờ B khóa lượt và Lead/C thông báo bước phân xử, đúng phiên bản/hash hồ sơ.
+- A-RESOLVE: BLOCKED, B đã hoàn thành Pass 1; chờ lệnh riêng của Lead mở phân xử, đúng phiên bản/hash hồ sơ.
 - A-REPORT: đã cập nhật phạm vi/provenance; chưa có số liệu nghiên cứu được nghiệm thu.
 - A-UI: phản hồi câu chữ đã được Lead ghi nhận; thử chức năng trực tiếp vẫn chưa làm. Không gọi rà tĩnh là kiểm thử UI.
 
@@ -61,7 +61,7 @@ Cập nhật 05/10/2026. Người dùng phiên làm việc này xác nhận là 
 | A-PILOT — phần A của LABEL-01 | BLOCKED | Chờ codebook khóa, view mù pilot và exclusion registry từ C; xuất lượt A và log thời gian thật |
 | A-LABEL — nhãn tổ chức toàn bộ phishing giữ lại | BLOCKED | Chờ pilot, quy mô/sampling plan và view chính; bảo đảm mọi mẫu được giao có nhãn hoặc lý do thiếu bằng chứng |
 | A-BENIGN — kiểm toàn bộ hard benign được chọn | BLOCKED | Chờ danh sách/view đã chọn và tiêu chí hard benign; lưu nhãn phụ thủ công hoặc chưa xác định |
-| A-RESOLVE — phối hợp phân xử | BLOCKED | Chờ B khóa lượt độc lập và C tính đồng thuận phần random; giữ nguyên lượt A/B |
+| A-RESOLVE — phối hợp phân xử | BLOCKED | B đã hoàn thành Pass 1 theo thông báo Lead; chờ lệnh riêng mở phân xử, giữ nguyên lượt A/B |
 | A-REPORT — viết phần nhãn/bằng chứng | IN_PROGRESS | Đã viết phương pháp dự kiến; bổ sung số liệu sau nhãn/pilot/phân xử |
 
 ## Nhận gói từ C trước khi đọc mẫu

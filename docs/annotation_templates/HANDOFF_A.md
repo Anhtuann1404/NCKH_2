@@ -10,14 +10,18 @@ Phần A: đã nhập 32/32 mẫu tại `aae91a7`; file `data/annotations/A/labe
 - Có tra cứu ngoài CLI khi đồng hồ chạy không: **chưa xác nhận**; nguồn/phạm vi và cách tính giờ: **chưa xác nhận**.
 - Trong lượt V2 có mở lại chat AI hoặc dùng AI hỗ trợ quyết định nhãn không: **chưa xác nhận**.
 - Trong lượt V2 có mở/sử dụng kết quả V1 hoặc nhãn B không: **chưa xác nhận**.
+- Đồng hồ tính đủ thời gian đọc mẫu, xem codebook và ghi chú không: **chưa xác nhận**.
+- Có mẫu thao tác quá nhanh do lỗi hiển thị/chưa đọc đủ không: **chưa xác nhận**.
 - Thời điểm bắt đầu/kết thúc/tiếp tục nhớ được, mẫu bị ảnh hưởng nếu có: **chưa xác nhận**.
 - Người xác nhận/ngày: **Khải tự điền**. Không nhớ rõ thì ghi “không chắc”; AI không suy lời xác nhận từ JSONL.
 
 Log CLI ghi 1.666,64 giây toàn lượt A; không coi giá trị này là đã loại giờ nghỉ/được nghiệm thu. Không sửa seconds_spent trong file gốc; ghi bổ sung/đề xuất xử lý trong hồ sơ mới để Lead quyết định.
 
+B đã hoàn thành Pass 1 theo thông báo Lead được A chuyển trong chat ngày 07/10/2026. Hiện chưa mở phiên phân xử; không xem nhãn B/hồ sơ bất đồng trước lệnh riêng của Lead.
+
 ### Nhận Pass 2 khi được Lead cho phép
 
-1. Nhận xác nhận B đã khóa Pass 1 và lệnh mở phân xử, phạm vi/phiên bản/hash hồ sơ hạn chế; trước đó không mở nhãn B hoặc hồ sơ đối chiếu.
+1. Nhận lệnh riêng của Lead mở phân xử và xác nhận hồ sơ lượt gốc đã khóa, phạm vi/phiên bản/hash hồ sơ hạn chế; trước đó không mở nhãn B hoặc hồ sơ đối chiếu.
 2. Kiểm hash hai lượt gốc và manifest gói dùng chung; không sửa hoặc ghi đè chúng. C/D giữ vai trò tính đồng thuận trước phân xử.
 3. Khi phiên phân xử được mở, ghi sự kiện mới: refs lượt A/B gốc, bằng chứng, người tham gia, kết luận nhóm, lý do và phiên bản quy tắc. Không biến đáp án AI thành quyết định con người.
 4. Thời gian phân xử đo riêng, không tự cộng vào giờ Pass 1 hoặc cộng trùng. C/Lead khóa kết quả cuối; A kiểm đủ hồ sơ được giao.

@@ -2,11 +2,11 @@
 
 ## Cập nhật A — 07/10/2026
 
-Đã fetch toàn bộ refs: develop `73a1af9`, feat/data-pipeline `aae91a7`, nhánh C chuẩn bị phân xử `feat/c-pilot-v2-adjudication` tại `141038c`. Chưa thấy lệnh mới của Lead mở Pass 2 cho A trong bằng chứng đã kiểm; không đọc nhãn B/hồ sơ phân xử hạn chế. Thông báo Lead trong chat yêu cầu giữ nguyên lượt và chờ B được ưu tiên.
+Đã fetch toàn bộ refs: develop `73a1af9`, feat/data-pipeline `aae91a7`, nhánh C chuẩn bị phân xử `feat/c-pilot-v2-adjudication` tại `141038c`. Chưa thấy lệnh mới của Lead mở Pass 2 cho A trong bằng chứng đã kiểm; không đọc nhãn B/hồ sơ phân xử hạn chế. Theo thông báo mới của Lead được A chuyển trong chat ngày 07/10/2026, B đã hoàn thành Pass 1. Hiện chưa mở phiên phân xử; A giữ nguyên lượt và chờ lệnh riêng của Lead.
 
 - DONE phần A — nhập và kiểm kỹ thuật 32/32 mẫu Pass 1 V2, nhãn giữ nguyên; hash/kết quả bàn giao ở [MEMBER_A](MEMBER_A.md). Nghiệm thu timing và pilot toàn nhóm chưa hoàn tất.
 - DONE — kiểm lại hash nhãn V1/V2 và gói bàn giao V2; cập nhật trạng thái/bản thảo và [biểu mẫu timing/nhận Pass 2](annotation_templates/HANDOFF_A.md), chưa điền lời xác nhận cá nhân.
-- BLOCKED — A-RESOLVE: chờ B khóa Pass 1 và Lead/C cho phép phân xử; không tự tính Kappa, đọc nhãn B hoặc tạo nhãn cuối.
+- BLOCKED — A-RESOLVE: B đã hoàn thành Pass 1; chờ lệnh riêng của Lead cho phép phân xử; không tự tính Kappa, đọc nhãn B hoặc tạo nhãn cuối.
 - IN_PROGRESS — A-REPORT: metadata và giới hạn đã cập nhật; chưa đưa 27,78 phút CLI vào PLAN-01 hoặc báo kết quả nghiên cứu.
 
 Các mục ngày 06/10 trở về trước giữ làm lịch sử; không suy lịch gán mới từ trạng thái cũ.
