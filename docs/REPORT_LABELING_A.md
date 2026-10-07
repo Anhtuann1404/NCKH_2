@@ -1,5 +1,7 @@
 # Phần báo cáo của A — phương pháp nhãn và bằng chứng nội dung
 
+Cập nhật 07/10/2026: A đã hoàn thành 32/32 mẫu Pass 1 REAL-PILOT-32-V2 tại công cụ `aae91a7`, kết quả giữ nguyên và kiểm kỹ thuật đạt. Đây là hoàn thành lượt A, chưa phải nghiệm thu pilot toàn nhóm. CLI ghi 1.666,64 giây cho toàn lượt; tính hợp lệ ngoài log chưa xác nhận, chưa phân nhóm nguồn/tính thời gian PLAN-01. Chưa đối chiếu B, tính Kappa, phân xử hoặc chốt nhãn cuối trong phiên hỗ trợ này. Các mô tả “chưa hoàn thành V2” ở phần lịch sử bên dưới thuộc thời điểm trước bàn giao.
+
 Cập nhật 06/10/2026: A đã hoàn thành 32 bản ghi V1, kiểm kỹ thuật đạt, nhưng nhóm đã vô hiệu hóa REAL-PILOT-32-V1 do sự cố độc lập/nguồn và trùng tập dượt. Không dùng nhãn, Kappa hoặc timing V1 làm kết quả nghiên cứu/PLAN-01; giữ nguyên hồ sơ để audit. REAL-PILOT-32-V2 chưa nghiệm thu/mở gán nhãn. Các câu “chưa có annotation thật” trong bản thảo dưới mô tả thời điểm soạn ban đầu; hiện chưa có pilot hợp lệ để báo cáo kết quả.
 
 Chuẩn bị 04/10/2026, cập nhật trạng thái/disclosure 05/10/2026. **Bản thảo mô tả phương pháp dự kiến**, dựa trên đề cương 5.2b–c và DATA_PROTOCOL. Chưa có annotation thật, pilot thời gian hoặc phân xử; không sử dụng đoạn này như báo cáo kết quả đã thực hiện.

@@ -1,5 +1,22 @@
 # Hồ sơ công việc thành viên A
 
+## Trạng thái hiện hành — 07/10/2026
+
+Đã kiểm cập nhật remote: develop `73a1af9`, feat/data-pipeline `aae91a7`; có nhánh C `feat/c-pilot-v2-adjudication` tại `141038c` chuẩn bị công cụ hồ sơ phân xử. Việc có công cụ/nhánh mới không phải lệnh Lead mở Pass 2. Chưa đọc nhãn B, kết quả đồng thuận hoặc hồ sơ phân xử hạn chế.
+
+A đã hoàn thành 32/32 mẫu Pass 1 REAL-PILOT-32-V2 bằng công cụ `aae91a7`. Kiểm kỹ thuật đạt: ID đủ/độc nhất, provenance/hash/phiên bản khớp; không đánh giá lại nhãn bằng AI. File local `data/annotations/A/labels_v2_pass1.jsonl`, SHA-256 `8da2e16dcd40b280ac0e7c3e4f56ebe74c0ea31f00cb727f2b84dcec65112e4c`, giữ nguyên. Gói bàn giao local `handoff_A_v2_pass1_8da2e16dcd40.zip` đã chuẩn bị; chưa khẳng định người nhận đã nhận tệp nếu chưa có xác nhận.
+
+CLI ghi 1.666,64 giây (27,78 phút) trên toàn lượt A V2. Đây chưa là timing được nghiệm thu; lời xác nhận thao tác được giữ riêng trong hồ sơ local, chưa đủ để xác nhận toàn bộ timing. Chưa phân nhóm nguồn để tính phút/phishing và không dùng cho PLAN-01. Lead đã yêu cầu A giữ nguyên lượt, chờ B hoàn thành; A không tự tính Kappa hoặc sửa lượt gốc.
+
+- A-PILOT V2: DONE phần nhập/kiểm kỹ thuật A; nghiệm thu timing/đồng thuận toàn pilot còn chờ nhóm.
+- A-RESOLVE: BLOCKED, chờ B khóa lượt và Lead/C thông báo bước phân xử, đúng phiên bản/hash hồ sơ.
+- A-REPORT: đã cập nhật phạm vi/provenance; chưa có số liệu nghiên cứu được nghiệm thu.
+- A-UI: phản hồi câu chữ đã được Lead ghi nhận; thử chức năng trực tiếp vẫn chưa làm. Không gọi rà tĩnh là kiểm thử UI.
+
+Phần chuẩn bị trong lúc chờ: biểu mẫu xác nhận timing và quy trình nhận Pass 2 ở [HANDOFF_A](annotation_templates/HANDOFF_A.md). Thông tin cá nhân về thao tác thực tế phải do Khải xác nhận; AI không điền thay. V1 vẫn invalidated, bảo toàn bằng chứng.
+
+Các mục ngày 06/10 trở về trước dưới đây là lịch sử; không dùng trạng thái chờ V2 cũ để phủ nhận lượt V2 đã hoàn thành.
+
 ## Trạng thái hiện hành — 06/10/2026
 
 Đối chiếu `feat/data-pipeline` tại `d8020f4` và `develop` tại `e175562`. Manifest V1 đã có `status=invalidated`, `ready_for_annotation=false`, `usable_for_kappa_or_plan01=false`. Kết quả A V1 có 32 bản ghi nhưng không còn là kết quả pilot được nghiệm thu; giữ nguyên file, hash, log và gói bàn giao làm bằng chứng. Không sửa nhãn, chạy lại V1 hoặc dùng 52,22 phút V1 cho PLAN-01.
