@@ -144,7 +144,7 @@ def render_agenda_markdown(dossier: dict[str, Any]) -> str:
 
     # Nhóm 1
     p1 = dossier["priority_1_class_disagreements"]
-    lines.append(f"## 1. ƯU TIÊN 1: 14 CA BẤT ĐỒNG NHÃN LỚP (class_label)")
+    lines.append(f"## 1. ƯU TIÊN 1: {p1['count']} CA BẤT ĐỒNG NHÃN LỚP (class_label)")
     lines.append("")
     for pat_name, pat_cases in p1["patterns"].items():
         lines.append(f"### Nhóm: {pat_name} ({len(pat_cases)} ca: {', '.join(pat_cases)})")
@@ -172,7 +172,7 @@ def render_agenda_markdown(dossier: dict[str, Any]) -> str:
     for c in p2["cases"]:
         lines.append(f"- **`{c['sample_id']}`**: A=`{c['primary_org_norm_a']}` (anomaly: {c['consistency_anomaly_a']}) | B=`{c['primary_org_norm_b']}` (anomaly: {c['consistency_anomaly_b']})")
         lines.append(f"  + URL: `{c['url_preview']}` | Title: `{c['title_preview']}`")
-        lines.append(f"  + Trọng tâm: Làm rõ người gán nhãn thực tế nhận diện được tổ chức nào theo bằng chứng quan sát, hay trường trạng thái primary_org_status vô tình được lưu là 'identified' khi tên tổ chức chưa được xác định?")
+        lines.append(f"  + Trọng tâm: Dựa trên bằng chứng, trạng thái nhận diện và tên tổ chức nào phản ánh đánh giá của anh/chị? Giải thích sự khác nhau giữa hai trường đã lưu.")
         lines.append("")
 
     # Nhóm 3

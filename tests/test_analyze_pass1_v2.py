@@ -291,10 +291,14 @@ def test_prepare_adjudication_dossier_synthetic(tmp_path):
 
     # 2. Kiểm tra agenda markdown
     agenda = render_agenda_markdown(dossier)
+    assert "## 1. ƯU TIÊN 1: 1 CA BẤT ĐỒNG NHÃN LỚP (class_label)" in agenda
+    assert "14 CA" not in agenda
     assert "## 3. ƯU TIÊN 3: 1 CA BẤT ĐỒNG TỔ CHỨC ĐƠN THUẦN" in agenda
     assert "Cùng nhãn lớp, không có mâu thuẫn logic, nhưng trường tổ chức khác nhau sau chuẩn hóa." in agenda
     assert "chọn nhầm dropdown" not in agenda
     assert "bấm nhầm" not in agenda
+    assert "vô tình" not in agenda
+    assert "Dựa trên bằng chứng, trạng thái nhận diện và tên tổ chức nào phản ánh đánh giá của anh/chị? Giải thích sự khác nhau giữa hai trường đã lưu." in agenda
 
 
 
