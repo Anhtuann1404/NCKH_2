@@ -90,8 +90,8 @@ def verify(records: list[dict], annotator: str, manifest_path: Path = MANIFEST) 
 def receive(input_path: Path, annotator: str, out_root: Path = OUT_ROOT,
             manifest_path: Path = MANIFEST) -> dict:
     """Preserve the original even when validation fails; never replace a prior receipt."""
-    if annotator not in {"A", "B", "D"}:
-        raise ValueError("annotator phải là A, B hoặc D")
+    if annotator not in {"A", "B", "D", "E"}:
+        raise ValueError("annotator phải là A, B, D hoặc E")
     raw = input_path.read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
     directory = out_root / annotator
@@ -121,7 +121,7 @@ def receive(input_path: Path, annotator: str, out_root: Path = OUT_ROOT,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--annotator", choices=("A", "B"), required=True)
+    parser.add_argument("--annotator", choices=("A", "B", "E"), required=True)
     parser.add_argument("--input", type=Path, required=True)
     args = parser.parse_args()
     receipt = receive(args.input, args.annotator)

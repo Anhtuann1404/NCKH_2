@@ -877,7 +877,7 @@ def annotate_interactive_session(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--annotator", required=True, choices=["A", "B", "D", "adjudicator"], help="Mã người gán nhãn (A, B, D thay thế, hoặc adjudicator)")
+    parser.add_argument("--annotator", required=True, choices=["A", "B", "D", "E", "adjudicator"], help="Mã người gán nhãn (A, B, D/E thay thế, hoặc adjudicator)")
     parser.add_argument("--input", default="data/annotations/blind_view_pilot.json", type=Path, help="Đường dẫn tệp Blind View đầu vào")
     parser.add_argument("--output", required=True, type=Path, help="Đường dẫn tệp JSONL xuất kết quả gán nhãn")
     parser.add_argument("--pass-id", default=1, type=int, help="Lượt gán nhãn: 1 (độc lập), 2 (phân xử)")

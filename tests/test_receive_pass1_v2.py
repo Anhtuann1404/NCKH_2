@@ -79,10 +79,11 @@ def test_receive_preserves_rejected_file_without_replacing_accepted(tmp_path, mo
 
 def test_receive_replacement_rater_keeps_distinct_identity(tmp_path, monkeypatch):
     manifest, records = _fixture(tmp_path, monkeypatch)
-    for record in records:
-        record["annotator_id"] = "D"
-    source = tmp_path / "D.jsonl"
-    source.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
-    receipt = intake.receive(source, "D", tmp_path / "inbox", manifest)
-    assert receipt["status"] == "accepted"
-    assert (tmp_path / "inbox/D" / f"{receipt['file_sha256']}.jsonl").is_file()
+    for annotator in ("D", "E"):
+        for record in records:
+            record["annotator_id"] = annotator
+        source = tmp_path / f"{annotator}.jsonl"
+        source.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+        receipt = intake.receive(source, annotator, tmp_path / "inbox", manifest)
+        assert receipt["status"] == "accepted"
+        assert (tmp_path / "inbox" / annotator / f"{receipt['file_sha256']}.jsonl").is_file()
