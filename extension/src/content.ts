@@ -28,20 +28,20 @@ function show(state: TabState) {
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: min(360px, calc(100vw - 32px)); font: 13px/1.45 system-ui, sans-serif; }
-      .card { --accent: #8ca4c5; padding: 14px 16px; border: 1px solid #ffffff47; border-left: 4px solid var(--accent); border-radius: 16px; background: #17243be8; color: #fff; box-shadow: 0 12px 32px #0006, inset 0 1px #ffffff26; backdrop-filter: blur(18px) saturate(145%); -webkit-backdrop-filter: blur(18px) saturate(145%); }
+      .card { --accent: #8ca4c5; padding: 14px 16px; border: 1px solid #ffffffd9; border-left: 4px solid var(--accent); border-radius: 20px; background: #f7f9fce8; color: #17243b; box-shadow: 0 14px 34px #17243b3d, inset 0 1px #fff; backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); }
       .card[data-tone="warning"] { --accent: #ff7c87; }
       .card[data-tone="clear"] { --accent: #84b9ff; }
       .card[data-tone="unknown"] { --accent: #ffd27a; }
       .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      .mode { color: #dce8fa; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
-      button { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #dce8fa; font: 20px/1 system-ui; cursor: pointer; }
-      button:hover, button:focus-visible { background: #ffffff25; outline: none; }
+      .mode { color: #526076; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+      button { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #526076; font: 20px/1 system-ui; cursor: pointer; }
+      button:hover, button:focus-visible { background: #17243b15; outline: none; }
       .title { display: block; margin-top: 5px; font-size: 16px; line-height: 1.3; }
-      .note { margin: 5px 0 0; color: #dce8fa; font-size: 11px; }
-      .signals { margin-top: 10px; padding-top: 9px; border-top: 1px solid #ffffff33; font-size: 11px; }
+      .note { margin: 5px 0 0; color: #526076; font-size: 11px; }
+      .signals { margin-top: 10px; padding-top: 9px; border-top: 1px solid #17243b24; font-size: 11px; }
       .signals[hidden] { display: none; }
       .signals ul { margin: 5px 0; padding-left: 18px; }
-      .signals p { margin: 6px 0 0; color: #dce8fa; }
+      .signals p { margin: 6px 0 0; color: #526076; }
       @media (max-width: 420px) { :host { right: 12px; bottom: 12px; width: calc(100vw - 24px); } }
     `;
     const card = document.createElement('section'); card.className = 'card'; card.setAttribute('role', 'status');
