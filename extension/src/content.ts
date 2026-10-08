@@ -8,6 +8,7 @@ let contentAllowed = false;
 let pageURL = location.href;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let banner: HTMLElement | undefined;
+let bannerParts: { card: HTMLElement; mode: HTMLElement; title: HTMLElement; note: HTMLElement; signals: HTMLElement } | undefined;
 
 function show(state: TabState) {
   if (!enabled || state.navigation_id !== navigation || state.dom_revision !== revision) return;
@@ -15,16 +16,56 @@ function show(state: TabState) {
     banner = document.createElement('div');
     banner.id = 'nckh-phishing-demo-banner';
     const root = banner.attachShadow({ mode: 'closed' });
-    const text = document.createElement('div');
-    text.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;max-width:360px;padding:14px 18px;border-radius:10px;background:#17243b;color:#fff;font:14px/1.5 system-ui;box-shadow:0 4px 20px #0004';
-    root.append(text);
+    const style = document.createElement('style');
+    style.textContent = `
+      :host { all: initial; position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: min(360px, calc(100vw - 32px)); font: 13px/1.45 system-ui, sans-serif; }
+      .card { --accent: #8ca4c5; padding: 14px 16px; border-left: 4px solid var(--accent); border-radius: 10px; background: #17243b; color: #fff; box-shadow: 0 8px 28px #0005; }
+      .card[data-tone="warning"] { --accent: #ff7c87; }
+      .card[data-tone="clear"] { --accent: #84b9ff; }
+      .card[data-tone="unknown"] { --accent: #ffd27a; }
+      .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .mode { color: #dce8fa; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+      button { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #dce8fa; font: 20px/1 system-ui; cursor: pointer; }
+      button:hover, button:focus-visible { background: #ffffff25; outline: none; }
+      .title { display: block; margin-top: 5px; font-size: 16px; line-height: 1.3; }
+      .note { margin: 5px 0 0; color: #dce8fa; font-size: 11px; }
+      .signals { margin-top: 10px; padding-top: 9px; border-top: 1px solid #ffffff33; font-size: 11px; }
+      .signals[hidden] { display: none; }
+      .signals ul { margin: 5px 0; padding-left: 18px; }
+      .signals p { margin: 6px 0 0; color: #dce8fa; }
+      @media (max-width: 420px) { :host { right: 12px; bottom: 12px; width: calc(100vw - 24px); } }
+    `;
+    const card = document.createElement('section'); card.className = 'card'; card.setAttribute('role', 'status');
+    const top = document.createElement('div'); top.className = 'top';
+    const mode = document.createElement('span'); mode.className = 'mode';
+    const close = document.createElement('button'); close.type = 'button'; close.setAttribute('aria-label', 'Đóng thông báo'); close.textContent = '×';
+    close.addEventListener('click', () => { banner?.remove(); banner = undefined; bannerParts = undefined; });
+    top.append(mode, close);
+    const title = document.createElement('strong'); title.className = 'title';
+    const note = document.createElement('p'); note.className = 'note';
+    const signals = document.createElement('div'); signals.className = 'signals';
+    card.append(top, title, note, signals);
+    root.append(style, card);
     document.documentElement.append(banner);
-    (banner as HTMLElement & { statusText?: HTMLElement }).statusText = text;
+    bannerParts = { card, mode, title, note, signals };
   }
-  const text = (banner as HTMLElement & { statusText?: HTMLElement }).statusText!;
+  const parts = bannerParts!;
   const observations = observedSignalText(state);
-  text.textContent = `DEMO MÔ PHỎNG — ${state.demo_kind === 'synthetic_model' ? 'mô hình học từ dữ liệu hư cấu' : 'chưa nhận diện thật'}\n${statusText(state)}\n${assessmentNote(state)}${observations.length ? '\nTín hiệu quan sát được:\n• ' + observations.join('\n• ') + '\n' + OBSERVATION_NOTE : ''}`;
-  text.style.whiteSpace = 'pre-line';
+  parts.card.dataset.tone = state.status === 'pending' ? 'pending'
+    : state.status === 'unable_to_assess' || state.verdict === 'unable_to_assess' ? 'unknown'
+      : state.verdict === 'warning' ? 'warning' : state.verdict === 'no_indication' ? 'clear' : 'pending';
+  parts.mode.textContent = `DEMO MÔ PHỎNG · ${state.demo_kind === 'synthetic_model' ? 'DỮ LIỆU HƯ CẤU' : 'CHƯA NHẬN DIỆN THẬT'}`;
+  parts.title.textContent = statusText(state);
+  parts.note.textContent = assessmentNote(state);
+  parts.signals.replaceChildren();
+  parts.signals.hidden = !observations.length;
+  if (observations.length) {
+    const heading = document.createElement('strong'); heading.textContent = 'Tín hiệu quan sát được';
+    const list = document.createElement('ul');
+    for (const observation of observations) { const item = document.createElement('li'); item.textContent = observation; list.append(item); }
+    const caution = document.createElement('p'); caution.textContent = OBSERVATION_NOTE;
+    parts.signals.append(heading, list, caution);
+  }
 }
 
 async function send(phase: 'url_only' | 'url_content') {
@@ -51,7 +92,7 @@ async function configure() {
   try {
     const config = await chrome.runtime.sendMessage({ type: 'get_config' });
     enabled = config.enabled === true; contentAllowed = config.analyzeContent === true;
-    clearTimeout(timer); banner?.remove(); banner = undefined;
+    clearTimeout(timer); banner?.remove(); banner = undefined; bannerParts = undefined;
     navigation = crypto.randomUUID(); revision = 0; pageURL = location.href;
     if (enabled) { void send('url_only'); contentSnapshot(); }
   } catch { enabled = false; }

@@ -1,16 +1,39 @@
 <!doctype html>
 <html lang="vi">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>NCKH Phishing — demo</title><link rel="stylesheet" href="popup.css"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>NCKH Phishing — demo</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
 <body>
-  <header><span class="badge">DEMO MÔ PHỎNG</span><h1>Cảnh báo phishing</h1><p>Chưa có mô hình nhận diện thật.</p></header>
-  <section class="result" aria-live="polite"><span>Trạng thái trang hiện tại</span><strong id="status">Chưa đánh giá được</strong><p id="note">Chỉ dùng kiểm thử luồng cảnh báo.</p><div id="signals"></div></section>
-  <form id="settings">
-    <label class="toggle"><input id="enabled" type="checkbox"> Bật phân tích demo</label>
-    <label class="toggle"><input id="content" type="checkbox"> Cho phép phân tích nội dung trang</label>
-    <p class="hint">Khi cho phép, URL và HTML đã lọc được gửi đến API trên máy này. Văn bản còn có thể chứa thông tin cá nhân; dùng trang mô phỏng để thử.</p>
-    <label for="token">Token API cục bộ</label><input id="token" type="password" autocomplete="off" spellcheck="false">
-    <button type="submit">Lưu thiết lập</button>
-  </form>
-  <footer>API: <code>127.0.0.1:8765</code><br>ID extension: <code id="extension-id"></code></footer>
+  <main>
+    <header class="header">
+      <span class="badge"><span class="badge-dot" aria-hidden="true"></span>DEMO MÔ PHỎNG</span>
+      <h1>Kiểm tra trang</h1>
+      <p>Bản thử nghiệm, chưa xác nhận trang an toàn.</p>
+    </header>
+    <section id="result" class="result" data-tone="idle" aria-live="polite">
+      <div class="result-label"><span class="result-mark" aria-hidden="true"></span>Trang hiện tại</div>
+      <strong id="status">Chưa đánh giá được</strong>
+      <p id="note">Chỉ dùng kiểm thử luồng cảnh báo.</p>
+      <div id="signals" class="signals" hidden></div>
+    </section>
+    <form id="settings">
+      <h2>Thiết lập demo</h2>
+      <label class="option"><span><strong>Bật phân tích</strong><small>Kiểm tra URL của trang đang mở</small></span><input id="enabled" type="checkbox"></label>
+      <label class="option"><span><strong>Phân tích nội dung trang</strong><small>Chỉ bật khi dùng trang mô phỏng</small></span><input id="content" type="checkbox"></label>
+      <p class="hint">Khi bật nội dung, URL và HTML đã lọc được gửi tới API trên máy này. Văn bản vẫn có thể chứa thông tin cá nhân.</p>
+      <label class="field-label" for="token">Token API cục bộ</label>
+      <input id="token" type="password" autocomplete="off" spellcheck="false">
+      <button type="submit">Lưu thiết lập</button>
+      <p id="save-status" class="save-status" role="status" aria-live="polite"></p>
+    </form>
+    <details class="technical">
+      <summary>Thông tin kết nối</summary>
+      <p>API: <code>127.0.0.1:8765</code></p>
+      <p>ID extension: <code id="extension-id"></code></p>
+    </details>
+  </main>
   <script src="popup.js" type="module"></script>
 </body></html>
