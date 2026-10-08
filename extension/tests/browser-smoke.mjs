@@ -132,6 +132,19 @@ try {
   assert.equal(keys.some(name => ['url', 'html', 'token'].includes(name)), false);
   checks.push('mock_warning_and_no_payload_in_session_storage');
 
+  await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 1, 'warning banner visible');
+  await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 0, 'warning banner auto-dismissed', 11000);
+  assert.equal((await savedState()).verdict, 'warning');
+  checks.push('banner_auto_dismiss_keeps_popup_result');
+
+  await popup.locator('#show-banner').uncheck();
+  await eventually(async () => await worker.evaluate(async () => (await chrome.storage.local.get('showBanner')).showBanner) === false, 'page notifications disabled');
+  await page.goto(`${origin}/login.html?quiet=1`);
+  await eventually(async () => (await savedState())?.status === 'completed', 'analysis while page notifications disabled');
+  assert.equal(await page.locator('#nckh-phishing-demo-banner').count(), 0);
+  await popup.locator('#show-banner').check();
+  checks.push('popup_toggle_suppresses_banner_without_stopping_analysis');
+
   const beforeDynamic = (await savedState()).dom_revision;
   await page.locator('#dynamic').click();
   await eventually(async () => (await savedState())?.dom_revision > beforeDynamic && (await savedState())?.status === 'completed', 'dynamic DOM snapshot');

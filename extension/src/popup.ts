@@ -2,6 +2,7 @@ import { assessmentNote, observedSignalText, OBSERVATION_NOTE, statusText, TabSt
 
 const enabled = document.querySelector<HTMLInputElement>('#enabled')!;
 const content = document.querySelector<HTMLInputElement>('#content')!;
+const showBanner = document.querySelector<HTMLInputElement>('#show-banner')!;
 const token = document.querySelector<HTMLInputElement>('#token')!;
 const status = document.querySelector<HTMLElement>('#status')!;
 const note = document.querySelector<HTMLElement>('#note')!;
@@ -36,9 +37,14 @@ async function refresh() {
   }
 }
 
-void chrome.storage.local.get({ enabled: false, analyzeContent: false, token: '' }).then(config => {
-  enabled.checked = config.enabled === true; content.checked = config.analyzeContent === true; token.value = typeof config.token === 'string' ? config.token : '';
+void chrome.storage.local.get({ enabled: false, analyzeContent: false, showBanner: true, token: '' }).then(config => {
+  enabled.checked = config.enabled === true; content.checked = config.analyzeContent === true; showBanner.checked = config.showBanner !== false; token.value = typeof config.token === 'string' ? config.token : '';
   void refresh();
+});
+showBanner.addEventListener('change', () => {
+  void chrome.storage.local.set({ showBanner: showBanner.checked }).then(() => {
+    saveStatus.textContent = showBanner.checked ? 'Đã bật thông báo trên trang.' : 'Đã tắt thông báo trên trang.';
+  });
 });
 document.querySelector<HTMLFormElement>('#settings')!.addEventListener('submit', event => {
   event.preventDefault();

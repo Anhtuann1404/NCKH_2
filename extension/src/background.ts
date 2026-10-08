@@ -1,7 +1,7 @@
 import { analyzeWithRetry, AnalyzeRequest, APIError, isCurrent, PREPROCESSING_VERSION, TabState } from './core';
 
-interface Settings { enabled: boolean; analyzeContent: boolean; token: string }
-const defaults: Settings = { enabled: false, analyzeContent: false, token: '' };
+interface Settings { enabled: boolean; analyzeContent: boolean; showBanner: boolean; token: string }
+const defaults: Settings = { enabled: false, analyzeContent: false, showBanner: true, token: '' };
 const states = new Map<number, TabState>();
 const jobs = new Map<number, { abort: AbortController; done: Promise<void> }>();
 const key = (id: number) => `tab:${id}`;
@@ -86,7 +86,7 @@ async function acceptSnapshot(message: Record<string, unknown>, sender: chrome.r
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type === 'get_config') {
-    void initialized.then(settings).then(config => respond({ enabled: config.enabled, analyzeContent: config.analyzeContent }));
+    void initialized.then(settings).then(config => respond({ enabled: config.enabled, analyzeContent: config.analyzeContent, showBanner: config.showBanner }));
   } else if (message?.type === 'snapshot') {
     void acceptSnapshot(message, sender).then(respond).catch(() => respond({ accepted: false }));
   } else if (message?.type === 'snapshot_error' && sender.tab?.id !== undefined) {

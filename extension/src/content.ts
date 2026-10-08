@@ -5,13 +5,22 @@ let navigation = crypto.randomUUID();
 let revision = 0;
 let enabled = false;
 let contentAllowed = false;
+let showBanner = true;
 let pageURL = location.href;
 let timer: ReturnType<typeof setTimeout> | undefined;
+let bannerTimer: ReturnType<typeof setTimeout> | undefined;
 let banner: HTMLElement | undefined;
 let bannerParts: { card: HTMLElement; mode: HTMLElement; title: HTMLElement; note: HTMLElement; signals: HTMLElement } | undefined;
 
+function dismissBanner() {
+  clearTimeout(bannerTimer);
+  banner?.remove();
+  banner = undefined;
+  bannerParts = undefined;
+}
+
 function show(state: TabState) {
-  if (!enabled || state.navigation_id !== navigation || state.dom_revision !== revision) return;
+  if (!enabled || !showBanner || state.navigation_id !== navigation || state.dom_revision !== revision) return;
   if (!banner?.isConnected) {
     banner = document.createElement('div');
     banner.id = 'nckh-phishing-demo-banner';
@@ -39,7 +48,7 @@ function show(state: TabState) {
     const top = document.createElement('div'); top.className = 'top';
     const mode = document.createElement('span'); mode.className = 'mode';
     const close = document.createElement('button'); close.type = 'button'; close.setAttribute('aria-label', 'Đóng thông báo'); close.textContent = '×';
-    close.addEventListener('click', () => { banner?.remove(); banner = undefined; bannerParts = undefined; });
+    close.addEventListener('click', dismissBanner);
     top.append(mode, close);
     const title = document.createElement('strong'); title.className = 'title';
     const note = document.createElement('p'); note.className = 'note';
@@ -66,6 +75,8 @@ function show(state: TabState) {
     const caution = document.createElement('p'); caution.textContent = OBSERVATION_NOTE;
     parts.signals.append(heading, list, caution);
   }
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(dismissBanner, state.verdict === 'warning' ? 8000 : 4000);
 }
 
 async function send(phase: 'url_only' | 'url_content') {
@@ -91,8 +102,8 @@ function contentSnapshot() {
 async function configure() {
   try {
     const config = await chrome.runtime.sendMessage({ type: 'get_config' });
-    enabled = config.enabled === true; contentAllowed = config.analyzeContent === true;
-    clearTimeout(timer); banner?.remove(); banner = undefined; bannerParts = undefined;
+    enabled = config.enabled === true; contentAllowed = config.analyzeContent === true; showBanner = config.showBanner !== false;
+    clearTimeout(timer); dismissBanner();
     navigation = crypto.randomUUID(); revision = 0; pageURL = location.href;
     if (enabled) { void send('url_only'); contentSnapshot(); }
   } catch { enabled = false; }
@@ -101,6 +112,11 @@ async function configure() {
 chrome.runtime.onMessage.addListener(message => {
   if (message?.type === 'analysis_state') show(message.state);
   if (message?.type === 'config_changed') void configure();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !('showBanner' in changes)) return;
+  showBanner = changes.showBanner.newValue !== false;
+  if (!showBanner) dismissBanner();
 });
 const observer = new MutationObserver(records => {
   if (records.every(record => {
