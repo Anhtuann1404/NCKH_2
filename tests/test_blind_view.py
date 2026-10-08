@@ -149,6 +149,73 @@ class TestBlindViewSecurityAndAntiLeakage:
         assert "Sign In" in out["page_text"]
         assert out["structure_summary"]["has_login_form"] is True
 
+    def test_translation_is_blind_hashed_and_shown_with_original(self, capsys, cli_module):
+        sample = create_blind_sample(
+            {"sample_id": "SMP-201", "url": "https://example.test/", "text": "Anmeldung"},
+            codebook_version="1.1.0",
+            translated_text="Đăng nhập",
+            translation_source_language="de",
+            translation_tool="offline-translator",
+            translation_tool_version="1.0",
+        ).to_dict()
+        assert sample["translation_provided"] is True
+        assert sample["translation_sha256"] == hashlib.sha256("Đăng nhập".encode()).hexdigest()
+        assert_no_label_leak(sample)
+        cli_module.display_sample_and_allow_reading(sample, 1, 1, interactive=False)
+        output = capsys.readouterr().out
+        assert "Anmeldung" in output and "Đăng nhập" in output
+        changed = {**sample, "translated_text": "Đăng ký"}
+        changed["translation_sha256"] = hashlib.sha256("Đăng ký".encode()).hexdigest()
+        assert compute_sample_content_hash(changed) != compute_sample_content_hash(sample)
+
+    def test_translation_metadata_fails_closed(self):
+        base = create_blind_sample(
+            {"sample_id": "SMP-202", "url": "https://example.test/", "text": "Original"},
+            codebook_version="1.1.0",
+        ).to_dict()
+        assert base["translation_provided"] is False
+        with pytest.raises(ValueError, match="LỖI BẢN DỊCH"):
+            assert_no_label_leak({**base, "translated_text": "Bản dịch"})
+        translated = create_blind_sample(
+            {"sample_id": "SMP-202", "url": "https://example.test/", "text": "Original"},
+            codebook_version="1.1.0",
+            translated_text="Bản dịch",
+            translation_source_language="en",
+            translation_tool="offline-translator",
+            translation_tool_version="1.0",
+        ).to_dict()
+        with pytest.raises(ValueError, match="LỖI BẢN DỊCH"):
+            assert_no_label_leak({**translated, "translation_sha256": "0" * 64})
+
+    def test_legacy_sample_content_hash_unchanged(self):
+        sample = create_blind_sample(
+            {"sample_id": "SMP-203", "url": "https://example.test/", "text": "Original"}
+        ).to_dict()
+        summary = json.dumps(sample["structure_summary"], sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        expected = hashlib.sha256(f"{sample['url']}\0Original\0{summary}".encode()).hexdigest()
+        assert compute_sample_content_hash(sample) == expected
+
+    def test_export_preserves_checked_translation(self, tmp_path):
+        path = tmp_path / "translated_view.json"
+        translated = "Đăng nhập"
+        payload = export_blind_view([{
+            "sample_id": "SMP-204",
+            "url": "https://example.test/",
+            "text": "Anmeldung",
+            "codebook_version": "1.1.0",
+            "translated_text": translated,
+            "translation_source_language": "de",
+            "translation_tool": "offline-translator",
+            "translation_tool_version": "1.0",
+            "translation_sha256": hashlib.sha256(translated.encode()).hexdigest(),
+        }], path)
+        assert payload["samples"][0]["translated_text"] == translated
+        with pytest.raises(ValueError, match="LỖI BẢN DỊCH"):
+            export_blind_view([{
+                **payload["samples"][0],
+                "translation_sha256": "0" * 64,
+            }], tmp_path / "bad_view.json")
+
     def test_assert_neutral_sample_id(self):
         """Kiểm tra assert_neutral_sample_id chặn mọi ID chứa nhãn hoặc tên thương hiệu."""
         for valid_id in ["PILOT-001", "SMP-100", "BLIND-042", "CASE-9999", "M001"]:
@@ -2251,7 +2318,5 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
         with pytest.raises(ValueError, match="Gói view có 31 mẫu, nhưng manifest khai báo 32 mẫu"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
-
-
 
 

@@ -1,6 +1,43 @@
 # Current tasks
 
-Cập nhật 06/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
+Cập nhật 08/10/2026. Sprint khởi động dài hai tuần tính từ ngày nhóm bắt đầu; chưa có ngày bắt đầu chính thức.
+
+## Mốc hiện tại — Pilot V2 đã được Lead D ký duyệt
+
+Lead D đã duyệt bảng 32 mẫu B–E theo Codebook v1.0; bản nhãn cuối hạn chế tại
+`data/labels/intake_v2/labels_final.json` (SHA-256
+`1545d08f47b838a6e288324f7b5ee0cb69f5ec9efbbe727187a8440b04612630`).
+Có 13 phishing, 12 benign, 3 insufficient_evidence và 4 pending_evidence;
+4 ca pending không có nhãn lớp cuối. Hai lượt Pass 1 gốc và Kappa trước phân xử
+giữ nguyên. Toàn bộ 32 mẫu pilot vẫn bị loại khỏi huấn luyện và đánh giá chính;
+`training_blocked=true` tiếp tục có hiệu lực.
+
+PLAN-01 đã có báo cáo **tạm thời** trong khu vực hạn chế tại
+`data/labels/intake_v2/plan01_pilot_time_report.json` (SHA-256
+`5146b88d70d6c40772a4073de7407b1ea00fda071b9f223f3b8a470a22c8cc3e`).
+B/E có tốc độ chênh lớn, chỉ dùng làm kịch bản nhạy cảm về thời gian pilot.
+Lead D chốt A gán toàn bộ, B kiểm độc lập 30% mẫu random khóa trước cộng các ca
+khó; A/B cho biết có thể dành từ 10 giờ/người/tuần nhưng chưa chốt lịch cố định,
+E không tham gia kế hoạch chính.
+Mốc 1.200 và 2.000 phishing đều chỉ là kịch bản tham chiếu, chưa khóa quy mô.
+Phải đo tốc độ A trên 20–30 mẫu calibration mới, mù hóa và loại trừ theo v1.1,
+đồng thời ghi giờ phân xử trước khi chốt.
+Đã soạn [đề xuất Codebook v1.1](CODEBOOK_V1_1_DRAFT.md) cho lượt gán dữ liệu
+chính; tiếp thu ba góp ý của B về shop/thanh toán, URL rút gọn và UGC, cùng
+quy chuẩn bản dịch ngoại tuyến. Bản v1.0 và nhãn pilot không thay đổi. Việc tiếp
+theo: B/D duyệt bản cập nhật. Hợp đồng `translated_text` đã được chuẩn bị trong
+view và CLI, gồm kiểm SHA-256, hiển thị song song và hash nội dung mẫu; cần C
+rà quy trình dịch ngoại tuyến và cập nhật các trường gán nhãn v1.1 còn lại sau
+khi khóa Codebook, rồi mới chọn gói calibration mới; đo tốc độ A/B và
+công sức phân xử. C hoàn tất nguồn, QC, exclusion và splits trước khi D xem xét
+mở huấn luyện. File nhãn và blind view vẫn chỉ
+lưu ở khu vực hạn chế, không commit lên Git.
+
+Kiểm kê sẵn sàng ngày 08/10: source manifest mô tả 56 shard train, nhưng máy
+hiện chỉ có 2 shard đã khôi phục; chưa có nhãn đã kiểm chứng cho corpus chính
+hoặc split chính khả dụng. Exclusion registry có 4 lô/116 mẫu và còn
+`training_blocked=true`. Vì vậy hiện chỉ có thể chuẩn bị giao thức và công cụ,
+chưa mở M0–M3 trên dữ liệu thực.
 
 ## Tiếp quản phần C — 06/10/2026
 
@@ -270,8 +307,8 @@ Popup bật/tắt, snapshot sạch, navigation/revision và cảnh báo mock. Do
 
 ## Đội nhóm cần điền
 
-- A — họ tên: Trần Hồng Khải (nhánh codex/member-a-preparation); giờ/tuần: 49 giờ/tuần (đã xác nhận trong docs/MEMBER_A.md).
-- B — họ tên: chưa điền; giờ/tuần: chưa điền.
+- A — họ tên: Trần Hồng Khải (nhánh codex/member-a-preparation); mốc cũ 49 giờ/tuần ghi trong docs/MEMBER_A.md; giờ/tuần cho giai đoạn gán nhãn chính chưa xác nhận.
+- B — họ tên: Phùng Tấn Minh; giờ/tuần cho giai đoạn gán nhãn chính: chưa xác nhận.
 - C — họ tên: chưa điền; giờ/tuần: chưa điền.
 - D — người dùng, lead + model + API–extension; họ tên chính thức/giờ tuần: chưa điền.
 - Owner model: D; C bàn giao dữ liệu, B kiểm tái lập sau khóa nhãn.

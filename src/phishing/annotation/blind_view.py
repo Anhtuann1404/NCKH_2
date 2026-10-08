@@ -38,7 +38,18 @@ ALLOWED_BLIND_SAMPLE_KEYS: Set[str] = frozenset({
     "structure_summary",
     "random_subset",
     "codebook_version",
+    "translation_provided",
+    "translated_text",
+    "translation_source_language",
+    "translation_tool",
+    "translation_tool_version",
+    "translation_sha256",
 })
+
+TRANSLATION_FIELDS = (
+    "translation_provided", "translated_text", "translation_source_language",
+    "translation_tool", "translation_tool_version", "translation_sha256",
+)
 
 # Danh mục các trường được phép trong structure_summary (Allowlist)
 ALLOWED_STRUCTURE_SUMMARY_KEYS: Set[str] = frozenset({
@@ -169,6 +180,23 @@ def assert_no_label_leak(data: Any, path: str = "root") -> None:
                     f"Blind sample chỉ được phép chứa: {sorted(list(ALLOWED_BLIND_SAMPLE_KEYS))}."
                 )
             assert_neutral_sample_id(data["sample_id"])
+            if str(data.get("codebook_version") or "").lstrip("v").startswith("1.1.") and "translation_provided" not in data:
+                raise ValueError(f"LỖI BẢN DỊCH: Mẫu v1.1 tại '{path}' thiếu translation_provided.")
+            if "translation_provided" in data:
+                provided = data["translation_provided"]
+                if type(provided) is not bool:
+                    raise ValueError(f"LỖI BẢN DỊCH: translation_provided tại '{path}' phải là boolean.")
+                if provided:
+                    for field in TRANSLATION_FIELDS[1:]:
+                        if not isinstance(data.get(field), str) or not data[field].strip():
+                            raise ValueError(f"LỖI BẢN DỊCH: Mẫu tại '{path}' thiếu {field}.")
+                    actual_hash = hashlib.sha256(data["translated_text"].encode("utf-8")).hexdigest()
+                    if data["translation_sha256"] != actual_hash:
+                        raise ValueError(f"LỖI BẢN DỊCH: translation_sha256 tại '{path}' không khớp nội dung.")
+                elif any(field in data for field in TRANSLATION_FIELDS[1:]):
+                    raise ValueError(f"LỖI BẢN DỊCH: Mẫu tại '{path}' khai báo không dịch nhưng có metadata dịch.")
+            elif any(field in data for field in TRANSLATION_FIELDS[1:]):
+                raise ValueError(f"LỖI BẢN DỊCH: Mẫu tại '{path}' có bản dịch nhưng thiếu translation_provided.")
 
             summary = data.get("structure_summary")
             if isinstance(summary, dict):
@@ -333,8 +361,16 @@ class BlindSample:
     structure_summary: Dict[str, Any]
     random_subset: bool = True
     codebook_version: str = "1.0.0"
+    translated_text: str | None = None
+    translation_source_language: str | None = None
+    translation_tool: str | None = None
+    translation_tool_version: str | None = None
 
     def to_dict(self) -> Dict[str, Any]:
+        if self.translated_text is None and any(value is not None for value in (
+            self.translation_source_language, self.translation_tool, self.translation_tool_version,
+        )):
+            raise ValueError("LỖI BẢN DỊCH: Có metadata dịch nhưng không có translated_text.")
         d = {
             "sample_id": self.sample_id,
             "url": self.url,
@@ -343,6 +379,17 @@ class BlindSample:
             "random_subset": self.random_subset,
             "codebook_version": self.codebook_version,
         }
+        if self.translated_text is not None:
+            d.update({
+                "translation_provided": True,
+                "translated_text": self.translated_text,
+                "translation_source_language": self.translation_source_language,
+                "translation_tool": self.translation_tool,
+                "translation_tool_version": self.translation_tool_version,
+                "translation_sha256": hashlib.sha256(self.translated_text.encode("utf-8")).hexdigest(),
+            })
+        elif self.codebook_version.lstrip("v").startswith("1.1."):
+            d["translation_provided"] = False
         assert_no_label_leak(d)
         return d
 
@@ -352,8 +399,14 @@ def create_blind_sample(
     sample_id: str | None = None,
     random_subset: bool = True,
     codebook_version: str = "1.0.0",
+    translated_text: str | None = None,
+    translation_source_language: str | None = None,
+    translation_tool: str | None = None,
+    translation_tool_version: str | None = None,
 ) -> BlindSample:
     """Tạo mẫu BlindSample an toàn từ bản ghi thô, loại bỏ triệt để mọi nhãn nguồn."""
+    if translated_text is None and raw_sample.get("translated_text") is not None:
+        raise ValueError("LỖI BẢN DỊCH: Phải bàn giao translated_text bằng tham số tường minh.")
     sid = sample_id or raw_sample.get("sample_id") or raw_sample.get("id") or str(raw_sample.get("row_idx", "SMP-001"))
     assert_neutral_sample_id(sid)
 
@@ -392,6 +445,10 @@ def create_blind_sample(
         structure_summary=summary,
         random_subset=bool(is_random),
         codebook_version=str(cb_ver),
+        translated_text=translated_text,
+        translation_source_language=translation_source_language,
+        translation_tool=translation_tool,
+        translation_tool_version=translation_tool_version,
     )
     assert_no_label_leak(blind.to_dict())
     return blind
@@ -434,6 +491,9 @@ def compute_sample_content_hash(sample: Any) -> str:
         summary_repr = ""
 
     payload = f"{url_str}\0{text_str}\0{summary_repr}".encode("utf-8")
+    if sample_dict.get("translation_provided") is True:
+        translation = {key: sample_dict.get(key) for key in TRANSLATION_FIELDS}
+        payload += b"\0" + json.dumps(translation, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
 
@@ -592,7 +652,21 @@ def export_blind_view(
         if isinstance(item, BlindSample):
             clean_samples.append(item.to_dict())
         elif isinstance(item, dict):
-            blind = create_blind_sample(item)
+            if item.get("translation_provided") is True and item.get("translated_text") is None:
+                raise ValueError("LỖI BẢN DỊCH: translation_provided=true nhưng thiếu translated_text.")
+            if item.get("translation_provided") is False and item.get("translated_text") is not None:
+                raise ValueError("LỖI BẢN DỊCH: translation_provided=false nhưng có translated_text.")
+            if "translation_sha256" in item and item.get("translated_text") is not None:
+                actual_hash = hashlib.sha256(str(item["translated_text"]).encode("utf-8")).hexdigest()
+                if item["translation_sha256"] != actual_hash:
+                    raise ValueError("LỖI BẢN DỊCH: translation_sha256 không khớp nội dung.")
+            blind = create_blind_sample(
+                item,
+                translated_text=item.get("translated_text"),
+                translation_source_language=item.get("translation_source_language"),
+                translation_tool=item.get("translation_tool"),
+                translation_tool_version=item.get("translation_tool_version"),
+            )
             clean_samples.append(blind.to_dict())
         else:
             raise TypeError(f"Mẫu không hợp lệ: kiểu {type(item)}")

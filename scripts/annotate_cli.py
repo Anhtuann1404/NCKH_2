@@ -261,32 +261,29 @@ def display_sample_and_allow_reading(sample: Dict[str, Any], current_idx: int, t
 
     print(f"[DOM] Cấu trúc: Forms: {forms} | Inputs: {inputs} | Passwords: {pwd} (Login Form: {has_login}) | External Links: {ext_links}")
     print("-" * 80)
-    print("[TEXT] Nội dung văn bản an toàn:")
-    text = sample.get("page_text", "")
+    def show_text(label: str, value: str) -> None:
+        print(f"[{label}] {value[:600] or '[Không có nội dung văn bản]'}")
+        if len(value) <= 600 or not interactive:
+            return
+        cursor = 600
+        while True:
+            try:
+                cmd = input(f"\n[{label}] Nhập 'v' xem toàn bộ, 'm' xem thêm 600 ký tự, hoặc Enter để tiếp tục: ").strip().lower()
+            except EOFError:
+                raise KeyboardInterrupt
+            if cmd == "v":
+                print(value)
+                return
+            if cmd == "m":
+                print(value[cursor:cursor + 600] or "[Đã hết văn bản]")
+                cursor += 600
+                continue
+            return
 
-    if len(text) > 600:
-        print(f"   {text[:600]} ... [Hiển thị trước 600 ký tự]")
-        if interactive:
-            cursor = 600
-            while True:
-                try:
-                    cmd = input("\n[VĂN BẢN] Nhập 'v' xem toàn bộ (+{} ký tự), 'm' xem thêm 600 ký tự, hoặc Enter để bắt đầu chấm: ".format(len(text) - 600)).strip().lower()
-                    if cmd == "v":
-                        print("\n--- TOÀN BỘ NỘI DUNG VĂN BẢN ---")
-                        print(text)
-                        print("-" * 80)
-                        break
-                    elif cmd == "m":
-                        print("\n--- PHẦN VĂN BẢN TIẾP THEO ---")
-                        print(text[cursor:cursor + 600] or "[Đã hết văn bản]")
-                        cursor += 600
-                        print("-" * 80)
-                    else:
-                        break
-                except EOFError:
-                    raise KeyboardInterrupt
-    else:
-        print(f"   {text or '[Không có nội dung văn bản]'}")
+    show_text("NGUYÊN VĂN", sample.get("page_text", ""))
+    if sample.get("translation_provided") is True:
+        print(f"[DỊCH] Bản dịch cố định, ngôn ngữ nguồn: {sample['translation_source_language']}")
+        show_text("BẢN DỊCH", sample["translated_text"])
     print("-" * 80)
 
 
