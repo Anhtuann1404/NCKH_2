@@ -1,23 +1,37 @@
 :root {
   font: 14px/1.45 system-ui, sans-serif;
-  color: #17243b;
-  background: #f5f7fb;
+  color: #17304d;
+  background: #dfeaf7;
 }
 * { box-sizing: border-box; }
-body { width: 360px; margin: 0; }
+body {
+  width: 360px;
+  margin: 0;
+  background:
+    radial-gradient(circle at 95% 4%, #a9d8f3 0, transparent 36%),
+    radial-gradient(circle at 3% 55%, #c5c8f7 0, transparent 43%),
+    linear-gradient(155deg, #f0f7fc, #e4ebf7 58%, #f5edf4);
+}
 main { padding: 20px; }
 p { margin: 0; }
 .header { margin-bottom: 18px; }
-.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; background: #fff0c7; color: #73510b; font-size: 10px; font-weight: 800; letter-spacing: .07em; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid #ffffffaa; border-radius: 99px; background: #fff6d9cc; color: #73510b; box-shadow: 0 3px 12px #536b8a12; font-size: 10px; font-weight: 800; letter-spacing: .07em; }
 .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-h1 { margin: 9px 0 2px; font-size: 22px; line-height: 1.2; }
+h1 { margin: 10px 0 2px; font-size: 23px; line-height: 1.2; letter-spacing: -.025em; }
 .header p, .hint, .result p { color: #526076; }
 .header p { font-size: 12px; }
-.result { --accent: #718096; --tint: #f4f6f9; padding: 16px; border: 1px solid #dce3ed; border-left: 4px solid var(--accent); border-radius: 12px; background: #fff; }
-.result[data-tone="warning"] { --accent: #b42332; --tint: #fff1f2; }
-.result[data-tone="clear"] { --accent: #2463ad; --tint: #edf5ff; }
-.result[data-tone="pending"] { --accent: #5d6a7c; --tint: #f2f5f8; }
-.result[data-tone="unknown"] { --accent: #ad751a; --tint: #fff7e8; }
+.result, form, .technical {
+  border: 1px solid #ffffffbf;
+  background: #ffffffa8;
+  box-shadow: 0 10px 30px #29496b17, inset 0 1px #ffffffd9;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+.result { --accent: #718096; --tint: #f4f6f9; padding: 16px; border-left: 4px solid var(--accent); border-radius: 18px; background: linear-gradient(135deg, var(--tint), #ffffffb8 55%); }
+.result[data-tone="warning"] { --accent: #b42332; --tint: #fff0f1d9; }
+.result[data-tone="clear"] { --accent: #2463ad; --tint: #eaf4ffdc; }
+.result[data-tone="pending"] { --accent: #5d6a7c; --tint: #f2f5f8d9; }
+.result[data-tone="unknown"] { --accent: #ad751a; --tint: #fff7e8dc; }
 .result-label { display: flex; align-items: center; gap: 7px; color: #526076; font-size: 12px; font-weight: 650; }
 .result-mark { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--tint); }
 .result strong { display: block; margin-top: 9px; font-size: 17px; line-height: 1.3; }
@@ -28,26 +42,26 @@ h1 { margin: 9px 0 2px; font-size: 22px; line-height: 1.2; }
 .signals ul { margin: 7px 0 0; padding-left: 18px; }
 .signals li + li { margin-top: 4px; }
 .signals p { margin-top: 9px; }
-form { margin-top: 20px; }
+form { margin-top: 14px; padding: 15px 16px 13px; border-radius: 18px; }
 h2 { margin: 0 0 8px; font-size: 13px; }
-.option { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e0e6ee; cursor: pointer; }
+.option { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #b8c8da78; cursor: pointer; }
 .option strong, .option small { display: block; }
 .option strong { font-size: 13px; font-weight: 650; }
 .option small { margin-top: 2px; color: #637086; font-size: 11px; }
-.option input[type="checkbox"] { appearance: none; flex: none; width: 38px; height: 22px; margin: 0; border: 1px solid #a9b4c4; border-radius: 99px; background: #c9d2df; cursor: pointer; transition: background .15s ease; }
+.option input[type="checkbox"] { appearance: none; flex: none; width: 38px; height: 22px; margin: 0; border: 1px solid #a9b4c4; border-radius: 99px; background: #bdc9d9; box-shadow: inset 0 1px 3px #17304d26, 0 1px #fff9; cursor: pointer; transition: background .15s ease; }
 .option input[type="checkbox"]::before { content: ""; display: block; width: 16px; height: 16px; margin: 2px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #17243b33; transition: transform .15s ease; }
-.option input[type="checkbox"]:checked { border-color: #245bcc; background: #245bcc; }
+.option input[type="checkbox"]:checked { border-color: #2464c8; background: linear-gradient(135deg, #58a6f0, #2464c8); }
 .option input[type="checkbox"]:checked::before { transform: translateX(16px); }
 @media (prefers-reduced-motion: reduce) { .option input[type="checkbox"], .option input[type="checkbox"]::before { transition: none; } }
 @media (forced-colors: active) { .option input[type="checkbox"] { appearance: auto; } }
 .hint { margin: 12px 0 15px; font-size: 11px; line-height: 1.5; }
 .field-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 650; }
-#token { width: 100%; padding: 10px; border: 1px solid #c9d3e2; border-radius: 8px; background: #fff; font: inherit; }
-button { width: 100%; margin-top: 12px; padding: 11px; border: 0; border-radius: 8px; background: #245bcc; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
-button:hover { background: #1f4fb3; }
+#token { width: 100%; padding: 10px; border: 1px solid #ffffffdb; border-radius: 10px; background: #ffffffad; box-shadow: inset 0 1px 3px #29496b12; font: inherit; }
+button { width: 100%; margin-top: 12px; padding: 11px; border: 1px solid #ffffff66; border-radius: 10px; background: linear-gradient(135deg, #418ce4, #245bcc); box-shadow: 0 5px 12px #245bcc36, inset 0 1px #ffffff66; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+button:hover { background: linear-gradient(135deg, #347fda, #1f4fb3); }
 button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid #779feb; outline-offset: 2px; }
 .save-status { min-height: 16px; margin-top: 5px; color: #315878; font-size: 11px; }
-.technical { margin-top: 5px; padding-top: 10px; border-top: 1px solid #e0e6ee; color: #637086; font-size: 11px; }
+.technical { margin-top: 12px; padding: 10px 14px; border-radius: 12px; color: #526076; font-size: 11px; }
 .technical summary { cursor: pointer; }
 .technical p { margin-top: 7px; overflow-wrap: anywhere; }
 code { font-size: 11px; }

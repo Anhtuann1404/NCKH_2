@@ -28,7 +28,7 @@ function show(state: TabState) {
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; position: fixed; right: 16px; bottom: 16px; z-index: 2147483647; width: min(360px, calc(100vw - 32px)); font: 13px/1.45 system-ui, sans-serif; }
-      .card { --accent: #8ca4c5; padding: 14px 16px; border-left: 4px solid var(--accent); border-radius: 10px; background: #17243b; color: #fff; box-shadow: 0 8px 28px #0005; }
+      .card { --accent: #8ca4c5; padding: 14px 16px; border: 1px solid #ffffff47; border-left: 4px solid var(--accent); border-radius: 16px; background: #17243be8; color: #fff; box-shadow: 0 12px 32px #0006, inset 0 1px #ffffff26; backdrop-filter: blur(18px) saturate(145%); -webkit-backdrop-filter: blur(18px) saturate(145%); }
       .card[data-tone="warning"] { --accent: #ff7c87; }
       .card[data-tone="clear"] { --accent: #84b9ff; }
       .card[data-tone="unknown"] { --accent: #ffd27a; }
