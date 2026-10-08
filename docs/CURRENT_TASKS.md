@@ -24,11 +24,14 @@ Phải đo tốc độ A trên 20–30 mẫu calibration mới, mù hóa và lo�
 đồng thời ghi giờ phân xử trước khi chốt.
 Đã soạn [đề xuất Codebook v1.1](CODEBOOK_V1_1_DRAFT.md) cho lượt gán dữ liệu
 chính; tiếp thu ba góp ý của B về shop/thanh toán, URL rút gọn và UGC, cùng
-quy chuẩn bản dịch ngoại tuyến. Bản v1.0 và nhãn pilot không thay đổi. Việc tiếp
-theo: B/D duyệt bản cập nhật. Hợp đồng `translated_text` đã được chuẩn bị trong
-view và CLI, gồm kiểm SHA-256, hiển thị song song và hash nội dung mẫu; cần C
-rà quy trình dịch ngoại tuyến và cập nhật các trường gán nhãn v1.1 còn lại sau
-khi khóa Codebook, rồi mới chọn gói calibration mới; đo tốc độ A/B và
+quy chuẩn bản dịch ngoại tuyến. B đã xác nhận QA/duyệt đúng bản 18.162 bytes,
+SHA-256 `20b4c181ca1da195c8cd86848ce084035e202ca22b56673cc1aa2e6a911c2b3b`;
+Lead D còn phải chốt artifact khóa và manifest trước khi gán thật. Bản v1.0 và
+nhãn pilot không thay đổi. Hợp đồng `translated_text` đã được chuẩn bị trong
+view và CLI, gồm kiểm SHA-256, hiển thị song song và hash nội dung mẫu; schema
+gán nhãn v1.1 đã có `org_evidence`, loại phishing/hard benign và `confidence`,
+CLI suy `catalog_status` từ từ điển. C cần rà quy trình dịch ngoại tuyến và
+chọn gói calibration mới sau khi artifact/manifest được khóa; đo tốc độ A/B và
 công sức phân xử. C hoàn tất nguồn, QC, exclusion và splits trước khi D xem xét
 mở huấn luyện. File nhãn và blind view vẫn chỉ
 lưu ở khu vực hạn chế, không commit lên Git.

@@ -21,6 +21,7 @@ import hashlib
 import html
 from html.parser import HTMLParser
 import json
+import math
 from pathlib import Path
 import re
 from typing import Any, Dict, List, Literal, Optional, Sequence, Set, Tuple
@@ -129,6 +130,29 @@ VALID_DOMAIN_ROLES = frozenset({
     "authorized_service",
     "unverified",
 })
+VALID_EVIDENCE_BASES = frozenset({"form", "heading", "body", "logo_with_text"})
+VALID_PHISHING_TYPES = frozenset({
+    "credential_collection", "impersonation_lure", "support_contact_lure",
+    "payment_deception", "other_observed",
+})
+VALID_HARD_BENIGN_TYPES = frozenset({
+    "official_login", "brand_mention_news", "reseller_or_partner", "sso_oauth",
+    "payment_flow", "legitimate_ugc", "other",
+})
+VALID_CONFIDENCE = frozenset({"low", "medium", "high"})
+
+
+def derive_catalog_status(status: str, primary_org: str, targets: List[str], catalog_ids: Set[str]) -> str | None:
+    """Suy tư cách danh mục từ mã tổ chức theo danh mục đã khóa."""
+    if status in {"unknown", "no_clear_target"}:
+        return "unresolved"
+    selected = targets if status == "multi_target" else [primary_org]
+    membership = {org in catalog_ids for org in selected}
+    if membership == {True}:
+        return "in_catalog"
+    if membership == {False}:
+        return "outside_catalog"
+    return None
 
 
 def assert_pilot_review_status(manifest: Dict[str, Any]) -> None:
@@ -505,7 +529,7 @@ class AnnotationRecord:
     pass_id: int
     class_label: str
     primary_org_status: str
-    catalog_status: str
+    catalog_status: str | None
     observed_service: str
     org_targets: List[str]
     primary_org: str
@@ -524,9 +548,13 @@ class AnnotationRecord:
     sampling_plan_version: str = ""
     sample_content_hash: str = ""
     timestamp_utc: str = ""
+    org_evidence: List[Dict[str, str]] | None = None
+    primary_phishing_type: str | None = None
+    hard_benign_type: str | None = None
+    confidence: str | None = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             "annotator_id": self.annotator_id,
             "sample_id": self.sample_id,
             "pass_id": self.pass_id,
@@ -552,9 +580,17 @@ class AnnotationRecord:
             "sample_content_hash": self.sample_content_hash,
             "timestamp_utc": self.timestamp_utc or datetime.now(timezone.utc).isoformat(),
         }
+        if self.codebook_version.lstrip("v").startswith("1.1."):
+            result.update({
+                "org_evidence": self.org_evidence or [],
+                "primary_phishing_type": self.primary_phishing_type,
+                "hard_benign_type": self.hard_benign_type,
+                "confidence": self.confidence,
+            })
+        return result
 
 
-def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
+def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str] | None = None) -> AnnotationRecord:
     """Xác thực và nạp bản ghi gán nhãn theo đúng các ràng buộc trong CODEBOOK_V1."""
     required_keys = {
         "annotator_id", "sample_id", "pass_id", "class_label", "primary_org_status",
@@ -574,8 +610,9 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
     if primary_org_status not in VALID_PRIMARY_ORG_STATUSES:
         raise ValueError(f"primary_org_status '{primary_org_status}' không hợp lệ. Phải thuộc: {sorted(list(VALID_PRIMARY_ORG_STATUSES))}")
 
+    v11 = str(data.get("codebook_version") or "").lstrip("v").startswith("1.1.")
     catalog_status = data["catalog_status"]
-    if catalog_status not in VALID_CATALOG_STATUSES:
+    if catalog_status not in VALID_CATALOG_STATUSES and not (v11 and catalog_status is None and primary_org_status == "multi_target"):
         raise ValueError(f"catalog_status '{catalog_status}' không hợp lệ. Phải thuộc: {sorted(list(VALID_CATALOG_STATUSES))}")
 
     identity_role = data["identity_role"]
@@ -594,6 +631,65 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
     if not isinstance(org_targets, list):
         raise TypeError("org_targets phải là danh sách (list) các chuỗi tổ chức.")
 
+    org_evidence = data.get("org_evidence")
+    phishing_type = data.get("primary_phishing_type")
+    hard_benign_type = data.get("hard_benign_type")
+    confidence = data.get("confidence")
+    if v11:
+        if type(data["pass_id"]) is not int or data["pass_id"] < 1:
+            raise ValueError("Codebook v1.1 yêu cầu pass_id là số nguyên dương.")
+        if type(data["random_subset"]) is not bool or type(data["difficult_case"]) is not bool:
+            raise ValueError("Codebook v1.1 yêu cầu random_subset và difficult_case là boolean.")
+        if not math.isfinite(seconds_spent) or not str(data["evidence_note"]).strip():
+            raise ValueError("Codebook v1.1 yêu cầu thời gian hữu hạn và ghi chú bằng chứng không rỗng.")
+        if not isinstance(org_evidence, list):
+            raise ValueError("Codebook v1.1 yêu cầu org_evidence là danh sách.")
+        if any(not isinstance(x, str) for x in org_targets):
+            raise ValueError("Codebook v1.1 yêu cầu org_targets là các mã chuỗi.")
+        selected = [x.strip() for x in org_targets]
+        if any(not x for x in selected) or len(selected) != len(set(selected)):
+            raise ValueError("Codebook v1.1 yêu cầu org_targets không rỗng/trùng mã.")
+        if primary_org_status == "identified":
+            if len(selected) != 1 or selected[0] != str(data["primary_org"]).strip():
+                raise ValueError("Codebook v1.1: identified phải có đúng một org_target khớp primary_org.")
+        elif primary_org_status == "multi_target":
+            if len(selected) < 2 or str(data["primary_org"]).strip() not in {"unknown", ""}:
+                raise ValueError("Codebook v1.1: multi_target phải có từ hai mục tiêu và không có primary_org đơn trị.")
+        elif selected or str(data["primary_org"]).strip() != primary_org_status or catalog_status != "unresolved":
+            raise ValueError("Codebook v1.1: unknown/no_clear_target cần mã tương ứng, không có mục tiêu và catalog_status=unresolved.")
+        if (primary_org_status in {"identified", "multi_target"}) != (identity_role == "identity_claim"):
+            raise ValueError("Codebook v1.1: identity_role phải phù hợp trạng thái nhận diện tổ chức.")
+        evidence_ids = []
+        for entry in org_evidence:
+            if not isinstance(entry, dict) or set(entry) != {"org_id", "evidence_basis", "evidence_quote"}:
+                raise ValueError("Codebook v1.1: org_evidence phải chứa org_id, evidence_basis, evidence_quote.")
+            org_id = entry["org_id"]
+            basis = entry["evidence_basis"]
+            quote = entry["evidence_quote"]
+            if not isinstance(org_id, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", org_id) or basis not in VALID_EVIDENCE_BASES or not isinstance(quote, str):
+                raise ValueError("Codebook v1.1: org_evidence có mã/căn cứ/trích dẫn không hợp lệ.")
+            if basis in {"heading", "body", "logo_with_text"} and not quote.strip():
+                raise ValueError("Codebook v1.1: căn cứ văn bản/logo cần trích dẫn.")
+            evidence_ids.append(org_id)
+        if set(evidence_ids) != set(selected) or len(evidence_ids) != len(selected):
+            raise ValueError("Codebook v1.1: mỗi org_target cần đúng một org_evidence.")
+        if catalog_org_ids is None:
+            dictionary_path = Path(__file__).resolve().parents[3] / "configs" / "dictionary_v1.json"
+            dictionary = json.loads(dictionary_path.read_text(encoding="utf-8"))
+            if dictionary.get("status") != "locked":
+                raise ValueError("Codebook v1.1 yêu cầu từ điển tổ chức đã khóa.")
+            catalog_org_ids = {org["org_id"] for org in dictionary["organizations"]}
+        expected_catalog = derive_catalog_status(primary_org_status, str(data["primary_org"]), selected, catalog_org_ids)
+        if catalog_status != expected_catalog:
+            raise ValueError("Codebook v1.1: catalog_status phải suy ra từ mã tổ chức và từ điển đã khóa.")
+        if confidence not in VALID_CONFIDENCE:
+            raise ValueError("Codebook v1.1 yêu cầu confidence low/medium/high.")
+        if class_label == "phishing":
+            if phishing_type not in VALID_PHISHING_TYPES or hard_benign_type is not None:
+                raise ValueError("Codebook v1.1: phishing cần primary_phishing_type hợp lệ và không có hard_benign_type.")
+        elif phishing_type is not None or (hard_benign_type is not None and (class_label != "benign" or hard_benign_type not in VALID_HARD_BENIGN_TYPES)):
+            raise ValueError("Codebook v1.1: loại phishing/hard benign không phù hợp nhãn lớp.")
+
     timestamp = data.get("timestamp_utc") or datetime.now(timezone.utc).isoformat()
     is_dry = bool(data.get("is_dry_run", False))
     is_synth = bool(data.get("is_synthetic", False))
@@ -609,7 +705,7 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
         pass_id=int(data["pass_id"]),
         class_label=str(class_label),
         primary_org_status=str(primary_org_status),
-        catalog_status=str(catalog_status),
+        catalog_status=catalog_status,
         observed_service=str(data["observed_service"]),
         org_targets=[str(x) for x in org_targets],
         primary_org=str(data["primary_org"]),
@@ -628,6 +724,10 @@ def validate_annotation_record(data: Dict[str, Any]) -> AnnotationRecord:
         sampling_plan_version=plan_ver,
         sample_content_hash=sample_hash,
         timestamp_utc=str(timestamp),
+        org_evidence=org_evidence,
+        primary_phishing_type=phishing_type,
+        hard_benign_type=hard_benign_type,
+        confidence=confidence,
     )
 
 

@@ -44,7 +44,7 @@ from phishing.annotation import (
 )
 
 
-from phishing.annotation.blind_view import assert_pilot_review_status, default_pilot_manifest_path
+from phishing.annotation.blind_view import assert_pilot_review_status, default_pilot_manifest_path, derive_catalog_status
 
 
 CLASS_LABEL_CHOICES = {
@@ -79,6 +79,17 @@ DOMAIN_ROLE_CHOICES = {
     "4": "authorized_service",
     "5": "unverified",
 }
+
+EVIDENCE_BASIS_CHOICES = {"1": "form", "2": "heading", "3": "body", "4": "logo_with_text"}
+PHISHING_TYPE_CHOICES = {
+    "1": "credential_collection", "2": "impersonation_lure", "3": "support_contact_lure",
+    "4": "payment_deception", "5": "other_observed",
+}
+HARD_BENIGN_CHOICES = {
+    "0": "none", "1": "official_login", "2": "brand_mention_news", "3": "reseller_or_partner",
+    "4": "sso_oauth", "5": "payment_flow", "6": "legitimate_ugc", "7": "other",
+}
+CONFIDENCE_CHOICES = {"1": "low", "2": "medium", "3": "high"}
 
 
 def prompt_choice(prompt_text: str, choices: Dict[str, str], default_key: str | None = None) -> str:
@@ -415,7 +426,8 @@ def validate_manifest_preflight(
 
     # 2. Mã băm tệp Codebook docs/CODEBOOK_V1.md (codebook_sha256) và kiểm tra nội dung thực tế
     manifest_cb_hash = str(manifest_data["codebook_sha256"]).strip()
-    actual_cb_path = codebook_path or (PROJECT_ROOT / "docs" / "CODEBOOK_V1.md")
+    default_cb_name = "CODEBOOK_V1_1.md" if manifest_cb_ver.lstrip("v").startswith("1.1.") else "CODEBOOK_V1.md"
+    actual_cb_path = codebook_path or (PROJECT_ROOT / "docs" / default_cb_name)
     if not actual_cb_path.exists():
         raise FileNotFoundError(
             f"THIẾU ARTIFACT CODEBOOK: Không tìm thấy tệp codebook tại '{actual_cb_path}' trên đĩa."
@@ -680,7 +692,9 @@ def annotate_interactive_session(
 
     codebook_hash = str(data.get("codebook_sha256") or data.get("codebook_hash") or "")
     if not codebook_hash:
-        cb_path = codebook_path or (PROJECT_ROOT / "docs" / "CODEBOOK_V1.md")
+        cb_version_hint = str((manifest_data or {}).get("codebook_version") or data.get("codebook_version") or "")
+        default_cb_name = "CODEBOOK_V1_1.md" if cb_version_hint.lstrip("v").startswith("1.1.") else "CODEBOOK_V1.md"
+        cb_path = codebook_path or (PROJECT_ROOT / "docs" / default_cb_name)
         if cb_path.exists():
             codebook_hash = hashlib.sha256(cb_path.read_bytes()).hexdigest()
 
@@ -757,6 +771,7 @@ def annotate_interactive_session(
             )
         if not isinstance(codebook_version, str) or not codebook_version.strip():
             raise ValueError("Thiếu codebook_version trong metadata hoặc tham số CLI.")
+        v11 = codebook_version.lstrip("v").startswith("1.1.")
         if cli_random_subset is not None:
             if not dry_run:
                 raise ValueError("CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật. Giá trị random_subset phải lấy từ metadata/manifest đã khóa.")
@@ -799,6 +814,18 @@ def annotate_interactive_session(
                 "sample_content_hash": sample_content_hash,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
+            if v11:
+                record_dict.update({
+                    "primary_org_status": "no_clear_target",
+                    "catalog_status": "unresolved",
+                    "org_targets": [],
+                    "primary_org": "no_clear_target",
+                    "identity_role": "unclear",
+                    "org_evidence": [],
+                    "primary_phishing_type": "other_observed" if record_dict["class_label"] == "phishing" else None,
+                    "hard_benign_type": None,
+                    "confidence": "low",
+                })
             validated_record = validate_annotation_record(record_dict)
             with open(actual_output_path, "a", encoding="utf-8", newline="\n") as out_f:
                 out_f.write(json.dumps(validated_record.to_dict(), ensure_ascii=False) + "\n")
@@ -806,23 +833,63 @@ def annotate_interactive_session(
             continue
 
         try:
-            print("\n[INPUT] Nhập thông tin đánh giá (Theo Codebook v1):")
+            print(f"\n[INPUT] Nhập thông tin đánh giá (Codebook {codebook_version}):")
             c_label = prompt_choice("1. Nhãn phân loại", CLASS_LABEL_CHOICES)
             p_org_status = prompt_choice("2. Trạng thái tổ chức", PRIMARY_ORG_STATUS_CHOICES)
-            cat_status = prompt_choice("3. Tình trạng từ điển", CATALOG_STATUS_CHOICES)
-
-            obs_service = input("4. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
-            primary_org = input("5. Mã tổ chức chính (ví dụ: microsoft, google, unknown): ").strip() or "unknown"
-
-            targets_input = input("6. Các tổ chức bị mạo danh (phân tách bởi dấu phẩy, Enter nếu rỗng): ").strip()
-            org_targets = [t.strip() for t in targets_input.split(",") if t.strip()] if targets_input else []
-            if primary_org not in {"unknown", "no_clear_target"} and primary_org not in org_targets:
-                org_targets.append(primary_org)
+            org_evidence = None
+            phishing_type = None
+            hard_benign_type = None
+            confidence = None
+            catalog_ids = None
+            if v11:
+                obs_service = input("3. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                if p_org_status == "identified":
+                    primary_org = input("4. Mã tổ chức chính chuẩn hóa: ").strip().lower()
+                    org_targets = [primary_org] if primary_org else []
+                elif p_org_status == "multi_target":
+                    primary_org = "unknown"
+                    targets_input = input("4. Các mã tổ chức ngang hàng (phân tách bằng dấu phẩy): ").strip().lower()
+                    org_targets = [t.strip() for t in targets_input.split(",") if t.strip()]
+                else:
+                    primary_org = p_org_status
+                    org_targets = []
+                catalog_path = dictionary_path or (PROJECT_ROOT / "configs" / "dictionary_v1.json")
+                catalog_ids = {org["org_id"] for org in json.loads(catalog_path.read_text(encoding="utf-8"))["organizations"]}
+                cat_status = derive_catalog_status(p_org_status, primary_org, org_targets, catalog_ids)
+                print(f"[DANH MỤC] Suy ra tự động: {cat_status}")
+                org_evidence = []
+                for org_id in org_targets:
+                    basis = prompt_choice(f"5. Căn cứ nhận diện {org_id}", EVIDENCE_BASIS_CHOICES)
+                    quote = input(f"6. Trích dẫn an toàn cho {org_id} (để trống nếu chỉ có cấu trúc form): ").strip()
+                    visible_text = " ".join(str(part or "") for part in (
+                        sample.get("page_text"), sample.get("translated_text"),
+                        sample.get("structure_summary", {}).get("title"),
+                    ))
+                    if quote and re.sub(r"\s+", " ", quote).casefold() not in re.sub(r"\s+", " ", visible_text).casefold():
+                        raise ValueError("Trích dẫn tổ chức phải xuất hiện trong nguyên văn hoặc bản dịch của gói mù.")
+                    org_evidence.append({"org_id": org_id, "evidence_basis": basis, "evidence_quote": quote})
+                if c_label == "phishing":
+                    phishing_type = prompt_choice("7. Kiểu phishing quan sát được", PHISHING_TYPE_CHOICES)
+                elif c_label == "benign":
+                    selected_type = prompt_choice("7. Kiểu hard benign (0 nếu không áp dụng)", HARD_BENIGN_CHOICES)
+                    hard_benign_type = None if selected_type == "none" else selected_type
+                confidence = prompt_choice("8. Độ tin cậy tự đánh giá", CONFIDENCE_CHOICES)
+            else:
+                cat_status = prompt_choice("3. Tình trạng từ điển", CATALOG_STATUS_CHOICES)
+                obs_service = input("4. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                primary_org = input("5. Mã tổ chức chính (ví dụ: microsoft, google, unknown): ").strip() or "unknown"
+                targets_input = input("6. Các tổ chức bị mạo danh (phân tách bởi dấu phẩy, Enter nếu rỗng): ").strip()
+                org_targets = [t.strip() for t in targets_input.split(",") if t.strip()] if targets_input else []
+                if primary_org not in {"unknown", "no_clear_target"} and primary_org not in org_targets:
+                    org_targets.append(primary_org)
 
             id_role = prompt_choice("7. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES)
             dom_role = prompt_choice("8. Vai trò tên miền", DOMAIN_ROLE_CHOICES)
 
-            evidence = input("9. Ghi chú bằng chứng nội dung/form: ").strip() or "Quan sát theo URL và cấu trúc trang"
+            evidence = input("9. Ghi chú bằng chứng nội dung/form: ").strip()
+            if v11 and not evidence:
+                raise ValueError("Codebook v1.1 yêu cầu ghi chú bằng chứng; không suy nhãn chỉ từ URL.")
+            evidence = evidence or "Quan sát theo URL và cấu trúc trang"
 
             diff_str = input("10. Đánh dấu ca khó? [y/N]: ").strip().lower()
             is_diff = diff_str in {"y", "yes", "true", "1"}
@@ -857,8 +924,15 @@ def annotate_interactive_session(
                 "sample_content_hash": sample_content_hash,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
+            if v11:
+                record_dict.update({
+                    "org_evidence": org_evidence,
+                    "primary_phishing_type": phishing_type,
+                    "hard_benign_type": hard_benign_type,
+                    "confidence": confidence,
+                })
 
-            validated_record = validate_annotation_record(record_dict)
+            validated_record = validate_annotation_record(record_dict, catalog_org_ids=catalog_ids)
 
             # Ghi nối tiếp ngay vào tệp JSON Lines
             with open(actual_output_path, "a", encoding="utf-8", newline="\n") as out_f:

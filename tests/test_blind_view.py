@@ -32,6 +32,105 @@ import hashlib
 import importlib.util
 
 
+def test_v11_catalog_status_is_derived(cli_module):
+    ids = {"microsoft", "google"}
+    assert cli_module.derive_catalog_status("identified", "microsoft", ["microsoft"], ids) == "in_catalog"
+    assert cli_module.derive_catalog_status("identified", "akbank", ["akbank"], ids) == "outside_catalog"
+    assert cli_module.derive_catalog_status("multi_target", "unknown", ["microsoft", "akbank"], ids) is None
+    assert cli_module.derive_catalog_status("no_clear_target", "no_clear_target", [], ids) == "unresolved"
+
+
+def test_v11_human_annotation_records_evidence_without_manual_catalog(tmp_path, monkeypatch, cli_module):
+    view = tmp_path / "v11_view.json"
+    export_blind_view([{
+        "sample_id": "SMP-301", "url": "https://example.test/",
+        "text": "Microsoft sign in", "codebook_version": "1.1.0",
+    }], view, dataset_id="SYNTHETIC-V11-CHECK", is_synthetic=True)
+    answers = iter([
+        "1", "1", "Office", "microsoft", "2", "Microsoft sign in", "1", "2",
+        "1", "5", "Heading claims Microsoft sign in", "n",
+    ])
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(answers))
+    output = tmp_path / "A_v11.jsonl"
+    cli_module.annotate_interactive_session("A", view, output)
+    record = json.loads(output.read_text(encoding="utf-8").strip())
+    assert record["catalog_status"] == "in_catalog"
+    assert record["org_evidence"] == [{
+        "org_id": "microsoft", "evidence_basis": "heading", "evidence_quote": "Microsoft sign in",
+    }]
+    assert record["primary_phishing_type"] == "credential_collection"
+    assert record["confidence"] == "medium"
+    assert record["sample_content_hash"] == compute_sample_content_hash(json.loads(view.read_text())["samples"][0])
+    with pytest.raises(ValueError, match="org_evidence"):
+        validate_annotation_record({**record, "org_evidence": []})
+    with pytest.raises(ValueError, match="primary_phishing_type"):
+        validate_annotation_record({**record, "primary_phishing_type": None})
+    with pytest.raises(ValueError, match="catalog_status"):
+        validate_annotation_record({**record, "catalog_status": "outside_catalog"})
+    with pytest.raises(ValueError, match="identity_role"):
+        validate_annotation_record({**record, "identity_role": "mention_only"})
+    with pytest.raises(ValueError, match="boolean"):
+        validate_annotation_record({**record, "random_subset": "true"})
+    with pytest.raises(ValueError, match="ghi chú bằng chứng"):
+        validate_annotation_record({**record, "evidence_note": ""})
+    multi = {**record,
+        "primary_org_status": "multi_target", "primary_org": "unknown",
+        "org_targets": ["microsoft", "akbank"], "catalog_status": None,
+        "org_evidence": [
+            {"org_id": "microsoft", "evidence_basis": "heading", "evidence_quote": "Microsoft sign in"},
+            {"org_id": "akbank", "evidence_basis": "form", "evidence_quote": "Akbank password"},
+        ],
+    }
+    assert validate_annotation_record(multi).catalog_status is None
+
+
+def test_v11_preflight_uses_matching_locked_codebook(tmp_path, monkeypatch, cli_module):
+    docs = tmp_path / "docs"
+    configs = tmp_path / "configs"
+    docs.mkdir()
+    configs.mkdir()
+    codebook = docs / "CODEBOOK_V1_1.md"
+    codebook.write_text("# Codebook v1.1\n**Phiên bản:** `v1.1.0`\n**Trạng thái:** `locked`\n" + "Rules. " * 30)
+    dictionary = configs / "dictionary_v1.json"
+    dictionary.write_text(json.dumps({
+        "version": "1.0.0", "status": "locked",
+        "organizations": [{"org_id": f"org_{i}"} for i in range(14)],
+    }))
+    view = tmp_path / "view.json"
+    payload = export_blind_view([{
+        "sample_id": "SMP-302", "url": "https://example.test/", "text": "Text",
+        "codebook_version": "1.1.0",
+    }], view, dataset_id="CALIBRATION-CHECK", sampling_plan_version="CALIBRATION-V1")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({
+        "dataset_id": "CALIBRATION-CHECK", "sample_count": 1,
+        "sampling_plan_version": "CALIBRATION-V1",
+        "codebook_version": "1.1.0", "codebook_status": "locked",
+        "dictionary_version": "1.0.0", "dictionary_status": "locked",
+        "acceptance": {"B": "approved", "D": "approved"},
+        "ready_for_annotation": True,
+        "blind_view_sha256": hashlib.sha256(view.read_bytes()).hexdigest(),
+        "codebook_sha256": hashlib.sha256(codebook.read_bytes()).hexdigest(),
+        "dictionary_sha256": hashlib.sha256(dictionary.read_bytes()).hexdigest(),
+    }))
+    monkeypatch.setattr(cli_module, "PROJECT_ROOT", tmp_path)
+    assert cli_module.validate_manifest_preflight(manifest, view, payload)["codebook_version"] == "1.1.0"
+
+
+def test_v11_quote_must_come_from_blind_view(tmp_path, monkeypatch, cli_module):
+    view = tmp_path / "view.json"
+    export_blind_view([{
+        "sample_id": "SMP-303", "url": "https://example.test/", "text": "Plain page",
+        "codebook_version": "1.1.0",
+    }], view, dataset_id="SYNTHETIC-V11-QUOTE", is_synthetic=True)
+    answers = iter(["1", "1", "Service", "microsoft", "2", "Invented brand quote"])
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(answers))
+    output = tmp_path / "result.jsonl"
+    with pytest.raises(ValueError, match="Trích dẫn tổ chức"):
+        cli_module.annotate_interactive_session("A", view, output)
+    assert not output.exists()
+
+
 @pytest.fixture
 def cli_module():
     root = Path(__file__).resolve().parents[1]
@@ -2318,5 +2417,3 @@ class TestResumeStrictProvenanceAndManifestChecks:
         )), encoding="utf-8")
         with pytest.raises(ValueError, match="Gói view có 31 mẫu, nhưng manifest khai báo 32 mẫu"):
             cli_module.validate_manifest_preflight(m_file, input_blind, data, codebook_path=cb_file, dictionary_path=dict_file)
-
-
