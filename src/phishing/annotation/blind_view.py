@@ -441,7 +441,7 @@ def create_blind_sample(
         norm_url = url
 
     html_content = raw_sample.get("html") or raw_sample.get("html_content")
-    page_text = raw_sample.get("page_text") or raw_sample.get("text") or raw_sample.get("text_content")
+    page_text = raw_sample["page_text"] if "page_text" in raw_sample else (raw_sample.get("text") or raw_sample.get("text_content"))
 
     if html_content:
         extracted_text, summary = extract_safe_view_content(html_content, norm_url)

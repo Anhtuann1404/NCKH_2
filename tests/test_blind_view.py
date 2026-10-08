@@ -329,6 +329,13 @@ class TestBlindViewSecurityAndAntiLeakage:
         with pytest.raises(ValueError, match="RÒ RỈ DỮ LIỆU PHÁT HIỆN"):
             export_blind_view([{**prepared, "source_label": "phishing"}], tmp_path / "leaky.json")
 
+    def test_explicit_empty_prepared_text_is_not_replaced_by_raw_fallback(self):
+        sample = create_blind_sample({
+            "sample_id": "SMP-206", "url": "https://example.test/",
+            "page_text": "", "text": "<script>unsafe fallback</script>",
+        })
+        assert sample.page_text == ""
+
     def test_assert_neutral_sample_id(self):
         """Kiểm tra assert_neutral_sample_id chặn mọi ID chứa nhãn hoặc tên thương hiệu."""
         for valid_id in ["PILOT-001", "SMP-100", "BLIND-042", "CASE-9999", "M001"]:
