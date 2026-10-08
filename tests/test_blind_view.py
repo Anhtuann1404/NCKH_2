@@ -315,6 +315,20 @@ class TestBlindViewSecurityAndAntiLeakage:
                 "translation_sha256": "0" * 64,
             }], tmp_path / "bad_view.json")
 
+    def test_export_preserves_prepared_page_text_and_translation(self, tmp_path):
+        prepared = create_blind_sample(
+            {"sample_id": "SMP-205", "url": "https://example.test/", "text": "Anmeldung"},
+            codebook_version="1.1.0", translated_text="Đăng nhập",
+            translation_source_language="de", translation_tool="offline-translator",
+            translation_tool_version="1.0",
+        ).to_dict()
+        path = tmp_path / "prepared_view.json"
+        payload = export_blind_view([prepared], path)
+        assert payload["samples"][0] == prepared
+        assert payload["samples"][0]["page_text"] == "Anmeldung"
+        with pytest.raises(ValueError, match="RÒ RỈ DỮ LIỆU PHÁT HIỆN"):
+            export_blind_view([{**prepared, "source_label": "phishing"}], tmp_path / "leaky.json")
+
     def test_assert_neutral_sample_id(self):
         """Kiểm tra assert_neutral_sample_id chặn mọi ID chứa nhãn hoặc tên thương hiệu."""
         for valid_id in ["PILOT-001", "SMP-100", "BLIND-042", "CASE-9999", "M001"]:

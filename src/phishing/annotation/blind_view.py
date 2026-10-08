@@ -441,7 +441,7 @@ def create_blind_sample(
         norm_url = url
 
     html_content = raw_sample.get("html") or raw_sample.get("html_content")
-    page_text = raw_sample.get("text") or raw_sample.get("text_content")
+    page_text = raw_sample.get("page_text") or raw_sample.get("text") or raw_sample.get("text_content")
 
     if html_content:
         extracted_text, summary = extract_safe_view_content(html_content, norm_url)
@@ -752,6 +752,10 @@ def export_blind_view(
         if isinstance(item, BlindSample):
             clean_samples.append(item.to_dict())
         elif isinstance(item, dict):
+            if "page_text" in item and "structure_summary" in item:
+                assert_no_label_leak(item)
+                clean_samples.append(dict(item))
+                continue
             if item.get("translation_provided") is True and item.get("translated_text") is None:
                 raise ValueError("LỖI BẢN DỊCH: translation_provided=true nhưng thiếu translated_text.")
             if item.get("translation_provided") is False and item.get("translated_text") is not None:
