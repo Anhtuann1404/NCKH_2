@@ -147,10 +147,30 @@ def is_hard_case(flags: Dict[str, bool]) -> bool:
     return any(flags.get(r, False) for r in DIFFICULTY_RULES)
 
 
-def is_composite_ambiguous_case(flags: Dict[str, bool], min_flags: int = 2) -> bool:
-    """Return True if at least min_flags surface indicators co-occur.
+def count_surface_cooccurrences(flags: Dict[str, bool]) -> int:
+    """Return the total count of triggered surface indicators (0 to 6)."""
+    return sum(1 for r in DIFFICULTY_RULES if flags.get(r, False))
 
-    Provides a more selective composite measure of structural ambiguity.
+
+def has_cooccurring_surface_indicators(
+    flags: Dict[str, bool],
+    min_indicators: int = 2,
+    *,
+    min_flags: int | None = None,
+) -> bool:
+    """Return True if at least min_indicators surface indicators co-occur.
+
+    METHODOLOGICAL NOTE:
+    In the 24 calibration samples, 21 samples trigger >= 2 surface indicators
+    (e.g., both external links and non-ASCII characters).
+    This measures the co-occurrence of surface characteristics (sự đồng xuất hiện
+    của chỉ báo bề mặt), NOT proof or cognitive confirmation of 'hard cases' (không
+    xác nhận ca khó).
     """
-    return sum(1 for r in DIFFICULTY_RULES if flags.get(r, False)) >= min_flags
+    threshold = min_flags if min_flags is not None else min_indicators
+    return count_surface_cooccurrences(flags) >= threshold
+
+
+# Alias for backwards compatibility
+is_composite_ambiguous_case = has_cooccurring_surface_indicators
 

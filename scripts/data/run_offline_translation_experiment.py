@@ -323,13 +323,56 @@ def run_experiment(
     return report
 
 
+def run_single_pass(
+    proposal_dir: Path,
+    source_root: Path,
+    model_dir: Path,
+    output_payload_file: Path,
+) -> dict:
+    import os
+    sys.stdout.reconfigure(line_buffering=True, encoding="utf-8")
+    samples = extract_page_text_for_proposal(proposal_dir / "selection.proposal.json", source_root)
+    ja_samples = [s for s in samples if bool(re.search(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]", s["page_text"]))]
+
+    translator = OfflineTranslator(model_dir, max_chunk_tokens=200, num_beams=4, num_threads=4)
+    rows = []
+    for idx, s in enumerate(ja_samples, 1):
+        sys.stderr.write(f"[{os.getpid()}] Translating sample {idx}/{len(ja_samples)}: {s['sample_id']}...\n")
+        sys.stderr.flush()
+        translated_txt, _ = translator.translate_sample(s["page_text"])
+        rows.append({
+            "sample_id": s["sample_id"],
+            "source_text_sha256": digest(s["page_text"].encode("utf-8")),
+            "translated_text": translated_txt,
+            "source_language": "ja",
+        })
+    lines = [json.dumps(r, ensure_ascii=False) for r in rows]
+    payload = ("\n".join(lines) + "\n").encode("utf-8")
+    output_payload_file.parent.mkdir(parents=True, exist_ok=True)
+    output_payload_file.write_bytes(payload)
+    sha256_hash = digest(payload)
+    info = {
+        "pid": os.getpid(),
+        "payload_sha256": sha256_hash,
+        "bytes_count": len(payload),
+        "output_file": str(output_payload_file),
+    }
+    print(json.dumps(info), flush=True)
+    return info
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--proposal-dir", type=Path, default=ROOT / "data/raw/recovery/calibration-proposed-20261008-v2")
     parser.add_argument("--source-root", type=Path, default=ROOT / "data/raw/phreshphish/data")
     parser.add_argument("--model-dir", type=Path, default=ROOT / "models/translation/opus-mt-ja-en")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "data/raw/recovery/translation_experiment")
+    parser.add_argument("--single-run-payload", type=Path, default=None, help="Run single pass and save payload to file")
     args = parser.parse_args()
+
+    if args.single_run_payload:
+        run_single_pass(args.proposal_dir, args.source_root, args.model_dir, args.single_run_payload)
+        return 0
 
     report = run_experiment(args.proposal_dir, args.source_root, args.model_dir, args.output_dir)
     print(json.dumps({

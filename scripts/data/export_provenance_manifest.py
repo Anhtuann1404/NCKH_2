@@ -33,10 +33,13 @@ def generate_provenance_manifest_and_bundle() -> tuple[dict, Path, str]:
     report_path = recovery_dir / "translation_experiment/translation_experiment_report.json"
     selection_path = recovery_dir / "calibration-proposed-20261008-v2/selection.proposal.json"
     source_manifest_path = ROOT / "configs/source_manifest.json"
+    codebook_path = ROOT / "docs/CODEBOOK_V1_1_DRAFT.md"
     dictionary_path = ROOT / "configs/dictionary_v1.json"
     registry_path = ROOT / "data/exclusion_registry.json"
     shard0_path = ROOT / "data/raw/phreshphish/data/train-000.parquet"
     shard55_path = ROOT / "data/raw/phreshphish/data/train-055.parquet"
+    trans_model_manifest_path = recovery_dir / "translation_experiment/translation_model_manifest.json"
+    trans_receipt_path = recovery_dir / "translation_experiment/translation_independent_process_receipt.json"
 
     manifest = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -105,16 +108,22 @@ def generate_provenance_manifest_and_bundle() -> tuple[dict, Path, str]:
                 "model_repo_id": "Helsinki-NLP/opus-mt-ja-en",
                 "model_pinned_revision": "0770961a39ba6bd66305b149c3f4110bcafca2e6",
                 "model_primary_weight_sha256": "ed649116c143fc2d7aea690246f4b2b7caa814e9e00a8d5bbe047822b18de022",
+                "model_manifest_file": "translation_model_manifest.json",
+                "model_manifest_sha256": file_sha256(trans_model_manifest_path),
                 "translations_file": "translations_ja_en.jsonl",
                 "translations_file_sha256": file_sha256(trans_path),
                 "qc_report_file": "translation_experiment_report.json",
                 "qc_report_sha256": file_sha256(report_path),
+                "independent_process_receipt_file": "translation_independent_process_receipt.json",
+                "independent_process_receipt_sha256": file_sha256(trans_receipt_path),
                 "lossless_chunking_verified": True,
-                "in_process_determinism_verified": True,
+                "independent_process_determinism_verified": True,
             },
             "governance_and_rules": {
                 "codebook": {
                     "version": "1.1.0-draft",
+                    "file": "docs/CODEBOOK_V1_1_DRAFT.md",
+                    "sha256": file_sha256(codebook_path),
                     "status": "draft_pending_final_calibration",
                     "approval_required_prior_to_labeling": True,
                 },
@@ -149,13 +158,15 @@ def generate_provenance_manifest_and_bundle() -> tuple[dict, Path, str]:
         "calibration_proposal_v1.1_pending.json": pending_view_path,
         "calibration_proposal_v1.1_pending.json.receipt.json": receipt_path,
         "translation_experiment_report.json": report_path,
+        "translation_model_manifest.json": trans_model_manifest_path,
+        "translation_independent_process_receipt.json": trans_receipt_path,
         "CALIBRATION_PROVENANCE_MANIFEST.json": manifest_path,
     }
 
     handoff_manifest = {
-        "package": "calibration_v1.1_acceptance_handoff_20261010.zip",
+        "package": "calibration_v1.1_final_acceptance_20261010.zip",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "purpose": "Gói nghiệm thu Calibration v1.1 gửi Lead D và Member B (Task LABEL-01)",
+        "purpose": "Gói nghiệm thu hoàn thiện Calibration v1.1 gửi Lead D và Member B (Task LABEL-01)",
         "files": {
             arcname: {
                 "size_bytes": p.stat().st_size,
@@ -165,7 +176,7 @@ def generate_provenance_manifest_and_bundle() -> tuple[dict, Path, str]:
         },
     }
 
-    zip_path = recovery_dir / "calibration_v1.1_acceptance_handoff_20261010.zip"
+    zip_path = recovery_dir / "calibration_v1.1_final_acceptance_20261010.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(
             "HANDOFF_MANIFEST.json",
@@ -175,7 +186,7 @@ def generate_provenance_manifest_and_bundle() -> tuple[dict, Path, str]:
             zf.write(p, arcname)
 
     zip_sha = file_sha256(zip_path)
-    sha_path = recovery_dir / "calibration_v1.1_acceptance_handoff_20261010.zip.sha256"
+    sha_path = recovery_dir / "calibration_v1.1_final_acceptance_20261010.zip.sha256"
     sha_path.write_text(f"{zip_sha}  {zip_path.name}\n", encoding="utf-8")
 
     print(f"Created acceptance handoff package: {zip_path}")

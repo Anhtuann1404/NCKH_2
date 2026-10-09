@@ -13,7 +13,9 @@ from phishing.data.loader import (
 )
 from phishing.data.difficulty_strata import (
     DIFFICULTY_RULES,
+    count_surface_cooccurrences,
     evaluate_difficulty_flags,
+    has_cooccurring_surface_indicators,
     is_composite_ambiguous_case,
     is_hard_case,
 )
@@ -30,6 +32,8 @@ __all__ = [
     "evaluate_difficulty_flags",
     "is_hard_case",
     "is_composite_ambiguous_case",
+    "count_surface_cooccurrences",
+    "has_cooccurring_surface_indicators",
     "verify_sha256",
     "extract_group_id",
     "generate_grouped_kfold",

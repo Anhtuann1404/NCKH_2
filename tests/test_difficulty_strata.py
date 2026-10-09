@@ -112,16 +112,27 @@ def test_is_hard_case():
 
 
 def test_is_composite_ambiguous_case():
-    from phishing.data.difficulty_strata import is_composite_ambiguous_case
+    from phishing.data.difficulty_strata import (
+        count_surface_cooccurrences,
+        has_cooccurring_surface_indicators,
+        is_composite_ambiguous_case,
+    )
 
     all_false = {r: False for r in DIFFICULTY_RULES}
+    assert count_surface_cooccurrences(all_false) == 0
+    assert has_cooccurring_surface_indicators(all_false, min_indicators=2) is False
     assert is_composite_ambiguous_case(all_false, min_flags=2) is False
 
     one_true = dict(all_false)
     one_true["login_credential_form"] = True
+    assert count_surface_cooccurrences(one_true) == 1
+    assert has_cooccurring_surface_indicators(one_true, min_indicators=2) is False
     assert is_composite_ambiguous_case(one_true, min_flags=2) is False
 
     two_true = dict(one_true)
     two_true["external_action_or_links"] = True
+    assert count_surface_cooccurrences(two_true) == 2
+    assert has_cooccurring_surface_indicators(two_true, min_indicators=2) is True
     assert is_composite_ambiguous_case(two_true, min_flags=2) is True
+
 
