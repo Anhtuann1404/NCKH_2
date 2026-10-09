@@ -1,5 +1,29 @@
 # Phiếu nhận và bàn giao phần A
 
+## Chuẩn bị calibration mới — 09/10/2026
+
+Nguồn: CURRENT_TASKS/CODEBOOK_V1_1_DRAFT tại nhánh `codex/c-data-recovery`, commit `12e951f`. Chỉ dùng phần này sau lệnh Lead; không áp v1.1 hồi tố cho Pass 1 v1.0. Tài liệu nhóm đã chuyển sang chuẩn bị calibration sau bảng pilot B–E được duyệt; mục chờ mở phân xử V2 bên dưới giữ làm lịch sử.
+
+### Điều kiện trước khi bắt đầu
+
+- Lead xác nhận codebook/dictionary v1.1 đã khóa, đúng version/hash; không chỉ dựa tên file DRAFT hoặc thông báo B QA.
+- Nhận cùng gói view mù mới 20–30 mẫu cho A/B, hash byte và manifest, exclusion đã ghi; không dùng lại mẫu V1/V2 hoặc Official Test.
+- Có lệnh CLI/commit/output mới do Lead phát; không dùng lệnh V2 cũ hoặc ghi đè JSONL cũ.
+- Nếu có bản dịch, nhận bản dịch đã chuẩn bị ngoại tuyến và kiểm provenance/hash; xem song song nguyên văn. Không dịch tương tác bằng AI khi gán.
+- A tự xác nhận lịch giờ thực tế; thống nhất cách ghi nghỉ/gián đoạn, đọc codebook, ghi chú và thời gian phân xử riêng.
+
+### Phiếu tự kiểm từng mẫu — A tự điền trong công cụ được duyệt
+
+1. Ghi đúng đoạn văn/form/heading quan sát được; tách quan sát khỏi phỏng đoán hậu quả.
+2. Quyết định lớp và tổ chức riêng; ghi quy tắc phù hợp của bản đã khóa. Không lấy tên thương hiệu/HTTPS/hosting/form/giá rẻ một mình làm kết luận.
+3. Chỉ `identified` khi có căn cứ danh tính; có tên hợp lệ và `org_evidence` tương ứng. Thiếu căn cứ ghi đúng trạng thái, không để `identified` với `unknown`.
+4. Phân biệt tổ chức tự nhận với thương hiệu chỉ nhắc tới, nhà cung cấp SSO hoặc tài khoản hosting; chuẩn hóa bằng dictionary khóa.
+5. Snapshot quá thiếu và bằng chứng xung đột là hai tình huống khác; dùng quy trình QC `pending_evidence` đúng bản khóa, không tự tạo lớp thứ tư hoặc ép chọn.
+6. Đọc đủ nội dung được cung cấp, đánh dấu ca khó/bản dịch mơ hồ; ghi confidence theo cảm nhận, không coi là xác suất.
+7. Không mở nhãn B/chat AI/gợi ý nhãn trong lượt độc lập. Không sửa lượt gốc khi phân xử; lưu sự kiện và giờ phân xử riêng.
+
+Phiếu giải thích trống: `sample_id` — quan sát/trích dẫn — quy tắc — lớp/tổ chức do A tự quyết định — điểm còn thiếu — confidence/ca khó — nguồn tra cứu được phép và thời điểm nếu có. Không điền trước các quyết định bằng AI.
+
 ## Bổ sung cho V2 — chuẩn bị 07/10/2026
 
 Phần A: đã nhập 32/32 mẫu tại `aae91a7`; file `data/annotations/A/labels_v2_pass1.jsonl`, SHA-256 `8da2e16dcd40b280ac0e7c3e4f56ebe74c0ea31f00cb727f2b84dcec65112e4c`. Gói ZIP đã có local; người nhận và thời điểm nhận: **chưa được xác nhận trong hồ sơ này**. Không dùng phiếu này để chứng nhận Kappa, timing hoặc nghiệm thu nhóm.

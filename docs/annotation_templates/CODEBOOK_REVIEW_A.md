@@ -1,5 +1,13 @@
 # Rà quy tắc nhãn — góp ý của A
 
+## Rà văn bản chuẩn bị v1.1 — 09/10/2026
+
+Nguồn: `docs/CODEBOOK_V1_1_DRAFT.md` tại `origin/codex/c-data-recovery` commit `12e951f`. AI hỗ trợ rà văn bản; **không thay ký duyệt của A hoặc Lead**, không đưa mẫu calibration vào chat, không kiểm hay quyết định nhãn thực tế.
+
+Văn bản dự thảo đã làm rõ các vấn đề cần A học trước lượt mới: bằng chứng danh tính tách với lớp; tổ chức trên trang tách với hosting/SSO/chủ đề; `org_evidence` và alias chuẩn; snapshot thiếu tách với QC pending; giá rẻ/miền lạ không tự chứng minh gian dối; bản dịch ngoại tuyến có provenance; không hồi tố quy tắc cho pilot cũ.
+
+Điều kiện cần xác nhận trước vận hành: hash artifact đã khóa, enum và luồng QC thực tế trên CLI, cách ghi gián đoạn/giờ phân xử, ví dụ luyện tập không thuộc gói calibration để A tự kiểm hiểu quy tắc. Không coi đọc tài liệu bằng AI là A đã hiểu hoặc thành thạo.
+
 Ngày 04/10/2026. Trạng thái: **draft để C/B rà**, không phải codebook đã khóa. Nguồn: DATA_PROTOCOL và đề cương 5.2b–c; chưa đọc nội dung tập chính hoặc lượt B. Không xác minh mới miền/alias/ủy quyền trong tài liệu này.
 
 ## Quy tắc có trong giao thức, cần giữ nguyên

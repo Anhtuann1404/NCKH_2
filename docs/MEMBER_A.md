@@ -1,5 +1,13 @@
 # Hồ sơ công việc thành viên A
 
+## Trạng thái hiện hành — 09/10/2026
+
+Nguồn cập nhật: `origin/codex/c-data-recovery` tại `12e951f28c8e6845c085b5bc9784fd87b2931849`, CURRENT_TASKS ngày 08/10. Nhóm đã ký bảng pilot B–E và có PLAN-01 tạm thời; không coi điều này là xác nhận timing/lập luận lượt A. Không đọc nhãn cuối hạn chế hoặc mở mẫu calibration trong phiên hỗ trợ này.
+
+Việc tiếp theo của A là calibration mới 20–30 mẫu để đo tốc độ theo v1.1 sau khi Lead khóa artifact/manifest và phát gói. Codebook v1.1 trên nhánh hiện vẫn ghi dự thảo, B đã QA nhưng Lead cần khóa trước lượt mới. Chưa bắt đầu calibration hoặc gán dữ liệu chính. A gán toàn bộ, B kiểm độc lập 30% random khóa trước và ca khó; cỡ mẫu chính chưa chốt.
+
+Đã chuẩn bị quy trình nhận gói và phiếu tự kiểm ở [HANDOFF_A](annotation_templates/HANDOFF_A.md), rà văn bản v1.1 ở [CODEBOOK_REVIEW_A](annotation_templates/CODEBOOK_REVIEW_A.md). Đây là hỗ trợ tài liệu bằng AI, không là ký duyệt cá nhân, đánh giá nhãn hay lời xác nhận thao tác. Giữ nguyên mọi nhãn/thời gian cũ.
+
 ## Trạng thái hiện hành — 07/10/2026
 
 Đã kiểm cập nhật remote: develop `73a1af9`, feat/data-pipeline `aae91a7`; có nhánh C `feat/c-pilot-v2-adjudication` tại `141038c` chuẩn bị công cụ hồ sơ phân xử. Việc có công cụ/nhánh mới không phải lệnh Lead mở Pass 2. Chưa đọc nhãn B, kết quả đồng thuận hoặc hồ sơ phân xử hạn chế.

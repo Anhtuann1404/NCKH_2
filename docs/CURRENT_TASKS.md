@@ -1,5 +1,15 @@
 # Current tasks
 
+## Cập nhật A — 09/10/2026
+
+Đã fetch và đọc trạng thái thủ tục tại `origin/codex/c-data-recovery` commit `12e951f28c8e6845c085b5bc9784fd87b2931849` (tài liệu cập nhật 08/10). Tài liệu này ghi Lead đã ký bảng pilot B–E; không suy thành nghiệm thu timing hoặc căn cứ cá nhân của A. Chưa mở file nhãn cuối, PLAN-01 hạn chế hoặc nội dung calibration trong lần kiểm này.
+
+- DONE phần chuẩn bị — cập nhật hồ sơ A và phiếu nhận calibration v1.1; rà văn bản quy tắc, không ký duyệt thay A/B/D.
+- BLOCKED — calibration A: cần 20–30 mẫu mới, codebook/dictionary/manifest khóa, gói view có hash, lệnh và output riêng được Lead phát. Chưa có lệnh bắt đầu trong bằng chứng đã kiểm.
+- TODO do A tự thực hiện — đọc hiểu quy tắc và tự điền căn cứ quan sát; AI không chọn nhãn hoặc tạo lời giải thích hồi tưởng.
+- PLAN-01 chưa khóa quy mô; A gán toàn bộ, B kiểm độc lập 30% random khóa trước cộng ca khó theo tài liệu nhánh dữ liệu. Không thay 49 giờ/tuần A đã khai bằng một lịch mới chưa được A xác nhận.
+- Nhãn/view/log Pass 1 A giữ nguyên, không đưa lên Git. Các trạng thái ngày 07/10 dưới đây là lịch sử, không phải trạng thái nhóm hiện hành.
+
 ## Cập nhật A — 07/10/2026
 
 Đã fetch toàn bộ refs: develop `73a1af9`, feat/data-pipeline `aae91a7`, nhánh C chuẩn bị phân xử `feat/c-pilot-v2-adjudication` tại `141038c`. Chưa thấy lệnh mới của Lead mở Pass 2 cho A trong bằng chứng đã kiểm; không đọc nhãn B/hồ sơ phân xử hạn chế. Theo thông báo mới của Lead được A chuyển trong chat ngày 07/10/2026, B đã hoàn thành Pass 1. Hiện chưa mở phiên phân xử; A giữ nguyên lượt và chờ lệnh riêng của Lead.
