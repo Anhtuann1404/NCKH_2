@@ -699,7 +699,7 @@ def test_evaluate_kappa_real_default_manifest(tmp_path):
     )
     if not manifest.get("ready_for_annotation"):
         assert proc.returncode != 0
-        assert "ready_for_annotation != true" in proc.stderr or "Manifest pilot chưa ở trạng thái sẵn sàng" in proc.stderr
+        assert "ready_for_annotation != true" in proc.stderr or "Manifest pilot chưa ở trạng thái sẵn sàng" in proc.stderr or "PILOT BLOCKED" in proc.stderr
     else:
         assert proc.returncode == 0, f"Lỗi CLI với manifest mặc định: {proc.stderr}"
 

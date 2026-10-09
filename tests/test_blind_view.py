@@ -90,7 +90,7 @@ def test_v11_preflight_uses_matching_locked_codebook(tmp_path, monkeypatch, cli_
     docs.mkdir()
     configs.mkdir()
     codebook = docs / "CODEBOOK_V1_1.md"
-    codebook.write_text("# Codebook v1.1\n**Phiên bản:** `v1.1.0`\n**Trạng thái:** `locked`\n" + "Rules. " * 30)
+    codebook.write_text("# Codebook v1.1\n**Phiên bản:** `v1.1.0`\n**Trạng thái:** `locked`\n" + "Rules. " * 30, encoding="utf-8")
     dictionary = configs / "dictionary_v1.json"
     dictionary.write_text(json.dumps({
         "version": "1.0.0", "status": "locked",
