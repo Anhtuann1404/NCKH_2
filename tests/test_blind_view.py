@@ -220,6 +220,29 @@ class TestBlindViewSecurityAndAntiLeakage:
         assert summary["buttons"] == 1
         assert summary["external_links"] == 1
 
+    def test_html_length_between_1m_and_2m_accepted(self):
+        """HTML có độ dài giữa 1.000.000 và 2.000.000 ký tự (như ca #525) phải được xử lý thành công với max_html_characters=2_000_000."""
+        # 1.1 triệu ký tự (như mẫu #525 có 1.081.883 ký tự)
+        large_html = "<html><title>Large Page</title><body><p>" + "A" * 1_100_000 + "</p></body></html>"
+        with pytest.raises(ValueError, match="exceeds the character limit"):
+            extract_safe_view_content(large_html, "https://example.com/large")
+
+        text, summary = extract_safe_view_content(large_html, "https://example.com/large", max_html_characters=2_000_000)
+        assert len(text) >= 1_100_000
+        assert summary["title"] == "Large Page"
+
+        # create_blind_sample với max_html_characters=2_000_000
+        sample = create_blind_sample(
+            {"url": "https://example.com/large", "html": large_html, "row_idx": 525},
+            max_html_characters=2_000_000,
+        )
+        assert len(sample.page_text) >= 1_100_000
+
+        # Vượt quá 2 triệu ký tự phải bị từ chối
+        oversize_html = "<html><body>" + "B" * 2_000_001 + "</body></html>"
+        with pytest.raises(ValueError, match="exceeds the character limit"):
+            extract_safe_view_content(oversize_html, "https://example.com/oversize", max_html_characters=2_000_000)
+
     def test_create_blind_sample_drops_labels_completely(self):
         """Hàm create_blind_sample phải loại bỏ nhãn và các metadata nhạy cảm khỏi đầu ra."""
         raw_sample = {

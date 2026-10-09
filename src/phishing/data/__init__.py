@@ -11,6 +11,11 @@ from phishing.data.loader import (
     load_phreshphish_shard,
     normalize_record_url,
 )
+from phishing.data.difficulty_strata import (
+    DIFFICULTY_RULES,
+    evaluate_difficulty_flags,
+    is_hard_case,
+)
 from phishing.data.splits import (
     DEFAULT_SEEDS,
     assert_no_group_leakage,
@@ -20,6 +25,9 @@ from phishing.data.splits import (
 )
 
 __all__ = [
+    "DIFFICULTY_RULES",
+    "evaluate_difficulty_flags",
+    "is_hard_case",
     "verify_sha256",
     "extract_group_id",
     "generate_grouped_kfold",

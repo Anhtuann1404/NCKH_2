@@ -427,6 +427,7 @@ def create_blind_sample(
     translation_source_language: str | None = None,
     translation_tool: str | None = None,
     translation_tool_version: str | None = None,
+    max_html_characters: int = 2_000_000,
 ) -> BlindSample:
     """Tạo mẫu BlindSample an toàn từ bản ghi thô, loại bỏ triệt để mọi nhãn nguồn."""
     if translated_text is None and raw_sample.get("translated_text") is not None:
@@ -444,7 +445,7 @@ def create_blind_sample(
     page_text = raw_sample["page_text"] if "page_text" in raw_sample else (raw_sample.get("text") or raw_sample.get("text_content"))
 
     if html_content:
-        extracted_text, summary = extract_safe_view_content(html_content, norm_url)
+        extracted_text, summary = extract_safe_view_content(html_content, norm_url, max_html_characters=max_html_characters)
         if not extracted_text and page_text:
             extracted_text = re.sub(r"\s+", " ", str(page_text)).strip()
     else:
@@ -742,6 +743,7 @@ def export_blind_view(
     purpose: str = "Gói dữ liệu Blind View phục vụ gán nhãn mù độc lập (Task LABEL-01)",
     description: str = "",
     sampling_plan_version: str | None = None,
+    max_html_characters: int = 2_000_000,
 ) -> Dict[str, Any]:
     """Xuất danh sách mẫu thành gói JSON Blind View an toàn cho A và B."""
     out_file = Path(output_path)
@@ -770,6 +772,7 @@ def export_blind_view(
                 translation_source_language=item.get("translation_source_language"),
                 translation_tool=item.get("translation_tool"),
                 translation_tool_version=item.get("translation_tool_version"),
+                max_html_characters=max_html_characters,
             )
             clean_samples.append(blind.to_dict())
         else:

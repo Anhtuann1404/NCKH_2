@@ -8,6 +8,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+.agents/
 node_modules/
 dist/
 coverage/
@@ -28,6 +29,7 @@ data/annotations/*
 !data/annotations/templates/
 !data/annotations/templates/*
 artifacts/models/
+models/
 artifacts/runs/
 data/source_audit/*.zip
 data/source_audit/**/*.zip

@@ -20,6 +20,11 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from phishing.data.date_parser import parse_strict_date
+from phishing.data.difficulty_strata import (
+    DIFFICULTY_RULES,
+    evaluate_difficulty_flags,
+    is_hard_case,
+)
 from phishing.data.loader import verify_source_file
 from build_real_pilot_v2 import (
     file_hash, load_blocked_entities, record_fingerprints, write_json,
@@ -62,6 +67,27 @@ def select(candidates: list[tuple[dict, str, dict]], blocked: dict[str, set[str]
     random.Random(seed + 1).shuffle(main)
     random.Random(seed + 2).shuffle(reserve)
     return main, reserve
+
+
+def evaluate_selection_strata(locators: list[dict], source_root: Path) -> tuple[dict[str, int], int]:
+    """Evaluate 6 surface difficulty rules for locators without label peeking."""
+    import pyarrow.parquet as pq
+    shards = {}
+    rule_counts = Counter()
+    hard_cases = 0
+    for loc in locators:
+        rel = loc["relative_path"]
+        if rel not in shards:
+            shards[rel] = pq.read_table(source_root / rel)
+        tab = shards[rel]
+        row = tab.slice(loc["row_offset"], 1).to_pylist()[0]
+        flags = evaluate_difficulty_flags(row["url"], row.get("html") or "", max_html_characters=2_000_000)
+        for r, val in flags.items():
+            if val:
+                rule_counts[r] += 1
+        if is_hard_case(flags):
+            hard_cases += 1
+    return dict(rule_counts), hard_cases
 
 
 def prepare(source_root: Path, output: Path, seed: int = SEED) -> dict:
@@ -108,19 +134,48 @@ def prepare(source_root: Path, output: Path, seed: int = SEED) -> dict:
                             candidates.append(({"relative_path": relative, "row_offset": offset}, label, fp))
                 offset += 1
     main, reserve = select(candidates, blocked, seed)
+
+    # Evaluate 6 surface difficulty rules (Zero label leakage)
+    main_rule_counts, main_hard_cases = evaluate_selection_strata(main, source_root)
+    reserve_rule_counts, reserve_hard_cases = evaluate_selection_strata(reserve, source_root)
+    difficulty_summary = {
+        "rules": list(DIFFICULTY_RULES),
+        "main_counts_by_rule": main_rule_counts,
+        "main_hard_cases_count": main_hard_cases,
+        "reserve_counts_by_rule": reserve_rule_counts,
+        "reserve_hard_cases_count": reserve_hard_cases,
+    }
+
     output.mkdir(parents=True)
-    selection = {"status": "proposal_only_not_approved", "revision": manifest["revision"],
-                 "seed": seed, "main": main, "reserve_ordered": reserve,
-                 "difficulty_strata_status": "pending_predefined_rules"}
+    selection = {
+        "status": "proposal_only_not_approved",
+        "revision": manifest["revision"],
+        "seed": seed,
+        "main": main,
+        "reserve_ordered": reserve,
+        "difficulty_strata_status": "evaluated_6_surface_rules",
+        "difficulty_summary": difficulty_summary,
+    }
     write_json(output / "selection.proposal.json", selection)
-    audit = {"status": "proposal_only_not_approved", "source_split": "train",
-             "source_revision": manifest["revision"], "source_manifest_sha256": file_hash(manifest_path),
-             "exclusion_registry_sha256": file_hash(registry_path),
-             "prior_evidence_sha256": file_hash(evidence_path), "shards_sha256": shard_hashes,
-             "seed": seed, "date_start": DATE_START.isoformat(), "date_end": DATE_END.isoformat(),
-             "counts": dict(counts), "main_count": len(main), "reserve_count": len(reserve),
-             "selection_sha256": file_hash(output / "selection.proposal.json"),
-             "note": "Source labels used for sampling strata only; hard-case rules and v1.1 approval pending."}
+    audit = {
+        "status": "proposal_only_not_approved",
+        "source_split": "train",
+        "source_revision": manifest["revision"],
+        "source_manifest_sha256": file_hash(manifest_path),
+        "exclusion_registry_sha256": file_hash(registry_path),
+        "prior_evidence_sha256": file_hash(evidence_path),
+        "shards_sha256": shard_hashes,
+        "seed": seed,
+        "date_start": DATE_START.isoformat(),
+        "date_end": DATE_END.isoformat(),
+        "counts": dict(counts),
+        "main_count": len(main),
+        "reserve_count": len(reserve),
+        "difficulty_strata_status": "evaluated_6_surface_rules",
+        "difficulty_summary": difficulty_summary,
+        "selection_sha256": file_hash(output / "selection.proposal.json"),
+        "note": "Source labels used for sampling strata only; 6 surface hard-case rules evaluated without label peeking.",
+    }
     write_json(output / "audit.json", audit)
     return audit
 

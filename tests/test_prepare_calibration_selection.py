@@ -40,3 +40,10 @@ def test_source_label_does_not_turn_unknown_into_benign():
     assert source_label(0) == "benign"
     assert source_label("malware") is None
     assert source_label(None) is None
+
+
+def test_difficulty_strata_integration():
+    from phishing.data.difficulty_strata import DIFFICULTY_RULES
+    assert len(DIFFICULTY_RULES) == 6
+    assert isinstance(DIFFICULTY_RULES, tuple)
+
