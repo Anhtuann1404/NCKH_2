@@ -14,6 +14,7 @@ from phishing.data.loader import (
 from phishing.data.difficulty_strata import (
     DIFFICULTY_RULES,
     evaluate_difficulty_flags,
+    is_composite_ambiguous_case,
     is_hard_case,
 )
 from phishing.data.splits import (
@@ -28,6 +29,7 @@ __all__ = [
     "DIFFICULTY_RULES",
     "evaluate_difficulty_flags",
     "is_hard_case",
+    "is_composite_ambiguous_case",
     "verify_sha256",
     "extract_group_id",
     "generate_grouped_kfold",

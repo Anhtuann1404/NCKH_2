@@ -1,9 +1,13 @@
-"""Evaluation of surface-level hard-case flags (difficulty strata) without label peeking.
+"""Evaluation of surface structural indicators (descriptive profiling) without label peeking.
 
 Strict ARS & Ponytail Discipline:
 - Evaluates 6 predefined surface structural flags without looking at source labels.
 - Uses safe HTML parsing and URL syntactic analysis only (Zero JavaScript, Zero network).
-- Used for difficulty stratification audit and calibration analysis.
+- IMPORTANT METHODOLOGICAL CLARIFICATION:
+  These 6 flags are purely descriptive surface indicators (chỉ báo mô tả bề mặt quan sát),
+  NOT phishing evidence (không phải bằng chứng tấn công) and NOT pre-selection sampling constraints.
+  Sampling was conducted purely via source labels and pseudorandom seed; these flags provide
+  post-hoc descriptive profiling of sample diversity.
 """
 
 from __future__ import annotations
@@ -24,13 +28,13 @@ DIFFICULTY_RULES: Tuple[str, ...] = (
     "non_ascii_or_cjk",
 )
 
-# Known multi-tenant / user-generated content hosting platforms and high-entropy free providers
+# Known multi-tenant / user-generated content hosting platforms and free service providers
 SHARED_HOSTING_PLATFORMS: Set[str] = frozenset({
     "github.io", "pages.dev", "workers.dev", "vercel.app", "netlify.app",
     "webflow.io", "blogspot.com", "azurewebsites.net", "appspot.com",
     "r.appspot.com", "sites.google.com", "firebaseapp.com", "wixsite.com",
     "weebly.com", "mystrikingly.com", "wordpress.com", "glitch.me",
-    "surge.sh", "render.com", "fly.dev",
+    "surge.sh", "render.com", "fly.dev", "replit.dev", "web.app",
 })
 
 # Catalog 14 brand keywords from configs/dictionary_v1.json (lowercase tokens)
@@ -133,5 +137,20 @@ def evaluate_difficulty_flags(
 
 
 def is_hard_case(flags: Dict[str, bool]) -> bool:
-    """Return True if at least one surface difficulty flag is triggered."""
+    """Return True if at least one surface flag is triggered.
+
+    NOTE ON SENSITIVITY: Because any() is a broad disjunction, in real-world web corpora
+    it flags ~96% of samples (23/24 calibration samples) due to common traits like
+    external links or non-ASCII characters. It serves as a broad surface sensitivity flag,
+    not a proof of cognitive hardness.
+    """
     return any(flags.get(r, False) for r in DIFFICULTY_RULES)
+
+
+def is_composite_ambiguous_case(flags: Dict[str, bool], min_flags: int = 2) -> bool:
+    """Return True if at least min_flags surface indicators co-occur.
+
+    Provides a more selective composite measure of structural ambiguity.
+    """
+    return sum(1 for r in DIFFICULTY_RULES if flags.get(r, False)) >= min_flags
+

@@ -109,3 +109,19 @@ def test_is_hard_case():
     one_true = dict(all_false)
     one_true["login_credential_form"] = True
     assert is_hard_case(one_true) is True
+
+
+def test_is_composite_ambiguous_case():
+    from phishing.data.difficulty_strata import is_composite_ambiguous_case
+
+    all_false = {r: False for r in DIFFICULTY_RULES}
+    assert is_composite_ambiguous_case(all_false, min_flags=2) is False
+
+    one_true = dict(all_false)
+    one_true["login_credential_form"] = True
+    assert is_composite_ambiguous_case(one_true, min_flags=2) is False
+
+    two_true = dict(one_true)
+    two_true["external_action_or_links"] = True
+    assert is_composite_ambiguous_case(two_true, min_flags=2) is True
+

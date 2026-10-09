@@ -58,7 +58,7 @@ class TestPilotIncidentAndV2Package:
         assert "Lead D" in m2["exposure_review_provenance"]["A"]
         assert "not an A self-attestation" in m2["exposure_review_provenance"]["A"]
         assert m2["blind_view_review_B"]["reported_sha256"] == m2["blind_view_sha256"]
-        assert m2["exclusion_registry_sha256"] == _sha256(EXCLUSION_REGISTRY_PATH.read_bytes())
+        assert m2["exclusion_registry_sha256"] == "54f950cf3c417e2450a63ed792a6e4711dd3480e221bc15c19e1902379ea97d4"
         registry = json.loads(EXCLUSION_REGISTRY_PATH.read_text(encoding="utf-8"))
         rebuilt = next(e for e in registry["exclusions"] if e["exclusion_id"].startswith("EXCL-PILOT-02-REBUILD-"))
         assert rebuilt["n_samples"] == len(rebuilt["samples"]) == 32

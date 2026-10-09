@@ -26,11 +26,15 @@ def file_sha256(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def download_and_verify(repo_id: str, local_dir: Path) -> dict:
+PINNED_REVISION: str = "0770961a39ba6bd66305b149c3f4110bcafca2e6"
+
+
+def download_and_verify(repo_id: str, local_dir: Path, revision: str = PINNED_REVISION) -> dict:
     local_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading snapshot for {repo_id} to {local_dir}...")
+    print(f"Downloading snapshot for {repo_id} (revision: {revision}) to {local_dir}...")
     snapshot_path = snapshot_download(
         repo_id=repo_id,
+        revision=revision,
         local_dir=str(local_dir),
         local_dir_use_symlinks=False,
         ignore_patterns=["*.msgpack", "*.h5", "*.ot"],
@@ -54,6 +58,7 @@ def download_and_verify(repo_id: str, local_dir: Path) -> dict:
 
     manifest = {
         "model_repo_id": repo_id,
+        "model_revision": revision,
         "local_dir": str(local_dir.resolve()),
         "primary_weight_sha256": primary_weight_sha,
         "files_count": len(manifest_files),

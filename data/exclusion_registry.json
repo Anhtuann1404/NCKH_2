@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "version": "1.1.0",
-  "updated_at_utc": "2026-10-06T06:56:37.644271+00:00",
+  "updated_at_utc": "2026-10-09T16:57:23.309554+00:00",
   "registry_status": "in_progress_unresolved",
   "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
-  "total_excluded_entries": 4,
-  "total_excluded_samples": 116,
+  "total_excluded_entries": 6,
+  "total_excluded_samples": 148,
   "exclusions": [
     {
       "exclusion_id": "EXCL-PILOT-01",
@@ -816,6 +816,354 @@
           "html_sha256": "252bf936f327ec67ca877403c9afabeb8d3fa99e3f13d0f286786389eb90336b",
           "group_sha256": "315ba63765339954367322a4c8ff7bcd8f0588a1475716d87e0c20b93f45efc9",
           "view_content_sha256": "b84275befbddb6cd315822aece4438df8cd89262d3e00a713fe416fd62f2b63f"
+        }
+      ]
+    },
+    {
+      "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24",
+      "dataset_id": "CALIBRATION-PROPOSAL-V1.1-MAIN",
+      "source": "phreshphish",
+      "split": "train",
+      "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "rows_api_revision_pinned": true,
+      "mapping_status": "resolved",
+      "action": "permanently_exclude_from_train_val_test",
+      "n_samples": 24,
+      "reason": "24 mẫu đề xuất hiệu chuẩn v1.1 đã tạo Blind View và gắn bản dịch ngoại tuyến; cô lập vĩnh viễn khỏi tập huấn luyện và đánh giá chính thức theo Anti-Leakage Protocol.",
+      "samples": [
+        {
+          "sample_id": "SMP-001",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 322,
+          "url_sha256": "1b848f18b0a990446111bed8a6df1f189971ec1f290e9e9b2069288494fb7c72",
+          "normalized_url_sha256": "1b848f18b0a990446111bed8a6df1f189971ec1f290e9e9b2069288494fb7c72",
+          "html_sha256": "ecdc2d08611cd3e7e05c07b3449b5e2aa4b7a97c945cecf6cad019401643e2b3",
+          "group_sha256": "74224b10d2efaa7d800a4747d61446b1dfc24e0e641b06c9cb666eb43dfbc322",
+          "view_content_sha256": "3e6d9d0a8a4046fb70533a344ebe90fd0d76a8fe848b6b6b8c3292f8870222ea"
+        },
+        {
+          "sample_id": "SMP-002",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 841,
+          "url_sha256": "10fb617716dcde74c82af15d3db23d1c9ef8bc3a99594a646156276af736c191",
+          "normalized_url_sha256": "10fb617716dcde74c82af15d3db23d1c9ef8bc3a99594a646156276af736c191",
+          "html_sha256": "6d0ee3dcbf8f03c0b23d71f7a47951f562d95c54c797a9d1d9e9ec6fe144f948",
+          "group_sha256": "e581fa3bd44cd76f47ba58c401f06293653bdf1c5fdf2c7a3377445495f82985",
+          "view_content_sha256": "9bc0745d7f36cf6f3142d594938c52488a53db29ca6c2fcd4eaa94b102e2d9e3"
+        },
+        {
+          "sample_id": "SMP-003",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 42,
+          "url_sha256": "3b4a2581820957af02cd1a32c8ef8dd645becf5111b7dd48dfc367b52b91d6d7",
+          "normalized_url_sha256": "3b4a2581820957af02cd1a32c8ef8dd645becf5111b7dd48dfc367b52b91d6d7",
+          "html_sha256": "30c856260f830515dce02d4a6e69f41cf233c5e7f698d388f00cea60f57d563d",
+          "group_sha256": "0b94fc5c17e4e7b0c7d9d7355098393c71324344e39c06b5eaccefaa85548295",
+          "view_content_sha256": "1aa3dec7b4ca5e475741677b02138d4e1bd434f3dd8786f0a69df6e2c9d17c84"
+        },
+        {
+          "sample_id": "SMP-004",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 292,
+          "url_sha256": "19b5888379510c001e794a907d8b40086b1b4f911305d0bd06cd203716b9808e",
+          "normalized_url_sha256": "19b5888379510c001e794a907d8b40086b1b4f911305d0bd06cd203716b9808e",
+          "html_sha256": "befae5f56d9130fc07724c669870dbf4e3906eb6e97aa70be0643021c8884dd5",
+          "group_sha256": "d1c61307a6aca2af09747f20dcb246bef0404f39759653cb0d0ee4ec8bf95681",
+          "view_content_sha256": "abda65381b3e984b1311c99f35af9c10e38bef16d359d173f9dc92b54a2840cb"
+        },
+        {
+          "sample_id": "SMP-005",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 672,
+          "url_sha256": "90d4b2344c20bcd9fcd3c87a6de999c5b8e0e6a21ca7e64856d70ca9bb0d426a",
+          "normalized_url_sha256": "90d4b2344c20bcd9fcd3c87a6de999c5b8e0e6a21ca7e64856d70ca9bb0d426a",
+          "html_sha256": "437854d8d81a650bd462b2a9009e649e3f1fc04e8257152ce8beec2d9e6525f1",
+          "group_sha256": "32327d39b47d527cf9be35d3900a0c9119cb04f8338cec98b3914b176b5159ed",
+          "view_content_sha256": "b352ed472ab766997ac2ca436259ce9e8a84e797a52f3bf6df17918d05edfb2f"
+        },
+        {
+          "sample_id": "SMP-006",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 201,
+          "url_sha256": "de907efdc82b39d07423ace107729bbf081b78976a17fb4835b210be9f6523a7",
+          "normalized_url_sha256": "de907efdc82b39d07423ace107729bbf081b78976a17fb4835b210be9f6523a7",
+          "html_sha256": "2a8c834d278f7d8594111741da4581fdb1713150c4d4b460a941bcf8dc7dba72",
+          "group_sha256": "30349eafe8d89fe4736d7ad8f0999c4ba223dc7bc8e92341c3e3652fba7d562b",
+          "view_content_sha256": "bb01cd3ad33dd4d54ac32a6543fe0aeac1667478f277a47344a0398fbd441266"
+        },
+        {
+          "sample_id": "SMP-007",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 206,
+          "url_sha256": "0e728f77ec1d1a92ba6ccc7d7385322738bb067a3800dd231ebd6c203666fc92",
+          "normalized_url_sha256": "0e728f77ec1d1a92ba6ccc7d7385322738bb067a3800dd231ebd6c203666fc92",
+          "html_sha256": "27fbc76addb4feac5763561051850ad7fc6d5aaac6c0aad2dcbba1705be754aa",
+          "group_sha256": "e681c3e8ed108a29bc609aff5d4b677baaf0ced2af3d77940a85a20dad5ed593",
+          "view_content_sha256": "a989ce50bcfce643ebe22aa178f5016907b330be993eb5a2b3becfa886d3c189"
+        },
+        {
+          "sample_id": "SMP-008",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 346,
+          "url_sha256": "0c7d036ae4ba3dc2c7e1638157e7f23a46e66be455001534ff11d54d22b73e58",
+          "normalized_url_sha256": "0c7d036ae4ba3dc2c7e1638157e7f23a46e66be455001534ff11d54d22b73e58",
+          "html_sha256": "0b3577b8f5222c800a3a564a92722673f962d0bc4a226009647b453b3723f1c1",
+          "group_sha256": "fd70ac729d513c7a9cf62104b7a58fedadb5ac7620fc4099404b6cd88ce940ad",
+          "view_content_sha256": "4a47de5172a42daaf18395019f02e1fef927762fcdfc230af2269ec6b27d565e"
+        },
+        {
+          "sample_id": "SMP-009",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 480,
+          "url_sha256": "a3febb3848cae69fb09a3fee3566ab508cef13514275e3985331cbb202214ed1",
+          "normalized_url_sha256": "a3febb3848cae69fb09a3fee3566ab508cef13514275e3985331cbb202214ed1",
+          "html_sha256": "67e91c9c7f86d62aa35b6e8044e74605597ba76c957d95b465d2cd2103f952a9",
+          "group_sha256": "ccfc5fd46a22bc7ebb5ad30c4b7268e7d7ccc1a59dc3a874ba362eca582ef592",
+          "view_content_sha256": "7644b5f98158363e7f2926e39c37b1402e570a62117231111b23688de981453d"
+        },
+        {
+          "sample_id": "SMP-010",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 496,
+          "url_sha256": "fc8b9cb367f2fb8fab84666c4b66aaa5b3bb60bead29795c206915f73aad41ae",
+          "normalized_url_sha256": "f38fa70f293f249836b2daf9f3b7f016d6859ab1a0e861798943dda9aa5ae9e5",
+          "html_sha256": "ee36ae3e54de03ed2a4e72b9fa3a44ea4af6211e5e04974846d909486ecb7ebc",
+          "group_sha256": "3560c49e906c16f92727a5a867d2a398da4679e404afdfcc2dad2ef20979c0cc",
+          "view_content_sha256": "1a769546de016ebd0babcdb29f64f9c0f401f2aae49279a8e271607f6d6d8c50"
+        },
+        {
+          "sample_id": "SMP-011",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 845,
+          "url_sha256": "8f09b2aaf89553de78fc7deac13d1199e6e595022a7dd4338b5b96e7267fbce0",
+          "normalized_url_sha256": "8f09b2aaf89553de78fc7deac13d1199e6e595022a7dd4338b5b96e7267fbce0",
+          "html_sha256": "727d7361021c0370578e5504e59226999ffc168d7b5eb06cd2d0d6e22e354732",
+          "group_sha256": "5c4918a6a4d70521a5432f219e017a35e145688a043a2ca043d944de828ccf95",
+          "view_content_sha256": "2af922c35caedd05c3e77e9c62a4aca020262db0ac9aa252d9104bdef67e2e41"
+        },
+        {
+          "sample_id": "SMP-012",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 103,
+          "url_sha256": "9b34f5428b99df3560c15fa611e9304c265e2cf790ae62eff5a06dbbdf6aa9e1",
+          "normalized_url_sha256": "9b34f5428b99df3560c15fa611e9304c265e2cf790ae62eff5a06dbbdf6aa9e1",
+          "html_sha256": "6c23ad4f30422261e7836e7b57149695bf24aa187cc656ce8be4416e021ff939",
+          "group_sha256": "a8fad6b5088ac580f32f03946a2b41b3eb35a22d42aa009ac78ac4fb7f68af7d",
+          "view_content_sha256": "0a9e12db4a853869b354b28ca71898400349a161d74ff3d8d2ade154352a0e0c"
+        },
+        {
+          "sample_id": "SMP-013",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 238,
+          "url_sha256": "19ac7cdf754a9457bbdfb8edaeab5f8652cb5acabdde5aab8df0227bd4fed575",
+          "normalized_url_sha256": "19ac7cdf754a9457bbdfb8edaeab5f8652cb5acabdde5aab8df0227bd4fed575",
+          "html_sha256": "3e7c18fe2edec85948d072e8201cf062ed7c4d7f9fdce989ec480e3220799edc",
+          "group_sha256": "09a9d7d6a65334ad575857de483aa50c23ec4297d6aa2804032b2256b2307820",
+          "view_content_sha256": "0e59fa286f6a073ec94170db65d66e12e98f1705a359ac228e87a335752f6b13"
+        },
+        {
+          "sample_id": "SMP-014",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 491,
+          "url_sha256": "c12f3f7254735c9e6d6d25a7793f5d4d13f703da8ede19f473d19e8d7e63d007",
+          "normalized_url_sha256": "c12f3f7254735c9e6d6d25a7793f5d4d13f703da8ede19f473d19e8d7e63d007",
+          "html_sha256": "737d5ec569c8b34663809ec4cee4d20335172bf35acdea247489de77b7e931b8",
+          "group_sha256": "6af64a14b387c24be7d1739767bf008342db820086904809b4ea18f42f52b964",
+          "view_content_sha256": "dee0ab6ed62daf9aa0f870e4ba21cd9fdbe2b20ab9dd79bddeb4fa171b974ddc"
+        },
+        {
+          "sample_id": "SMP-015",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 133,
+          "url_sha256": "9bfac02edef9387d1b1dd07b4acd59dc32f594f5bcb6ca89e61a1e810abf2760",
+          "normalized_url_sha256": "9bfac02edef9387d1b1dd07b4acd59dc32f594f5bcb6ca89e61a1e810abf2760",
+          "html_sha256": "64c385ee1e06f751974ffdc91073e50f9809e624c04739a10b2229273853dcf4",
+          "group_sha256": "e870be56379836d96cac52f5ce41779b2d8b60ce7827758b8e119b3a9d57ba48",
+          "view_content_sha256": "261609179d583ffc7b927c73ac35457484487bdaa070beec19f696be827ea063"
+        },
+        {
+          "sample_id": "SMP-016",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 501,
+          "url_sha256": "8f88d393e64269b2d3f3fe3f352667133de70b8df1110dacc445d72a5354f0c8",
+          "normalized_url_sha256": "8f88d393e64269b2d3f3fe3f352667133de70b8df1110dacc445d72a5354f0c8",
+          "html_sha256": "14cf4060b12aad7cc9790fb2b087ee7627f8dac4211e640c39ea4c76eefacdb1",
+          "group_sha256": "8d186bbc2fe7e8f891315cf344361d965a63ff17e1ef88b979c3f0675c8b5947",
+          "view_content_sha256": "64509361daa164097cdf0186e8fef7d1e5a319ff96676f763a7ce32455fccc43"
+        },
+        {
+          "sample_id": "SMP-017",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 543,
+          "url_sha256": "5f3d335ebec028d8355510bf5abab2af17a8ca12948f7d89b4fc340f4a70dbe2",
+          "normalized_url_sha256": "5f3d335ebec028d8355510bf5abab2af17a8ca12948f7d89b4fc340f4a70dbe2",
+          "html_sha256": "2132a2cd7d619781dcc46ab452137a5a4b8863a61f641a81f37af002aa2869de",
+          "group_sha256": "aa0701a071afd40f4098f5f369de9d2f63781db017edaf40904616bd5273a156",
+          "view_content_sha256": "b3b8225735e515b316b52f897d175c7e380cc80b17f349ba42f39aace513919c"
+        },
+        {
+          "sample_id": "SMP-018",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 862,
+          "url_sha256": "d88fc5b1cc22572b42fb4fba9544dca8f72c93e8a1a6b3d19b4fd02671554d7b",
+          "normalized_url_sha256": "d88fc5b1cc22572b42fb4fba9544dca8f72c93e8a1a6b3d19b4fd02671554d7b",
+          "html_sha256": "175c74f15e96d8cdd6c6db6396897e5ef9a3b8398100d591488f8392d395a2e2",
+          "group_sha256": "5cfe081ed0b5606bdcb48d989be5d285a6f42e13cf22133fc24eef047882ea89",
+          "view_content_sha256": "da48902b99afbe605afffc6f854a0668dc0189b3f38f9e49f2faeae8b4c790d2"
+        },
+        {
+          "sample_id": "SMP-019",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 910,
+          "url_sha256": "9f5f962ead19d3f38534a2137ae33d8e95900b994e25f3c2b8d29a3691b5f38b",
+          "normalized_url_sha256": "9c5661b230582b33aae4972d9fc2fde2cb9bd389ef7c2b9115bf576ca27439cf",
+          "html_sha256": "8d8c1234f4bcf2577852fd77a224767d43df7106a17a4b027bf51d69689bdd62",
+          "group_sha256": "a731bb57ff6e8e1f783059a6b782051a88ff6f6f4205ed98148db39a6cee810a",
+          "view_content_sha256": "521da95c37c88ee914c2efd9cc4016a24b8f9361d256021c93eb64bfdd93ebb9"
+        },
+        {
+          "sample_id": "SMP-020",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 155,
+          "url_sha256": "03cd4fde802b0031685c29a3d2c64a5ac79ff4eab9b360c45277e088f2b29a76",
+          "normalized_url_sha256": "03cd4fde802b0031685c29a3d2c64a5ac79ff4eab9b360c45277e088f2b29a76",
+          "html_sha256": "7f7ef56e70a83cae4cd634a009a7da1530851b2d449b95468bff0d0f1eabfe0b",
+          "group_sha256": "fe8ced321138fed5690c560d58410354616681049951a40300fcd51cad7ffd01",
+          "view_content_sha256": "1b1fd05841f721dade8a80712b5303983e5e1a8d423d2e7fa4647c154918e39e"
+        },
+        {
+          "sample_id": "SMP-021",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 405,
+          "url_sha256": "f88ca63d8afa0370f8edb33a0174a6efaf54247ef434134cc721bbabf56c4c35",
+          "normalized_url_sha256": "f88ca63d8afa0370f8edb33a0174a6efaf54247ef434134cc721bbabf56c4c35",
+          "html_sha256": "5499395e1c4d6b28d986c25f359e15bb0996d531795b65034557952068d53f41",
+          "group_sha256": "7c5fdb0fb7063125cfdb7aa0cfd55032ce41898bb9a2c540addeebcb6c77385f",
+          "view_content_sha256": "04aec182212553c1db932100169a22b4e1d29cfbf0e0dbf9a6f5403a76ec1bee"
+        },
+        {
+          "sample_id": "SMP-022",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 545,
+          "url_sha256": "a2f68183af76d5ba0ebf09963e4df5c9646bfaceda9a2dd631e0af4ba6b0544d",
+          "normalized_url_sha256": "a2f68183af76d5ba0ebf09963e4df5c9646bfaceda9a2dd631e0af4ba6b0544d",
+          "html_sha256": "1181f8c17fcbb5fa600656d973be7a96749a212e8cffb8591cce9589b79a05f2",
+          "group_sha256": "3f7c79661a13f90c36d1544b1689f5443841e073191d8fe40d90fe81d672f7a7",
+          "view_content_sha256": "219013707ee82b3e7ffed784aaec07ce3aeda14e6bd027a3459684c239c3c0cf"
+        },
+        {
+          "sample_id": "SMP-023",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 802,
+          "url_sha256": "fbcaeaaf743b1914082b6ec14eab5ba2c5d4b7392e8234a757250f5fae1a5e70",
+          "normalized_url_sha256": "fbcaeaaf743b1914082b6ec14eab5ba2c5d4b7392e8234a757250f5fae1a5e70",
+          "html_sha256": "e4a090a6070084c4281cf321f571a8731c1584925e27a9a7b0dbf3633dd071d0",
+          "group_sha256": "0de3a0708587bcf391c40d39960f5b5902568725cdaf88c1e157d9c6ebc3f0ac",
+          "view_content_sha256": "b9bae29c66c05be9726a7c37671fda22a1fddf67bda629f1bd8d3978c71a4b5c"
+        },
+        {
+          "sample_id": "SMP-024",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 525,
+          "url_sha256": "0ce89d9a24e35e41b9e1be1c924b538015e8fdf4478ee920609d78d6c75a71ce",
+          "normalized_url_sha256": "0ce89d9a24e35e41b9e1be1c924b538015e8fdf4478ee920609d78d6c75a71ce",
+          "html_sha256": "099cbd99c4c38e1b776a043dea960574c68a582e5ef4c5556727e92b699f26d5",
+          "group_sha256": "b6f0e7e41f4c072c85cd3c60ea575e8f128520b4c9652089b54b2cb4289a3b97",
+          "view_content_sha256": "bdc387f7231390ab9989481d22913d0110e000ee8a1e63edc1103c22ef06913e"
+        }
+      ]
+    },
+    {
+      "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08",
+      "dataset_id": "CALIBRATION-PROPOSAL-V1.1-RESERVE",
+      "source": "phreshphish",
+      "split": "train",
+      "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "rows_api_revision_pinned": true,
+      "mapping_status": "resolved",
+      "action": "permanently_exclude_from_train_val_test",
+      "n_samples": 8,
+      "reason": "8 mẫu dự phòng hiệu chuẩn đã được đọc từ shard để tính toán các cờ mô tả bề mặt; loại trừ bảo thủ vĩnh viễn khỏi tập huấn luyện và đánh giá chính thức theo Anti-Leakage Protocol.",
+      "samples": [
+        {
+          "sample_id": "RSV-001",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 600,
+          "url_sha256": "d91632992a43e40240fcccfba49734a5eef0a70877f1ec395f4acd28d51a6f18",
+          "normalized_url_sha256": "d91632992a43e40240fcccfba49734a5eef0a70877f1ec395f4acd28d51a6f18",
+          "html_sha256": "0091e9ad4b80790d1559ac62e54e6405fa4701abe45ccdea6eef7b58c23907da",
+          "group_sha256": "71795b67037a5d4ecaee3c1238f5edefe5237b29d27e5baf8e497698c4d9a604",
+          "view_content_sha256": "75da2d2e13372105a675ace8046584cfe075481387785136f0d01e780c5a33e5"
+        },
+        {
+          "sample_id": "RSV-002",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 836,
+          "url_sha256": "990bcabc78e8c348cd46b96c580b7736ba8690911947380821dc6c058b898c2b",
+          "normalized_url_sha256": "cbb6123d98b9c042f38908d915dd73675d7ad865f920cd0c39064519aca6c60d",
+          "html_sha256": "796a55ae77ae7233993b9df2205f7c26e45e297f3745a341ccf159f28739138d",
+          "group_sha256": "55ddd4fcc455d61c493f9bcc461f303e7a7abda261d7617d60dfdfd8b3ec0835",
+          "view_content_sha256": "c8ae6d74404f42c5c931bcbfcc380ee32b495b90063638ad1e45bc8fad0c49d4"
+        },
+        {
+          "sample_id": "RSV-003",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 6,
+          "url_sha256": "9938c755f19322517a016c997a1d3ef45e19178d3daa2a19c75ba452415d59e1",
+          "normalized_url_sha256": "9938c755f19322517a016c997a1d3ef45e19178d3daa2a19c75ba452415d59e1",
+          "html_sha256": "b12eea4dfb49c927ec978cae4c936873473d31c4b1c2161659e73f1908d41944",
+          "group_sha256": "a1096dbb4682765dfe446b03deda77cd75c5dc46b8c0fd4cf234fd7a941d9052",
+          "view_content_sha256": "898089b4f0493178a9a50bfa3eb31496d6d64ffdc48e956eca96c57c4c25ce50"
+        },
+        {
+          "sample_id": "RSV-004",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 149,
+          "url_sha256": "28021aaea0f591df44359ad58422ac07e32b59db663b94272e20e8f08350e7c0",
+          "normalized_url_sha256": "28021aaea0f591df44359ad58422ac07e32b59db663b94272e20e8f08350e7c0",
+          "html_sha256": "46db8265cca357bf3bc38fdf93ea12d229da0e0ee15d29c570f50600e37e493f",
+          "group_sha256": "53aee92d487d0421f8bd674d812e5f4b773676bec01858a1907ecf88efd2ffc0",
+          "view_content_sha256": "bc91d0e006e71c291e95410edd451198a45e7bb5b7cdc3a65e9d67c1375e689a"
+        },
+        {
+          "sample_id": "RSV-005",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 838,
+          "url_sha256": "f8db59d8aac578621588ad152739525c646ab668bf0b2b4706f162554fc6116a",
+          "normalized_url_sha256": "f8db59d8aac578621588ad152739525c646ab668bf0b2b4706f162554fc6116a",
+          "html_sha256": "74ac39be2d2a79222d89f7df71021e9dc61478fa46ff290d300583185fca7053",
+          "group_sha256": "3990cfdf6727343a8d15fdabdd05ebf2574135a2d361f77a6c7fbf2154803a00",
+          "view_content_sha256": "b2768dc965e27f145216a4414e61ba78ae9713373bba10e0554eecc64a556447"
+        },
+        {
+          "sample_id": "RSV-006",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 726,
+          "url_sha256": "5da3a9722925aae078b479fbc47952006706a924241f05a4278d851a91f54bcf",
+          "normalized_url_sha256": "5da3a9722925aae078b479fbc47952006706a924241f05a4278d851a91f54bcf",
+          "html_sha256": "d005a7fc1e89fb53cd80d6bbe5d60070017e37bf19916da43c73d743c960bffd",
+          "group_sha256": "f9163ba6fe009d7232df986c66b39505c250437bb843762e830b202c59637375",
+          "view_content_sha256": "c6c9f232d1830aaaeb734c7f26ad5c57c3d92de1da8fdb2ddbf1830fa24dbf80"
+        },
+        {
+          "sample_id": "RSV-007",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 166,
+          "url_sha256": "678b022c46507bcebded98beab6fd44601b14ba5379cbe6152e0dbf61e7dc172",
+          "normalized_url_sha256": "678b022c46507bcebded98beab6fd44601b14ba5379cbe6152e0dbf61e7dc172",
+          "html_sha256": "429c850b2b9685714a3f44a0088348de800435a656ae0ff7ffcbbbd4dcb22569",
+          "group_sha256": "cd302835b126329c7c86b6ca35e935fb0766aa51a3aa71a772cb8527b267dbb8",
+          "view_content_sha256": "2c947a9738e01d67eac095ae925f94a79d1321bccc21bc20a63bb8cf9338fca1"
+        },
+        {
+          "sample_id": "RSV-008",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 32,
+          "url_sha256": "0c9313a3eb37ee4cbba4b7bd8d4ce667315aae8a9cea33c7be98b912dee3c4d1",
+          "normalized_url_sha256": "0c9313a3eb37ee4cbba4b7bd8d4ce667315aae8a9cea33c7be98b912dee3c4d1",
+          "html_sha256": "b09dac1652c55e886410cc11017b5ee70c7663944efb588b4e23687689e85e37",
+          "group_sha256": "375911f2cd9abe8ebf06727e0a84fcf01ee70935628980cae1f6c9859b1c70e7",
+          "view_content_sha256": "9dafc6b00cc2bea18dce713cb5958581cd0a741c16444c04f1b0d6a6828d58f7"
         }
       ]
     }
