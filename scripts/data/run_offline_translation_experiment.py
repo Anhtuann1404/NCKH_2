@@ -220,6 +220,8 @@ def run_experiment(
     source_root: Path,
     model_dir: Path,
     output_dir: Path,
+    no_repeat_ngram_size: int = 0,
+    repetition_penalty: float = 1.0,
 ) -> dict:
     sys.stdout.reconfigure(line_buffering=True, encoding="utf-8")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -241,7 +243,14 @@ def run_experiment(
     model_manifest = json.loads((model_dir / "model_manifest.json").read_text(encoding="utf-8"))
     primary_weight_sha = model_manifest["primary_weight_sha256"]
 
-    translator = OfflineTranslator(model_dir, max_chunk_tokens=200, num_beams=4, num_threads=4)
+    translator = OfflineTranslator(
+        model_dir,
+        max_chunk_tokens=200,
+        num_beams=4,
+        num_threads=4,
+        no_repeat_ngram_size=no_repeat_ngram_size,
+        repetition_penalty=repetition_penalty,
+    )
 
     def generate_batch(run_name: str) -> tuple[list[dict], dict[str, list], bytes]:
         rows = []
@@ -318,6 +327,8 @@ def run_experiment(
             "num_beams": 4,
             "max_chunk_tokens": 200,
             "num_threads": 4,
+            "no_repeat_ngram_size": no_repeat_ngram_size,
+            "repetition_penalty": repetition_penalty,
         },
         "chunking_verification": {
             "algorithm": "lossless_zero_overlap_boundary_aware",
@@ -410,7 +421,14 @@ def main() -> int:
         )
         return 0
 
-    report = run_experiment(args.proposal_dir, args.source_root, args.model_dir, args.output_dir)
+    report = run_experiment(
+        args.proposal_dir,
+        args.source_root,
+        args.model_dir,
+        args.output_dir,
+        no_repeat_ngram_size=args.no_repeat_ngram_size,
+        repetition_penalty=args.repetition_penalty,
+    )
     print(json.dumps({
         "status": report["status"],
         "translated_count": report["translated_count"],
