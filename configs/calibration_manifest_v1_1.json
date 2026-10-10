@@ -1,0 +1,20 @@
+{
+  "manifest_id": "CALIBRATION-V1.1-PENDING-20261010",
+  "dataset_id": "CALIBRATION-PROPOSAL-V2",
+  "package_filename": "calibration_v1.1_final_acceptance_20261010.zip",
+  "package_size_bytes": 165261,
+  "package_sha256": "04ebdcc11993a460927b155152c121ffe8535df3a5249aa4a2c2820e0f6b289c",
+  "provenance_manifest_sha256": "bd8fb52f5da45b3c4655cf4b47e9d5fbc2937fb053d2f555f108da4d76e988e0",
+  "blind_view_filename": "calibration_proposal_v1.1_pending.json",
+  "blind_view_sha256": "a0063f09613b3c228e3d0534284184930fcccb38596af2a662750dc9732bea5c",
+  "sample_count": 24,
+  "codebook_file": "docs/CODEBOOK_V1_1_DRAFT.md",
+  "codebook_sha256": "20b4c181ca1da195c8cd86848ce084035e202ca22b56673cc1aa2e6a911c2b3b",
+  "codebook_status": "draft",
+  "acceptance": {
+    "B": "pending",
+    "D": "pending"
+  },
+  "ready_for_annotation": false,
+  "training_blocked": true
+}
