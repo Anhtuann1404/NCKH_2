@@ -24,15 +24,15 @@ Theo nguyên tắc nghiên cứu thực nghiệm định lượng chống rò r�
 Khi chạy mô hình MarianMT ngoại tuyến với cấu hình Beam Search cơ bản (`num_beams=4`) trên văn bản bóc tách từ DOM HTML của các trang web tiếng Nhật, hai hiện tượng lỗi chính đã được quan sát:
 
 1. **Thoái hóa lặp từ ngữ tự hồi quy (Autoregressive Degeneration Loops):**
-   - *Nguyên nhân:* Trình bóc tách DOM trích xuất các danh sách thẻ danh mục hàng hóa (`<li>`, `<span>`) không có dấu câu ngữ pháp hoặc liên từ tiếng Nhật. Khi mô hình giải mã gặp chuỗi danh từ liên tục, xác suất chuyển trạng thái của token trước lặp lại chính nó, dẫn đến việc sinh lặp một từ/cụm từ hàng chục lần (ví dụ: lặp các từ chỉ danh mục hàng hóa, phương tiện, thời trang).
+   - *Giả thuyết kỹ thuật:* Nhóm đặt giả thuyết rằng khi trình bóc tách DOM trích xuất các danh sách thẻ danh mục hàng hóa (`<li>`, `<span>`) thiếu dấu câu ngữ pháp hoặc liên từ tự nhiên trong tiếng Nhật, mô hình giải mã tự hồi quy khi gặp chuỗi danh từ liên tục có thể bị kẹt xác suất chuyển trạng thái, khiến token liền trước kích hoạt việc lặp lại chính nó hàng chục lần (ví dụ: lặp các từ chỉ danh mục hàng hóa, phương tiện, thời trang).
 2. **Ảo giác ngữ cảnh từ dữ liệu tiền huấn luyện (Corpus-level Hallucination):**
-   - *Nguyên nhân:* Khi gặp chuỗi số liệu (giá tiền, thông số kỹ thuật, ngày tháng) dày đặc thiếu ngữ cảnh liên kết, mô hình kích hoạt các mẫu câu học được từ ngữ liệu tin tức tiếng Anh trong quá trình tiền huấn luyện (pretraining corpus), dẫn đến việc chèn các cụm từ trích dẫn tin tức báo chí hoàn toàn không có trong nội dung trang web gốc.
+   - *Giả thuyết kỹ thuật:* Nhóm đặt giả thuyết rằng khi gặp các chuỗi số liệu dày đặc (giá tiền, thông số kỹ thuật, ngày tháng) thiếu ngữ cảnh văn cảnh hoàn chỉnh, mô hình có thể kích hoạt các liên tưởng xác suất từ ngữ liệu báo chí tiếng Anh được học trong giai đoạn tiền huấn luyện (pretraining corpus), dẫn tới việc chèn các cụm từ trích dẫn tin tức ngoại lai hoàn toàn không có trong nội dung trang web gốc.
 
 ---
 
 ## 3. Phương pháp Tinh chỉnh Cơ chế Giải mã & Tham số Chuẩn hóa
 
-Để xử lý các dạng lỗi quan sát được ở trên mà vẫn đảm bảo tính tất định (100% deterministic) và độc lập ngoại tuyến, quy trình giải mã được tinh chỉnh với hai tham số điều khiển:
+Để xử lý các dạng lỗi quan sát được ở trên trong môi trường thực nghiệm ngoại tuyến mà vẫn duy trì tính ổn định giải mã, quy trình giải mã được tinh chỉnh với hai tham số điều khiển (áp dụng cho 4 mẫu kiểm toán trong điều kiện môi trường xác định):
 
 1. **Chặn N-gram trùng lặp (`no_repeat_ngram_size=3`):**
    - Ngăn chặn việc mô hình lặp lại bất kỳ chuỗi 3 từ liên tiếp nào đã xuất hiện trước đó trong đoạn dịch.
@@ -57,7 +57,8 @@ Sau khi áp dụng cơ chế giải mã tinh chỉnh và đối soát thủ côn
 
 * **Hiện tượng lặp từ thoái hóa:** Đã được loại bỏ trên cả 4 mẫu được rà soát; các danh mục chức năng, điều khoản thanh toán và thông tin giao dịch được thể hiện rõ ràng, mạch lạc.
 * **Hiện tượng ảo giác báo chí:** Đã triệt tiêu hoàn toàn đoạn trích dẫn báo chí ngoại lai trên mẫu bị ảnh hưởng (`SMP-015`); bản dịch mới chỉ phản ánh đúng thông tin sản phẩm và chính sách của trang.
-* **Mức độ khẳng định khoa học:** C xác nhận các lỗi quan sát cụ thể **đã giảm hoặc hết trên 4 mẫu đã kiểm**. Nhóm nghiên cứu không kết luận rằng tham số này "loại bỏ 100% mọi ảo giác dịch máy trên toàn bộ không gian ngôn ngữ", vì dịch máy nơ-ron luôn tiềm ẩn xác suất ngoại lệ đối với văn bản web phi chuẩn.
+* **Giới hạn phạm vi tái lập (Reproducibility Boundary):** Khả năng tái lập nội dung và mã băm được giới hạn chặt chẽ trong môi trường thực nghiệm cụ thể (phiên bản `transformers 4.49.0`, checkpoint mô hình pinned `0770961a...`, tham số giải mã chuẩn hóa) đối với 4 mẫu kiểm toán này. Nhóm không đưa ra tuyên bố mang tính khái quát về "tính tất định 100%" cho mọi nền tảng phần cứng hoặc toàn bộ mô hình MarianMT nói chung.
+* **Mức độ khẳng định khoa học:** C xác nhận các lỗi quan sát cụ thể **đã giảm hoặc không còn xuất hiện trên 4 mẫu đã kiểm trong môi trường thực nghiệm này**. Nhóm nghiên cứu tuyệt đối không khẳng định giải pháp này "loại bỏ 100% mọi ảo giác dịch máy trên toàn bộ không gian ngôn ngữ", vì dịch máy nơ-ron luôn tiềm ẩn xác suất ngoại lệ đối với văn bản web phi chuẩn.
 
 ---
 
