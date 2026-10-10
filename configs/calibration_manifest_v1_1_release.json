@@ -1,0 +1,30 @@
+{
+  "manifest_id": "CALIBRATION-V1.1-RELEASE-RUNWAY-20261010",
+  "dataset_id": "CALIBRATION-V1.1-24",
+  "sample_count": 24,
+  "sampling_plan_version": "CALIBRATION-PLAN-V1.1-STRATIFIED",
+  "codebook_version": "1.1.0",
+  "codebook_file": "docs/CODEBOOK_V1_1_DRAFT.md",
+  "codebook_status": "draft",
+  "codebook_sha256": "20b4c181ca1da195c8cd86848ce084035e202ca22b56673cc1aa2e6a911c2b3b",
+  "dictionary_version": "1.0.0",
+  "dictionary_status": "locked",
+  "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
+  "acceptance": {
+    "B": "pending",
+    "D": "pending"
+  },
+  "ready_for_annotation": false,
+  "training_blocked": true,
+  "blind_view_path": "data/raw/recovery/calibration_proposal_v1.1_release.json",
+  "blind_view_sha256": "d4264e2846a4b73c7bd30abf7a56cd2fff06633e30af29ef5f5c0fd5b575856b",
+  "official_test_used": false,
+  "exclusion_registry_sha256": "4b752a59b34393896ea4016554476d565701d7f54c489e927ee5c115b68e814e",
+  "source_manifest_sha256": "50fa39d58325e4645b76886e519dd5fbaca31db234d8c70eb95a4eeb608e8eb0",
+  "translation_manifest": {
+    "model_repo_id": "Helsinki-NLP/opus-mt-ja-en",
+    "model_pinned_revision": "0770961a39ba6bd66305b149c3f4110bcafca2e6",
+    "clean_payload_sha256": "4c6e87f594477d112a039a886c4db519c1f325f7cedacc32a749ffda2653aa18"
+  },
+  "notes": "Manifest đường chạy phát hành do C chuẩn bị; giữ trạng thái pending, Codebook draft, ready_for_annotation=false, training_blocked=true. Chờ D và B ký duyệt."
+}

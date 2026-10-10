@@ -131,10 +131,20 @@ def verify_no_loss_or_overlap(text: str, chunks: list[str]) -> bool:
 
 
 class OfflineTranslator:
-    def __init__(self, model_dir: Path, max_chunk_tokens: int = 200, num_beams: int = 4, num_threads: int = 4):
+    def __init__(
+        self,
+        model_dir: Path,
+        max_chunk_tokens: int = 200,
+        num_beams: int = 4,
+        num_threads: int = 4,
+        no_repeat_ngram_size: int = 0,
+        repetition_penalty: float = 1.0,
+    ):
         self.model_dir = model_dir
         self.max_chunk_tokens = max_chunk_tokens
         self.num_beams = num_beams
+        self.no_repeat_ngram_size = no_repeat_ngram_size
+        self.repetition_penalty = repetition_penalty
         self.tokenizer = MarianTokenizer.from_pretrained(str(model_dir), local_files_only=True)
         self.model = MarianMTModel.from_pretrained(str(model_dir), local_files_only=True)
         self.model.eval()
@@ -150,14 +160,22 @@ class OfflineTranslator:
         translated_chunks = []
         chunk_metadata = []
         torch.manual_seed(42)
+        generate_kwargs: dict[str, Any] = {
+            "num_beams": self.num_beams,
+            "do_sample": False,
+            "max_new_tokens": 256,
+        }
+        if self.no_repeat_ngram_size > 0:
+            generate_kwargs["no_repeat_ngram_size"] = self.no_repeat_ngram_size
+        if self.repetition_penalty != 1.0:
+            generate_kwargs["repetition_penalty"] = self.repetition_penalty
+
         with torch.no_grad():
             for idx, c in enumerate(chunks):
                 inputs = self.tokenizer(c, return_tensors="pt")
                 outputs = self.model.generate(
                     **inputs,
-                    num_beams=self.num_beams,
-                    do_sample=False,
-                    max_new_tokens=256,
+                    **generate_kwargs,
                 )
                 trans = self.tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
                 translated_chunks.append(trans)
@@ -328,13 +346,22 @@ def run_single_pass(
     source_root: Path,
     model_dir: Path,
     output_payload_file: Path,
+    no_repeat_ngram_size: int = 0,
+    repetition_penalty: float = 1.0,
 ) -> dict:
     import os
     sys.stdout.reconfigure(line_buffering=True, encoding="utf-8")
     samples = extract_page_text_for_proposal(proposal_dir / "selection.proposal.json", source_root)
     ja_samples = [s for s in samples if bool(re.search(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]", s["page_text"]))]
 
-    translator = OfflineTranslator(model_dir, max_chunk_tokens=200, num_beams=4, num_threads=4)
+    translator = OfflineTranslator(
+        model_dir,
+        max_chunk_tokens=200,
+        num_beams=4,
+        num_threads=4,
+        no_repeat_ngram_size=no_repeat_ngram_size,
+        repetition_penalty=repetition_penalty,
+    )
     rows = []
     for idx, s in enumerate(ja_samples, 1):
         sys.stderr.write(f"[{os.getpid()}] Translating sample {idx}/{len(ja_samples)}: {s['sample_id']}...\n")
@@ -368,10 +395,19 @@ def main() -> int:
     parser.add_argument("--model-dir", type=Path, default=ROOT / "models/translation/opus-mt-ja-en")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "data/raw/recovery/translation_experiment")
     parser.add_argument("--single-run-payload", type=Path, default=None, help="Run single pass and save payload to file")
+    parser.add_argument("--no-repeat-ngram-size", type=int, default=0, help="N-gram size to avoid repeating (default 0)")
+    parser.add_argument("--repetition-penalty", type=float, default=1.0, help="Repetition penalty (default 1.0)")
     args = parser.parse_args()
 
     if args.single_run_payload:
-        run_single_pass(args.proposal_dir, args.source_root, args.model_dir, args.single_run_payload)
+        run_single_pass(
+            args.proposal_dir,
+            args.source_root,
+            args.model_dir,
+            args.single_run_payload,
+            no_repeat_ngram_size=args.no_repeat_ngram_size,
+            repetition_penalty=args.repetition_penalty,
+        )
         return 0
 
     report = run_experiment(args.proposal_dir, args.source_root, args.model_dir, args.output_dir)
