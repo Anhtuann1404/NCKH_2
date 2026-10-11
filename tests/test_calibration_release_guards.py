@@ -277,6 +277,47 @@ class TestCalibrationReleaseGuardsUnit:
         assert main_excl["action"] == "permanently_exclude_from_train_val_test"
         assert reserve_excl["action"] == "permanently_exclude_from_train_val_test"
 
+    def test_unit_locked_codebook_v1_1_metadata_and_integrity(self):
+        """Chứng minh docs/CODEBOOK_V1_1.md tồn tại, có trạng thái locked, version 1.1.0 và khớp manifest v1.1.2."""
+        import re
+        codebook_path = ROOT / "docs/CODEBOOK_V1_1.md"
+        assert codebook_path.exists(), "Thiếu artifact docs/CODEBOOK_V1_1.md"
+        cb_bytes = codebook_path.read_bytes()
+        assert len(cb_bytes) > 5000, "Codebook v1.1 rỗng hoặc không đủ nội dung"
+
+        cb_text = cb_bytes.decode("utf-8")
+        cb_ver_match = re.search(r"\*\*Phiên bản:\*\*\s*(.+)", cb_text)
+        cb_status_match = re.search(r"\*\*Trạng thái:\*\*\s*(.+)", cb_text)
+        assert cb_ver_match is not None, "Thiếu trường Phiên bản trong Codebook"
+        assert cb_status_match is not None, "Thiếu trường Trạng thái trong Codebook"
+
+        actual_ver = cb_ver_match.group(1).strip().strip("`* ")
+        actual_status = cb_status_match.group(1).split("(")[0].strip().strip("`* ")
+        assert actual_ver == "1.1.0"
+        assert actual_status == "locked"
+
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_2_release.json"
+        assert manifest_path.exists(), "Thiếu manifest v1.1.2 configs/calibration_manifest_v1_1_2_release.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["codebook_file"] == "docs/CODEBOOK_V1_1.md"
+        assert manifest["codebook_status"] == "locked"
+        assert manifest["codebook_sha256"] == hashlib.sha256(cb_bytes).hexdigest()
+
+    def test_unit_v1_1_2_release_manifest_safety_guards(self, cli_module, tmp_path):
+        """Chứng minh manifest v1.1.2 giữ nghiêm các chốt an toàn và từ chối phiên khi chưa approved."""
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_2_release.json"
+        assert manifest_path.exists()
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        assert manifest["ready_for_annotation"] is False
+        assert manifest["training_blocked"] is True
+        assert manifest["acceptance"]["B"] == "pending"
+        assert manifest["acceptance"]["D"] == "pending"
+        assert manifest["codebook_status"] == "locked"
+        assert manifest["codebook_version"] == "1.1.0"
+        assert manifest["previous_release"]["manifest"] == "configs/calibration_manifest_v1_1_1_release.json"
+        assert manifest["previous_release"]["blind_view_sha256"] == "3816d844f7bec3fa9b152b4bcb781a10cb781b42ccb1a562533d006e03d9dac7"
+
 
 @pytest.mark.integration
 class TestCalibrationReleaseGuardsIntegration:
@@ -296,6 +337,14 @@ class TestCalibrationReleaseGuardsIntegration:
         view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.1_release.json"
         if not view_path.exists():
             pytest.skip("Bỏ qua: Môi trường thiếu gói view v1.1.1 mới")
+        return view_path
+
+    @pytest.fixture
+    def require_v1_1_2_release_view(self):
+        """Fixture kiểm tra sự hiện diện của gói view v1.1.2 khóa cuối."""
+        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.2_release.json"
+        if not view_path.exists():
+            pytest.skip("Bỏ qua: Môi trường thiếu gói view v1.1.2 khóa cuối")
         return view_path
 
     @pytest.fixture
@@ -488,4 +537,64 @@ class TestCalibrationReleaseGuardsIntegration:
         with pytest.raises(ValueError) as excinfo:
             cli_module.validate_manifest_preflight(manifest_path, v111_isolated, view_data)
         assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG", "CODEBOOK CHƯA KHÓA"])
+
+    def test_integration_v1_1_2_release_view_preflight_and_fingerprints(
+        self, cli_module, require_v1_1_2_release_view
+    ):
+        """Kiểm tra gói view phát hành cuối v1.1.2 và manifest v1.1.2."""
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_2_release.json"
+        view_path = require_v1_1_2_release_view
+        assert manifest_path.exists()
+        assert view_path.exists()
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        view = json.loads(view_path.read_text(encoding="utf-8"))
+
+        actual_view_hash = hashlib.sha256(view_path.read_bytes()).hexdigest()
+        assert manifest["blind_view_sha256"] == actual_view_hash
+        assert actual_view_hash == "840bc4e87d48cd279910343ddeaba5f690488728623c7fef52dab84e856a9fd8"
+        assert len(view["samples"]) == 24
+        assert view["codebook_sha256"] == manifest["codebook_sha256"]
+
+        assert_no_label_leak(view)
+
+        # Tiền kiểm fail-closed vì trạng thái pending
+        with pytest.raises(ValueError) as excinfo:
+            cli_module.validate_manifest_preflight(manifest_path, view_path, view)
+        assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG"])
+
+    def test_integration_v1_1_2_samples_payload_identical_to_v1_1_1(
+        self, require_v1_1_1_release_view, require_v1_1_2_release_view
+    ):
+        """Chứng minh 100% mẫu (24/24) và bản dịch trong v1.1.2 nguyên vẹn hoàn toàn từ v1.1.1."""
+        view111 = json.loads(require_v1_1_1_release_view.read_text(encoding="utf-8"))
+        view112 = json.loads(require_v1_1_2_release_view.read_text(encoding="utf-8"))
+
+        assert len(view111["samples"]) == 24
+        assert len(view112["samples"]) == 24
+        assert view111["samples"] == view112["samples"]
+
+    def test_integration_v1_1_2_simulated_approval_passes_all_checks(
+        self, cli_module, require_v1_1_2_release_view, tmp_path
+    ):
+        """Chứng minh gói v1.1.2 khi được B và D duyệt sẽ vượt qua toàn bộ tiền kiểm và sẵn sàng gán nhãn."""
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_2_release.json"
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        view_data = json.loads(require_v1_1_2_release_view.read_text(encoding="utf-8"))
+
+        # Mô phỏng trạng thái duyệt bởi B và D
+        approved_manifest_data = dict(manifest_data)
+        approved_manifest_data["acceptance"] = {"B": "approved", "D": "approved"}
+        approved_manifest_data["ready_for_annotation"] = True
+
+        sim_manifest_file = tmp_path / "approved_manifest_v1_1_2.json"
+        sim_manifest_file.write_text(json.dumps(approved_manifest_data, indent=2), encoding="utf-8")
+
+        # Tiền kiểm phải vượt qua 100%
+        cli_module.validate_manifest_preflight(
+            sim_manifest_file,
+            require_v1_1_2_release_view,
+            view_data,
+        )
+
 
