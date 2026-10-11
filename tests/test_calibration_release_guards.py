@@ -98,6 +98,33 @@ class TestCalibrationReleaseGuardsUnit:
             )
         assert not dummy_out.exists(), "File kết quả không được phép sinh ra khi tiền kiểm thất bại!"
 
+    def test_unit_create_blind_sample_preserves_caller_structure_summary(self):
+        """Chứng minh create_blind_sample bảo toàn structure_summary được truyền vào, không bị ghi đè về 0."""
+        from phishing.annotation.blind_view import create_blind_sample
+        raw_sample = {
+            "sample_id": "SMP-099",
+            "url": "https://example.test/portal",
+            "page_text": "Sample text",
+            "structure_summary": {
+                "title": "Portal Title",
+                "forms": 3,
+                "inputs": 8,
+                "password_inputs": 1,
+                "has_login_form": True,
+                "buttons": 5,
+                "external_links": 12,
+            },
+        }
+        sample = create_blind_sample(raw_sample, codebook_version="1.1.0")
+        sample_dict = sample.to_dict()
+        assert sample_dict["structure_summary"]["title"] == "Portal Title"
+        assert sample_dict["structure_summary"]["forms"] == 3
+        assert sample_dict["structure_summary"]["inputs"] == 8
+        assert sample_dict["structure_summary"]["password_inputs"] == 1
+        assert sample_dict["structure_summary"]["has_login_form"] is True
+        assert sample_dict["structure_summary"]["buttons"] == 5
+        assert sample_dict["structure_summary"]["external_links"] == 12
+
     def test_unit_simulated_approved_package_passes_preflight_and_binds_translation(self, cli_module, tmp_path):
         """Chứng minh gói approved giả lập đi qua tiền kiểm và ràng buộc bản dịch vào sample_content_hash."""
         # Tạo Codebook giả lập ở trạng thái locked trên đĩa với phiên bản và trạng thái riêng biệt
@@ -341,3 +368,77 @@ class TestCalibrationReleaseGuardsIntegration:
             assert actual_text_hash == exp_hash
             assert clean_map[sid]["source_text_sha256"] == exp_hash
             assert sample["translation_sha256"] == hashlib.sha256(clean_map[sid]["translated_text"].encode("utf-8")).hexdigest()
+
+    def test_integration_structure_summary_matches_parquet_for_all_24_locators(self):
+        """Đối chiếu title/forms/inputs/password_inputs/buttons/external_links từ Parquet với view cho toàn bộ 24 locator."""
+        import pyarrow.parquet as pq
+        from phishing.annotation.blind_view import extract_safe_view_content
+
+        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.1_release.json"
+        assert view_path.exists(), "Thiếu gói release view mới calibration_proposal_v1.1.1_release.json"
+
+        proposal_path = ROOT / "data/raw/recovery/calibration-proposed-20261008-v2/selection.proposal.json"
+        assert proposal_path.exists(), "Thiếu selection proposal v2"
+
+        parquet_dir = ROOT / "data/raw/phreshphish/data"
+        shards = {
+            "data/train-000.parquet": pq.read_table(parquet_dir / "train-000.parquet"),
+            "data/train-055.parquet": pq.read_table(parquet_dir / "train-055.parquet"),
+        }
+
+        view = json.loads(view_path.read_text(encoding="utf-8"))
+        prop = json.loads(proposal_path.read_text(encoding="utf-8"))
+        assert len(view["samples"]) == 24
+        assert len(prop["main"]) == 24
+
+        sample_map = {s["sample_id"]: s for s in view["samples"]}
+
+        for idx, loc in enumerate(prop["main"]):
+            sid = f"SMP-{idx + 1:03d}"
+            sample = sample_map[sid]
+            tab = shards[loc["relative_path"]]
+            row = tab.slice(loc["row_offset"], 1).to_pylist()[0]
+            html = row.get("html") or ""
+            raw_url = row["url"]
+
+            _, expected_summary = extract_safe_view_content(html, raw_url, max_html_characters=2_000_000)
+            actual_summary = sample["structure_summary"]
+
+            assert actual_summary["title"] == expected_summary["title"], f"{sid} title mismatch"
+            assert actual_summary["forms"] == expected_summary["forms"], f"{sid} forms mismatch"
+            assert actual_summary["inputs"] == expected_summary["inputs"], f"{sid} inputs mismatch"
+            assert actual_summary["password_inputs"] == expected_summary["password_inputs"], f"{sid} password_inputs mismatch"
+            assert actual_summary["has_login_form"] == expected_summary["has_login_form"], f"{sid} has_login_form mismatch"
+            assert actual_summary["buttons"] == expected_summary["buttons"], f"{sid} buttons mismatch"
+            assert actual_summary["external_links"] == expected_summary["external_links"], f"{sid} external_links mismatch"
+
+        # Khẳng định riêng mẫu SMP-015 theo phản biện của Lead D
+        smp15 = sample_map["SMP-015"]["structure_summary"]
+        assert smp15["forms"] == 1
+        assert smp15["inputs"] == 4
+        assert smp15["buttons"] == 1
+        assert smp15["title"] != ""
+        assert smp15["password_inputs"] == 0
+        assert smp15["external_links"] == 0
+
+    def test_integration_v1_1_1_release_view_preflight_and_fingerprints(self, cli_module):
+        """Kiểm tra gói view phát hành mới v1.1.1 (219KB, hash 3816d8...) và manifest v1.1.1."""
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_1_release.json"
+        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.1_release.json"
+        assert manifest_path.exists()
+        assert view_path.exists()
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        view = json.loads(view_path.read_text(encoding="utf-8"))
+
+        actual_view_hash = hashlib.sha256(view_path.read_bytes()).hexdigest()
+        assert manifest["blind_view_sha256"] == actual_view_hash
+        assert actual_view_hash == "3816d844f7bec3fa9b152b4bcb781a10cb781b42ccb1a562533d006e03d9dac7"
+        assert len(view["samples"]) == 24
+
+        assert_no_label_leak(view)
+
+        # Tiền kiểm fail-closed vì trạng thái pending
+        with pytest.raises(ValueError) as excinfo:
+            cli_module.validate_manifest_preflight(manifest_path, view_path, view)
+        assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG", "CODEBOOK CHƯA KHÓA"])

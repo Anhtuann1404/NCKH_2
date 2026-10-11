@@ -444,7 +444,22 @@ def create_blind_sample(
     html_content = raw_sample.get("html") or raw_sample.get("html_content")
     page_text = raw_sample["page_text"] if "page_text" in raw_sample else (raw_sample.get("text") or raw_sample.get("text_content"))
 
-    if html_content:
+    if isinstance(raw_sample.get("structure_summary"), dict):
+        raw_summary = raw_sample["structure_summary"]
+        summary = {
+            "title": str(raw_summary.get("title", "")).strip(),
+            "forms": int(raw_summary.get("forms", 0)),
+            "inputs": int(raw_summary.get("inputs", 0)),
+            "password_inputs": int(raw_summary.get("password_inputs", 0)),
+            "has_login_form": bool(raw_summary.get("has_login_form", int(raw_summary.get("password_inputs", 0)) > 0)),
+            "buttons": int(raw_summary.get("buttons", 0)),
+            "external_links": int(raw_summary.get("external_links", 0)),
+        }
+        if html_content and not page_text:
+            extracted_text, _ = extract_safe_view_content(html_content, norm_url, max_html_characters=max_html_characters)
+        else:
+            extracted_text = re.sub(r"\s+", " ", str(page_text or "")).strip()
+    elif html_content:
         extracted_text, summary = extract_safe_view_content(html_content, norm_url, max_html_characters=max_html_characters)
         if not extracted_text and page_text:
             extracted_text = re.sub(r"\s+", " ", str(page_text)).strip()
