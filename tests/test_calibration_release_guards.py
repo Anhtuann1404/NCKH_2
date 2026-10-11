@@ -282,16 +282,35 @@ class TestCalibrationReleaseGuardsUnit:
 class TestCalibrationReleaseGuardsIntegration:
     """Tập kiểm thử tích hợp thực tế (Yêu cầu môi trường có dữ liệu hạn chế data/raw/)."""
 
-    @pytest.fixture(autouse=True)
-    def check_restricted_data_available(self):
-        release_view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1_release.json"
-        if not release_view_path.exists():
-            pytest.skip("Bỏ qua integration test: Môi trường clean checkout không có dữ liệu hạn chế data/raw/")
+    @pytest.fixture
+    def require_legacy_v1_1_view(self):
+        """Fixture kiểm tra sự hiện diện của gói view v1.1 cũ (lưu vết audit)."""
+        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1_release.json"
+        if not view_path.exists():
+            pytest.skip("Bỏ qua: Môi trường thiếu gói view v1.1 cũ (được lưu làm audit trail)")
+        return view_path
 
-    def test_integration_real_release_view_preflight_rejection(self, cli_module, tmp_path):
+    @pytest.fixture
+    def require_v1_1_1_release_view(self):
+        """Fixture kiểm tra sự hiện diện của gói view v1.1.1 mới."""
+        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.1_release.json"
+        if not view_path.exists():
+            pytest.skip("Bỏ qua: Môi trường thiếu gói view v1.1.1 mới")
+        return view_path
+
+    @pytest.fixture
+    def require_parquet_sources(self):
+        """Fixture kiểm tra sự hiện diện của 2 shard Parquet nguồn."""
+        p0 = ROOT / "data/raw/phreshphish/data/train-000.parquet"
+        p55 = ROOT / "data/raw/phreshphish/data/train-055.parquet"
+        if not (p0.exists() and p55.exists()):
+            pytest.skip("Bỏ qua: Môi trường thiếu các shard Parquet nguồn")
+        return (p0, p55)
+
+    def test_integration_real_release_view_preflight_rejection(self, cli_module, require_legacy_v1_1_view):
         """Kiểm tra gói view phát hành thực tế 217KB bị từ chối bởi tiền kiểm."""
         release_manifest_path = ROOT / "configs/calibration_manifest_v1_1_release.json"
-        release_view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1_release.json"
+        release_view_path = require_legacy_v1_1_view
         view_data = json.loads(release_view_path.read_text(encoding="utf-8"))
 
         with pytest.raises(ValueError) as excinfo:
@@ -305,10 +324,10 @@ class TestCalibrationReleaseGuardsIntegration:
             for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG", "CODEBOOK CHƯA KHÓA"]
         )
 
-    def test_integration_real_release_view_and_registry_fingerprint_match(self):
+    def test_integration_real_release_view_and_registry_fingerprint_match(self, require_legacy_v1_1_view):
         """Đối soát byte-hash giữa gói view phát hành thực tế và danh mục loại trừ."""
         manifest_path = ROOT / "configs/calibration_manifest_v1_1_release.json"
-        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1_release.json"
+        view_path = require_legacy_v1_1_view
         registry_path = ROOT / "data/exclusion_registry.json"
 
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -341,9 +360,9 @@ class TestCalibrationReleaseGuardsIntegration:
         assert redacted_matches == 2, f"Kỳ vọng 2 URL được ẩn danh token nhạy cảm bảo mật (đạt {redacted_matches})"
         assert exact_matches + redacted_matches == 24
 
-    def test_integration_clean_translations_source_hash_exact_match(self):
+    def test_integration_clean_translations_source_hash_exact_match(self, require_v1_1_1_release_view):
         """Xác minh cả 4 mẫu tiếng Nhật khớp đúng locator và source_text_sha256 byte-for-byte."""
-        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1_release.json"
+        view_path = require_v1_1_1_release_view
         clean_path = ROOT / "data/raw/recovery/translation_experiment/translations_ja_en_v1.1_clean.jsonl"
         assert clean_path.exists()
 
@@ -369,12 +388,14 @@ class TestCalibrationReleaseGuardsIntegration:
             assert clean_map[sid]["source_text_sha256"] == exp_hash
             assert sample["translation_sha256"] == hashlib.sha256(clean_map[sid]["translated_text"].encode("utf-8")).hexdigest()
 
-    def test_integration_structure_summary_matches_parquet_for_all_24_locators(self):
+    def test_integration_structure_summary_matches_parquet_for_all_24_locators(
+        self, require_v1_1_1_release_view, require_parquet_sources
+    ):
         """Đối chiếu title/forms/inputs/password_inputs/buttons/external_links từ Parquet với view cho toàn bộ 24 locator."""
         import pyarrow.parquet as pq
         from phishing.annotation.blind_view import extract_safe_view_content
 
-        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.1_release.json"
+        view_path = require_v1_1_1_release_view
         assert view_path.exists(), "Thiếu gói release view mới calibration_proposal_v1.1.1_release.json"
 
         proposal_path = ROOT / "data/raw/recovery/calibration-proposed-20261008-v2/selection.proposal.json"
@@ -421,10 +442,12 @@ class TestCalibrationReleaseGuardsIntegration:
         assert smp15["password_inputs"] == 0
         assert smp15["external_links"] == 0
 
-    def test_integration_v1_1_1_release_view_preflight_and_fingerprints(self, cli_module):
+    def test_integration_v1_1_1_release_view_preflight_and_fingerprints(
+        self, cli_module, require_v1_1_1_release_view
+    ):
         """Kiểm tra gói view phát hành mới v1.1.1 (219KB, hash 3816d8...) và manifest v1.1.1."""
         manifest_path = ROOT / "configs/calibration_manifest_v1_1_1_release.json"
-        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.1_release.json"
+        view_path = require_v1_1_1_release_view
         assert manifest_path.exists()
         assert view_path.exists()
 
@@ -442,3 +465,27 @@ class TestCalibrationReleaseGuardsIntegration:
         with pytest.raises(ValueError) as excinfo:
             cli_module.validate_manifest_preflight(manifest_path, view_path, view)
         assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG", "CODEBOOK CHƯA KHÓA"])
+
+    def test_integration_v1_1_1_runs_independently_when_legacy_view_absent(
+        self, cli_module, require_v1_1_1_release_view, require_parquet_sources, tmp_path
+    ):
+        """Xác nhận tình huống chỉ có gói mới v1.1.1: đối chiếu Parquet và tiền kiểm đạt mà không cần view v1.1 cũ."""
+        isolated_dir = tmp_path / "isolated_data"
+        isolated_dir.mkdir()
+        v111_isolated = isolated_dir / "calibration_proposal_v1.1.1_release.json"
+        v111_isolated.write_bytes(require_v1_1_1_release_view.read_bytes())
+
+        # Khẳng định view v1.1 cũ hoàn toàn không tồn tại trong môi trường này
+        legacy_old = isolated_dir / "calibration_proposal_v1.1_release.json"
+        assert not legacy_old.exists()
+
+        # Kiểm tra view v1.1.1 độc lập
+        view_data = json.loads(v111_isolated.read_text(encoding="utf-8"))
+        assert len(view_data["samples"]) == 24
+        assert hashlib.sha256(v111_isolated.read_bytes()).hexdigest() == "3816d844f7bec3fa9b152b4bcb781a10cb781b42ccb1a562533d006e03d9dac7"
+
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_1_release.json"
+        with pytest.raises(ValueError) as excinfo:
+            cli_module.validate_manifest_preflight(manifest_path, v111_isolated, view_data)
+        assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG", "CODEBOOK CHƯA KHÓA"])
+
