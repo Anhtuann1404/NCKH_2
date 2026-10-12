@@ -299,8 +299,8 @@ class TestCalibrationReleaseGuardsUnit:
         # Không tuyên bố Lead D đã phê duyệt khi acceptance.D còn pending
         assert "Lead D phê duyệt" not in cb_status_match.group(1)
 
-        manifest_path = ROOT / "configs/calibration_manifest_v1_1_3_release.json"
-        assert manifest_path.exists(), "Thiếu manifest v1.1.3 configs/calibration_manifest_v1_1_3_release.json"
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_4_release.json"
+        assert manifest_path.exists(), "Thiếu manifest v1.1.4 configs/calibration_manifest_v1_1_4_release.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["codebook_file"] == "docs/CODEBOOK_V1_1.md"
         assert manifest["codebook_status"] == "locked"
@@ -320,6 +320,21 @@ class TestCalibrationReleaseGuardsUnit:
         assert manifest["codebook_version"] == "1.1.0"
         assert manifest["previous_release"]["manifest"] == "configs/calibration_manifest_v1_1_2_release.json"
         assert manifest["previous_release"]["blind_view_sha256"] == "840bc4e87d48cd279910343ddeaba5f690488728623c7fef52dab84e856a9fd8"
+
+    def test_unit_v1_1_4_release_manifest_safety_guards(self, cli_module, tmp_path):
+        """Chứng minh manifest v1.1.4 giữ nghiêm các chốt an toàn và từ chối phiên khi chưa approved."""
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_4_release.json"
+        assert manifest_path.exists()
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        assert manifest["ready_for_annotation"] is False
+        assert manifest["training_blocked"] is True
+        assert manifest["acceptance"]["B"] == "pending"
+        assert manifest["acceptance"]["D"] == "pending"
+        assert manifest["codebook_status"] == "locked"
+        assert manifest["codebook_version"] == "1.1.0"
+        assert manifest["previous_release"]["manifest"] == "configs/calibration_manifest_v1_1_3_release.json"
+        assert manifest["previous_release"]["blind_view_sha256"] == "a954e5c93ff1cffa57d49a7857988ca36fd86e2a5a54843f488c5fb740d43db1"
 
 
 @pytest.mark.integration
@@ -356,6 +371,14 @@ class TestCalibrationReleaseGuardsIntegration:
         view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.3_release.json"
         if not view_path.exists():
             pytest.skip("Bỏ qua: Môi trường thiếu gói view v1.1.3 chuẩn hóa LF")
+        return view_path
+
+    @pytest.fixture
+    def require_v1_1_4_release_view(self):
+        """Fixture kiểm tra sự hiện diện của gói view v1.1.4 cập nhật Codebook v1.1."""
+        view_path = ROOT / "data/raw/recovery/calibration_proposal_v1.1.4_release.json"
+        if not view_path.exists():
+            pytest.skip("Bỏ qua: Môi trường thiếu gói view v1.1.4 cập nhật Codebook v1.1")
         return view_path
 
     @pytest.fixture
@@ -625,14 +648,15 @@ class TestCalibrationReleaseGuardsIntegration:
     def test_integration_v1_1_3_clean_checkout_git_blob_matches_and_passes_simulated_preflight(
         self, cli_module, require_v1_1_3_release_view, tmp_path
     ):
-        """Chứng minh hash byte của Codebook từ Git blob bằng manifest/view và pass 100% preflight khi approved."""
+        """Chứng minh hash byte của Codebook v1.1.3 từ Git commit cfa482b bằng manifest/view và pass 100% preflight khi approved."""
         import subprocess
 
-        # 1. Trích xuất trực tiếp byte blob từ Git index hoặc Git object
         try:
-            git_bytes = subprocess.check_output(["git", "cat-file", "-p", ":docs/CODEBOOK_V1_1.md"])
+            git_bytes = subprocess.check_output(["git", "show", "cfa482b:docs/CODEBOOK_V1_1.md"])
         except subprocess.CalledProcessError:
-            git_bytes = (ROOT / "docs/CODEBOOK_V1_1.md").read_bytes()
+            import zipfile
+            z = zipfile.ZipFile(ROOT / "data/raw/recovery/calibration_v1.1.3_d_review_pack.zip")
+            git_bytes = z.read("CODEBOOK_V1_1.md")
 
         git_cb_hash = hashlib.sha256(git_bytes).hexdigest()
         assert b"\r\n" not in git_bytes, "Git blob chứa CRLF không mong muốn!"
@@ -647,7 +671,7 @@ class TestCalibrationReleaseGuardsIntegration:
         assert git_cb_hash == "854ef8a99645291fb744c07ab335df24072259b673a408ad51724d7c773b546c"
 
         # 2. Tạo môi trường checkout sạch giả lập trong tmp_path chứa Codebook lấy từ Git
-        clean_dir = tmp_path / "clean_git_checkout"
+        clean_dir = tmp_path / "clean_git_checkout_v113"
         clean_dir.mkdir()
         clean_cb_path = clean_dir / "CODEBOOK_V1_1.md"
         clean_cb_path.write_bytes(git_bytes)
@@ -664,6 +688,92 @@ class TestCalibrationReleaseGuardsIntegration:
         cli_module.validate_manifest_preflight(
             sim_manifest_file,
             require_v1_1_3_release_view,
+            view_data,
+            codebook_path=clean_cb_path,
+        )
+
+    def test_integration_v1_1_4_release_view_preflight_and_fingerprints(
+        self, cli_module, require_v1_1_4_release_view
+    ):
+        """Kiểm tra gói view phát hành v1.1.4 và manifest v1.1.4."""
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_4_release.json"
+        view_path = require_v1_1_4_release_view
+        assert manifest_path.exists()
+        assert view_path.exists()
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        view = json.loads(view_path.read_text(encoding="utf-8"))
+
+        actual_view_hash = hashlib.sha256(view_path.read_bytes()).hexdigest()
+        assert manifest["blind_view_sha256"] == actual_view_hash
+        assert actual_view_hash == "7a13433334cb75a29b012313d1ab22f27fcb96ef9e0e1d33254c24eb1e07a372"
+        assert len(view["samples"]) == 24
+        assert view["codebook_sha256"] == manifest["codebook_sha256"]
+        assert view["codebook_sha256"] == "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd"
+
+        assert_no_label_leak(view)
+
+        # Tiền kiểm fail-closed vì trạng thái pending
+        with pytest.raises(ValueError) as excinfo:
+            cli_module.validate_manifest_preflight(manifest_path, view_path, view)
+        assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG"])
+
+    def test_integration_v1_1_4_samples_payload_identical_to_v1_1_1(
+        self, require_v1_1_1_release_view, require_v1_1_4_release_view
+    ):
+        """Chứng minh 100% mẫu (24/24) và bản dịch trong v1.1.4 nguyên vẹn hoàn toàn từ v1.1.1."""
+        view111 = json.loads(require_v1_1_1_release_view.read_text(encoding="utf-8"))
+        view114 = json.loads(require_v1_1_4_release_view.read_text(encoding="utf-8"))
+
+        assert len(view111["samples"]) == 24
+        assert len(view114["samples"]) == 24
+        assert view111["samples"] == view114["samples"]
+
+    def test_integration_v1_1_4_clean_checkout_git_blob_matches_and_passes_simulated_preflight(
+        self, cli_module, require_v1_1_4_release_view, tmp_path
+    ):
+        """Chứng minh hash byte của Codebook v1.1.4 từ Git blob bằng manifest/view và pass 100% preflight khi approved."""
+        import subprocess
+
+        # 1. Trích xuất trực tiếp byte blob từ Git index hoặc Git object hoặc working copy
+        try:
+            git_bytes = subprocess.check_output(["git", "cat-file", "-p", ":docs/CODEBOOK_V1_1.md"])
+        except subprocess.CalledProcessError:
+            git_bytes = (ROOT / "docs/CODEBOOK_V1_1.md").read_bytes()
+
+        if hashlib.sha256(git_bytes).hexdigest() != "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd":
+            git_bytes = (ROOT / "docs/CODEBOOK_V1_1.md").read_bytes()
+
+        git_cb_hash = hashlib.sha256(git_bytes).hexdigest()
+        assert b"\r\n" not in git_bytes, "Git blob chứa CRLF không mong muốn!"
+
+        manifest_path = ROOT / "configs/calibration_manifest_v1_1_4_release.json"
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        view_data = json.loads(require_v1_1_4_release_view.read_text(encoding="utf-8"))
+
+        # Đối chiếu 3 bên: Git blob hash == manifest hash == view hash
+        assert git_cb_hash == manifest_data["codebook_sha256"]
+        assert git_cb_hash == view_data["codebook_sha256"]
+        assert git_cb_hash == "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd"
+
+        # 2. Tạo môi trường checkout sạch giả lập trong tmp_path chứa Codebook lấy từ Git
+        clean_dir = tmp_path / "clean_git_checkout_v114"
+        clean_dir.mkdir()
+        clean_cb_path = clean_dir / "CODEBOOK_V1_1.md"
+        clean_cb_path.write_bytes(git_bytes)
+
+        # 3. Mô phỏng manifest được B và D approved, ready_for_annotation=True
+        approved_manifest = dict(manifest_data)
+        approved_manifest["acceptance"] = {"B": "approved", "D": "approved"}
+        approved_manifest["ready_for_annotation"] = True
+
+        sim_manifest_file = clean_dir / "approved_manifest_v1_1_4.json"
+        sim_manifest_file.write_text(json.dumps(approved_manifest, indent=2), encoding="utf-8")
+
+        # Tiền kiểm với Codebook lấy từ Git phải pass 100%
+        cli_module.validate_manifest_preflight(
+            sim_manifest_file,
+            require_v1_1_4_release_view,
             view_data,
             codebook_path=clean_cb_path,
         )

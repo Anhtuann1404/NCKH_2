@@ -66,7 +66,7 @@ Với cửa hàng/luồng thanh toán, chỉ gán `payment_deception` sau khi đ
 
 Với hard benign, ghi một `hard_benign_type` chính theo tín hiệu dễ gây cảnh báo nhầm nhất: `official_login`, `brand_mention_news`, `reseller_or_partner`, `sso_oauth`, `payment_flow`, `legitimate_ugc`, `other`. Nếu nhiều kiểu hiện diện, ghi phần còn lại vào `evidence_note`; bảng phân tích theo loại dùng kiểu chính để tránh đếm trùng. Chỉ xác nhận `benign` khi có bằng chứng phù hợp; không lấy thiếu dấu hiệu phishing làm bằng chứng an toàn.
 
-Giữ tên trường hiện hành `annotator_id`, `seconds_spent`, `evidence_note` (không tạo bản sao `rater_id`/`time_spent_sec`). Bổ sung trường `confidence=low|medium|high` là bắt buộc trong view 1.1 để ưu tiên QC; giá trị này không diễn giải là xác suất và không dùng làm nhãn tham chiếu. Trường `evidence_quote` và trường loại là bắt buộc trong bản ghi v1.1 khi CLI/schema/view và test đã được cập nhật đồng bộ; bản pilot cũ không backfill như thể người gán đã nhập các trường đó.
+Giữ tên trường hiện hành `annotator_id`, `seconds_spent`, `evidence_note` (không tạo bản sao `rater_id`/`time_spent_sec`). Trong bản ghi gán nhãn v1.1 do annotator tạo qua CLI, bổ sung trường bắt buộc `confidence=low|medium|high`. Trường này không thuộc Blind View đầu vào: Blind View chỉ chứa các đặc trưng quan sát tĩnh (URL, nội dung, DOM, `translated_text` nếu có) và không bao giờ bao gồm `confidence`. Sau khi chốt nhãn, annotator chọn `confidence` phản ánh mức độ tin cậy chủ quan đối với quyết định vừa gán; giá trị này không được diễn giải là xác suất và không dùng làm nhãn tham chiếu. `confidence` chỉ phục vụ ưu tiên cho quy trình QC (ví dụ xem xét ca low/medium trước). Trường `evidence_quote` và trường loại (`hard_benign_type`, `primary_phishing_type`) là bắt buộc trong bản ghi v1.1 khi CLI/schema/view và test đã được cập nhật đồng bộ; bản pilot cũ không backfill như thể người gán đã nhập các trường đó.
 
 ## 5. Độ đồng thuận và xử lý sự cố
 
@@ -78,4 +78,20 @@ Giữ tên trường hiện hành `annotator_id`, `seconds_spent`, `evidence_not
 
 ## 6. Điều kiện áp dụng
 
-Việc gán nhãn Calibration và Main Annotation chỉ được bắt đầu khi các hạng mục sau đã hoàn tất và khóa đồng bộ: xử lý xong các điểm mở còn lại; chốt người dịch/nguồn dịch; khóa danh sách nền tảng và bằng chứng as-of; cập nhật CLI/schema/view, test, manifest và hash. C chọn bằng seed một tập calibration **mới** khoảng 20–30 mẫu từ nguồn train đã kiểm, có cả phishing, benign và ca dễ nhầm; loại mẫu này khỏi huấn luyện/đánh giá chính và không dùng Official Test. A/B gán độc lập bằng cùng view mù và đồng hồ theo v1.1, sau đó đối chiếu lỗi quy tắc, tốc độ A và công sức phân xử trước khi chốt PLAN-01. Không dùng pilot V1/V2 đã lộ/đã phân xử để chọn quy tắc. Nếu quy tắc v1.1 làm đổi nhãn một ca pilot, lưu kết quả đó như phân tích nhạy cảm riêng; không sửa Pass 1 v1.0 hoặc tính lại Kappa v1.0 từ nhãn sau phân xử. Toàn bộ mẫu pilot vẫn thuộc exclusion registry.
+### 6.1 Điều kiện đã hoàn tất cho phiên Calibration
+Phiên Calibration chỉ được phép bắt đầu khi toàn bộ các điều kiện sau đã hoàn tất và khóa đồng bộ:
+1. **Codebook locked:** `docs/CODEBOOK_V1_1.md` đã khóa kỹ thuật với trạng thái `locked` và hash hiện hành; là bản quy tắc thực thi chính thức cho Calibration và Main Annotation.
+2. **CLI v1.1 & preflight:** CLI, schema, kiểm thử preflight đã được cập nhật hỗ trợ quy chuẩn v1.1 (thu thập `confidence`, `evidence_quote`, trường loại trong bản ghi gán nhãn) và kiểm tra fail-closed chống lộ nhãn.
+3. **Tập calibration 24 mẫu phân tầng & loại trừ rò rỉ:** C đã chọn bằng seed đúng 24 mẫu từ nguồn train đã kiểm kê, phân tầng có đủ phishing, benign và ca dễ nhầm; đã đăng ký loại trừ vĩnh viễn khỏi tập huấn luyện/đánh giá (`exclusion_registry.json`) và không dùng Official Test.
+4. **Dịch ngoại tuyến MarianMT:** C đã hoàn tất `translated_text` ngoại tuyến trước khi mở gói cho 4 mẫu tiếng Nhật bằng MarianMT pinned revision, chỉ từ `page_text` đã lọc an toàn; đã gắn vào view và kiểm chứng hash (tuân thủ R-A09).
+
+### 6.2 Tiến hành Calibration
+Trong phiên Calibration, A và B gán độc lập tập 24 mẫu trên bằng cùng Blind View mù (không chứa `confidence` hay bất kỳ nhãn nguồn) và đồng hồ theo v1.1. Sau khi hoàn tất, Lead D cùng nhóm đối chiếu lỗi quy tắc, đo tốc độ trung bình của A và ước lượng công sức phân xử.
+
+### 6.3 Điều kiện chuyển tiếp sang Main Annotation
+Đợt gán nhãn chính (Main Annotation) chỉ được phép bắt đầu sau khi phiên Calibration hoàn tất và thỏa mãn các điều kiện chuyển tiếp:
+1. **Đối chiếu lỗi quy tắc:** Nhóm rà soát toàn bộ 24 nhãn calibration, thống kê sai khác quy tắc (nếu có) và cập nhật làm rõ vào Codebook mà không thay đổi bản chất quy tắc đã khóa; mọi thay đổi phải nâng phiên bản view và ghi hash mới.
+2. **Đo thời gian và công sức phân xử:** Ghi nhận tốc độ gán trung bình của A trên tập calibration và thời gian phân xử ca khó để chốt kế hoạch PLAN-01 với ngân sách thời gian và nhân lực phù hợp.
+3. **Phê duyệt của Lead D:** Lead D ký xác nhận nghiệm thu PLAN-01 và phát lệnh mở Main Annotation.
+
+Trong mọi trường hợp, không dùng pilot V1/V2 đã lộ/đã phân xử để chọn quy tắc. Nếu quy tắc v1.1 làm đổi nhãn một ca pilot, lưu kết quả đó như phân tích nhạy cảm riêng; không sửa Pass 1 v1.0 hoặc tính lại Kappa v1.0 từ nhãn sau phân xử. Toàn bộ mẫu pilot vẫn thuộc exclusion registry.
