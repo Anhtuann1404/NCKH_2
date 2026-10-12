@@ -132,6 +132,21 @@ try {
   assert.equal(keys.some(name => ['url', 'html', 'token'].includes(name)), false);
   checks.push('mock_warning_and_no_payload_in_session_storage');
 
+  await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 1, 'warning banner visible');
+  await mkdir(path.join(project, 'artifacts/smoke'), { recursive: true });
+  await page.locator('#nckh-phishing-demo-banner').screenshot({ path: path.join(project, 'artifacts/smoke/banner-preview.png') });
+  await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 0, 'warning banner auto-dismissed', 11000);
+  assert.equal((await savedState()).verdict, 'warning');
+  checks.push('banner_auto_dismiss_keeps_popup_result');
+
+  await popup.locator('#show-banner').uncheck();
+  await eventually(async () => await worker.evaluate(async () => (await chrome.storage.local.get('showBanner')).showBanner) === false, 'page notifications disabled');
+  await page.goto(`${origin}/login.html?quiet=1`);
+  await eventually(async () => (await savedState())?.status === 'completed', 'analysis while page notifications disabled');
+  assert.equal(await page.locator('#nckh-phishing-demo-banner').count(), 0);
+  await popup.locator('#show-banner').check();
+  checks.push('popup_toggle_suppresses_banner_without_stopping_analysis');
+
   const beforeDynamic = (await savedState()).dom_revision;
   await page.locator('#dynamic').click();
   await eventually(async () => (await savedState())?.dom_revision > beforeDynamic && (await savedState())?.status === 'completed', 'dynamic DOM snapshot');
@@ -243,7 +258,6 @@ try {
   checks.push('disable_clears_state_and_stops_requests');
 
   await popup.bringToFront();
-  await mkdir(path.join(project, 'artifacts/smoke'), { recursive: true });
   await popup.locator('body').screenshot({ path: path.join(project, 'artifacts/smoke/popup.png') });
   const report = { checked_at: new Date().toISOString(), scope: 'synthetic mock and fitted-model integration; no research accuracy or latency claim', browser: context.browser()?.version(), checks, passed: checks.length };
   await writeFile(path.join(project, 'artifacts/smoke/browser-report.json'), JSON.stringify(report, null, 2) + '\n');
