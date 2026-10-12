@@ -1,4 +1,4 @@
-"""Adapt C's dated split artifact to D's existing fold runner."""
+"""Validate a dated split before fixture evaluation; does not unlock real training."""
 
 from datetime import date
 
@@ -41,4 +41,5 @@ def fold_from_temporal_split(samples, split, dates_by_id, *, excluded_ids=frozen
     if not (max(ranges[0]) == train_cutoff < min(ranges[1])
             and max(ranges[1]) <= val_cutoff < min(ranges[2])):
         raise ValueError('Temporal cutoffs do not match selected samples')
-    return Fold(17, 0, *(tuple(lookup[sid] for sid in part) for part in parts))
+    # -1 keeps a temporal fixture report distinct from grouped fold 0.
+    return Fold(17, -1, *(tuple(lookup[sid] for sid in part) for part in parts))

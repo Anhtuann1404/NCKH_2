@@ -79,6 +79,7 @@ Phép đo trong service worker từ trước serialize/fetch đến sau parse/va
 ### Phân công review và tiêu chí nhận
 
 - **B:** chạy lại trên fixture, kiểm completed/insufficient/offline/token sai, response stale, timing và load bundle không fit; báo môi trường, lệnh và khác biệt. Không cần mở mẫu nghiên cứu để review demo.
+- **B — giao diện mới trên Windows:** trong popup, thử ba công tắc Bật phân tích / Phân tích nội dung / Hiện thông báo trên trang. Với fixture login, banner cảnh báo tự ẩn sau 8 giây nhưng kết quả còn trong popup; tắt riêng thông báo thì không còn banner, phân tích vẫn chạy. Với fixture ordinary, banner tự ẩn sau 4 giây. Ghi trình duyệt, phiên bản, kết quả từng ca và lỗi nếu có; không dùng lượt thử này làm dữ liệu nghiên cứu.
 - **C:** đối chiếu hợp đồng snapshot/capture_mode với nguồn corpus, xem ba ca stored/rendered khác nhau trong parity report. Ghi capture mode và rủi ro lệch nguồn trước thực nghiệm chính; không tự đổi protocol/corpus để làm parity bằng nhau.
 - **A:** có thể thử UI trên fixture và báo thông báo khó hiểu; pilot nhãn thật vẫn theo gói và lệnh riêng, không lấy thời gian demo làm PLAN-01.
 - **D:** nhận phản hồi, xử lý khác biệt môi trường/capture, hoàn thiện nhánh review và PR theo yêu cầu của người dùng.
