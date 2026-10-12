@@ -321,16 +321,16 @@ class TestCalibrationReleaseGuardsUnit:
         assert manifest["previous_release"]["manifest"] == "configs/calibration_manifest_v1_1_2_release.json"
         assert manifest["previous_release"]["blind_view_sha256"] == "840bc4e87d48cd279910343ddeaba5f690488728623c7fef52dab84e856a9fd8"
 
-    def test_unit_v1_1_4_release_manifest_safety_guards(self, cli_module, tmp_path):
-        """Chứng minh manifest v1.1.4 giữ nghiêm các chốt an toàn và từ chối phiên khi chưa approved."""
+    def test_unit_v1_1_4_release_manifest_approved_and_safety_guards(self, cli_module, tmp_path):
+        """Chứng minh manifest v1.1.4 được B và D nghiệm thu approved, ready_for_annotation=True, giữ training_blocked=True."""
         manifest_path = ROOT / "configs/calibration_manifest_v1_1_4_release.json"
         assert manifest_path.exists()
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-        assert manifest["ready_for_annotation"] is False
+        assert manifest["ready_for_annotation"] is True
         assert manifest["training_blocked"] is True
-        assert manifest["acceptance"]["B"] == "pending"
-        assert manifest["acceptance"]["D"] == "pending"
+        assert manifest["acceptance"]["B"] == "approved"
+        assert manifest["acceptance"]["D"] == "approved"
         assert manifest["codebook_status"] == "locked"
         assert manifest["codebook_version"] == "1.1.0"
         assert manifest["previous_release"]["manifest"] == "configs/calibration_manifest_v1_1_3_release.json"
@@ -713,10 +713,8 @@ class TestCalibrationReleaseGuardsIntegration:
 
         assert_no_label_leak(view)
 
-        # Tiền kiểm fail-closed vì trạng thái pending
-        with pytest.raises(ValueError) as excinfo:
-            cli_module.validate_manifest_preflight(manifest_path, view_path, view)
-        assert any(err in str(excinfo.value) for err in ["CHƯA NGHIỆM THU", "CHƯA SẴN SÀNG"])
+        # Tiền kiểm trên gói thật và manifest thật v1.1.4 sau khi B và D approved phải pass 100%
+        cli_module.validate_manifest_preflight(manifest_path, view_path, view)
 
     def test_integration_v1_1_4_samples_payload_identical_to_v1_1_1(
         self, require_v1_1_1_release_view, require_v1_1_4_release_view

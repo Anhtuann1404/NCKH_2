@@ -114,10 +114,10 @@ def build_release_v1_1_4() -> dict:
         "dictionary_status": "locked",
         "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
         "acceptance": {
-            "B": "pending",
-            "D": "pending",
+            "B": "approved",
+            "D": "approved",
         },
-        "ready_for_annotation": False,
+        "ready_for_annotation": True,
         "training_blocked": True,
         "blind_view_path": "data/raw/recovery/calibration_proposal_v1.1.4_release.json",
         "blind_view_sha256": v114_sha256,
@@ -135,8 +135,8 @@ def build_release_v1_1_4() -> dict:
             "superseded_reason": "Codebook Section 4 confidence clarified as annotator output record and Section 6 restructured into completed Calibration prerequisites vs Main Annotation conditions; v1.1.3 preserved for audit trail",
         },
         "notes": (
-            "Manifest đường chạy phát hành v1.1.4 sau khi hoàn thiện Section 4 và Section 6 Codebook v1.1.0 locked; "
-            "giữ trạng thái pending, ready_for_annotation=false, training_blocked=true. Gửi B QA kỹ thuật và D đối soát."
+            "Manifest phát hành chính thức v1.1.4: acceptance được B và D nghiệm thu approved, ready_for_annotation=true. "
+            "Giữ training_blocked=true; bảo toàn nguyên vẹn 24 mẫu và bản dịch sạch v1.1.1."
         ),
     }
     manifest_path = configs_dir / "calibration_manifest_v1_1_4_release.json"
