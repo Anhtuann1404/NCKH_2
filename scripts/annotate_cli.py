@@ -834,33 +834,48 @@ def annotate_interactive_session(
 
         try:
             print(f"\n[INPUT] Nhập thông tin đánh giá (Codebook {codebook_version}):")
-            c_label = prompt_choice("1. Nhãn phân loại", CLASS_LABEL_CHOICES)
-            p_org_status = prompt_choice("2. Trạng thái tổ chức", PRIMARY_ORG_STATUS_CHOICES)
+            step = 1
+
+            c_label = prompt_choice(f"{step}. Nhãn phân loại", CLASS_LABEL_CHOICES)
+            step += 1
+
+            p_org_status = prompt_choice(f"{step}. Trạng thái tổ chức", PRIMARY_ORG_STATUS_CHOICES)
+            step += 1
+
             org_evidence = None
             phishing_type = None
             hard_benign_type = None
             confidence = None
             catalog_ids = None
+
             if v11:
-                obs_service = input("3. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                obs_service = input(f"{step}. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                step += 1
+
                 if p_org_status == "identified":
-                    primary_org = input("4. Mã tổ chức chính chuẩn hóa: ").strip().lower()
+                    primary_org = input(f"{step}. Mã tổ chức chính chuẩn hóa: ").strip().lower()
+                    step += 1
                     org_targets = [primary_org] if primary_org else []
                 elif p_org_status == "multi_target":
                     primary_org = "unknown"
-                    targets_input = input("4. Các mã tổ chức ngang hàng (phân tách bằng dấu phẩy): ").strip().lower()
+                    targets_input = input(f"{step}. Các mã tổ chức ngang hàng (phân tách bằng dấu phẩy): ").strip().lower()
+                    step += 1
                     org_targets = [t.strip() for t in targets_input.split(",") if t.strip()]
                 else:
                     primary_org = p_org_status
                     org_targets = []
+
                 catalog_path = dictionary_path or (PROJECT_ROOT / "configs" / "dictionary_v1.json")
                 catalog_ids = {org["org_id"] for org in json.loads(catalog_path.read_text(encoding="utf-8"))["organizations"]}
                 cat_status = derive_catalog_status(p_org_status, primary_org, org_targets, catalog_ids)
                 print(f"[DANH MỤC] Suy ra tự động: {cat_status}")
+
                 org_evidence = []
                 for org_id in org_targets:
-                    basis = prompt_choice(f"5. Căn cứ nhận diện {org_id}", EVIDENCE_BASIS_CHOICES)
-                    quote = input(f"6. Trích dẫn an toàn cho {org_id} (để trống nếu chỉ có cấu trúc form): ").strip()
+                    basis = prompt_choice(f"{step}. Căn cứ nhận diện {org_id}", EVIDENCE_BASIS_CHOICES)
+                    step += 1
+                    quote = input(f"{step}. Trích dẫn an toàn cho {org_id} (để trống nếu chỉ có cấu trúc form): ").strip()
+                    step += 1
                     visible_text = " ".join(str(part or "") for part in (
                         sample.get("page_text"), sample.get("translated_text"),
                         sample.get("structure_summary", {}).get("title"),
@@ -868,31 +883,61 @@ def annotate_interactive_session(
                     if quote and re.sub(r"\s+", " ", quote).casefold() not in re.sub(r"\s+", " ", visible_text).casefold():
                         raise ValueError("Trích dẫn tổ chức phải xuất hiện trong nguyên văn hoặc bản dịch của gói mù.")
                     org_evidence.append({"org_id": org_id, "evidence_basis": basis, "evidence_quote": quote})
+
                 if c_label == "phishing":
-                    phishing_type = prompt_choice("7. Kiểu phishing quan sát được", PHISHING_TYPE_CHOICES)
+                    phishing_type = prompt_choice(f"{step}. Kiểu phishing quan sát được", PHISHING_TYPE_CHOICES)
+                    step += 1
                 elif c_label == "benign":
-                    selected_type = prompt_choice("7. Kiểu hard benign (0 nếu không áp dụng)", HARD_BENIGN_CHOICES)
+                    selected_type = prompt_choice(f"{step}. Kiểu hard benign (0 nếu không áp dụng)", HARD_BENIGN_CHOICES)
+                    step += 1
                     hard_benign_type = None if selected_type == "none" else selected_type
-                confidence = prompt_choice("8. Độ tin cậy tự đánh giá", CONFIDENCE_CHOICES)
+
+                id_role = prompt_choice(f"{step}. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES)
+                step += 1
+
+                dom_role = prompt_choice(f"{step}. Vai trò tên miền", DOMAIN_ROLE_CHOICES)
+                step += 1
+
+                evidence = input(f"{step}. Ghi chú bằng chứng nội dung/form: ").strip()
+                step += 1
+                if not evidence:
+                    raise ValueError("Codebook v1.1 yêu cầu ghi chú bằng chứng; không suy nhãn chỉ từ URL.")
+
+                diff_str = input(f"{step}. Đánh dấu ca khó? [y/N]: ").strip().lower()
+                step += 1
+                is_diff = diff_str in {"y", "yes", "true", "1"}
+
+                confidence = prompt_choice(f"{step}. Độ tin cậy tự đánh giá", CONFIDENCE_CHOICES)
+                step += 1
             else:
-                cat_status = prompt_choice("3. Tình trạng từ điển", CATALOG_STATUS_CHOICES)
-                obs_service = input("4. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
-                primary_org = input("5. Mã tổ chức chính (ví dụ: microsoft, google, unknown): ").strip() or "unknown"
-                targets_input = input("6. Các tổ chức bị mạo danh (phân tách bởi dấu phẩy, Enter nếu rỗng): ").strip()
+                cat_status = prompt_choice(f"{step}. Tình trạng từ điển", CATALOG_STATUS_CHOICES)
+                step += 1
+
+                obs_service = input(f"{step}. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                step += 1
+
+                primary_org = input(f"{step}. Mã tổ chức chính (ví dụ: microsoft, google, unknown): ").strip() or "unknown"
+                step += 1
+
+                targets_input = input(f"{step}. Các tổ chức bị mạo danh (phân tách bởi dấu phẩy, Enter nếu rỗng): ").strip()
+                step += 1
                 org_targets = [t.strip() for t in targets_input.split(",") if t.strip()] if targets_input else []
                 if primary_org not in {"unknown", "no_clear_target"} and primary_org not in org_targets:
                     org_targets.append(primary_org)
 
-            id_role = prompt_choice("7. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES)
-            dom_role = prompt_choice("8. Vai trò tên miền", DOMAIN_ROLE_CHOICES)
+                id_role = prompt_choice(f"{step}. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES)
+                step += 1
 
-            evidence = input("9. Ghi chú bằng chứng nội dung/form: ").strip()
-            if v11 and not evidence:
-                raise ValueError("Codebook v1.1 yêu cầu ghi chú bằng chứng; không suy nhãn chỉ từ URL.")
-            evidence = evidence or "Quan sát theo URL và cấu trúc trang"
+                dom_role = prompt_choice(f"{step}. Vai trò tên miền", DOMAIN_ROLE_CHOICES)
+                step += 1
 
-            diff_str = input("10. Đánh dấu ca khó? [y/N]: ").strip().lower()
-            is_diff = diff_str in {"y", "yes", "true", "1"}
+                evidence = input(f"{step}. Ghi chú bằng chứng nội dung/form: ").strip()
+                step += 1
+                evidence = evidence or "Quan sát theo URL và cấu trúc trang"
+
+                diff_str = input(f"{step}. Đánh dấu ca khó? [y/N]: ").strip().lower()
+                step += 1
+                is_diff = diff_str in {"y", "yes", "true", "1"}
 
             # DỪNG BẤM GIỜ
             elapsed = round(time.perf_counter() - start_time, 2)
