@@ -47,8 +47,8 @@ def test_v11_human_annotation_records_evidence_without_manual_catalog(tmp_path, 
         "text": "Microsoft sign in", "codebook_version": "1.1.0",
     }], view, dataset_id="SYNTHETIC-V11-CHECK", is_synthetic=True)
     answers = iter([
-        "1", "1", "Office", "microsoft", "2", "Microsoft sign in", "1", "2",
-        "1", "5", "Heading claims Microsoft sign in", "n",
+        "1", "1", "Office", "microsoft", "2", "Microsoft sign in", "1",
+        "1", "5", "Heading claims Microsoft sign in", "n", "2",
     ])
     monkeypatch.setattr("builtins.input", lambda _prompt="": next(answers))
     output = tmp_path / "A_v11.jsonl"

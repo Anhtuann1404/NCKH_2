@@ -336,6 +336,42 @@ class TestCalibrationReleaseGuardsUnit:
         assert manifest["previous_release"]["manifest"] == "configs/calibration_manifest_v1_1_3_release.json"
         assert manifest["previous_release"]["blind_view_sha256"] == "a954e5c93ff1cffa57d49a7857988ca36fd86e2a5a54843f488c5fb740d43db1"
 
+    def test_unit_annotator_e_supported_and_preflight_ready(self, cli_module):
+        """Chứng minh công cụ CLI và validator hỗ trợ đầy đủ annotator_id='E' (đánh giá viên độc lập ngoài nhóm)."""
+        rec = {
+            "annotator_id": "E",
+            "sample_id": "SMP-001",
+            "pass_id": 1,
+            "class_label": "benign",
+            "primary_org_status": "unknown",
+            "catalog_status": "unresolved",
+            "observed_service": "None",
+            "org_targets": [],
+            "primary_org": "unknown",
+            "identity_role": "unclear",
+            "domain_role": "unverified",
+            "evidence_note": "Ghi chú kiểm thử cho đánh giá viên độc lập E",
+            "seconds_spent": 120.0,
+            "random_subset": True,
+            "difficult_case": False,
+            "codebook_version": "1.1.0",
+            "is_dry_run": False,
+            "is_synthetic": False,
+            "dataset_id": "CALIBRATION-V1.1-24",
+            "dataset_hash": "7a13433334cb75a29b012313d1ab22f27fcb96ef9e0e1d33254c24eb1e07a372",
+            "codebook_hash": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
+            "sampling_plan_version": "CALIBRATION-PLAN-V1.1-STRATIFIED",
+            "sample_content_hash": "mock_hash_for_test",
+            "timestamp_utc": "2026-10-13T07:00:00Z",
+            "confidence": "high",
+            "primary_phishing_type": None,
+            "hard_benign_type": None,
+            "org_evidence": [],
+        }
+        val_rec = cli_module.validate_annotation_record(rec)
+        assert val_rec.annotator_id == "E"
+        assert val_rec.to_dict()["annotator_id"] == "E"
+
 
 @pytest.mark.integration
 class TestCalibrationReleaseGuardsIntegration:
