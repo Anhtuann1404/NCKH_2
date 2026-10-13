@@ -356,6 +356,14 @@ Browser smoke hiện có 15 checks (benchmark bật latency thêm một check =>
 
 Report chỉ lưu chữ ký đặc trưng/hashes/count và tên fixture; input HTML tạm được xóa sau test. Snapshot lớn được giữ trong RAM test, không lưu corpus. Giới hạn snapshot phía JS dùng độ dài UTF-16 còn Python dùng số codepoint; JSON API còn có giới hạn byte UTF-8. Sáu fixture không chứng minh mọi encoding/trang thật đều tương đương. Các limits được xử lý bằng lỗi, không cắt nội dung để làm thành dự đoán hoàn chỉnh. Số đo độ trễ trước đó vẫn thuộc fixture nhỏ; các ca DOM lớn không nằm trong mẫu p50/p95.
 
+## Bàn giao split C → D và độ trễ hiển thị demo
+
+`scripts/check_c_split_handoff.py --manifest <đường-dẫn-manifest-DATA-03>` kiểm SHA-256 của `groups.json`, `grouped_5fold_splits.json` và `temporal_splits.json` nếu có, đồng thời đối chiếu input hash và phiên bản quy tắc grouping. Lệnh chỉ trả counts và luôn `research_training_allowed=false`. Adapter `phishing.training.handoff.fold_from_c_grouped_split` kiểm cohort/group, inner train/validation, outer test, fold đủ lớp và mẫu bị loại trước khi chuyển sang runner M0/M3; nó chỉ nhận URL/nhóm fixture hư cấu. Nó không chứng nhận nhãn cuối, byte của file nguồn ban đầu hay quyền mở training. `corpus_index.jsonl`/locator của C khác gói JSON fixture mà `check_training_inputs.py` nhận; không chuyển nhãn nguồn từ vault thành nhãn cuối hoặc cho hai checker này cấp quyền huấn luyện thật. Bản C/nhãn/registry cần nghiệm thu và ghép riêng sau khi khóa.
+
+Từ `extension/`, chạy `npm run benchmark:visible` để đo 10 lượt fixture login/ordinary sau 2 warmup, từ trước khi điều hướng đến khi banner có kết quả URL+nội dung sau một animation frame. Báo cáo bị Git ignore tại `artifacts/smoke/visible-latency-report.json`, chỉ chứa tên fixture và thời gian; bao gồm tải trang, debounce 500 ms, API và cập nhật banner, nhưng không bao gồm khởi động trình duyệt/API hay thời gian người dùng mở popup. Polling 80 ms và máy thử ảnh hưởng số đo. Kết quả Chromium headless trên máy D ngày 13/10/2026: p50 khoảng 615 ms, p95 khoảng 625 ms (10 fixture); đây chỉ là kiểm thử tích hợp, không phải độ trễ hay hiệu năng trên website thật.
+
+B có thể chạy `npm test`, `npm run test:browser` và `npm run benchmark:visible` trên Windows với fixture, rồi ghi phiên bản Python/Node/Chromium, số ca đạt, p50/p95 và lỗi nếu có. Kiểm riêng công tắc thông báo, banner tự ẩn và kết quả còn trong popup; không dùng số đo hoặc nhãn mô phỏng cho PLAN-01.
+
 Bản này chỉ thêm kiểm chứng và báo cáo: không đổi preprocessing/features version, không làm mới bundle hoặc mở chốt training thật.
 
 ## Windows và checklist bàn giao — 05/10/2026

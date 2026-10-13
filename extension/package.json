@@ -8,6 +8,7 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:browser": "npm run build && node tests/browser-smoke.mjs",
     "benchmark": "npm run build && node tests/browser-smoke.mjs --latency-samples 30",
+    "benchmark:visible": "npm run build && node tests/browser-smoke.mjs --visible-latency-samples 10",
     "test:parity": "npm run build && node tests/snapshot-parity.mjs"
   },
   "devDependencies": {

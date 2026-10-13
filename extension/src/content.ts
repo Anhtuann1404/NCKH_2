@@ -75,6 +75,7 @@ function show(state: TabState) {
     const caution = document.createElement('p'); caution.textContent = OBSERVATION_NOTE;
     parts.signals.append(heading, list, caution);
   }
+  banner!.dataset.phase = state.phase;
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(dismissBanner, state.verdict === 'warning' ? 8000 : 4000);
 }

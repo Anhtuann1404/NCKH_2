@@ -4,9 +4,11 @@ from datetime import date
 
 from phishing.evaluation.grouped import Fold
 from phishing.training.plan import RunPlan
+from phishing.training.synthetic import assert_fixture_cohort
 
 
 def fold_from_temporal_split(samples, split, dates_by_id, *, excluded_ids=frozenset()):
+    assert_fixture_cohort(samples)
     if split.get('status') != 'evaluable':
         raise ValueError('Temporal split is not evaluable')
     ids = [sample.sample_id for sample in samples]

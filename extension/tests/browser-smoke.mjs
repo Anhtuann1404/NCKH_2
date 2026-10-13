@@ -28,10 +28,14 @@ for (const name of ['manifest.json', 'background.js', 'core.js']) {
 const sampleArg = process.argv.indexOf('--latency-samples');
 const latencyCount = sampleArg < 0 ? 0 : Number(process.argv[sampleArg + 1]);
 if (!Number.isInteger(latencyCount) || latencyCount < 0 || latencyCount > 200) throw new Error('Latency samples must be an integer from 0 to 200.');
+const visibleArg = process.argv.indexOf('--visible-latency-samples');
+const visibleCount = visibleArg < 0 ? 0 : Number(process.argv[visibleArg + 1]);
+if (!Number.isInteger(visibleCount) || visibleCount < 0 || visibleCount > 100) throw new Error('Visible latency samples must be an integer from 0 to 100.');
 const selectedBundleArg = process.argv.indexOf('--selected-fit-bundle');
 const selectedBundle = selectedBundleArg < 0 ? null : path.resolve(project, process.argv[selectedBundleArg + 1] ?? '');
 if (selectedBundleArg >= 0 && !process.argv[selectedBundleArg + 1]) throw new Error('Selected-fit bundle path required.');
 const latencyRows = [];
+const visibleRows = [];
 const checks = [];
 const apiBodies = [];
 let context, processAPI, extensionId;
@@ -58,6 +62,12 @@ async function eventually(fn, description, timeout = 12000) {
     await new Promise(resolve => setTimeout(resolve, 80));
   }
   throw new Error(`Timeout waiting for ${description}`);
+}
+function percentile(values, p) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const position = (sorted.length - 1) * p;
+  const low = Math.floor(position), high = Math.ceil(position);
+  return sorted[low] + (sorted[high] - sorted[low]) * (position - low);
 }
 async function stopAPI() {
   if (processAPI && processAPI.exitCode === null) {
@@ -189,6 +199,25 @@ try {
   assert((await savedState()).observed_signals.includes('observed_password_input'));
   await popup.locator('body').screenshot({ path: path.join(project, 'artifacts/smoke/observed-popup.png') });
   checks.push('observed_signals_display_without_causal_claim');
+
+  if (visibleCount) {
+    // From navigation start to the final URL+content banner update.
+    for (let index = -2; index < visibleCount; index++) {
+      const fixture = index % 2 === 0 ? 'ordinary' : 'login';
+      const previousNavigation = (await savedState())?.navigation_id;
+      const started = performance.now();
+      await page.goto(`${origin}/${fixture}.html?visible_iteration=${index}`);
+      await eventually(async () => {
+        const state = await savedState();
+        return state?.navigation_id !== previousNavigation && state?.demo_kind === 'synthetic_model'
+          && state?.phase === 'url_content' && state?.status === 'completed'
+          && await page.locator('#nckh-phishing-demo-banner[data-phase="url_content"]').count() === 1;
+      }, `visible result ${index}`);
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      if (index >= 0) visibleRows.push({ fixture, navigation_to_banner_ms: performance.now() - started });
+    }
+    checks.push('navigation_to_final_banner_result');
+  }
   await page.goto(`${origin}/ordinary.html`);
   await eventually(async () => (await savedState())?.demo_kind === 'synthetic_model' && (await savedState())?.phase === 'url_content' && (await savedState())?.status === 'completed' && !(await savedState()).observed_signals.includes('observed_password_input'), 'ordinary page clears observed password');
   await eventually(async () => (await popup.locator('#signals').innerText()).length === 0, 'popup clears previous signals');
@@ -262,12 +291,6 @@ try {
   const report = { checked_at: new Date().toISOString(), scope: 'synthetic mock and fitted-model integration; no research accuracy or latency claim', browser: context.browser()?.version(), checks, passed: checks.length };
   await writeFile(path.join(project, 'artifacts/smoke/browser-report.json'), JSON.stringify(report, null, 2) + '\n');
   if (latencyCount) {
-    const percentile = (values, p) => {
-      const sorted = [...values].sort((a, b) => a - b);
-      const position = (sorted.length - 1) * p;
-      const low = Math.floor(position), high = Math.ceil(position);
-      return sorted[low] + (sorted[high] - sorted[low]) * (position - low);
-    };
     const summary = {};
     for (const phase of ['url_only', 'url_content']) {
       summary[phase] = {};
@@ -289,6 +312,19 @@ try {
       summary, samples: latencyRows, failure_checks: checks };
     await writeFile(path.join(project, 'artifacts/smoke/latency-report.json'), JSON.stringify(latencyReport, null, 2) + '\n');
     console.log(JSON.stringify({ latency_summary: summary }, null, 2));
+  }
+  if (visibleCount) {
+    const values = visibleRows.map(row => row.navigation_to_banner_ms);
+    const visibleReport = {
+      checked_at: report.checked_at, research_evidence: false,
+      scope: 'headless Chromium loopback synthetic fixture; navigation start to final content banner DOM update plus one animation frame',
+      includes: ['page navigation/render', 'content snapshot and debounce', 'API/model', 'extension banner update', '80ms polling resolution'],
+      excludes: ['browser startup', 'extension installation', 'API/model startup', 'display hardware paint'],
+      warmups: 2, samples: visibleRows, browser: report.browser,
+      summary: { n: values.length, p50_ms: percentile(values, 0.5), p95_ms: percentile(values, 0.95) },
+    };
+    await writeFile(path.join(project, 'artifacts/smoke/visible-latency-report.json'), JSON.stringify(visibleReport, null, 2) + '\n');
+    console.log(JSON.stringify({ visible_latency_summary: visibleReport.summary }, null, 2));
   }
 
   console.log(JSON.stringify(report, null, 2));

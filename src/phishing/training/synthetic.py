@@ -1,6 +1,7 @@
 """Invented balanced fixtures; not a source of research evidence."""
 
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 from phishing.features.domains import DomainRule
 from phishing.preprocessing import PreparedSnapshot, prepare_snapshot
 
@@ -11,6 +12,15 @@ class Sample:
     group_id: str
     label: int
     snapshot: PreparedSnapshot
+
+
+def assert_fixture_cohort(samples):
+    if not samples or any(
+        not sample.group_id.startswith('synthetic-domain-')
+        or not (urlsplit(sample.snapshot.url).hostname or '').endswith('.fixture.test')
+        for sample in samples
+    ):
+        raise ValueError('This handoff is restricted to invented fixture samples')
 
 
 def make_dataset(groups=40):
