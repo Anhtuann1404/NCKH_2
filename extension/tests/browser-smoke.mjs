@@ -13,7 +13,7 @@ const python = checkedPython(project);
 const builtExtension = path.resolve('dist');
 const fixtures = path.join(project, 'tests/fixtures/demo_pages');
 const token = 'synthetic-fixture-token-never-use-in-production';
-const profile = await mkdtemp(path.join(tmpdir(), 'nckh-extension-test-'));
+const profile = await mkdtemp(path.join(path.resolve(tmpdir()), 'nckh-extension-test-'));
 const extension = path.join(profile, 'extension');
 const portProbe = createServer();
 await new Promise(resolve => portProbe.listen(0, '127.0.0.1', resolve));
@@ -34,6 +34,7 @@ if (!Number.isInteger(visibleCount) || visibleCount < 0 || visibleCount > 100) t
 const selectedBundleArg = process.argv.indexOf('--selected-fit-bundle');
 const selectedBundle = selectedBundleArg < 0 ? null : path.resolve(project, process.argv[selectedBundleArg + 1] ?? '');
 if (selectedBundleArg >= 0 && !process.argv[selectedBundleArg + 1]) throw new Error('Selected-fit bundle path required.');
+const demoBundle = selectedBundle ?? path.join(profile, 'synthetic-demo-bundle');
 const latencyRows = [];
 const visibleRows = [];
 const checks = [];
@@ -81,7 +82,7 @@ async function startAPI(scenario = 'warning', delay = 0) {
   let occupied = false;
   try { await fetch(`${apiOrigin}/health`); occupied = true; } catch { /* no service listening */ }
   if (occupied) throw new Error('Port 8765 is already in use; this test will not stop an unrelated service.');
-  processAPI = spawn(python, (scenario === 'synthetic_model' ? ['scripts/run_demo_model_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--requests-per-minute', '300', ...(selectedBundle ? ['--selected-fit', '--bundle', selectedBundle] : [])] : ['scripts/run_mock_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--scenario', scenario, '--delay-ms', String(delay)]), {
+  processAPI = spawn(python, (scenario === 'synthetic_model' ? ['scripts/run_demo_model_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--requests-per-minute', '300', '--bundle', demoBundle, ...(selectedBundle ? ['--selected-fit'] : [])] : ['scripts/run_mock_api.py', '--extension-id', extensionId, '--port', String(apiPort), '--scenario', scenario, '--delay-ms', String(delay)]), {
     cwd: project, env: { ...process.env, PYTHONPATH: 'src', PHISHING_LOCAL_API_TOKEN: token }, stdio: ['ignore', 'ignore', 'pipe'],
   });
   let stderr = '';
@@ -145,6 +146,14 @@ try {
   await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 1, 'warning banner visible');
   await mkdir(path.join(project, 'artifacts/smoke'), { recursive: true });
   await page.locator('#nckh-phishing-demo-banner').screenshot({ path: path.join(project, 'artifacts/smoke/banner-preview.png') });
+  await popup.locator('#show-banner').uncheck();
+  await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 0, 'visible banner dismissed after toggle');
+  assert.equal((await savedState()).verdict, 'warning');
+  checks.push('banner_toggle_dismisses_current_banner');
+  await popup.locator('#show-banner').check();
+  await eventually(async () => await worker.evaluate(async () => (await chrome.storage.local.get('showBanner')).showBanner) === true, 'page notifications re-enabled');
+  await page.goto(`${origin}/login.html?banner_timer=1`);
+  await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 1, 'warning banner visible after re-enable');
   await eventually(async () => await page.locator('#nckh-phishing-demo-banner').count() === 0, 'warning banner auto-dismissed', 11000);
   assert.equal((await savedState()).verdict, 'warning');
   checks.push('banner_auto_dismiss_keeps_popup_result');
@@ -301,7 +310,7 @@ try {
         summary[phase][field] = { n: values.length, p50_ms: percentile(values, 0.5), p95_ms: percentile(values, 0.95) };
       }
     }
-    const bundleManifest = JSON.parse(await readFile(path.join(selectedBundle ?? path.join(project, 'artifacts/models/synthetic-demo-observed-v1'), 'manifest.json'), 'utf8'));
+    const bundleManifest = JSON.parse(await readFile(path.join(demoBundle, 'manifest.json'), 'utf8'));
     const latencyReport = { checked_at: report.checked_at, research_evidence: false,
       scope: 'headless Chromium loopback synthetic integration; sequential settled requests',
       client_roundtrip_definition: 'service worker before serialization/fetch through response parse/validation; includes retry delay if any',

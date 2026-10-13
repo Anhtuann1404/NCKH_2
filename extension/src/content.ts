@@ -113,11 +113,10 @@ async function configure() {
 chrome.runtime.onMessage.addListener(message => {
   if (message?.type === 'analysis_state') show(message.state);
   if (message?.type === 'config_changed') void configure();
-});
-chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !('showBanner' in changes)) return;
-  showBanner = changes.showBanner.newValue !== false;
-  if (!showBanner) dismissBanner();
+  if (message?.type === 'banner_visibility_changed') {
+    showBanner = message.showBanner !== false;
+    if (!showBanner) dismissBanner();
+  }
 });
 const observer = new MutationObserver(records => {
   if (records.every(record => {

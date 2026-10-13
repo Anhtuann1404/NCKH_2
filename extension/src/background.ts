@@ -115,7 +115,15 @@ chrome.tabs.onRemoved.addListener(tabId => {
   void chrome.storage.session.remove(key(tabId));
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local' || !['enabled', 'analyzeContent', 'token'].some(name => name in changes)) return;
+  if (area !== 'local') return;
+  if ('showBanner' in changes) {
+    void chrome.tabs.query({}).then(async tabs => {
+      for (const tab of tabs) if (tab.id !== undefined) {
+        try { await chrome.tabs.sendMessage(tab.id, { type: 'banner_visibility_changed', showBanner: changes.showBanner.newValue !== false }); } catch { /* restricted/closed tab */ }
+      }
+    });
+  }
+  if (!['enabled', 'analyzeContent', 'token'].some(name => name in changes)) return;
   void initialized.then(async () => {
     for (const job of jobs.values()) job.abort.abort();
     states.clear();
