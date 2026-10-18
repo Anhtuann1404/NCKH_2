@@ -1,0 +1,21 @@
+{
+  "scope": "DEV-01 synthetic fixture scaffold only",
+  "verified_on": "2026-10-04",
+  "python": "3.14.6",
+  "implementation": "CPython",
+  "platform": "darwin",
+  "machine": "arm64",
+  "external_runtime_dependencies": {},
+  "environment_tools": {
+    "pip": "26.1.2"
+  },
+  "preprocessing_version": "snapshot-dev-0",
+  "feature_version": "features-dev-0",
+  "research_pipeline_frozen": false,
+  "notes": [
+    "All current research modules and tests use only the Python standard library.",
+    "DeepSeek Bridge is separate and is not imported or called by this scaffold.",
+    "Training/API/extension dependencies will be locked after compatibility checks.",
+    "The Python version above records the verified environment; Python >=3.11 is the intended minimum, not a tested cross-version guarantee."
+  ]
+}
