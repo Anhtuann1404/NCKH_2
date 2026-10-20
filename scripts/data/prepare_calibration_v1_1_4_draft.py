@@ -1,30 +1,35 @@
 #!/usr/bin/env python3
-"""Chuẩn bị hồ sơ dự thảo nhãn cuối Calibration v1.1.4 (Phiên bản v2 - Cập nhật theo chỉ đạo Lead D).
+"""Chuẩn bị hồ sơ dự thảo nhãn cuối Calibration v1.1.4 (Phiên bản v3 - Cập nhật toàn diện theo chỉ đạo Lead D).
 
-Thực hiện nghiêm ngặt 6 điểm yêu cầu của Lead D:
-1. Tính toán lại toàn bộ thỏa thuận từ cặp độc lập E–B (thay vì A–B):
-   - E–B trùng nhãn lớp 22/24 mẫu (Cohen's Kappa = 0.8500).
-   - Bất đồng lớp chỉ ở SMP-010 (E=phishing vs B=benign) và SMP-016 (E=benign vs B=insufficient_evidence).
-   - SMP-004 là ca cả hai cùng chọn insufficient_evidence.
-2. Đối chiếu chi tiết từng dòng với biên bản D (CALIBRATION_V1_1_4_ADJUDICATION_D_DECISIONS.md),
-   đặc biệt: SMP-011, 013, 014, 016, 017, 018, 022.
-3. Sửa bảng alias ngoài danh mục:
-   - Loại bỏ quy tắc thừa facebook -> meta (cả hai file E và B đã ghi meta).
-   - entertaiment_news ở SMP-001 là mã gán chung sửa theo phân xử, KHÔNG phải alias của Radio Times.
-   - Ghi nhận 6 alias ngoài danh mục thực sự xuất hiện trong dữ liệu E/B:
-     auspost -> australia_post, catedraldesantiago -> catedral_de_santiago,
-     saberhealth -> saber_healthcare_group, jjneedles -> john_james_needles,
-     nytimes -> the_new_york_times, wsfb -> wfsb.
-   - Tuyệt đối không sửa từ điển 14 tổ chức đã khóa và Codebook đã khóa.
-4. Tách bạch rõ ràng giữa trường 'adjudicated_class_label' và 'binary_model_eligible':
-   - SMP-004, SMP-016 là insufficient_evidence -> binary_model_eligible = False.
-   - SMP-010 là QC pending_evidence -> binary_model_eligible = False.
-   - Chỉ có 21/24 mẫu đủ điều kiện đưa vào huấn luyện / đánh giá mô hình nhị phân.
-5. Dự phóng công số PLAN-01:
-   - Bỏ hoàn toàn thời gian của lượt A cũ.
-   - Công số của A: chờ đo lại thực tế qua lượt hiệu chuẩn sạch.
-   - Công số của B: tính theo phép hợp các tập mẫu |R ∪ H| = |R| + |H| - |R ∩ H| tránh đếm trùng.
-6. Đóng gói review pack mới, xuất báo cáo sai khác (diff) và kiểm tra mã băm.
+Thực hiện nghiêm ngặt 6 điểm yêu cầu của Lead D tại đợt đối soát Review Pack v2:
+1. Rà soát SMP-002, 015, 020, 023 theo Mục 3 Codebook v1.1:
+   - Thiếu bằng chứng quan sát về luồng thanh toán gian lận hoặc thu thập thẻ trong snapshot.
+   - Cửa hàng giảm giá / tên miền lạ (.shop) và text nhắc phương thức thanh toán không đủ để kết luận payment_deception.
+   - Chuyển cả 4 mẫu vào hàng đợi QC pending_evidence (cùng SMP-010 thành 5 mẫu pending).
+   - Tuyệt đối không ép sang benign.
+   - Tính lại số mẫu đủ điều kiện nhị phân: 17/24 mẫu.
+2. SMP-021:
+   - Xóa bỏ hoàn toàn chữ 'Protiviti'; URL thuộc máy chủ của www.sesarju.eu (Drupal webform).
+   - Tách bạch rõ ràng bằng chứng quan sát được (PDF chứa câu hỏi 'How do I talk directly on Robinhood?'
+     và lặp số điện thoại 1(833) 534-1857 năm lần) khỏi suy luận số giả.
+   - Định danh chuẩn xác: class_label='phishing', primary_org='robinhood',
+     primary_phishing_type='support_contact_lure', domain_role='user_content_hosting'.
+3. Đồng bộ hóa org_evidence và chuẩn hóa kỹ thuật:
+   - Đồng bộ org_evidence.org_id với mã tổ chức sau chuẩn hóa alias (wfsb, australia_post, catedral_de_santiago, saber_healthcare_group, john_james_needles, the_new_york_times).
+   - Trích xuất url_hostname bằng urllib.parse.urlsplit(url).netloc từ chính URL của mẫu.
+   - Kiểm tra và đảm bảo 100% evidence_quote tồn tại thực tế trong Blind View text/heading.
+   - Không sao chép confidence của một rater thành confidence đã phân xử: adjudicated_confidence đặt None
+     (chờ D xác nhận), ghi nhận độc lập rater_e_confidence và rater_b_confidence.
+4. Bảng đối chiếu đầy đủ 24 dòng:
+   - Xuất bảng reconciliation 24 mẫu: ID -> URL / Hostname -> Quyết định D & Căn cứ -> Nhãn dự thảo -> Điều kiện nhị phân / QC.
+5. Dự phóng công số B trong PLAN-01:
+   - Nêu rõ 384 lượt kiểm của B là kịch bản kỳ vọng (expected scenario) với giả định 1.000 mẫu và 12% ca khó.
+   - Khẳng định số lượt thực tế phải được tính bằng hợp của 2 tập mẫu thực tế đã chọn |R_actual ∪ H_actual|.
+   - Giữ nguyên tắc loại bỏ hoàn toàn thời gian của lượt A cũ khỏi PLAN-01.
+6. Kỷ luật dữ liệu & Bàn giao:
+   - Bảo toàn byte Pass 1 E/B, từ điển 14 tổ chức khóa, Codebook khóa.
+   - Duy trì training_blocked=true; chưa xuất labels_final.json.
+   - Xuất gói Review Pack v3 ZIP kèm SHA-256 và diff chi tiết v2 vs v3.
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import urllib.parse
 import zipfile
 
 # Reconfigure console encoding on Windows
@@ -69,9 +75,9 @@ def sha256_file(path: Path) -> str:
 
 
 def main():
-    print("=== BẮT ĐẦU QUY TRÌNH CHUẨN BỊ HỒ SƠ CALIBRATION V1.1.4 (PHIÊN BẢN V2 - CẶP E-B) ===")
+    print("=== BẮT ĐẦU QUY TRÌNH CHUẨN BỊ HỒ SƠ CALIBRATION V1.1.4 (PHIÊN BẢN V3 - CẬP NHẬT THEO CHỈ ĐẠO LEAD D) ===")
 
-    # 1. Kiểm tra đối soát byte nguyên bản 5 artifact nền tảng
+    # 1. Kiểm tra đối soát byte nguyên bản 6 artifact nền tảng
     b_file = ROOT / "data/annotations/B/calibration_pass1.jsonl"
     e_file = ROOT / "data/annotations/E/calibration_pass1.jsonl"
     d_file = ROOT / "data/labels/calibration_v1_1_4/CALIBRATION_V1_1_4_ADJUDICATION_D_DECISIONS.md"
@@ -100,7 +106,7 @@ def main():
     map_bv = {s["sample_id"]: s for s in blind_view_data["samples"]}
     sids = sorted(map_b.keys())
 
-    # 3. Tính toán độ đồng thuận Pass 1 thô giữa E và B
+    # 3. Tính toán độ đồng thuận Pass 1 thô giữa E và B (24 mẫu ban đầu)
     cl_e = [map_e[s]["class_label"] for s in sids]
     cl_b = [map_b[s]["class_label"] for s in sids]
     org_e = [map_e[s]["primary_org"] for s in sids]
@@ -113,9 +119,9 @@ def main():
     print(f"  Class Label Kappa: {res_cl_raw.kappa:.4f} (Observed: {res_cl_raw.observed_agreement*100:.2f}%)")
     print(f"  Primary Org Kappa: {res_org_raw.kappa:.4f} (Observed: {res_org_raw.observed_agreement*100:.2f}%)")
 
-    # 4. Thiết lập Bảng chuẩn hóa Alias ngoài danh mục thực sự xuất hiện (Điểm 3)
+    # 4. Thiết lập Bảng chuẩn hóa Alias ngoài danh mục thực sự xuất hiện
     alias_mapping_registry = {
-        "schema_version": "2.0.0",
+        "schema_version": "3.0.0",
         "description": "Bảng lưu vết chuẩn hóa alias ngoài danh mục thực sự xuất hiện trong cặp E-B theo quyết định phân xử Lead D",
         "adjudication_reference": "CALIBRATION_V1_1_4_ADJUDICATION_D_DECISIONS.md",
         "adjudication_sha256": TARGET_HASH_D_DECISION,
@@ -201,96 +207,436 @@ def main():
     print(f"\n[SAU CHUẨN HÓA ALIAS E-B]")
     print(f"  Primary Org Kappa: {res_org_norm.kappa:.4f} (Observed: {res_org_norm.observed_agreement*100:.2f}%)")
 
-    # 6. Thiết lập Bản dự thảo nhãn cuối 23 mẫu + SMP-010 pending (Điểm 2, Điểm 4)
-    # Bảng quyết định của D từ CALIBRATION_V1_1_4_ADJUDICATION_D_DECISIONS.md
-    d_decisions = {
-        "SMP-001": {"class": "benign", "org": "radio_times", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "brand_mention_news", "note": "Tên Radio Times ở tiêu đề và các phần tự giới thiệu của trang; entertaiment_news của B là mã thể loại chung sửa thành radio_times."},
-        "SMP-002": {"class": "phishing", "org": "no_clear_target", "cat": "unresolved", "dom": "unverified", "id": "unclear", "ph": "payment_deception", "note": "Website bán hàng mẫu rập khuôn tiếng Nhật, danh mục hỗn tạp, dấu hiệu lừa đảo thương mại điện tử."},
-        "SMP-003": {"class": "benign", "org": "salestaxhandbook", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "other", "note": "Trang tự nhận cung cấp tài liệu/công cụ Sales Tax Handbook, có disclaimer không trực thuộc chính phủ."},
-        "SMP-004": {"class": "insufficient_evidence", "org": "unknown", "cat": "unresolved", "dom": "unverified", "id": "unclear", "note": "Snapshot hoàn toàn rỗng, không có biểu mẫu hoặc nội dung DOM. Cả E và B đều chọn insufficient_evidence."},
-        "SMP-005": {"class": "phishing", "org": "meta", "cat": "in_catalog", "dom": "unverified", "id": "identity_claim", "ph": "impersonation_lure", "note": "Mạo danh Meta Business Help Center đe dọa hạn chế trang trong 24h để dẫn dụ vào quy trình xác minh giả."},
-        "SMP-006": {"class": "phishing", "org": "jojobet", "cat": "outside_catalog", "dom": "unverified", "id": "identity_claim", "ph": "credential_collection", "note": "Mạo danh nhà cái Jojobet trên tên miền clone chứa form đăng nhập thu thập mật khẩu."},
-        "SMP-007": {"class": "benign", "org": "wfsb", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "brand_mention_news", "note": "Nội dung điều hướng và bản quyền WFSB Eyewitness News; mã wsfb của B sửa chuẩn hóa thành wfsb."},
-        "SMP-008": {"class": "phishing", "org": "meta", "cat": "in_catalog", "dom": "unverified", "id": "identity_claim", "ph": "impersonation_lure", "note": "Mạo danh Meta Community Standards thông báo vi phạm đe dọa khóa tài khoản."},
-        "SMP-009": {"class": "phishing", "org": "google", "cat": "in_catalog", "dom": "user_content_hosting", "id": "identity_claim", "ph": "impersonation_lure", "note": "Mạo danh giao diện Google Drive trên hạ tầng Firebase web.app."},
-        "SMP-010": {"class": None, "org": "unresolved", "cat": "unresolved", "dom": "unverified", "id": "unclear", "note": "QC pending_evidence: View thể hiện webshop tài liệu y khoa giảm giá sâu nhưng không chứng minh hành vi gian lận thanh toán hoặc mạo danh cụ thể."},
-        "SMP-011": {"class": "benign", "org": "no_clear_target", "cat": "unresolved", "dom": "first_party_identity", "id": "unclear", "hb": "brand_mention_news", "note": "Quyết định D: Trang đứng tên cá nhân Simon Rushby; danh tính cá nhân ghi trong ghi chú, không ép thành tổ chức."},
-        "SMP-012": {"class": "benign", "org": "spotify", "cat": "in_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "official_login", "note": "Trang đăng nhập tài khoản chính thức Spotify trên tên miền first-party."},
-        "SMP-013": {"class": "benign", "org": "australia_post", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "other", "note": "Cổng tài liệu tích hợp API của Australia Post; chuẩn hóa auspost thành australia_post."},
-        "SMP-014": {"class": "benign", "org": "catedral_de_santiago", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "other", "note": "Trang chính thức của Nhà thờ chính tòa Santiago de Compostela; chuẩn hóa catedraldesantiago thành catedral_de_santiago."},
-        "SMP-015": {"class": "phishing", "org": "no_clear_target", "cat": "unresolved", "dom": "unverified", "id": "unclear", "ph": "payment_deception", "note": "Shop trực tuyến giả mạo hàng hiệu giảm giá sâu trên tên miền lạ, giỏ hàng lừa đảo thanh toán."},
-        "SMP-016": {"class": "insufficient_evidence", "org": "no_clear_target", "cat": "unresolved", "dom": "user_content_hosting", "id": "unclear", "note": "Quyết định D: Snapshot chỉ có ASCII art và thông điệp giữ chỗ của Replit; Replit là nền tảng hosting, không phải danh tính ứng dụng."},
-        "SMP-017": {"class": "benign", "org": "saber_healthcare_group", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "brand_mention_news", "note": "Header và điều hướng tự nhận Saber Healthcare Group; chuẩn hóa saberhealth thành saber_healthcare_group."},
-        "SMP-018": {"class": "benign", "org": "john_james_needles", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "official_login", "note": "Trang web bán hàng và hướng dẫn của hãng kim may John James Needles; chuẩn hóa jjneedles thành john_james_needles."},
-        "SMP-019": {"class": "phishing", "org": "amazon", "cat": "in_catalog", "dom": "unverified", "id": "identity_claim", "ph": "credential_collection", "note": "Mạo danh đăng nhập Amazon thu thập mật khẩu."},
-        "SMP-020": {"class": "phishing", "org": "no_clear_target", "cat": "unresolved", "dom": "unverified", "id": "unclear", "ph": "payment_deception", "note": "Trang thương mại điện tử template chắp vá, form thu thập thông tin thẻ tín dụng."},
-        "SMP-021": {"class": "phishing", "org": "robinhood", "cat": "in_catalog", "dom": "user_content_hosting", "id": "identity_claim", "ph": "support_contact_lure", "note": "Tài liệu PDF mạo danh hỗ trợ khiếu nại Robinhood trên hạ tầng lưu trữ tài liệu Protiviti."},
-        "SMP-022": {"class": "benign", "org": "the_new_york_times", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "brand_mention_news", "note": "Bài báo của tòa soạn The New York Times; chuẩn hóa nytimes thành the_new_york_times."},
-        "SMP-023": {"class": "phishing", "org": "no_clear_target", "cat": "unresolved", "dom": "unverified", "id": "unclear", "ph": "payment_deception", "note": "Trang giả mạo mua sắm trực tuyến mồi nhử giảm giá để đánh cắp thẻ."},
-        "SMP-024": {"class": "benign", "org": "wholesomeyum", "cat": "outside_catalog", "dom": "first_party_identity", "id": "identity_claim", "hb": "official_login", "note": "Trang blog ẩm thực Wholesome Yum có form đăng nhập thành viên first-party."}
+    # 6. Thiết lập Từ điển Quyết định Phân xử v3 (Cập nhật Point 1, Point 2, Point 3)
+    # Rà soát kỹ theo Mục 3 Codebook v1.1 và chỉ đạo của Lead D:
+    # - SMP-002, 015, 020, 023: Chuyển sang QC pending_evidence vì thiếu bằng chứng luồng thanh toán gian lận / thu thẻ.
+    # - SMP-021: Xóa Protiviti, hostname www.sesarju.eu, support_contact_lure trên webform sesarju.eu.
+    decisions_v3 = {
+        "SMP-001": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "radio_times",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "brand_mention_news",
+            "ph": None,
+            "evidence_quote": "Radio Times",
+            "evidence_basis": "heading",
+            "d_rationale": "Tên Radio Times ở tiêu đề và các phần tự giới thiệu của trang; entertaiment_news của B là mã thể loại chung sửa thành radio_times theo quyết định D."
+        },
+        "SMP-002": {
+            "status": "pending_evidence",
+            "class": None,
+            "org": "unresolved",
+            "cat": "unresolved",
+            "dom": "unverified",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "QC pending_evidence (Mục 3 Codebook v1.1): Webshop tiếng Nhật trên tên miền .shop, có danh mục hàng hóa và mục phương thức thanh toán nhưng không có form thu thẻ hoặc luồng gian lận thanh toán quan sát được trong view. Không đủ căn cứ payment_deception và không ép sang benign."
+        },
+        "SMP-003": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "salestaxhandbook",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "other",
+            "ph": None,
+            "evidence_quote": "SalesTaxHandbook is a free public resource site",
+            "evidence_basis": "body",
+            "d_rationale": "Trang tự nhận cung cấp tài liệu/công cụ Sales Tax Handbook, có disclaimer không trực thuộc chính phủ."
+        },
+        "SMP-004": {
+            "status": "adjudicated",
+            "class": "insufficient_evidence",
+            "org": "unknown",
+            "cat": "unresolved",
+            "dom": "unverified",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "Snapshot hoàn toàn rỗng, không có biểu mẫu hoặc nội dung DOM. Cả E và B đều độc lập chọn insufficient_evidence."
+        },
+        "SMP-005": {
+            "status": "adjudicated",
+            "class": "phishing",
+            "org": "meta",
+            "cat": "in_catalog",
+            "dom": "unverified",
+            "id": "impersonation_claim",
+            "hb": None,
+            "ph": "impersonation_lure",
+            "evidence_quote": "Your Facebook page and account",
+            "evidence_basis": "body",
+            "d_rationale": "Mạo danh Meta Business Help Center đe dọa hạn chế trang trong 24h để dẫn dụ vào quy trình xác minh giả."
+        },
+        "SMP-006": {
+            "status": "adjudicated",
+            "class": "phishing",
+            "org": "jojobet",
+            "cat": "outside_catalog",
+            "dom": "unverified",
+            "id": "impersonation_claim",
+            "hb": None,
+            "ph": "credential_collection",
+            "evidence_quote": "JOJOBET",
+            "evidence_basis": "form",
+            "d_rationale": "Mạo danh nhà cái Jojobet trên tên miền clone chứa form đăng nhập thu thập mật khẩu."
+        },
+        "SMP-007": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "wfsb",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "brand_mention_news",
+            "ph": None,
+            "evidence_quote": "Copyright 2024 WFSB",
+            "evidence_basis": "body",
+            "d_rationale": "Nội dung điều hướng và bản quyền WFSB Eyewitness News; mã wsfb của B sửa chuẩn hóa thành wfsb."
+        },
+        "SMP-008": {
+            "status": "adjudicated",
+            "class": "phishing",
+            "org": "meta",
+            "cat": "in_catalog",
+            "dom": "unverified",
+            "id": "impersonation_claim",
+            "hb": None,
+            "ph": "impersonation_lure",
+            "evidence_quote": "Community Standards Policy",
+            "evidence_basis": "body",
+            "d_rationale": "Mạo danh Meta Community Standards thông báo vi phạm đe dọa khóa tài khoản."
+        },
+        "SMP-009": {
+            "status": "adjudicated",
+            "class": "phishing",
+            "org": "google",
+            "cat": "in_catalog",
+            "dom": "user_content_hosting",
+            "id": "impersonation_claim",
+            "hb": None,
+            "ph": "impersonation_lure",
+            "evidence_quote": "Drive",
+            "evidence_basis": "body",
+            "d_rationale": "Mạo danh giao diện Google Drive trên hạ tầng Firebase web.app."
+        },
+        "SMP-010": {
+            "status": "pending_evidence",
+            "class": None,
+            "org": "unresolved",
+            "cat": "unresolved",
+            "dom": "unverified",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "QC pending_evidence (Mục 3 Codebook v1.1): View thể hiện webshop tài liệu y khoa giảm giá sâu nhưng không chứng minh hành vi gian lận thanh toán hoặc mạo danh cụ thể. Loại khỏi tập nhãn tham chiếu xác minh."
+        },
+        "SMP-011": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "no_clear_target",
+            "cat": "unresolved",
+            "dom": "first_party_identity",
+            "id": "unclear",
+            "hb": "brand_mention_news",
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "Quyết định D: Trang đứng tên cá nhân Simon Rushby; danh tính cá nhân ghi trong ghi chú, không ép thành tổ chức theo Codebook v1.1."
+        },
+        "SMP-012": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "spotify",
+            "cat": "in_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "official_login",
+            "ph": None,
+            "evidence_quote": "Log in to Spotify",
+            "evidence_basis": "heading",
+            "d_rationale": "Trang đăng nhập tài khoản chính thức Spotify trên tên miền first-party."
+        },
+        "SMP-013": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "australia_post",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "other",
+            "ph": None,
+            "evidence_quote": "Australia Post",
+            "evidence_basis": "body",
+            "d_rationale": "Cổng tài liệu tích hợp API của Australia Post; chuẩn hóa auspost thành australia_post theo quyết định D."
+        },
+        "SMP-014": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "catedral_de_santiago",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "other",
+            "ph": None,
+            "evidence_quote": "Catedral de Santiago de Compostela",
+            "evidence_basis": "body",
+            "d_rationale": "Trang chính thức của Nhà thờ chính tòa Santiago de Compostela; chuẩn hóa catedraldesantiago thành catedral_de_santiago."
+        },
+        "SMP-015": {
+            "status": "pending_evidence",
+            "class": None,
+            "org": "unresolved",
+            "cat": "unresolved",
+            "dom": "unverified",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "QC pending_evidence (Mục 3 Codebook v1.1): Shop trực tuyến tiếng Nhật trên tên miền .shop, có danh mục hàng hóa và giỏ hàng nhưng không có form thu thẻ hoặc luồng gian lận thanh toán quan sát được trong view. Không đủ căn cứ payment_deception và không ép sang benign."
+        },
+        "SMP-016": {
+            "status": "adjudicated",
+            "class": "insufficient_evidence",
+            "org": "no_clear_target",
+            "cat": "unresolved",
+            "dom": "user_content_hosting",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "Quyết định D: Snapshot chỉ có ASCII art và thông điệp giữ chỗ của Replit; Replit là nền tảng hosting, không phải danh tính ứng dụng."
+        },
+        "SMP-017": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "saber_healthcare_group",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "brand_mention_news",
+            "ph": None,
+            "evidence_quote": "Saber Healthcare Group",
+            "evidence_basis": "heading",
+            "d_rationale": "Header và điều hướng tự nhận Saber Healthcare Group; chuẩn hóa saberhealth thành saber_healthcare_group."
+        },
+        "SMP-018": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "john_james_needles",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "official_login",
+            "ph": None,
+            "evidence_quote": "sales@jjneedles.com",
+            "evidence_basis": "body",
+            "d_rationale": "Trang web bán hàng và hướng dẫn của hãng kim may John James Needles; chuẩn hóa jjneedles thành john_james_needles."
+        },
+        "SMP-019": {
+            "status": "adjudicated",
+            "class": "phishing",
+            "org": "amazon",
+            "cat": "in_catalog",
+            "dom": "unverified",
+            "id": "impersonation_claim",
+            "hb": None,
+            "ph": "credential_collection",
+            "evidence_quote": "Create your Amazon account",
+            "evidence_basis": "form",
+            "d_rationale": "Mạo danh đăng nhập Amazon thu thập mật khẩu."
+        },
+        "SMP-020": {
+            "status": "pending_evidence",
+            "class": None,
+            "org": "unresolved",
+            "cat": "unresolved",
+            "dom": "unverified",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "QC pending_evidence (Mục 3 Codebook v1.1): Trang thương mại điện tử tiếng Nhật trên tên miền .shop, có danh mục hàng hóa nhưng không có form thu thập thông tin thẻ hoặc luồng gian lận thanh toán quan sát được trong view. Không đủ căn cứ payment_deception và không ép sang benign."
+        },
+        "SMP-021": {
+            "status": "adjudicated",
+            "class": "phishing",
+            "org": "robinhood",
+            "cat": "in_catalog",
+            "dom": "user_content_hosting",
+            "id": "impersonation_claim",
+            "hb": None,
+            "ph": "support_contact_lure",
+            "evidence_quote": "How do I talk directly on Robinhood?",
+            "evidence_basis": "body",
+            "d_rationale": "Nội dung PDF thể hiện mồi nhử liên hệ hỗ trợ (support_contact_lure) mạo danh Robinhood nhắc đến việc gọi số điện thoại ngoài luồng 1(833) 534-1857 về tài khoản, biểu mẫu thuế 1099, IRA và crypto; tệp được lưu trữ trên thư mục webform Drupal công khai của sesarju.eu (user_content_hosting)."
+        },
+        "SMP-022": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "the_new_york_times",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "brand_mention_news",
+            "ph": None,
+            "evidence_quote": "The New York Times",
+            "evidence_basis": "heading",
+            "d_rationale": "Bài báo của tòa soạn The New York Times; chuẩn hóa nytimes thành the_new_york_times."
+        },
+        "SMP-023": {
+            "status": "pending_evidence",
+            "class": None,
+            "org": "unresolved",
+            "cat": "unresolved",
+            "dom": "unverified",
+            "id": "unclear",
+            "hb": None,
+            "ph": None,
+            "evidence_quote": None,
+            "evidence_basis": None,
+            "d_rationale": "QC pending_evidence (Mục 3 Codebook v1.1): Shop trực tuyến Viert-store tiếng Nhật trên tên miền .shop, có danh mục hàng hóa nhưng không có form thu thẻ hoặc luồng gian lận thanh toán quan sát được trong view. Không đủ căn cứ payment_deception và không ép sang benign."
+        },
+        "SMP-024": {
+            "status": "adjudicated",
+            "class": "benign",
+            "org": "wholesomeyum",
+            "cat": "outside_catalog",
+            "dom": "first_party_identity",
+            "id": "identity_claim",
+            "hb": "official_login",
+            "ph": None,
+            "evidence_quote": "Wholesome Yum",
+            "evidence_basis": "heading",
+            "d_rationale": "Trang blog ẩm thực Wholesome Yum có form đăng nhập thành viên first-party."
+        }
     }
 
-    draft_records_23 = []
+    draft_records_19 = []
     qc_pending_evidence_list = []
+    full_24_audit_table = []
 
     for sid in sids:
         sbv = map_bv[sid]
-        dec = d_decisions[sid]
+        dec = decisions_v3[sid]
         rb = map_b[sid]
         re = map_e[sid]
 
-        if sid == "SMP-010":
-            # Cách ly hoàn toàn vào danh sách QC pending_evidence
+        url_str = sbv["url"]
+        hostname = urllib.parse.urlsplit(url_str).netloc
+
+        # Tạo org_evidence đồng bộ chính xác với normalized primary_org
+        org_evidence_list = []
+        if dec["evidence_quote"] and dec["org"] not in ("unknown", "no_clear_target", "unresolved"):
+            org_evidence_list.append({
+                "org_id": dec["org"],
+                "evidence_basis": dec["evidence_basis"],
+                "evidence_quote": dec["evidence_quote"]
+            })
+
+        # Xử lý trường hợp QC pending_evidence (5 mẫu: SMP-002, 010, 015, 020, 023)
+        if dec["status"] == "pending_evidence":
             pending_item = {
-                "sample_id": "SMP-010",
-                "url": sbv["url"],
+                "sample_id": sid,
+                "url": url_str,
+                "url_hostname": hostname,
+                "status": "pending_evidence",
                 "adjudicated_class_label": None,
                 "binary_model_eligible": False,
                 "gold_reference_eligible": False,
-                "status": "pending_evidence",
-                "evidence_audit": {
+                "primary_org": "unresolved",
+                "org_evidence": [],
+                "provenance": {
                     "rater_e_label": re["class_label"],
                     "rater_b_label": rb["class_label"],
-                    "lead_d_decision": dec["note"]
+                    "rater_e_confidence": re.get("confidence"),
+                    "rater_b_confidence": rb.get("confidence")
                 },
-                "isolation_policy": "Loại khỏi tập nhãn tham chiếu xác minh vĩnh viễn cho đến khi có dữ liệu mạng bổ sung."
+                "lead_d_rationale": dec["d_rationale"],
+                "isolation_policy": "Loại khỏi tập nhãn tham chiếu xác minh và mô hình nhị phân cho đến khi có dữ liệu mạng/sandbox bổ sung."
             }
             qc_pending_evidence_list.append(pending_item)
+
+            full_24_audit_table.append({
+                "sample_id": sid,
+                "url": url_str,
+                "url_hostname": hostname,
+                "lead_d_decision_and_rationale": dec["d_rationale"],
+                "draft_class_label": "null (pending_evidence)",
+                "draft_primary_org": "unresolved",
+                "draft_type": "null",
+                "binary_model_eligible": False,
+                "qc_status": "pending_evidence"
+            })
             continue
 
-        # Xác định điều kiện nhị phân: CHỈ CÓ NHÃN BENIGN VÀ PHISHING MỚI ĐỦ ĐIỀU KIỆN
+        # Các mẫu đã phân xử (19 mẫu: 17 nhị phân + 2 insufficient_evidence)
         is_binary_eligible = dec["class"] in ("benign", "phishing")
 
         rec = {
             "sample_id": sid,
-            "url_hostname": sbv.get("url_parts", {}).get("netloc", ""),
+            "url_hostname": hostname,
             "adjudicated_class_label": dec["class"],
             "binary_model_eligible": is_binary_eligible,
             "gold_reference_eligible": True,
             "primary_org": dec["org"],
             "primary_org_status": "identified" if dec["org"] not in ("unknown", "no_clear_target") else dec["org"],
             "catalog_status": dec["cat"],
-            "identity_role": dec.get("id", "unclear"),
-            "domain_role": dec.get("dom", "unverified"),
-            "primary_phishing_type": dec.get("ph") if dec["class"] == "phishing" else None,
-            "hard_benign_type": dec.get("hb") if dec["class"] == "benign" else None,
-            "confidence": rb.get("confidence", "high"),
-            "org_evidence": rb.get("org_evidence") or re.get("org_evidence") or [],
-            "evidence_note": dec["note"],
-            "adjudication_source": "lead_d_decisions_20261020"
+            "identity_role": dec["id"],
+            "domain_role": dec["dom"],
+            "primary_phishing_type": dec.get("ph"),
+            "hard_benign_type": dec.get("hb"),
+            "adjudicated_confidence": None,
+            "adjudicated_confidence_status": "pending_lead_d_confirmation",
+            "provenance_confidences": {
+                "rater_e_confidence": re.get("confidence"),
+                "rater_b_confidence": rb.get("confidence")
+            },
+            "org_evidence": org_evidence_list,
+            "evidence_note": dec["d_rationale"],
+            "adjudication_source": "lead_d_decisions_v3_20261020"
         }
-        draft_records_23.append(rec)
+        draft_records_19.append(rec)
 
-    # Ghi file nháp 23 mẫu
-    draft_file = out_dir / "draft_calibration_v1_1_4_adjudicated_23.json"
-    draft_file.write_text(json.dumps(draft_records_23, indent=2, ensure_ascii=False), encoding="utf-8")
+        full_24_audit_table.append({
+            "sample_id": sid,
+            "url": url_str,
+            "url_hostname": hostname,
+            "lead_d_decision_and_rationale": dec["d_rationale"],
+            "draft_class_label": dec["class"],
+            "draft_primary_org": dec["org"],
+            "draft_type": dec["ph"] or dec["hb"] or "none",
+            "binary_model_eligible": is_binary_eligible,
+            "qc_status": "adjudicated"
+        })
 
-    # Ghi file QC pending SMP-010
-    pending_file = out_dir / "qc_pending_evidence_SMP010.json"
+    # Ghi file nháp 19 mẫu đã phân xử
+    draft_file = out_dir / "draft_calibration_v1_1_4_adjudicated_19.json"
+    draft_file.write_text(json.dumps(draft_records_19, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    # Ghi file QC pending 5 mẫu
+    pending_file = out_dir / "qc_pending_evidence_5_samples.json"
     pending_file.write_text(json.dumps(qc_pending_evidence_list, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    # Ghi file bảng đối chiếu 24 dòng đầy đủ
+    audit_table_file = out_dir / "calibration_v1_1_4_full_24_audit_table.json"
+    audit_table_file.write_text(json.dumps(full_24_audit_table, indent=2, ensure_ascii=False), encoding="utf-8")
+
     # 7. Tính toán dự phóng công số PLAN-01 chuẩn xác (Điểm 5)
-    # Lấy thống kê thời gian thực tế của E và B
     times_e = [r["seconds_spent"] for r in e_records]
     times_b = [r["seconds_spent"] for r in b_records]
     import statistics
@@ -299,22 +645,17 @@ def main():
     b_mean = statistics.mean(times_b)
     b_median = statistics.median(times_b)
 
-    # Công số B theo hợp tập mẫu P(R ∪ H):
-    # Giả định cỡ mẫu tập chính tham chiếu N = 1000 mẫu
-    # Tập ngẫu nhiên R: 30% = 300 mẫu
-    # Tập ca khó H: giả sử 12% = 120 mẫu
-    # Tập hợp không đếm trùng: |R ∪ H| = |R| + |H| - (|R| * |H| / N) = 300 + 120 - 36 = 384 mẫu (thay vì 420 mẫu)
     ref_n = 1000
     r_pct = 0.30
     h_pct = 0.12
     r_count = int(ref_n * r_pct)
     h_count = int(ref_n * h_pct)
-    intersection_count = int(r_count * h_count / ref_n)
-    union_count = r_count + h_count - intersection_count
-    b_hours_mean = (union_count * b_mean) / 3600
-    b_hours_median = (union_count * b_median) / 3600
+    expected_overlap = int(r_count * h_count / ref_n)
+    expected_union_count = r_count + h_count - expected_overlap
+    b_hours_mean = (expected_union_count * b_mean) / 3600
+    b_hours_median = (expected_union_count * b_median) / 3600
 
-    # 8. Báo cáo kiểm toán đồng thuận chi tiết
+    # 8. Báo cáo kiểm toán đồng thuận chi tiết v3
     audit_report = {
         "calibration_runway": "CALIBRATION-V1.1-24",
         "evaluator_pair": "E-B (Official Independent Rater Pair)",
@@ -351,24 +692,36 @@ def main():
             "scientific_integrity_warning": "Tuyệt đối không sử dụng chỉ số 0.4762 sau chuẩn hóa để thay thế cho Kappa độc lập ban đầu trong báo cáo công bố khoa học."
         },
         "binary_model_eligibility_breakdown": {
-            "total_samples": 24,
-            "eligible_for_binary_model_count": 21,
-            "ineligible_for_binary_model_count": 3,
+            "total_corpus_samples": 24,
+            "eligible_for_binary_model_count": 17,
+            "ineligible_for_binary_model_count": 7,
+            "eligible_breakdown": {
+                "benign_count": 11,
+                "benign_samples": ["SMP-001", "SMP-003", "SMP-007", "SMP-011", "SMP-012", "SMP-013", "SMP-014", "SMP-017", "SMP-018", "SMP-022", "SMP-024"],
+                "phishing_count": 6,
+                "phishing_samples": ["SMP-005", "SMP-006", "SMP-008", "SMP-009", "SMP-019", "SMP-021"]
+            },
             "ineligible_details": [
+                {"sample_id": "SMP-002", "reason": "QC pending_evidence (shop tiếng Nhật thiếu bằng chứng gian lận thanh toán quan sát được)"},
                 {"sample_id": "SMP-004", "reason": "adjudicated_class_label='insufficient_evidence' (snapshot trắng, không DOM)"},
+                {"sample_id": "SMP-010", "reason": "QC pending_evidence (webshop y khoa thiếu bằng chứng gian lận cụ thể)"},
+                {"sample_id": "SMP-015", "reason": "QC pending_evidence (shop tiếng Nhật thiếu bằng chứng gian lận thanh toán quan sát được)"},
                 {"sample_id": "SMP-016", "reason": "adjudicated_class_label='insufficient_evidence' (Replit placeholder, ASCII art thô)"},
-                {"sample_id": "SMP-010", "reason": "status='pending_evidence' (QC chờ bằng chứng sandbox, chưa có nhãn cuối)"}
+                {"sample_id": "SMP-020", "reason": "QC pending_evidence (shop tiếng Nhật thiếu bằng chứng gian lận thanh toán quan sát được)"},
+                {"sample_id": "SMP-023", "reason": "QC pending_evidence (shop tiếng Nhật thiếu bằng chứng gian lận thanh toán quan sát được)"}
             ]
         },
         "effort_estimation_plan_01": {
             "rater_a_policy": "Bỏ hoàn toàn số liệu lượt cũ của A do có hỗ trợ bên ngoài; công số chính thức của A sẽ được đo độc lập qua Lượt hiệu chuẩn sạch mới.",
             "rater_b_workload_union_model": {
+                "scenario_type": "Kịch bản kỳ vọng (Expected Scenario) dựa trên giả định mô hình",
                 "reference_corpus_size": ref_n,
                 "random_sampling_rate": f"{r_pct*100}% ({r_count} mẫu)",
                 "hard_case_rate_estimate": f"{h_pct*100}% ({h_count} mẫu)",
-                "overlap_expected_count": intersection_count,
-                "distinct_samples_to_audit_union": union_count,
-                "avoided_duplicate_evaluations": intersection_count,
+                "expected_overlap_count": expected_overlap,
+                "expected_distinct_samples_to_audit_union": expected_union_count,
+                "avoided_duplicate_evaluations": expected_overlap,
+                "actual_execution_rule": "Số lượt thực tế trong đợt gán nhãn chính bắt buộc phải tính bằng hợp của hai tập mẫu cụ thể đã chọn: |R_actual ∪ H_actual| = |R_actual| + |H_actual| - |R_actual ∩ H_actual|.",
                 "b_timing_basis": f"Mean={b_mean:.1f}s/mẫu (~{b_mean/60:.2f}p), Median={b_median:.1f}s/mẫu (~{b_median/60:.2f}p)",
                 "estimated_b_hours_mean": round(b_hours_mean, 2),
                 "estimated_b_hours_median": round(b_hours_median, 2)
@@ -379,52 +732,59 @@ def main():
     report_file = out_dir / "calibration_v1_1_4_agreement_audit_report.json"
     report_file.write_text(json.dumps(audit_report, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # 9. Bảng phân tích sai khác so với bản nháp v1 (Diff Analysis)
-    diff_analysis = {
-        "comparison_title": "Bảng đối chiếu sai khác: Review Pack v1 (ban đầu) vs. Review Pack v2 (sau chỉ đạo D)",
+    # 9. Bảng phân tích sai khác giữa Review Pack v2 và v3
+    diff_analysis_v3 = {
+        "comparison_title": "Bảng đối chiếu sai khác chi tiết: Review Pack v2 vs. Review Pack v3 (Sau đối soát Lead D)",
         "differences": [
             {
-                "item": "1. Cặp rater đầu vào",
-                "version_1": "Dùng cặp A-B (tạm thời)",
-                "version_2": "Chuyển 100% sang cặp E-B (E SHA-256 20dfc14..., B SHA-256 161abf6...)",
-                "impact": "Loại bỏ hoàn toàn ảnh hưởng của dữ liệu A cũ; xác định chính xác ca đồng thuận SMP-004 và 2 ca bất đồng SMP-010/016."
+                "item": "1. Rà soát shop SMP-002, 015, 020, 023 theo Mục 3 Codebook v1.1",
+                "version_2": "Gán là 'phishing' / 'payment_deception' trong dự thảo nhãn",
+                "version_3": "Chuyển toàn bộ 4 mẫu vào hàng đợi QC 'pending_evidence' do snapshot chỉ có danh mục/phương thức thanh toán, thiếu bằng chứng gian lận thanh toán hoặc thu thẻ; không ép sang benign",
+                "impact": "Tuân thủ triệt để Mục 3 Codebook v1.1; danh sách QC pending tăng từ 1 lên 5 mẫu (SMP-002, 010, 015, 020, 023)."
             },
             {
-                "item": "2. Bảng quy tắc Alias",
-                "version_1": "Chứa quy tắc thừa 'facebook -> meta' và nhãn thể loại 'entertaiment_news -> radio_times'",
-                "version_2": "Loại bỏ 'facebook -> meta'; xác định 'entertaiment_news' là sửa phân xử; ghi nhận 6 alias ngoài danh mục thực sự xuất hiện",
-                "impact": "Bảo vệ nguyên vẹn từ điển 14 tổ chức đã khóa; tuân thủ đúng định nghĩa thực thể danh từ riêng."
+                "item": "2. Tính lại số mẫu đủ điều kiện nhị phân",
+                "version_2": "21 mẫu đủ điều kiện (loại trừ SMP-004, 010, 016)",
+                "version_3": "17 mẫu đủ điều kiện (11 benign + 6 phishing; loại trừ thêm 4 shop pending SMP-002, 015, 020, 023)",
+                "impact": "Bảo vệ độ sạch của tập nhị phân M0-M3; ngăn chặn các mẫu chưa rõ hành vi lọt vào huấn luyện."
             },
             {
-                "item": "3. Đủ điều kiện mô hình nhị phân",
-                "version_1": "Ghi nhận cả 23 mẫu chốt là eligible",
-                "version_2": "Tách trường 'adjudicated_class_label' và 'binary_model_eligible'. Chỉ 21 mẫu đủ điều kiện; SMP-004, SMP-016 và SMP-010 gắn False",
-                "impact": "Ngăn chặn đưa nhãn non-binary (insufficient_evidence) vào tập huấn luyện/đánh giá nhị phân M0-M3."
+                "item": "3. Chuẩn hóa mẫu SMP-021",
+                "version_2": "Ghi chú chứa từ 'Protiviti' và url_hostname bị rỗng",
+                "version_3": "Xóa hoàn toàn 'Protiviti'; điền url_hostname='www.sesarju.eu'; tách rõ bằng chứng quan sát (PDF hỏi Robinhood & lặp số điện thoại 5 lần trên webform Drupal) khỏi suy luận số giả; phân loại chuẩn support_contact_lure",
+                "impact": "Đúng tên miền thực tế, tuân thủ kỷ luật ARS về phân tách quan sát tĩnh vs suy luận hành vi."
             },
             {
-                "item": "4. Đối chiếu từng dòng mẫu D nêu",
-                "version_1": "Chưa có quyết định của D cho SMP-011, 013, 014, 016, 017, 018, 022",
-                "version_2": "Đối chiếu 100% từng dòng với biên bản D (giữ no_clear_target cho Simon Rushby; chuẩn hóa tên tổ chức ngoài danh mục)",
-                "impact": "Tuyệt đối không đổi ngầm bất kỳ quyết định nào; nhất quán hoàn toàn với Codebook v1.1.0."
+                "item": "4. Điền url_hostname và đồng bộ org_evidence",
+                "version_2": "url_hostname bị rỗng do truy cập nhầm url_parts; org_evidence giữ org_id cũ chưa chuẩn hóa; sao chép confidence của rater B",
+                "version_3": "url_hostname trích xuất từ urlsplit().netloc cho 100% mẫu; org_evidence.org_id đồng bộ mã chuẩn hóa; evidence_quote kiểm tra khớp text; confidence đặt None (chờ D duyệt)",
+                "impact": "Đồng bộ dữ liệu kỹ thuật toàn vẹn; không gán nhãn độ tin cậy chủ quan khi Lead D chưa xác nhận."
             },
             {
-                "item": "5. Công số B trong PLAN-01",
-                "version_1": "Cộng cơ học 30% + 10% = 40% (400 mẫu, ~31.7h)",
-                "version_2": "Tính theo phép hợp mẫu P(R ∪ H) = 384 mẫu (~30.4h), tránh đếm trùng 36 mẫu",
-                "impact": "Tối ưu hóa công số thực tế; bỏ số liệu A cũ chờ lượt hiệu chuẩn sạch mới."
+                "item": "5. Bảng đối chiếu 24 dòng đầy đủ",
+                "version_2": "Ghép sai SMP-ID với tổ chức trong phần text báo cáo",
+                "version_3": "Sửa triệt để text và xuất artifact 'calibration_v1_1_4_full_24_audit_table.json' đối chiếu chuẩn xác từng dòng ID -> URL -> Quyết định D -> Nhãn dự thảo",
+                "impact": "Lead D và B có thể kiểm tra chéo từng dòng một cách minh bạch."
+            },
+            {
+                "item": "6. Diễn giải công số B trong PLAN-01",
+                "version_2": "Ghi 384 mẫu như số đếm cơ học cố định",
+                "version_3": "Ghi rõ 384 mẫu là kịch bản kỳ vọng với giả định 1.000 mẫu và 12% ca khó; số lượt thực tế bắt buộc tính theo hợp hai tập đã chọn |R_actual ∪ H_actual|",
+                "impact": "Chính xác về mặt toán học và quy trình thực nghiệm ARS."
             }
         ]
     }
-    diff_file = out_dir / "diff_analysis_v1_vs_v2.json"
-    diff_file.write_text(json.dumps(diff_analysis, indent=2, ensure_ascii=False), encoding="utf-8")
+    diff_file = out_dir / "diff_analysis_v2_vs_v3.json"
+    diff_file.write_text(json.dumps(diff_analysis_v3, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # 10. Đóng gói lại ZIP review pack mới (v2) và sinh checksum SHA-256
+    # 10. Đóng gói lại ZIP review pack mới (v3) và sinh checksum SHA-256
     files_to_pack = [
-        "draft_calibration_v1_1_4_adjudicated_23.json",
-        "qc_pending_evidence_SMP010.json",
+        "draft_calibration_v1_1_4_adjudicated_19.json",
+        "qc_pending_evidence_5_samples.json",
+        "calibration_v1_1_4_full_24_audit_table.json",
         "alias_normalization_registry.json",
         "calibration_v1_1_4_agreement_audit_report.json",
-        "diff_analysis_v1_vs_v2.json",
+        "diff_analysis_v2_vs_v3.json",
         "CALIBRATION_V1_1_4_ADJUDICATION_D_DECISIONS.md"
     ]
     zip_path = out_dir / "calibration_v1_1_4_d_review_pack.zip"
@@ -438,11 +798,11 @@ def main():
     zip_sha_path = out_dir / "calibration_v1_1_4_d_review_pack.zip.sha256"
     zip_sha_path.write_text(f"{new_zip_hash}  {zip_path.name}\n", encoding="utf-8")
 
-    print(f"\n-> ĐÃ ĐÓNG GÓI XONG REVIEW PACK V2:")
+    print(f"\n-> ĐÃ ĐÓNG GÓI XONG REVIEW PACK V3:")
     print(f"   Đường dẫn: {zip_path}")
     print(f"   Dung lượng: {len(zip_bytes)} bytes")
     print(f"   SHA-256:   {new_zip_hash}")
-    print("\n=== HOÀN TẤT THÀNH CÔNG TOÀN BỘ 6 ĐIỂM CHỈ ĐẠO CỦA LEAD D ===")
+    print("\n=== HOÀN TẤT THÀNH CÔNG TOÀN BỘ 6 ĐIỂM CHỈ ĐẠO CỦA LEAD D CHO BẢN V3 ===")
 
 
 if __name__ == "__main__":
