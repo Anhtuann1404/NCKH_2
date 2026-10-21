@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "manifest_id": "CALIBRATION-CLEAN-A-MANIFEST-V1.0",
+  "dataset_id": "CALIBRATION-CLEAN-32",
+  "version": "1.0.0-PROPOSAL",
+  "created_at_utc": "2026-10-22T00:50:00Z",
+  "status": "proposal_pending_lead_d_approval",
+  "description": "Manifest kỹ thuật đề xuất cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) nhằm đo lường năng lực thực tế của A và đo đồng thuận A-B.",
+  "sampling_spec": {
+    "total_samples": 32,
+    "main_samples_count": 24,
+    "reserve_samples_count": 8,
+    "stratification": {
+      "main_phish_count": 12,
+      "main_benign_count": 12,
+      "reserve_phish_count": 4,
+      "reserve_benign_count": 4
+    },
+    "random_seed": 20261022,
+    "random_seed_main_shuffle": 20261023,
+    "random_seed_reserve_shuffle": 20261024,
+    "verified_source_shards": [
+      "data/train-000.parquet",
+      "data/train-055.parquet"
+    ],
+    "verified_date_window": {
+      "start_date": "2024-10-01",
+      "end_date": "2025-09-08"
+    }
+  },
+  "governance": {
+    "training_blocked": true,
+    "ready_for_annotation": false,
+    "official_test_used": false,
+    "acceptance": {
+      "member_b_qa": "endorsed_proposal_20261022",
+      "lead_d": "pending"
+    },
+    "codebook_reference": "docs/CODEBOOK_V1_1.md",
+    "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
+    "dictionary_reference": "configs/dictionary_v1.json",
+    "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
+    "exclusion_registry_reference": "data/exclusion_registry.json",
+    "exclusion_audit_reference": "data/source_audit/clean_calibration_exclusion_audit_report.json",
+    "exclusion_audit_sha256": "bf97bb4b60415c02ed900faeae0ac1cd9c5a9f4f00969d17655a3c2998a2e947",
+    "known_excluded_samples_count": 108
+  },
+  "protocol": {
+    "evaluation_mode": "double_blind_parallel_pass1",
+    "annotators": ["Annotator A", "Annotator B (QA Lead)"],
+    "blind_view_policy": "zero_source_labels_zero_matchers_zero_confidences",
+    "timing_policy": "clean_seconds_spent_with_pause_resume_logging_for_plan_01",
+    "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
+  },
+  "notes": "Manifest dự thảo kỹ thuật do C thiết lập theo đề xuất của B; giữ trạng thái pending, ready_for_annotation=false, training_blocked=true. Chờ Lead D ký duyệt phát lệnh trích xuất."
+}
