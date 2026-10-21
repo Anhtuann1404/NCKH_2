@@ -1,0 +1,50 @@
+{
+  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261021",
+  "purpose": "Bằng chứng kiểm kê 4 tập loại trừ trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho Thành viên A",
+  "lead_d_directive_reference": "Quyết định Lead D ngày 2026-10-21",
+  "governance": {
+    "training_blocked": true,
+    "official_test_used": false,
+    "registry_version": "1.1.0",
+    "registry_sha256": "4b752a59b34393896ea4016554476d565701d7f54c489e927ee5c115b68e814e"
+  },
+  "inventory": {
+    "total_exclusion_batches": 4,
+    "total_known_samples": 108,
+    "batches": [
+      {
+        "exclusion_id": "EXCL-PILOT-01",
+        "description": "20 mẫu tập dượt ban đầu",
+        "sample_count": 20,
+        "action": "permanently_exclude_from_train_val_test"
+      },
+      {
+        "exclusion_id": "EXCL-REAL-PILOT-32",
+        "description": "32 mẫu Pilot V1 thật",
+        "sample_count": 32,
+        "action": "permanently_exclude_from_train_val_test"
+      },
+      {
+        "exclusion_id": "EXCL-PILOT-02",
+        "description": "32 mẫu Pilot V2 thật",
+        "sample_count": 32,
+        "action": "permanently_exclude_from_train_val_test"
+      },
+      {
+        "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24",
+        "description": "24 mẫu Calibration v1.1.4 đã xem",
+        "sample_count": 24,
+        "action": "permanently_exclude_from_train_val_test"
+      }
+    ]
+  },
+  "anti_leakage_scope": {
+    "dimensions": [
+      "url_sha256",
+      "html_sha256",
+      "group_sha256 (eTLD+1 / shared hosting tenant)"
+    ],
+    "template_similarity_policy": "Rà soát SimHash/DOM structure để loại bỏ biến thể clone/template sinh hàng loạt",
+    "scientific_disclaimer": "Đã kiểm tra đối chiếu độc lập trên 108 mẫu đã biết trong registry; đã rà soát template similarity để loại bỏ các biến thể cùng nguồn sinh. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
+  }
+}
