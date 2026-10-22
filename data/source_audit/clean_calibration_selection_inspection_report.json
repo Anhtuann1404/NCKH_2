@@ -1,0 +1,62 @@
+{
+  "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261023",
+  "status": "candidates_generated_ready_for_lead_d_review",
+  "governance": {
+    "training_blocked": true,
+    "ready_for_annotation": false,
+    "official_test_used": false
+  },
+  "source_shards": {
+    "data/train-000.parquet": {
+      "total_rows": 1000,
+      "sha256": "9a9c693a95daeddb127c4446df4c5673b3f1a39e457ffe964b9849069bd739fe",
+      "byte_size": 49639686,
+      "eligible_candidates": 402,
+      "excluded_by_registry": 69,
+      "out_of_date_window": 521
+    },
+    "data/train-055.parquet": {
+      "total_rows": 361,
+      "sha256": "205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0",
+      "byte_size": 20213199,
+      "eligible_candidates": 127,
+      "excluded_by_registry": 26,
+      "out_of_date_window": 203
+    }
+  },
+  "filtering_summary": {
+    "total_corpus_rows_scanned": 1361,
+    "total_out_of_date_window": 724,
+    "total_excluded_by_registry_148": 95,
+    "eligible_candidates_pool": 529
+  },
+  "selection_summary": {
+    "main_samples_count": 24,
+    "reserve_samples_count": 8,
+    "total_selected": 32,
+    "distinct_groups_count": 32,
+    "distinct_urls_count": 32,
+    "distinct_htmls_count": 32,
+    "deduplication_vs_registry_148_overlaps": 0
+  },
+  "template_similarity_scan": {
+    "status": "template_similarity_scan_completed",
+    "total_scanned": 32,
+    "clone_detected_count": 0
+  },
+  "difficulty_strata": {
+    "surface_rules_distribution": {
+      "external_action_or_links": 16,
+      "non_ascii_or_cjk": 16,
+      "shared_hosting_or_ugc": 4,
+      "login_credential_form": 5,
+      "brand_in_subdomain_or_path": 1,
+      "suspicious_url_syntax": 2
+    },
+    "hard_cases_in_main_24": 21
+  },
+  "artifacts": {
+    "candidates_file": "data\\clean_calibration_candidates.json",
+    "candidates_sha256": "21f675a8d94cad5ae6f257229dbc3037180d32fca98fb17af7bf124179bbbee4"
+  }
+}

@@ -37,11 +37,12 @@ def main():
     with open(registry_path, encoding="utf-8") as f:
         registry = json.load(f)
 
-    # Danh mục 5 lô chính (tổng 116 mẫu) theo chỉ đạo trực tiếp của Lead D
-    primary_batches = [
-        {"id": "EXCL-PILOT-01", "name": "20 mẫu tập dượt ban đầu", "expected_count": 20},
+    # Danh mục toàn bộ 6 lô (tổng 148 mẫu) trong registry theo chỉ đạo trực tiếp của Lead D
+    all_batches = [
+        {"id": "EXCL-PILOT-01", "name": "20 mẫu tập dượt ban đầu (summary fingerprint)", "expected_count": 20},
         {"id": "EXCL-REAL-PILOT-32", "name": "32 mẫu Pilot V1 thật", "expected_count": 32},
         {"id": "EXCL-PILOT-02", "name": "32 mẫu Pilot V2 thật", "expected_count": 32},
+        {"id": "EXCL-PILOT-02-REBUILD-e039c774ef5f", "name": "32 mẫu Pilot V2 Rebuild (URL hash bổ sung)", "expected_count": 32},
         {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24", "name": "24 mẫu Calibration v1.1.4 chính đã xem", "expected_count": 24},
         {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08", "name": "8 mẫu dự phòng Calibration đã đăng ký trong registry", "expected_count": 8}
     ]
@@ -49,13 +50,13 @@ def main():
     exclusions_map = {e["exclusion_id"]: e for e in registry.get("exclusions", [])}
 
     audit_summary = []
-    total_primary_samples = 0
-    unique_urls_primary = set()
-    unique_htmls_primary = set()
-    unique_groups_primary = set()
+    total_samples = 0
+    unique_urls = set()
+    unique_htmls = set()
+    unique_groups = set()
     unique_summary_fps = set()
 
-    for pb in primary_batches:
+    for pb in all_batches:
         eid = pb["id"]
         assert eid in exclusions_map, f"Thiếu mục loại trừ {eid} trong registry!"
         entry = exclusions_map[eid]
@@ -70,13 +71,16 @@ def main():
 
         for s in samples:
             if "url_sha256" in s:
-                unique_urls_primary.add(s["url_sha256"])
+                unique_urls.add(s["url_sha256"])
                 b_urls.add(s["url_sha256"])
+            if "normalized_url_sha256" in s:
+                unique_urls.add(s["normalized_url_sha256"])
+                b_urls.add(s["normalized_url_sha256"])
             if "html_sha256" in s:
-                unique_htmls_primary.add(s["html_sha256"])
+                unique_htmls.add(s["html_sha256"])
                 b_htmls.add(s["html_sha256"])
             if "group_sha256" in s:
-                unique_groups_primary.add(s["group_sha256"])
+                unique_groups.add(s["group_sha256"])
                 b_groups.add(s["group_sha256"])
             if "summary_fingerprint_hash" in s:
                 unique_summary_fps.add(s["summary_fingerprint_hash"])
@@ -92,40 +96,14 @@ def main():
             "unique_summary_fingerprints": len(b_fps),
             "action": entry.get("action", "permanently_exclude_from_train_val_test")
         })
-        total_primary_samples += actual_count
+        total_samples += actual_count
 
-    assert total_primary_samples == 116, f"Tổng số mẫu loại trừ 5 lô phải là 116, thực tế: {total_primary_samples}"
-
-    # Kiểm tra thêm lô rebuild nếu có trong registry
-    rebuild_info = None
-    if "EXCL-PILOT-02-REBUILD-e039c774ef5f" in exclusions_map:
-        rb_entry = exclusions_map["EXCL-PILOT-02-REBUILD-e039c774ef5f"]
-        rb_samples = rb_entry.get("samples", [])
-        rebuild_info = {
-            "exclusion_id": "EXCL-PILOT-02-REBUILD-e039c774ef5f",
-            "description": "Lô lưu trữ fingerprint mở rộng của Pilot V2 trong registry",
-            "sample_count": len(rb_samples),
-            "unique_url_sha256": len(set(s["url_sha256"] for s in rb_samples if "url_sha256" in s)),
-            "action": rb_entry.get("action", "permanently_exclude_from_train_val_test")
-        }
-
-    # Tổng hợp toàn bộ fingerprints trong toàn registry
-    all_registry_urls = set()
-    all_registry_htmls = set()
-    all_registry_groups = set()
-    for e in registry.get("exclusions", []):
-        for s in e.get("samples", []):
-            if "url_sha256" in s:
-                all_registry_urls.add(s["url_sha256"])
-            if "html_sha256" in s:
-                all_registry_htmls.add(s["html_sha256"])
-            if "group_sha256" in s:
-                all_registry_groups.add(s["group_sha256"])
+    assert total_samples == 148, f"Tổng số mẫu loại trừ toàn bộ 6 lô phải là 148, thực tế: {total_samples}"
 
     report = {
-        "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261022",
-        "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm đầy đủ 116 mẫu trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
-        "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-22 (Đếm trực tiếp registry, giải quyết 8 mẫu dự phòng)",
+        "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261023",
+        "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 6 lô (148 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
+        "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-23 (Đối chiếu toàn bộ 6 lô, 148 mẫu, bao gồm EXCL-PILOT-02-REBUILD và làm rõ giới hạn 20 mẫu summary fingerprint)",
         "governance": {
             "training_blocked": True,
             "official_test_used": False,
@@ -135,35 +113,51 @@ def main():
             "total_excluded_samples_in_registry": registry.get("total_excluded_samples", 148)
         },
         "inventory": {
-            "primary_known_batches_count": len(primary_batches),
-            "primary_known_samples_count": total_primary_samples,
-            "primary_batches": audit_summary,
-            "primary_unique_fingerprints": {
-                "unique_url_sha256": len(unique_urls_primary),
-                "unique_html_sha256": len(unique_htmls_primary),
-                "unique_group_sha256": len(unique_groups_primary),
-                "unique_summary_fingerprints": len(unique_summary_fps)
-            },
-            "registry_total_fingerprints": {
-                "all_unique_url_sha256": len(all_registry_urls),
-                "all_unique_html_sha256": len(all_registry_htmls),
-                "all_unique_group_sha256": len(all_registry_groups)
-            },
-            "rebuild_entry_audit": rebuild_info
+            "total_batches_count": len(all_batches),
+            "total_samples_count": total_samples,
+            "batches": audit_summary,
+            "registry_fingerprints_summary": {
+                "all_unique_url_sha256": len(unique_urls),
+                "all_unique_html_sha256": len(unique_htmls),
+                "all_unique_group_sha256": len(unique_groups),
+                "all_unique_summary_fingerprints": len(unique_summary_fps)
+            }
+        },
+        "historical_pilot_20_summary_fingerprint_matching": {
+            "batch_id": "EXCL-PILOT-01",
+            "sample_count": 20,
+            "matching_method": (
+                "Phép so khớp thực hiện bằng hàm compute_summary_fingerprint_hash(sample) tính mã băm SHA-256 "
+                "trên canonical JSON của bộ 8 đặc trưng cấu trúc DOM/thống kê trang: "
+                "(pilot_row_idx, label, lang, html_chars, text_chars, forms, inputs, password_inputs). "
+                "Bất kỳ mẫu ứng viên nào trùng khớp hash cấu trúc này sẽ bị chặn theo cơ chế phòng vệ chiều sâu."
+            ),
+            "verification_limits_and_epistemic_boundary": (
+                "GIỚI HẠN KIỂM CHỨNG KHOA HỌC: Do 20 mẫu tập dượt lịch sử ban đầu chỉ lưu giữ fingerprint tóm tắt cấu trúc "
+                "mà không có URL hay HTML nguyên văn trong registry (unmapped historical data), hệ thống KHÔNG THỂ đối chiếu "
+                "trực tiếp theo url_sha256 hay html_sha256. "
+                "Về mặt lý thuyết xác suất, hai trang web khác nhau hoàn toàn có thể trùng hợp về số lượng form/ký tự (dương tính giả cấu trúc), "
+                "hoặc sai khác nhỏ về khoảng trắng có thể làm lệch hash tóm tắt (âm tính giả). "
+                "Do đó, phép so khớp này được xem là rào chắn phòng vệ bổ sung (defense-in-depth); "
+                "toàn bộ 20 mẫu này tiếp tục được duy trì trạng thái mapping_status='unmapped_historical' "
+                "và cờ training_blocked=true được khóa vĩnh viễn trên pipeline huấn luyện chính thức."
+            )
         },
         "anti_leakage_scope": {
             "dimensions": [
-                "url_sha256",
+                "url_sha256 (bao gồm 32 URL hash bổ sung từ lô EXCL-PILOT-02-REBUILD-e039c774ef5f)",
+                "normalized_url_sha256",
                 "html_sha256",
-                "group_sha256 (eTLD+1 / shared hosting tenant)"
+                "group_sha256 (eTLD+1 / shared hosting tenant)",
+                "summary_fingerprint_hash (đối chiếu cấu trúc 20 mẫu pilot lịch sử)"
             ],
             "template_similarity_policy": (
                 "Bước kiểm tra bắt buộc sẽ thực hiện ngay sau khi chạy thuật toán tuyển chọn ứng viên ngẫu nhiên; "
-                "kết quả đo lường độ tương đồng SimHash/DOM thực tế giữa ứng viên và các mẫu đã biết "
+                "kết quả đo lường độ tương đồng SimHash 64-bit và DOM Jaccard thực tế giữa ứng viên và các mẫu đã biết "
                 "sẽ được đưa vào báo cáo nghiệm thu ứng viên trước khi phát hành gói."
             ),
             "scientific_disclaimer": (
-                "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 116 mẫu đã biết (108 mẫu đã dùng + 8 mẫu dự phòng Calibration) "
+                "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 148 mẫu (đủ 6 lô bao gồm cả Pilot Rebuild và 8 mẫu dự phòng Calibration) "
                 "trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
             )
         }
@@ -177,8 +171,8 @@ def main():
     report_hash = hashlib.sha256(report_bytes).hexdigest()
 
     print(f"-> ĐÃ XUẤT BÁO CÁO KIỂM KÊ LOẠI TRỪ: {report_path}")
-    print(f"   Tổng số mẫu phạm vi chính: {total_primary_samples} mẫu (đủ 5 lô)")
-    print(f"   Fingerprints duy nhất: URL={len(unique_urls_primary)}, HTML={len(unique_htmls_primary)}, Group={len(unique_groups_primary)}")
+    print(f"   Tổng số mẫu phạm vi toàn bộ 6 lô: {total_samples} mẫu")
+    print(f"   Fingerprints duy nhất: URL={len(unique_urls)}, HTML={len(unique_htmls)}, Group={len(unique_groups)}, SummaryFP={len(unique_summary_fps)}")
     print(f"   SHA-256: {report_hash}")
     print("=== HOÀN TẤT KIỂM KÊ BẰNG CHỨNG LOẠI TRỪ THÀNH CÔNG ===")
 

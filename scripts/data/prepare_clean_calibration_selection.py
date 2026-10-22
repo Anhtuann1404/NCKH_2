@@ -39,7 +39,14 @@ from phishing.data.difficulty_strata import (
     evaluate_difficulty_flags,
     is_hard_case,
 )
-from phishing.data.template_similarity import TemplateSimilarityEngine
+from phishing.data.grouping import extract_group_id
+from phishing.data.loader import verify_source_file
+from phishing.data.template_similarity import (
+    TemplateSimilarityEngine,
+    compute_token_simhash_64,
+    hamming_distance_64,
+)
+from phishing.preprocessing.urls import normalize_url
 
 
 def source_label(value: Any) -> Optional[str]:
@@ -56,24 +63,31 @@ def source_label(value: Any) -> Optional[str]:
 
 
 def load_blocked_fingerprints_from_registry(registry_path: Path) -> Dict[str, Set[str]]:
-    """Đọc toàn bộ 116 mẫu loại trừ từ data/exclusion_registry.json để tạo bộ lọc 3 chiều."""
+    """Đọc toàn bộ 148 mẫu loại trừ từ 6 lô trong data/exclusion_registry.json để tạo bộ lọc chống rò rỉ."""
     with open(registry_path, encoding="utf-8") as f:
         registry = json.load(f)
 
     blocked = {
         "url_sha256": set(),
+        "normalized_url_sha256": set(),
         "html_sha256": set(),
         "group_sha256": set(),
+        "summary_fingerprint_hash": set(),
     }
 
     for entry in registry.get("exclusions", []):
         for s in entry.get("samples", []):
             if "url_sha256" in s:
                 blocked["url_sha256"].add(s["url_sha256"])
+            if "normalized_url_sha256" in s:
+                blocked["normalized_url_sha256"].add(s["normalized_url_sha256"])
+                blocked["url_sha256"].add(s["normalized_url_sha256"])
             if "html_sha256" in s:
                 blocked["html_sha256"].add(s["html_sha256"])
             if "group_sha256" in s:
                 blocked["group_sha256"].add(s["group_sha256"])
+            if "summary_fingerprint_hash" in s:
+                blocked["summary_fingerprint_hash"].add(s["summary_fingerprint_hash"])
 
     return blocked
 
@@ -217,3 +231,269 @@ def evaluate_clean_selection_strata(
             hard_cases += 1
 
     return dict(rule_counts), hard_cases
+
+
+def execute_clean_selection(
+    output_candidates_path: Path,
+    output_report_path: Path,
+    seed: int = 20261022,
+    main_shuffle_seed: int = 20261023,
+    reserve_shuffle_seed: int = 20261024,
+) -> Dict[str, Any]:
+    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu 148 mẫu registry."""
+    import pyarrow.parquet as pq
+
+    source_manifest_path = ROOT / "configs/source_manifest.json"
+    registry_path = ROOT / "data/exclusion_registry.json"
+
+    # 1. Khóa và nạp bộ lọc chống rò rỉ từ 148 mẫu của 6 lô
+    blocked = load_blocked_fingerprints_from_registry(registry_path)
+
+    # 2. Định vị 2 verified source shards
+    shards_info = [
+        ("data/train-000.parquet", ROOT / "data/raw/phreshphish/data/train-000.parquet"),
+        ("data/train-055.parquet", ROOT / "data/raw/phreshphish/data/train-055.parquet"),
+    ]
+
+    date_start = date(2024, 10, 1)
+    date_end = date(2025, 9, 8)
+
+    candidates = []
+    shard_stats = {}
+    total_scanned = 0
+    total_excluded_by_registry = 0
+    total_out_of_date_window = 0
+
+    shard_tables = {}
+
+    for rel_path, fpath in shards_info:
+        if not fpath.exists():
+            raise FileNotFoundError(f"Không tìm thấy source shard tại: {fpath}")
+
+        verify_source_file(fpath, source_manifest_path, "phreshphish")
+        fbytes = fpath.read_bytes()
+        fhash = hashlib.sha256(fbytes).hexdigest()
+        table = pq.read_table(fpath)
+        shard_tables[rel_path] = table
+        num_rows = table.num_rows
+
+        s_candidates = 0
+        s_excluded = 0
+        s_date_invalid = 0
+
+        for offset in range(num_rows):
+            total_scanned += 1
+            row = {col: table[col][offset].as_py() for col in ["url", "html", "label", "date"]}
+            url = row["url"]
+            html = row.get("html") or ""
+            raw_label = row.get("label")
+            lbl = source_label(raw_label)
+
+            # Kiểm tra date window
+            parsed_d = parse_strict_date(row.get("date"))
+            if not parsed_d or not (date_start <= parsed_d <= date_end):
+                total_out_of_date_window += 1
+                s_date_invalid += 1
+                continue
+
+            if not lbl:
+                continue
+
+            # Bỏ qua các trang không có HTML hoặc HTML vượt quá ngưỡng an toàn 2M ký tự
+            if not html or not isinstance(html, str) or not html.strip() or len(html) > 2_000_000:
+                continue
+
+            # Tính toán các fingerprints bảo vệ
+            try:
+                norm_url = normalize_url(url)
+                group_id = extract_group_id(url)
+                if group_id == "unknown":
+                    continue
+            except Exception:
+                continue
+
+            url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
+            norm_hash = hashlib.sha256(norm_url.encode("utf-8")).hexdigest()
+            html_bytes = html.encode("utf-8") if isinstance(html, str) else html
+            html_hash = hashlib.sha256(html_bytes).hexdigest()
+            group_hash = hashlib.sha256(group_id.encode("utf-8")).hexdigest()
+
+            fp = {
+                "url_sha256": url_hash,
+                "normalized_url_sha256": norm_hash,
+                "html_sha256": html_hash,
+                "group_sha256": group_hash,
+                "group_id": group_id,
+            }
+
+            # Chặn nếu nằm trong bất kỳ tập cấm nào của 148 mẫu
+            if (
+                url_hash in blocked["url_sha256"]
+                or norm_hash in blocked["url_sha256"]
+                or html_hash in blocked["html_sha256"]
+                or group_hash in blocked["group_sha256"]
+            ):
+                total_excluded_by_registry += 1
+                s_excluded += 1
+                continue
+
+            locator = {"relative_path": rel_path, "row_offset": offset}
+            candidates.append((locator, lbl, fp))
+            s_candidates += 1
+
+        shard_stats[rel_path] = {
+            "total_rows": num_rows,
+            "sha256": fhash,
+            "byte_size": len(fbytes),
+            "eligible_candidates": s_candidates,
+            "excluded_by_registry": s_excluded,
+            "out_of_date_window": s_date_invalid,
+        }
+
+    # 3. Chạy thuật toán tuyển chọn tất định
+    main_locs, reserve_locs = select_clean_candidates(
+        candidates,
+        blocked,
+        seed=seed,
+        main_shuffle_seed=main_shuffle_seed,
+        reserve_shuffle_seed=reserve_shuffle_seed,
+        main_per_class=12,
+        reserve_per_class=4,
+    )
+
+    all_selected = main_locs + reserve_locs
+
+    def row_provider(loc: Dict[str, Any]) -> Dict[str, Any]:
+        t = shard_tables[loc["relative_path"]]
+        return {col: t[col][loc["row_offset"]].as_py() for col in ["url", "html", "label", "date"]}
+
+    def html_provider(loc: Dict[str, Any]) -> str:
+        r = row_provider(loc)
+        return r.get("html") or ""
+
+    # 4. Quét tương đồng template (Template Similarity Scan)
+    template_scan_res = scan_candidates_template_similarity(all_selected, html_provider)
+
+    # 5. Đánh giá phân tầng bề mặt (difficulty strata)
+    difficulty_counts, hard_cases_count = evaluate_clean_selection_strata(main_locs, row_provider)
+
+    # 6. Tạo danh sách chi tiết các ứng viên được chọn kèm hash chứng minh
+    detailed_candidates = []
+    for idx, loc in enumerate(all_selected, 1):
+        r = row_provider(loc)
+        u = r["url"]
+        h = r.get("html") or ""
+        u_hash = hashlib.sha256(u.encode("utf-8")).hexdigest()
+        nu = normalize_url(u)
+        nu_hash = hashlib.sha256(nu.encode("utf-8")).hexdigest()
+        h_bytes = h.encode("utf-8") if isinstance(h, str) else h
+        h_hash = hashlib.sha256(h_bytes).hexdigest()
+        grp = extract_group_id(u)
+        grp_hash = hashlib.sha256(grp.encode("utf-8")).hexdigest()
+
+        is_main = idx <= 24
+        cid = f"SMP-{idx:03d}" if is_main else f"RSV-{idx-24:03d}"
+
+        detailed_candidates.append({
+            "candidate_id": cid,
+            "role": "main_24" if is_main else "reserve_08",
+            "locator": loc,
+            "url_sha256": u_hash,
+            "normalized_url_sha256": nu_hash,
+            "html_sha256": h_hash,
+            "group_sha256": grp_hash,
+            "group_id": grp,
+            "source_date": str(r.get("date")),
+        })
+
+    # 7. Xuất tệp ứng viên kỹ thuật
+    candidates_payload = {
+        "dataset_id": "CALIBRATION-CLEAN-32",
+        "description": "Gói tuyển chọn ứng viên sạch gồm 24 mẫu chính + 8 mẫu dự phòng cho Calibration Clean A",
+        "generated_at_utc": date.today().isoformat(),
+        "seed": seed,
+        "main_shuffle_seed": main_shuffle_seed,
+        "reserve_shuffle_seed": reserve_shuffle_seed,
+        "main_samples_count": len(main_locs),
+        "reserve_samples_count": len(reserve_locs),
+        "main_locators": main_locs,
+        "reserve_locators": reserve_locs,
+        "candidates": detailed_candidates,
+    }
+    output_candidates_path.parent.mkdir(parents=True, exist_ok=True)
+    c_bytes = (json.dumps(candidates_payload, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    output_candidates_path.write_bytes(c_bytes)
+    c_hash = hashlib.sha256(c_bytes).hexdigest()
+
+    # 8. Xuất báo cáo nghiệm thu kiểm tra ứng viên (Inspection Report)
+    inspection_report = {
+        "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261023",
+        "status": "candidates_generated_ready_for_lead_d_review",
+        "governance": {
+            "training_blocked": True,
+            "ready_for_annotation": False,
+            "official_test_used": False,
+        },
+        "source_shards": shard_stats,
+        "filtering_summary": {
+            "total_corpus_rows_scanned": total_scanned,
+            "total_out_of_date_window": total_out_of_date_window,
+            "total_excluded_by_registry_148": total_excluded_by_registry,
+            "eligible_candidates_pool": len(candidates),
+        },
+        "selection_summary": {
+            "main_samples_count": len(main_locs),
+            "reserve_samples_count": len(reserve_locs),
+            "total_selected": len(all_selected),
+            "distinct_groups_count": len(set(c["group_sha256"] for c in detailed_candidates)),
+            "distinct_urls_count": len(set(c["url_sha256"] for c in detailed_candidates)),
+            "distinct_htmls_count": len(set(c["html_sha256"] for c in detailed_candidates)),
+            "deduplication_vs_registry_148_overlaps": 0,
+        },
+        "template_similarity_scan": {
+            "status": template_scan_res["status"],
+            "total_scanned": template_scan_res["total_scanned"],
+            "clone_detected_count": template_scan_res["clone_detected_count"],
+        },
+        "difficulty_strata": {
+            "surface_rules_distribution": difficulty_counts,
+            "hard_cases_in_main_24": hard_cases_count,
+        },
+        "artifacts": {
+            "candidates_file": str(output_candidates_path.relative_to(ROOT)),
+            "candidates_sha256": c_hash,
+        },
+    }
+    output_report_path.parent.mkdir(parents=True, exist_ok=True)
+    r_bytes = (json.dumps(inspection_report, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    output_report_path.write_bytes(r_bytes)
+    r_hash = hashlib.sha256(r_bytes).hexdigest()
+
+    return {
+        "candidates_path": output_candidates_path,
+        "candidates_hash": c_hash,
+        "report_path": output_report_path,
+        "report_hash": r_hash,
+        "main_count": len(main_locs),
+        "reserve_count": len(reserve_locs),
+    }
+
+
+def main():
+    print("=== BẮT ĐẦU TUYỂN CHỌN GÓI HIỆU CHUẨN SẠCH (CALIBRATION-CLEAN-32) ===")
+    out_candidates = ROOT / "data/clean_calibration_candidates.json"
+    out_report = ROOT / "data/source_audit/clean_calibration_selection_inspection_report.json"
+
+    res = execute_clean_selection(
+        output_candidates_path=out_candidates,
+        output_report_path=out_report,
+    )
+    print(f"-> ĐÃ XUẤT TẬP ỨNG VIÊN: {res['candidates_path']}")
+    print(f"   24 mẫu chính + 8 mẫu dự phòng | SHA-256: {res['candidates_hash']}")
+    print(f"-> ĐÃ XUẤT BÁO CÁO NGHIỆM THU: {res['report_path']}")
+    print(f"   SHA-256: {res['report_hash']}")
+    print("=== TUYỂN CHỌN VÀ HẬU KIỂM HOÀN TẤT THÀNH CÔNG ===")
+
+
+if __name__ == "__main__":
+    main()

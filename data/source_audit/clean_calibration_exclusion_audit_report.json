@@ -1,7 +1,7 @@
 {
-  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261022",
-  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm đầy đủ 116 mẫu trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
-  "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-22 (Đếm trực tiếp registry, giải quyết 8 mẫu dự phòng)",
+  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261023",
+  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 6 lô (148 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
+  "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-23 (Đối chiếu toàn bộ 6 lô, 148 mẫu, bao gồm EXCL-PILOT-02-REBUILD và làm rõ giới hạn 20 mẫu summary fingerprint)",
   "governance": {
     "training_blocked": true,
     "official_test_used": false,
@@ -11,12 +11,12 @@
     "total_excluded_samples_in_registry": 148
   },
   "inventory": {
-    "primary_known_batches_count": 5,
-    "primary_known_samples_count": 116,
-    "primary_batches": [
+    "total_batches_count": 6,
+    "total_samples_count": 148,
+    "batches": [
       {
         "exclusion_id": "EXCL-PILOT-01",
-        "description": "20 mẫu tập dượt ban đầu",
+        "description": "20 mẫu tập dượt ban đầu (summary fingerprint)",
         "sample_count": 20,
         "unique_url_sha256": 0,
         "unique_html_sha256": 0,
@@ -45,10 +45,20 @@
         "action": "permanently_exclude_from_train_val_test"
       },
       {
+        "exclusion_id": "EXCL-PILOT-02-REBUILD-e039c774ef5f",
+        "description": "32 mẫu Pilot V2 Rebuild (URL hash bổ sung)",
+        "sample_count": 32,
+        "unique_url_sha256": 35,
+        "unique_html_sha256": 32,
+        "unique_group_sha256": 32,
+        "unique_summary_fingerprints": 0,
+        "action": "permanently_exclude_from_train_val_test"
+      },
+      {
         "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24",
         "description": "24 mẫu Calibration v1.1.4 chính đã xem",
         "sample_count": 24,
-        "unique_url_sha256": 24,
+        "unique_url_sha256": 26,
         "unique_html_sha256": 24,
         "unique_group_sha256": 24,
         "unique_summary_fingerprints": 0,
@@ -58,39 +68,35 @@
         "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08",
         "description": "8 mẫu dự phòng Calibration đã đăng ký trong registry",
         "sample_count": 8,
-        "unique_url_sha256": 8,
+        "unique_url_sha256": 9,
         "unique_html_sha256": 8,
         "unique_group_sha256": 8,
         "unique_summary_fingerprints": 0,
         "action": "permanently_exclude_from_train_val_test"
       }
     ],
-    "primary_unique_fingerprints": {
-      "unique_url_sha256": 96,
-      "unique_html_sha256": 96,
-      "unique_group_sha256": 95,
-      "unique_summary_fingerprints": 20
-    },
-    "registry_total_fingerprints": {
-      "all_unique_url_sha256": 128,
+    "registry_fingerprints_summary": {
+      "all_unique_url_sha256": 134,
       "all_unique_html_sha256": 128,
-      "all_unique_group_sha256": 127
-    },
-    "rebuild_entry_audit": {
-      "exclusion_id": "EXCL-PILOT-02-REBUILD-e039c774ef5f",
-      "description": "Lô lưu trữ fingerprint mở rộng của Pilot V2 trong registry",
-      "sample_count": 32,
-      "unique_url_sha256": 32,
-      "action": "permanently_exclude_from_train_val_test"
+      "all_unique_group_sha256": 127,
+      "all_unique_summary_fingerprints": 20
     }
+  },
+  "historical_pilot_20_summary_fingerprint_matching": {
+    "batch_id": "EXCL-PILOT-01",
+    "sample_count": 20,
+    "matching_method": "Phép so khớp thực hiện bằng hàm compute_summary_fingerprint_hash(sample) tính mã băm SHA-256 trên canonical JSON của bộ 8 đặc trưng cấu trúc DOM/thống kê trang: (pilot_row_idx, label, lang, html_chars, text_chars, forms, inputs, password_inputs). Bất kỳ mẫu ứng viên nào trùng khớp hash cấu trúc này sẽ bị chặn theo cơ chế phòng vệ chiều sâu.",
+    "verification_limits_and_epistemic_boundary": "GIỚI HẠN KIỂM CHỨNG KHOA HỌC: Do 20 mẫu tập dượt lịch sử ban đầu chỉ lưu giữ fingerprint tóm tắt cấu trúc mà không có URL hay HTML nguyên văn trong registry (unmapped historical data), hệ thống KHÔNG THỂ đối chiếu trực tiếp theo url_sha256 hay html_sha256. Về mặt lý thuyết xác suất, hai trang web khác nhau hoàn toàn có thể trùng hợp về số lượng form/ký tự (dương tính giả cấu trúc), hoặc sai khác nhỏ về khoảng trắng có thể làm lệch hash tóm tắt (âm tính giả). Do đó, phép so khớp này được xem là rào chắn phòng vệ bổ sung (defense-in-depth); toàn bộ 20 mẫu này tiếp tục được duy trì trạng thái mapping_status='unmapped_historical' và cờ training_blocked=true được khóa vĩnh viễn trên pipeline huấn luyện chính thức."
   },
   "anti_leakage_scope": {
     "dimensions": [
-      "url_sha256",
+      "url_sha256 (bao gồm 32 URL hash bổ sung từ lô EXCL-PILOT-02-REBUILD-e039c774ef5f)",
+      "normalized_url_sha256",
       "html_sha256",
-      "group_sha256 (eTLD+1 / shared hosting tenant)"
+      "group_sha256 (eTLD+1 / shared hosting tenant)",
+      "summary_fingerprint_hash (đối chiếu cấu trúc 20 mẫu pilot lịch sử)"
     ],
-    "template_similarity_policy": "Bước kiểm tra bắt buộc sẽ thực hiện ngay sau khi chạy thuật toán tuyển chọn ứng viên ngẫu nhiên; kết quả đo lường độ tương đồng SimHash/DOM thực tế giữa ứng viên và các mẫu đã biết sẽ được đưa vào báo cáo nghiệm thu ứng viên trước khi phát hành gói.",
-    "scientific_disclaimer": "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 116 mẫu đã biết (108 mẫu đã dùng + 8 mẫu dự phòng Calibration) trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
+    "template_similarity_policy": "Bước kiểm tra bắt buộc sẽ thực hiện ngay sau khi chạy thuật toán tuyển chọn ứng viên ngẫu nhiên; kết quả đo lường độ tương đồng SimHash 64-bit và DOM Jaccard thực tế giữa ứng viên và các mẫu đã biết sẽ được đưa vào báo cáo nghiệm thu ứng viên trước khi phát hành gói.",
+    "scientific_disclaimer": "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 148 mẫu (đủ 6 lô bao gồm cả Pilot Rebuild và 8 mẫu dự phòng Calibration) trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
   }
 }

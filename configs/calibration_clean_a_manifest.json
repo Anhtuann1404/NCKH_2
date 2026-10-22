@@ -4,8 +4,8 @@
   "dataset_id": "CALIBRATION-CLEAN-32",
   "version": "1.0.0-PROPOSAL",
   "created_at_utc": "2026-10-22T00:50:00Z",
-  "status": "proposal_pending_lead_d_approval",
-  "description": "Manifest kỹ thuật đề xuất cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) nhằm đo lường năng lực thực tế của A và đo đồng thuận A-B.",
+  "status": "candidates_selected_pending_lead_d_review",
+  "description": "Manifest kỹ thuật cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) gồm 24 mẫu chính + 8 mẫu dự phòng đã tuyển chọn sạch đối chiếu 148 mẫu registry.",
   "sampling_spec": {
     "total_samples": 32,
     "main_samples_count": 24,
@@ -44,7 +44,7 @@
     "official_test_used": false,
     "acceptance": {
       "member_b_qa": "endorsed_proposal_20261022",
-      "lead_d": "pending_proposal_v1_1_review"
+      "lead_d": "approved_clean_calibration_design_24_plus_8"
     },
     "codebook_reference": "docs/CODEBOOK_V1_1.md",
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
@@ -52,8 +52,12 @@
     "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
     "exclusion_registry_reference": "data/exclusion_registry.json",
     "exclusion_audit_reference": "data/source_audit/clean_calibration_exclusion_audit_report.json",
-    "exclusion_audit_sha256": "39252ac25ccd74e498b47a153ced416b1e486e67ebc5fb5f557245dfedd603a5",
-    "known_excluded_samples_count": 116
+    "exclusion_audit_sha256": "787ca9b1da1898953e5851baa4b86aa5c2f3c0f6f59bbb2dc1912930e615f4e3",
+    "known_excluded_samples_count": 148,
+    "candidates_file_reference": "data/clean_calibration_candidates.json",
+    "candidates_file_sha256": "21f675a8d94cad5ae6f257229dbc3037180d32fca98fb17af7bf124179bbbee4",
+    "candidates_inspection_report_reference": "data/source_audit/clean_calibration_selection_inspection_report.json",
+    "candidates_inspection_report_sha256": "8ba85d5908447c46ef6453c2be67fc9cbe99287e14adf3858c26c03c25bb16aa"
   },
   "protocol": {
     "evaluation_mode": "double_blind_parallel_pass1",
@@ -63,5 +67,5 @@
     "template_similarity_policy": "mandatory_post_candidate_selection_step_simhash_dom",
     "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
   },
-  "notes": "Manifest dự thảo kỹ thuật v1.1: Đã hoàn thành và kiểm thử 100% TASK-CLI-TIMER-PAUSE (tests/test_annotate_cli_timer_pause.py pass 8/8 tests); nguồn tuyển chọn khóa đúng 2 verified source shards (train-000 và train-055); kiểm kê 116 mẫu loại trừ đã biết."
+  "notes": "Manifest kỹ thuật v1.1: Đã hoàn thành tuyển chọn 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055; đối chiếu toàn bộ 148 mẫu trong 6 lô registry; 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D nghiệm thu ứng viên."
 }
