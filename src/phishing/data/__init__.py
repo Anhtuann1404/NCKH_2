@@ -26,6 +26,13 @@ from phishing.data.splits import (
     generate_grouped_kfold,
     generate_temporal_split,
 )
+from phishing.data.template_similarity import (
+    TemplateSimilarityEngine,
+    compute_dom_jaccard_similarity,
+    compute_token_simhash_64,
+    extract_dom_tag_multiset,
+    hamming_distance_64,
+)
 
 __all__ = [
     "DIFFICULTY_RULES",
@@ -47,6 +54,11 @@ __all__ = [
     "load_phishvn_records",
     "build_corpus_index",
     "extract_labels_vault",
+    "TemplateSimilarityEngine",
+    "compute_token_simhash_64",
+    "hamming_distance_64",
+    "extract_dom_tag_multiset",
+    "compute_dom_jaccard_similarity",
 ]
 
 
