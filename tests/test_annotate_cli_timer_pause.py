@@ -352,6 +352,106 @@ class TestCLIIntegrationTimerPause:
         with pytest.raises(ValueError, match="paused_seconds=-0.5 không được âm"):
             validate_annotation_record(bad_paused_sec, catalog_org_ids=set())
 
+    def test_validate_annotation_record_strict_pause_contract_and_lead_d_probes(self):
+        """Chứng minh chốt chặn fail-closed chống probe của Lead D:
+        - Chặn boolean (True/False) cho pause_count, paused_seconds, seconds_spent.
+        - Chặn float (1.9) cho pause_count (bắt buộc int).
+        - Chặn NaN, Infinity, -Infinity cho paused_seconds và seconds_spent.
+        - Chặn số âm (< 0).
+        - Bắt buộc có pause_count và paused_seconds trong Codebook v1.1 (không ngầm định 0).
+        - Cho phép tương thích ngược với Codebook v1.0 khi thiếu (default 0), nhưng nếu có vẫn phải đúng kiểu.
+        """
+        import math
+
+        base_v11 = {
+            "annotator_id": "A",
+            "sample_id": "TEST-SMP-PROBE",
+            "pass_id": 1,
+            "class_label": "benign",
+            "primary_org_status": "no_clear_target",
+            "catalog_status": "unresolved",
+            "observed_service": "None",
+            "org_targets": [],
+            "org_evidence": [],
+            "primary_org": "no_clear_target",
+            "identity_role": "unclear",
+            "domain_role": "unverified",
+            "evidence_note": "Ghi chú bằng chứng đầy đủ",
+            "seconds_spent": 30.0,
+            "pause_count": 1,
+            "paused_seconds": 5.0,
+            "confidence": "high",
+            "random_subset": False,
+            "difficult_case": False,
+            "codebook_version": "1.1.0",
+        }
+
+        # 1. Hợp lệ chuẩn v1.1
+        rec = validate_annotation_record(base_v11, catalog_org_ids=set())
+        assert rec.pause_count == 1
+        assert rec.paused_seconds == 5.0
+
+        # 2. Probe boolean bị từ chối
+        with pytest.raises(TypeError, match="không được là boolean"):
+            validate_annotation_record(dict(base_v11, pause_count=True), catalog_org_ids=set())
+
+        with pytest.raises(TypeError, match="không được là boolean"):
+            validate_annotation_record(dict(base_v11, paused_seconds=True), catalog_org_ids=set())
+
+        with pytest.raises(TypeError, match="không được là boolean"):
+            validate_annotation_record(dict(base_v11, seconds_spent=True), catalog_org_ids=set())
+
+        # 3. Probe float cho pause_count bị từ chối (1.9)
+        with pytest.raises(TypeError, match="phải là số nguyên int"):
+            validate_annotation_record(dict(base_v11, pause_count=1.9), catalog_org_ids=set())
+
+        # 4. Probe non-finite (NaN, Inf, -Inf) bị từ chối
+        with pytest.raises(ValueError, match="số hữu hạn"):
+            validate_annotation_record(dict(base_v11, paused_seconds=float("nan")), catalog_org_ids=set())
+
+        with pytest.raises(ValueError, match="số hữu hạn"):
+            validate_annotation_record(dict(base_v11, paused_seconds=float("inf")), catalog_org_ids=set())
+
+        with pytest.raises(ValueError, match="số hữu hạn"):
+            validate_annotation_record(dict(base_v11, paused_seconds=float("-inf")), catalog_org_ids=set())
+
+        with pytest.raises(ValueError, match="số hữu hạn"):
+            validate_annotation_record(dict(base_v11, seconds_spent=float("nan")), catalog_org_ids=set())
+
+        # 5. Probe số âm bị từ chối
+        with pytest.raises(ValueError, match="không được âm"):
+            validate_annotation_record(dict(base_v11, pause_count=-1), catalog_org_ids=set())
+
+        with pytest.raises(ValueError, match="không được âm"):
+            validate_annotation_record(dict(base_v11, paused_seconds=-0.1), catalog_org_ids=set())
+
+        # 6. Probe thiếu trường trong v1.1 bị từ chối (không được ngầm định 0)
+        missing_count = dict(base_v11)
+        del missing_count["pause_count"]
+        with pytest.raises(ValueError, match="Codebook v1.1 yêu cầu trường pause_count bắt buộc"):
+            validate_annotation_record(missing_count, catalog_org_ids=set())
+
+        missing_sec = dict(base_v11)
+        del missing_sec["paused_seconds"]
+        with pytest.raises(ValueError, match="Codebook v1.1 yêu cầu trường paused_seconds bắt buộc"):
+            validate_annotation_record(missing_sec, catalog_org_ids=set())
+
+        # 7. Tương thích ngược v1.0 khi thiếu trường: ngầm định 0 và 0.0 hợp lệ
+        base_v10 = dict(base_v11, codebook_version="1.0.0")
+        del base_v10["pause_count"]
+        del base_v10["paused_seconds"]
+        del base_v10["org_evidence"]
+        rec_v10 = validate_annotation_record(base_v10, catalog_org_ids=set())
+        assert rec_v10.pause_count == 0
+        assert rec_v10.paused_seconds == 0.0
+
+        # 8. Nhưng nếu v1.0 có trường mà sai kiểu -> vẫn phải bị chặn fail-closed!
+        with pytest.raises(TypeError, match="không được là boolean"):
+            validate_annotation_record(dict(base_v10, pause_count=True), catalog_org_ids=set())
+
+        with pytest.raises(ValueError, match="số hữu hạn"):
+            validate_annotation_record(dict(base_v10, paused_seconds=float("nan")), catalog_org_ids=set())
+
     def test_session_abort_during_prompt_does_not_duplicate_or_corrupt_records(self, tmp_path, monkeypatch):
         """Chứng minh (Điều kiện 5b): Thoát giữa chừng không ghi trùng và không lưu bản ghi dở dang."""
         input_file = tmp_path / "blind_input.json"

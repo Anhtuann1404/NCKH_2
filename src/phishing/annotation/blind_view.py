@@ -643,17 +643,47 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
     if domain_role not in VALID_DOMAIN_ROLES:
         raise ValueError(f"domain_role '{domain_role}' không hợp lệ. Phải thuộc: {sorted(list(VALID_DOMAIN_ROLES))}")
 
-    seconds_spent = float(data["seconds_spent"])
+    # Kiểm tra seconds_spent fail-closed
+    raw_seconds_spent = data.get("seconds_spent")
+    if type(raw_seconds_spent) is bool or not isinstance(raw_seconds_spent, (int, float)):
+        raise TypeError(f"Thời gian thao tác seconds_spent={raw_seconds_spent!r} phải là số thực hoặc nguyên, không được là boolean.")
+    seconds_spent = float(raw_seconds_spent)
+    if not math.isfinite(seconds_spent):
+        raise ValueError(f"Thời gian thao tác seconds_spent={seconds_spent} phải là số hữu hạn.")
     if seconds_spent < 0.0:
         raise ValueError(f"Thời gian thao tác seconds_spent={seconds_spent} không được âm.")
 
-    pause_count = int(data.get("pause_count", 0))
-    if pause_count < 0:
-        raise ValueError(f"Số lần tạm dừng pause_count={pause_count} không được âm.")
+    # Kiểm tra pause_count fail-closed
+    if v11 and "pause_count" not in data:
+        raise ValueError("Codebook v1.1 yêu cầu trường pause_count bắt buộc.")
+    if "pause_count" in data:
+        raw_pause_count = data["pause_count"]
+        if type(raw_pause_count) is bool:
+            raise TypeError(f"Số lần tạm dừng pause_count={raw_pause_count!r} không được là boolean.")
+        if type(raw_pause_count) is not int:
+            raise TypeError(f"Số lần tạm dừng pause_count={raw_pause_count!r} phải là số nguyên int, không được là float hay kiểu khác.")
+        if raw_pause_count < 0:
+            raise ValueError(f"Số lần tạm dừng pause_count={raw_pause_count} không được âm.")
+        pause_count = raw_pause_count
+    else:
+        pause_count = 0
 
-    paused_seconds = float(data.get("paused_seconds", 0.0))
-    if paused_seconds < 0.0:
-        raise ValueError(f"Thời gian tạm dừng paused_seconds={paused_seconds} không được âm.")
+    # Kiểm tra paused_seconds fail-closed
+    if v11 and "paused_seconds" not in data:
+        raise ValueError("Codebook v1.1 yêu cầu trường paused_seconds bắt buộc.")
+    if "paused_seconds" in data:
+        raw_paused_seconds = data["paused_seconds"]
+        if type(raw_paused_seconds) is bool:
+            raise TypeError(f"Thời gian tạm dừng paused_seconds={raw_paused_seconds!r} không được là boolean.")
+        if not isinstance(raw_paused_seconds, (int, float)):
+            raise TypeError(f"Thời gian tạm dừng paused_seconds={raw_paused_seconds!r} phải là số thực hoặc nguyên.")
+        paused_seconds = float(raw_paused_seconds)
+        if not math.isfinite(paused_seconds):
+            raise ValueError(f"Thời gian tạm dừng paused_seconds={raw_paused_seconds!r} phải là số hữu hạn.")
+        if paused_seconds < 0.0:
+            raise ValueError(f"Thời gian tạm dừng paused_seconds={raw_paused_seconds!r} không được âm.")
+    else:
+        paused_seconds = 0.0
 
     org_targets = data["org_targets"]
     if not isinstance(org_targets, list):

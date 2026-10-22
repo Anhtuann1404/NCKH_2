@@ -352,6 +352,8 @@ class TestCalibrationReleaseGuardsUnit:
             "domain_role": "unverified",
             "evidence_note": "Ghi chú kiểm thử cho đánh giá viên độc lập E",
             "seconds_spent": 120.0,
+            "pause_count": 0,
+            "paused_seconds": 0.0,
             "random_subset": True,
             "difficult_case": False,
             "codebook_version": "1.1.0",
