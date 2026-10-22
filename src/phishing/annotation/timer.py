@@ -70,13 +70,23 @@ class PausableTimer:
         return self._is_paused
 
     @property
+    def pause_count(self) -> int:
+        """Số lần tạm dừng đã hoàn tất."""
+        return len(self._pause_intervals)
+
+    @property
     def total_paused_seconds(self) -> float:
         """Tổng thời gian đã tạm dừng (giây). Nếu đang tạm dừng, tính cả đợt hiện tại."""
         paused = self._total_paused
         if self._is_paused and self._pause_start is not None:
             now = self._time_fn()
             paused += max(0.0, now - self._pause_start)
-        return paused
+        return round(paused, 2)
+
+    def cancel_pause(self) -> None:
+        """Hủy đợt tạm dừng đang dở dang (ví dụ khi người dùng thoát phiên Ctrl+C trong khi pause)."""
+        self._is_paused = False
+        self._pause_start = None
 
     def raw_elapsed(self) -> float:
         """Tổng thời gian trôi qua từ khi bắt đầu đến hiện tại (gồm cả thời gian nghỉ)."""
@@ -86,7 +96,7 @@ class PausableTimer:
         return round(max(0.0, now - self._start_time), 2)
 
     def active_elapsed(self) -> float:
-        """Thời gian thao tác thực tế (đã trừ toàn bộ thời gian nghỉ), làm tròn 2 chữ số thập phân."""
+        """Thời gian thao tác thực tế (đã trừ thời gian nghỉ chủ động), làm tròn 2 chữ số thập phân."""
         if self._start_time is None:
             return 0.0
         now = self._time_fn()
@@ -104,19 +114,20 @@ class PausableTimer:
         input_fn: Callable[[str], str] = input,
         print_fn: Callable[..., None] = print,
     ) -> float:
-        """Hiển thị thông báo tạm dừng tương tác, đợi người dùng tiếp tục, và tự động trừ thời gian."""
+        """Hiển thị thông báo tạm dừng tương tác, đợi người dùng tiếp tục, và trừ thời gian nghỉ chủ động."""
         self.pause()
         print_fn("\n" + "=" * 70)
-        print_fn("[PAUSE] ĐỒNG HỒ ĐÃ TẠM DỪNG. Bạn có thể nghỉ ngơi.")
-        print_fn("        Thời gian nghỉ sẽ được TỰ ĐỘNG TRỪ khỏi `seconds_spent`.")
+        print_fn("[PAUSE] ĐỒNG HỒ ĐÃ TẠM DỪNG do người gán chủ động yêu cầu.")
+        print_fn("        Thời gian nghỉ sẽ được khấu trừ khỏi `seconds_spent`.")
         print_fn("        Nhấn [Enter] (hoặc gõ bất kỳ ký tự nào) khi quay lại để tiếp tục...")
         print_fn("=" * 70)
         try:
             input_fn("")
         except (KeyboardInterrupt, EOFError):
-            # Nếu người dùng ấn Ctrl+C trong khi tạm dừng, giữ trạng thái và tiếp tục raise
-            self.resume()
+            # Nếu người dùng thoát (Ctrl+C / EOF) khi đang tạm dừng:
+            # Hủy đợt tạm dừng dở dang, không cộng thời gian nghỉ vào tổng đã nghỉ, và re-raise
+            self.cancel_pause()
             raise
         dur = self.resume()
-        print_fn(f"[RESUME] Đã tiếp tục làm việc! (Đã khấu trừ {dur:.2f} giây thời gian nghỉ)\n")
+        print_fn(f"[RESUME] Đã tiếp tục làm việc! (Đã khấu trừ {dur:.2f} giây thời gian nghỉ chủ động)\n")
         return dur

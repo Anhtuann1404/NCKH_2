@@ -564,6 +564,8 @@ class AnnotationRecord:
     sampling_plan_version: str = ""
     sample_content_hash: str = ""
     timestamp_utc: str = ""
+    pause_count: int = 0
+    paused_seconds: float = 0.0
     org_evidence: List[Dict[str, str]] | None = None
     primary_phishing_type: str | None = None
     hard_benign_type: str | None = None
@@ -584,6 +586,8 @@ class AnnotationRecord:
             "domain_role": self.domain_role,
             "evidence_note": self.evidence_note,
             "seconds_spent": round(float(self.seconds_spent), 2),
+            "pause_count": int(self.pause_count),
+            "paused_seconds": round(float(self.paused_seconds), 2),
             "random_subset": bool(self.random_subset),
             "difficult_case": bool(self.difficult_case),
             "codebook_version": self.codebook_version,
@@ -642,6 +646,14 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
     seconds_spent = float(data["seconds_spent"])
     if seconds_spent < 0.0:
         raise ValueError(f"Thời gian thao tác seconds_spent={seconds_spent} không được âm.")
+
+    pause_count = int(data.get("pause_count", 0))
+    if pause_count < 0:
+        raise ValueError(f"Số lần tạm dừng pause_count={pause_count} không được âm.")
+
+    paused_seconds = float(data.get("paused_seconds", 0.0))
+    if paused_seconds < 0.0:
+        raise ValueError(f"Thời gian tạm dừng paused_seconds={paused_seconds} không được âm.")
 
     org_targets = data["org_targets"]
     if not isinstance(org_targets, list):
@@ -729,6 +741,8 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
         domain_role=str(domain_role),
         evidence_note=str(data["evidence_note"]),
         seconds_spent=seconds_spent,
+        pause_count=pause_count,
+        paused_seconds=paused_seconds,
         random_subset=bool(data["random_subset"]),
         difficult_case=bool(data["difficult_case"]),
         codebook_version=str(data.get("codebook_version", "1.0.0")),

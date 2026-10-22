@@ -12,13 +12,17 @@ Quy chuẩn ARS & Safety:
 from __future__ import annotations
 
 import io
+import json
 from pathlib import Path
 import pytest
 
+from phishing.annotation.blind_view import AnnotationRecord, validate_annotation_record
 from phishing.annotation.timer import PausableTimer
 from scripts.annotate_cli import (
     CLASS_LABEL_CHOICES,
+    annotate_interactive_session,
     display_sample_and_allow_reading,
+    load_already_annotated_sample_ids,
     prompt_choice,
     prompt_text_input,
 )
@@ -162,6 +166,49 @@ class TestPausableTimerUnit:
         assert any("[PAUSE]" in p for p in printed)
         assert any("[RESUME]" in p for p in printed)
 
+    def test_timer_abort_during_pause_cancels_and_does_not_accumulate(self):
+        """Chứng minh (Điều kiện 5a): Thoát giữa lúc pause (KeyboardInterrupt) không cộng dồn thời gian nghỉ."""
+        clock = MockClock(100.0)
+        timer = PausableTimer(time_fn=clock.time, start_now=True)
+
+        clock.advance(10.0)  # Active: 10s
+
+        # Lần 1: Nghỉ 5s hoàn tất
+        timer.pause()
+        clock.advance(5.0)
+        timer.resume()
+        assert timer.pause_count == 1
+        assert timer.total_paused_seconds == 5.0
+        assert timer.active_elapsed() == 10.0
+
+        # Lần 2: Bắt đầu pause bằng interactive_pause nhưng bị Ctrl+C / KeyboardInterrupt giữa chừng
+        def mock_input_abort(prompt: str) -> str:
+            clock.advance(12.0)
+            raise KeyboardInterrupt
+
+        with pytest.raises(KeyboardInterrupt):
+            timer.interactive_pause(input_fn=mock_input_abort, print_fn=lambda _: None)
+
+        # Trạng thái sau khi abort: cancel_pause đã được gọi
+        assert not timer.is_paused
+        # Số lần pause vẫn là 1 (không tăng lên 2)
+        assert timer.pause_count == 1
+        # Tổng thời gian pause vẫn là 5.0 (không bị cộng thêm 12s dở dang)
+        assert timer.total_paused_seconds == 5.0
+        # Khoảng thời gian dở dang không được lưu vào pause_intervals
+        assert len(timer.pause_intervals) == 1
+        assert timer.pause_intervals[0][2] == 5.0
+
+    def test_timer_seconds_spent_non_negative_under_clock_skew(self):
+        """Chứng minh (Điều kiện 6a): seconds_spent luôn >= 0.0 ngay cả khi đồng hồ lệch/lùi."""
+        time_vals = [100.0, 95.0, 90.0]  # Giả lập clock lùi thời gian
+        def skewed_time() -> float:
+            return time_vals.pop(0) if time_vals else 90.0
+
+        timer = PausableTimer(time_fn=skewed_time, start_now=True)
+        assert timer.raw_elapsed() >= 0.0
+        assert timer.active_elapsed() >= 0.0
+
 
 class TestCLIIntegrationTimerPause:
     """Kiểm thử tích hợp các hàm giao diện nhập liệu của CLI có hỗ trợ tạm dừng."""
@@ -244,3 +291,144 @@ class TestCLIIntegrationTimerPause:
         display_sample_and_allow_reading(sample, 1, 1, interactive=True, timer=timer)
         assert timer.total_paused_seconds == 40.0
         assert timer.active_elapsed() == 6.0
+
+    def test_record_validation_and_audit_trail_preserves_pause_metrics(self):
+        """Chứng minh (Điều kiện 6b & 7): Schema bảo toàn pause_count, paused_seconds và cấm giá trị âm."""
+        sample_dict = {
+            "annotator_id": "A",
+            "sample_id": "TEST-SMP-001",
+            "pass_id": 1,
+            "class_label": "benign",
+            "primary_org_status": "no_clear_target",
+            "catalog_status": "unresolved",
+            "observed_service": "None",
+            "org_targets": [],
+            "org_evidence": [],
+            "primary_org": "no_clear_target",
+            "identity_role": "unclear",
+            "domain_role": "unverified",
+            "evidence_note": "Trang tin tức cá nhân bình thường",
+            "seconds_spent": 42.5,
+            "pause_count": 2,
+            "paused_seconds": 15.0,
+            "random_subset": False,
+            "difficult_case": False,
+            "codebook_version": "1.1.0",
+            "is_dry_run": False,
+            "is_synthetic": False,
+            "dataset_id": "test_ds",
+            "dataset_hash": "a" * 64,
+            "codebook_hash": "b" * 64,
+            "sampling_plan_version": "v1.1.0",
+            "sample_content_hash": "c" * 64,
+            "timestamp_utc": "2026-10-23T00:00:00Z",
+            "primary_phishing_type": None,
+            "hard_benign_type": None,
+            "confidence": "high",
+        }
+
+        # 1. Bảo toàn chính xác các trường kiểm toán cho PLAN-01
+        record = validate_annotation_record(sample_dict, catalog_org_ids=set())
+        assert record.pause_count == 2
+        assert record.paused_seconds == 15.0
+        assert record.seconds_spent == 42.5
+
+        data_dict = record.to_dict()
+        assert data_dict["pause_count"] == 2
+        assert data_dict["paused_seconds"] == 15.0
+        assert isinstance(data_dict["pause_count"], int)
+        assert isinstance(data_dict["paused_seconds"], float)
+
+        # 2. Chặn giá trị âm fail-closed (Điều kiện 6b)
+        bad_spent = dict(sample_dict, seconds_spent=-5.0)
+        with pytest.raises(ValueError, match="seconds_spent=-5.0 không được âm"):
+            validate_annotation_record(bad_spent, catalog_org_ids=set())
+
+        bad_pause_count = dict(sample_dict, pause_count=-1)
+        with pytest.raises(ValueError, match="pause_count=-1 không được âm"):
+            validate_annotation_record(bad_pause_count, catalog_org_ids=set())
+
+        bad_paused_sec = dict(sample_dict, paused_seconds=-0.5)
+        with pytest.raises(ValueError, match="paused_seconds=-0.5 không được âm"):
+            validate_annotation_record(bad_paused_sec, catalog_org_ids=set())
+
+    def test_session_abort_during_prompt_does_not_duplicate_or_corrupt_records(self, tmp_path, monkeypatch):
+        """Chứng minh (Điều kiện 5b): Thoát giữa chừng không ghi trùng và không lưu bản ghi dở dang."""
+        input_file = tmp_path / "blind_input.json"
+        output_file = tmp_path / "annotated.jsonl"
+        manifest_file = tmp_path / "manifest.json"
+
+        # Chuẩn bị 2 mẫu dữ liệu mô phỏng
+        input_data = {
+            "dataset_id": "SYNTHETIC-TEST",
+            "dataset_type": "synthetic_test",
+            "is_synthetic": True,
+            "sampling_plan_version": "TEST-PLAN",
+            "codebook_version": "1.0.0",
+            "random_subset_default": False,
+            "samples": [
+                {
+                    "sample_id": "SMP-001",
+                    "url": "https://example.com/login",
+                    "page_text": "Sample 1 page text",
+                    "structure_summary": {"forms": 1},
+                },
+                {
+                    "sample_id": "SMP-002",
+                    "url": "https://test.com/home",
+                    "page_text": "Sample 2 page text",
+                    "structure_summary": {"forms": 0},
+                },
+            ],
+        }
+        input_file.write_text(json.dumps(input_data, ensure_ascii=False), encoding="utf-8")
+
+        # Mock các hàm tương tác:
+        # Ở mẫu SMP-001: hoàn thành bình thường (cần 5 lần prompt_choice trong Codebook 1.0.0)
+        # Ở mẫu SMP-002: tại câu hỏi đầu tiên (lần gọi thứ 6) bị ngắt (KeyboardInterrupt)
+        call_count = {"prompt_choice": 0}
+
+        def mock_display(sample, idx, total, interactive=True, timer=None):
+            pass
+
+        def mock_prompt_choice(prompt, choices, timer=None):
+            call_count["prompt_choice"] += 1
+            if call_count["prompt_choice"] > 5:  # Bắt đầu mẫu SMP-002
+                raise KeyboardInterrupt
+            return list(choices.values())[0]
+
+        def mock_prompt_text(prompt, default_val="", required=False, timer=None):
+            return default_val or "ghi chú test"
+
+        monkeypatch.setattr("scripts.annotate_cli.display_sample_and_allow_reading", mock_display)
+        monkeypatch.setattr("scripts.annotate_cli.prompt_choice", mock_prompt_choice)
+        monkeypatch.setattr("scripts.annotate_cli.prompt_text_input", mock_prompt_text)
+
+        # Đợt 1: Chạy và bị Ctrl+C ở mẫu SMP-002
+        annotate_interactive_session(
+            annotator_id="A",
+            input_path=input_file,
+            output_path=output_file,
+        )
+
+        # Kiểm tra đợt 1: Chỉ có 1 bản ghi của SMP-001, tuyệt đối không có SMP-002 dở dang
+        lines_1 = [json.loads(line) for line in output_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        assert len(lines_1) == 1
+        assert lines_1[0]["sample_id"] == "SMP-001"
+
+        # Đợt 2: Người gán chạy lại lệnh sau khi nghỉ
+        call_count["prompt_choice"] = 0
+        def mock_prompt_choice_resume(prompt, choices, timer=None):
+            return list(choices.values())[0]
+        monkeypatch.setattr("scripts.annotate_cli.prompt_choice", mock_prompt_choice_resume)
+
+        annotate_interactive_session(
+            annotator_id="A",
+            input_path=input_file,
+            output_path=output_file,
+        )
+
+        # Kiểm tra đợt 2: SMP-001 được bỏ qua (không ghi trùng), SMP-002 được hoàn thành
+        lines_2 = [json.loads(line) for line in output_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        assert len(lines_2) == 2
+        assert [r["sample_id"] for r in lines_2] == ["SMP-001", "SMP-002"]
