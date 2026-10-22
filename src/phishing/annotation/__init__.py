@@ -14,6 +14,7 @@ from .blind_view import (
     extract_safe_view_content,
     validate_annotation_record,
 )
+from .timer import PausableTimer
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,5 +369,6 @@ __all__ = [
     "export_blind_view",
     "extract_safe_view_content",
     "validate_annotation_record",
+    "PausableTimer",
 ]
 

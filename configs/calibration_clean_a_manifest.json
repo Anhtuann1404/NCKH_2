@@ -20,8 +20,18 @@
     "random_seed_main_shuffle": 20261023,
     "random_seed_reserve_shuffle": 20261024,
     "verified_source_shards": [
-      "data/train-000.parquet",
-      "data/train-055.parquet"
+      {
+        "file_name": "train-000.parquet",
+        "relative_path": "data/train-000.parquet",
+        "byte_size": 49639686,
+        "source_manifest_lfs_sha256": "9a9c693a95daeddb127c4446df4c5673b3f1a39e457ffe964b9849069bd739fe"
+      },
+      {
+        "file_name": "train-055.parquet",
+        "relative_path": "data/train-055.parquet",
+        "byte_size": 20213199,
+        "source_manifest_lfs_sha256": "205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0"
+      }
     ],
     "verified_date_window": {
       "start_date": "2024-10-01",
@@ -34,7 +44,7 @@
     "official_test_used": false,
     "acceptance": {
       "member_b_qa": "endorsed_proposal_20261022",
-      "lead_d": "pending"
+      "lead_d": "pending_proposal_v1_1_review"
     },
     "codebook_reference": "docs/CODEBOOK_V1_1.md",
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
@@ -42,15 +52,16 @@
     "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
     "exclusion_registry_reference": "data/exclusion_registry.json",
     "exclusion_audit_reference": "data/source_audit/clean_calibration_exclusion_audit_report.json",
-    "exclusion_audit_sha256": "bf97bb4b60415c02ed900faeae0ac1cd9c5a9f4f00969d17655a3c2998a2e947",
-    "known_excluded_samples_count": 108
+    "exclusion_audit_sha256": "39252ac25ccd74e498b47a153ced416b1e486e67ebc5fb5f557245dfedd603a5",
+    "known_excluded_samples_count": 116
   },
   "protocol": {
     "evaluation_mode": "double_blind_parallel_pass1",
     "annotators": ["Annotator A", "Annotator B (QA Lead)"],
     "blind_view_policy": "zero_source_labels_zero_matchers_zero_confidences",
-    "timing_policy": "clean_seconds_spent_with_pause_resume_logging_for_plan_01",
+    "timing_policy": "interactive_pause_resume_with_idle_deduction_implemented_and_tested",
+    "template_similarity_policy": "mandatory_post_candidate_selection_step_simhash_dom",
     "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
   },
-  "notes": "Manifest dự thảo kỹ thuật do C thiết lập theo đề xuất của B; giữ trạng thái pending, ready_for_annotation=false, training_blocked=true. Chờ Lead D ký duyệt phát lệnh trích xuất."
+  "notes": "Manifest dự thảo kỹ thuật v1.1: Đã hoàn thành và kiểm thử 100% TASK-CLI-TIMER-PAUSE (tests/test_annotate_cli_timer_pause.py pass 8/8 tests); nguồn tuyển chọn khóa đúng 2 verified source shards (train-000 và train-055); kiểm kê 116 mẫu loại trừ đã biết."
 }

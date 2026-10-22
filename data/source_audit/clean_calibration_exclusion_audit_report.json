@@ -1,42 +1,88 @@
 {
-  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261021",
-  "purpose": "Bằng chứng kiểm kê 4 tập loại trừ trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho Thành viên A",
-  "lead_d_directive_reference": "Quyết định Lead D ngày 2026-10-21",
+  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261022",
+  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm đầy đủ 116 mẫu trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
+  "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-22 (Đếm trực tiếp registry, giải quyết 8 mẫu dự phòng)",
   "governance": {
     "training_blocked": true,
     "official_test_used": false,
     "registry_version": "1.1.0",
-    "registry_sha256": "4b752a59b34393896ea4016554476d565701d7f54c489e927ee5c115b68e814e"
+    "registry_sha256": "4b752a59b34393896ea4016554476d565701d7f54c489e927ee5c115b68e814e",
+    "total_excluded_entries_in_registry": 6,
+    "total_excluded_samples_in_registry": 148
   },
   "inventory": {
-    "total_exclusion_batches": 4,
-    "total_known_samples": 108,
-    "batches": [
+    "primary_known_batches_count": 5,
+    "primary_known_samples_count": 116,
+    "primary_batches": [
       {
         "exclusion_id": "EXCL-PILOT-01",
         "description": "20 mẫu tập dượt ban đầu",
         "sample_count": 20,
+        "unique_url_sha256": 0,
+        "unique_html_sha256": 0,
+        "unique_group_sha256": 0,
+        "unique_summary_fingerprints": 20,
         "action": "permanently_exclude_from_train_val_test"
       },
       {
         "exclusion_id": "EXCL-REAL-PILOT-32",
         "description": "32 mẫu Pilot V1 thật",
         "sample_count": 32,
+        "unique_url_sha256": 32,
+        "unique_html_sha256": 32,
+        "unique_group_sha256": 31,
+        "unique_summary_fingerprints": 0,
         "action": "permanently_exclude_from_train_val_test"
       },
       {
         "exclusion_id": "EXCL-PILOT-02",
         "description": "32 mẫu Pilot V2 thật",
         "sample_count": 32,
+        "unique_url_sha256": 32,
+        "unique_html_sha256": 32,
+        "unique_group_sha256": 32,
+        "unique_summary_fingerprints": 0,
         "action": "permanently_exclude_from_train_val_test"
       },
       {
         "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24",
-        "description": "24 mẫu Calibration v1.1.4 đã xem",
+        "description": "24 mẫu Calibration v1.1.4 chính đã xem",
         "sample_count": 24,
+        "unique_url_sha256": 24,
+        "unique_html_sha256": 24,
+        "unique_group_sha256": 24,
+        "unique_summary_fingerprints": 0,
+        "action": "permanently_exclude_from_train_val_test"
+      },
+      {
+        "exclusion_id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08",
+        "description": "8 mẫu dự phòng Calibration đã đăng ký trong registry",
+        "sample_count": 8,
+        "unique_url_sha256": 8,
+        "unique_html_sha256": 8,
+        "unique_group_sha256": 8,
+        "unique_summary_fingerprints": 0,
         "action": "permanently_exclude_from_train_val_test"
       }
-    ]
+    ],
+    "primary_unique_fingerprints": {
+      "unique_url_sha256": 96,
+      "unique_html_sha256": 96,
+      "unique_group_sha256": 95,
+      "unique_summary_fingerprints": 20
+    },
+    "registry_total_fingerprints": {
+      "all_unique_url_sha256": 128,
+      "all_unique_html_sha256": 128,
+      "all_unique_group_sha256": 127
+    },
+    "rebuild_entry_audit": {
+      "exclusion_id": "EXCL-PILOT-02-REBUILD-e039c774ef5f",
+      "description": "Lô lưu trữ fingerprint mở rộng của Pilot V2 trong registry",
+      "sample_count": 32,
+      "unique_url_sha256": 32,
+      "action": "permanently_exclude_from_train_val_test"
+    }
   },
   "anti_leakage_scope": {
     "dimensions": [
@@ -44,7 +90,7 @@
       "html_sha256",
       "group_sha256 (eTLD+1 / shared hosting tenant)"
     ],
-    "template_similarity_policy": "Rà soát SimHash/DOM structure để loại bỏ biến thể clone/template sinh hàng loạt",
-    "scientific_disclaimer": "Đã kiểm tra đối chiếu độc lập trên 108 mẫu đã biết trong registry; đã rà soát template similarity để loại bỏ các biến thể cùng nguồn sinh. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
+    "template_similarity_policy": "Bước kiểm tra bắt buộc sẽ thực hiện ngay sau khi chạy thuật toán tuyển chọn ứng viên ngẫu nhiên; kết quả đo lường độ tương đồng SimHash/DOM thực tế giữa ứng viên và các mẫu đã biết sẽ được đưa vào báo cáo nghiệm thu ứng viên trước khi phát hành gói.",
+    "scientific_disclaimer": "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 116 mẫu đã biết (108 mẫu đã dùng + 8 mẫu dự phòng Calibration) trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
   }
 }

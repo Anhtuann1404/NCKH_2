@@ -38,6 +38,7 @@ if str(SRC_DIR) not in sys.path:
 
 from phishing.annotation import (
     AnnotationRecord,
+    PausableTimer,
     assert_no_label_leak,
     compute_sample_content_hash,
     validate_annotation_record,
@@ -92,18 +93,51 @@ HARD_BENIGN_CHOICES = {
 CONFIDENCE_CHOICES = {"1": "low", "2": "medium", "3": "high"}
 
 
-def prompt_choice(prompt_text: str, choices: Dict[str, str], default_key: str | None = None) -> str:
-    """Yêu cầu người dùng chọn từ menu số, hỗ trợ giá trị mặc định."""
+def prompt_choice(
+    prompt_text: str,
+    choices: Dict[str, str],
+    default_key: str | None = None,
+    timer: Optional[PausableTimer] = None,
+) -> str:
+    """Yêu cầu người dùng chọn từ menu số, hỗ trợ giá trị mặc định và lệnh :p tạm dừng."""
     opts_str = " / ".join(f"[{k}] {v}" for k, v in choices.items())
     default_str = f" (Mặc định: [{default_key}])" if default_key else ""
+    pause_hint = " [:p tạm dừng]" if timer else ""
     while True:
         try:
-            val = input(f"{prompt_text} ({opts_str}){default_str}: ").strip()
+            val = input(f"{prompt_text} ({opts_str}){default_str}{pause_hint}: ").strip()
+            if timer and val.lower() in {":p", ":pause", "pause"}:
+                timer.interactive_pause()
+                continue
             if not val and default_key:
                 return choices[default_key]
             if val in choices:
                 return choices[val]
-            print(f"Lựa chọn '{val}' không hợp lệ. Vui lòng nhập lại số tương ứng.")
+            print(f"Lựa chọn '{val}' không hợp lệ. Vui lòng nhập lại số tương ứng (hoặc :p để tạm dừng).")
+        except EOFError:
+            raise KeyboardInterrupt
+
+
+def prompt_text_input(
+    prompt_text: str,
+    default_val: str = "",
+    required: bool = False,
+    timer: Optional[PausableTimer] = None,
+) -> str:
+    """Nhận chuỗi nhập liệu tự do từ người dùng, hỗ trợ lệnh :p / :pause để tạm dừng đồng hồ."""
+    pause_hint = " [:p tạm dừng]" if timer else ""
+    while True:
+        try:
+            val = input(f"{prompt_text}{pause_hint}: ").strip()
+            if timer and val.lower() in {":p", ":pause", "pause"}:
+                timer.interactive_pause()
+                continue
+            if not val and default_val:
+                return default_val
+            if required and not val:
+                print("Trường này là bắt buộc, không được để trống (hoặc :p để tạm dừng).")
+                continue
+            return val
         except EOFError:
             raise KeyboardInterrupt
 
@@ -252,8 +286,14 @@ def load_already_annotated_sample_ids(
     return annotated
 
 
-def display_sample_and_allow_reading(sample: Dict[str, Any], current_idx: int, total_samples: int, interactive: bool = True) -> None:
-    """Hiển thị thông tin mẫu và cho phép người gán nhãn đọc toàn bộ văn bản (đồng hồ vẫn tính giờ)."""
+def display_sample_and_allow_reading(
+    sample: Dict[str, Any],
+    current_idx: int,
+    total_samples: int,
+    interactive: bool = True,
+    timer: Optional[PausableTimer] = None,
+) -> None:
+    """Hiển thị thông tin mẫu và cho phép người gán nhãn đọc toàn bộ văn bản (hỗ trợ tạm dừng timer)."""
     print("\n" + "=" * 80)
     print(f" MẪU GÁN NHÃN MÙ [{current_idx}/{total_samples}]: ID = {sample.get('sample_id')}")
     print("=" * 80)
@@ -279,9 +319,13 @@ def display_sample_and_allow_reading(sample: Dict[str, Any], current_idx: int, t
         cursor = 600
         while True:
             try:
-                cmd = input(f"\n[{label}] Nhập 'v' xem toàn bộ, 'm' xem thêm 600 ký tự, hoặc Enter để tiếp tục: ").strip().lower()
+                pause_hint = ", 'p' tạm dừng" if timer else ""
+                cmd = input(f"\n[{label}] Nhập 'v' xem toàn bộ, 'm' xem thêm 600 ký tự{pause_hint}, hoặc Enter để tiếp tục: ").strip().lower()
             except EOFError:
                 raise KeyboardInterrupt
+            if timer and cmd in {"p", ":p", "pause", ":pause"}:
+                timer.interactive_pause()
+                continue
             if cmd == "v":
                 print(value)
                 return
@@ -751,11 +795,11 @@ def annotate_interactive_session(
                     f"codebook_version='{s_cb_ver}', không khớp với phiên bản đã kiểm chứng '{verified_cb_version}'."
                 )
 
-        # BẮT ĐẦU ĐỒNG HỒ BẤM GIỜ NGAY TRƯỚC KHI HIỂN THỊ ĐỂ TÍNH CẢ THỜI GIAN ĐỌC
-        start_time = time.perf_counter()
+        # BẮT ĐẦU ĐỒNG HỒ BẤM GIỜ HỖ TRỢ TẠM DỪNG NGAY TRƯỚC KHI HIỂN THỊ
+        timer = PausableTimer()
 
-        # Hiển thị mẫu và cho phép đọc toàn văn
-        display_sample_and_allow_reading(sample, idx, total_samples, interactive=not dry_run)
+        # Hiển thị mẫu và cho phép đọc toàn văn (hỗ trợ lệnh 'p' tạm dừng)
+        display_sample_and_allow_reading(sample, idx, total_samples, interactive=not dry_run, timer=timer)
 
         # Tính hash nội dung của mẫu hiện tại bằng hàm canonical compute_sample_content_hash
         sample_content_hash = compute_sample_content_hash(sample)
@@ -833,13 +877,13 @@ def annotate_interactive_session(
             continue
 
         try:
-            print(f"\n[INPUT] Nhập thông tin đánh giá (Codebook {codebook_version}):")
+            print(f"\n[INPUT] Nhập thông tin đánh giá (Codebook {codebook_version}): [gõ :p để tạm dừng]")
             step = 1
 
-            c_label = prompt_choice(f"{step}. Nhãn phân loại", CLASS_LABEL_CHOICES)
+            c_label = prompt_choice(f"{step}. Nhãn phân loại", CLASS_LABEL_CHOICES, timer=timer)
             step += 1
 
-            p_org_status = prompt_choice(f"{step}. Trạng thái tổ chức", PRIMARY_ORG_STATUS_CHOICES)
+            p_org_status = prompt_choice(f"{step}. Trạng thái tổ chức", PRIMARY_ORG_STATUS_CHOICES, timer=timer)
             step += 1
 
             org_evidence = None
@@ -849,16 +893,16 @@ def annotate_interactive_session(
             catalog_ids = None
 
             if v11:
-                obs_service = input(f"{step}. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                obs_service = prompt_text_input(f"{step}. Tên dịch vụ quan sát tự do (Enter để bỏ trống)", default_val="None", timer=timer)
                 step += 1
 
                 if p_org_status == "identified":
-                    primary_org = input(f"{step}. Mã tổ chức chính chuẩn hóa: ").strip().lower()
+                    primary_org = prompt_text_input(f"{step}. Mã tổ chức chính chuẩn hóa", timer=timer).lower()
                     step += 1
                     org_targets = [primary_org] if primary_org else []
                 elif p_org_status == "multi_target":
                     primary_org = "unknown"
-                    targets_input = input(f"{step}. Các mã tổ chức ngang hàng (phân tách bằng dấu phẩy): ").strip().lower()
+                    targets_input = prompt_text_input(f"{step}. Các mã tổ chức ngang hàng (phân tách bằng dấu phẩy)", timer=timer).lower()
                     step += 1
                     org_targets = [t.strip() for t in targets_input.split(",") if t.strip()]
                 else:
@@ -872,9 +916,9 @@ def annotate_interactive_session(
 
                 org_evidence = []
                 for org_id in org_targets:
-                    basis = prompt_choice(f"{step}. Căn cứ nhận diện {org_id}", EVIDENCE_BASIS_CHOICES)
+                    basis = prompt_choice(f"{step}. Căn cứ nhận diện {org_id}", EVIDENCE_BASIS_CHOICES, timer=timer)
                     step += 1
-                    quote = input(f"{step}. Trích dẫn an toàn cho {org_id} (để trống nếu chỉ có cấu trúc form): ").strip()
+                    quote = prompt_text_input(f"{step}. Trích dẫn an toàn cho {org_id} (để trống nếu chỉ có cấu trúc form)", timer=timer)
                     step += 1
                     visible_text = " ".join(str(part or "") for part in (
                         sample.get("page_text"), sample.get("translated_text"),
@@ -885,63 +929,66 @@ def annotate_interactive_session(
                     org_evidence.append({"org_id": org_id, "evidence_basis": basis, "evidence_quote": quote})
 
                 if c_label == "phishing":
-                    phishing_type = prompt_choice(f"{step}. Kiểu phishing quan sát được", PHISHING_TYPE_CHOICES)
+                    phishing_type = prompt_choice(f"{step}. Kiểu phishing quan sát được", PHISHING_TYPE_CHOICES, timer=timer)
                     step += 1
                 elif c_label == "benign":
-                    selected_type = prompt_choice(f"{step}. Kiểu hard benign (0 nếu không áp dụng)", HARD_BENIGN_CHOICES)
+                    selected_type = prompt_choice(f"{step}. Kiểu hard benign (0 nếu không áp dụng)", HARD_BENIGN_CHOICES, timer=timer)
                     step += 1
                     hard_benign_type = None if selected_type == "none" else selected_type
 
-                id_role = prompt_choice(f"{step}. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES)
+                id_role = prompt_choice(f"{step}. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES, timer=timer)
                 step += 1
 
-                dom_role = prompt_choice(f"{step}. Vai trò tên miền", DOMAIN_ROLE_CHOICES)
+                dom_role = prompt_choice(f"{step}. Vai trò tên miền", DOMAIN_ROLE_CHOICES, timer=timer)
                 step += 1
 
-                evidence = input(f"{step}. Ghi chú bằng chứng nội dung/form: ").strip()
+                evidence = prompt_text_input(f"{step}. Ghi chú bằng chứng nội dung/form", required=True, timer=timer)
                 step += 1
                 if not evidence:
                     raise ValueError("Codebook v1.1 yêu cầu ghi chú bằng chứng; không suy nhãn chỉ từ URL.")
 
-                diff_str = input(f"{step}. Đánh dấu ca khó? [y/N]: ").strip().lower()
+                diff_str = prompt_text_input(f"{step}. Đánh dấu ca khó? [y/N]", default_val="n", timer=timer).lower()
                 step += 1
                 is_diff = diff_str in {"y", "yes", "true", "1"}
 
-                confidence = prompt_choice(f"{step}. Độ tin cậy tự đánh giá", CONFIDENCE_CHOICES)
+                confidence = prompt_choice(f"{step}. Độ tin cậy tự đánh giá", CONFIDENCE_CHOICES, timer=timer)
                 step += 1
             else:
-                cat_status = prompt_choice(f"{step}. Tình trạng từ điển", CATALOG_STATUS_CHOICES)
+                cat_status = prompt_choice(f"{step}. Tình trạng từ điển", CATALOG_STATUS_CHOICES, timer=timer)
                 step += 1
 
-                obs_service = input(f"{step}. Tên dịch vụ quan sát tự do (Enter để bỏ trống): ").strip() or "None"
+                obs_service = prompt_text_input(f"{step}. Tên dịch vụ quan sát tự do (Enter để bỏ trống)", default_val="None", timer=timer)
                 step += 1
 
-                primary_org = input(f"{step}. Mã tổ chức chính (ví dụ: microsoft, google, unknown): ").strip() or "unknown"
+                primary_org = prompt_text_input(f"{step}. Mã tổ chức chính (ví dụ: microsoft, google, unknown)", default_val="unknown", timer=timer)
                 step += 1
 
-                targets_input = input(f"{step}. Các tổ chức bị mạo danh (phân tách bởi dấu phẩy, Enter nếu rỗng): ").strip()
+                targets_input = prompt_text_input(f"{step}. Các tổ chức bị mạo danh (phân tách bởi dấu phẩy, Enter nếu rỗng)", timer=timer)
                 step += 1
                 org_targets = [t.strip() for t in targets_input.split(",") if t.strip()] if targets_input else []
                 if primary_org not in {"unknown", "no_clear_target"} and primary_org not in org_targets:
                     org_targets.append(primary_org)
 
-                id_role = prompt_choice(f"{step}. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES)
+                id_role = prompt_choice(f"{step}. Vai trò danh tính trên trang", IDENTITY_ROLE_CHOICES, timer=timer)
                 step += 1
 
-                dom_role = prompt_choice(f"{step}. Vai trò tên miền", DOMAIN_ROLE_CHOICES)
+                dom_role = prompt_choice(f"{step}. Vai trò tên miền", DOMAIN_ROLE_CHOICES, timer=timer)
                 step += 1
 
-                evidence = input(f"{step}. Ghi chú bằng chứng nội dung/form: ").strip()
+                evidence = prompt_text_input(f"{step}. Ghi chú bằng chứng nội dung/form", default_val="Quan sát theo URL và cấu trúc trang", timer=timer)
                 step += 1
-                evidence = evidence or "Quan sát theo URL và cấu trúc trang"
 
-                diff_str = input(f"{step}. Đánh dấu ca khó? [y/N]: ").strip().lower()
+                diff_str = prompt_text_input(f"{step}. Đánh dấu ca khó? [y/N]", default_val="n", timer=timer).lower()
                 step += 1
                 is_diff = diff_str in {"y", "yes", "true", "1"}
 
-            # DỪNG BẤM GIỜ
-            elapsed = round(time.perf_counter() - start_time, 2)
-            print(f"[TIMER] Thời gian thao tác mẫu (gồm cả thời gian đọc): {elapsed} giây")
+            # DỪNG BẤM GIỜ & TÍNH TOÁN THỜI GIAN THỰC TẾ (ĐÃ TRỪ TOÀN BỘ THỜI GIAN NGHỈ)
+            elapsed = timer.active_elapsed()
+            total_paused = timer.total_paused_seconds
+            if total_paused > 0:
+                print(f"[TIMER] Thời gian thao tác mẫu (thực tế: {elapsed}s | đã trừ {total_paused:.2f}s tạm dừng)")
+            else:
+                print(f"[TIMER] Thời gian thao tác mẫu (gồm cả thời gian đọc): {elapsed} giây")
 
             record_dict = {
                 "annotator_id": annotator_id,

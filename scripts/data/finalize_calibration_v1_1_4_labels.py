@@ -24,6 +24,9 @@ import json
 from pathlib import Path
 import sys
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parents[2]
 
 TARGET_HASH_B = "161abf6fee8abec12028f72a2e8a095a276bf70b1c8dc6520c00b227291ede82"
@@ -71,13 +74,24 @@ def main():
         if sid in map_draft:
             r = dict(map_draft[sid])
             r["final_class_label"] = r.pop("adjudicated_class_label")
-            r["approval_status"] = "approved_by_lead_d_20261021"
+            r["approval_status"] = "approved_by_lead_d_20261022"
             r["signoff_authority"] = "Lead D (Anh Tuấn)"
+            # Đồng bộ trạng thái: Xóa ghi chú tạm 'Trạng thái: Chờ Lead D duyệt cuối.'
+            if "evidence_note" in r and r["evidence_note"]:
+                r["evidence_note"] = (
+                    r["evidence_note"]
+                    .replace(" Trạng thái: Chờ Lead D duyệt cuối.", "")
+                    .replace("Trạng thái: Chờ Lead D duyệt cuối.", "")
+                    .strip()
+                )
+            # Đồng bộ confidence: D không gán confidence mới ngoài Codebook
+            if r.get("adjudicated_confidence_status") == "pending_lead_d_confirmation":
+                r["adjudicated_confidence_status"] = "not_assigned_by_adjudicator"
             final_records.append(r)
         else:
             q = dict(map_qc[sid])
             q["final_class_label"] = None
-            q["approval_status"] = "approved_by_lead_d_20261021"
+            q["approval_status"] = "approved_by_lead_d_20261022"
             q["signoff_authority"] = "Lead D (Anh Tuấn)"
             final_records.append(q)
 
@@ -85,10 +99,10 @@ def main():
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "dataset_id": "CALIBRATION-V1.1-24",
         "version": "1.1.4-final",
-        "finalized_at_utc": "2026-10-21T17:15:00Z",
+        "finalized_at_utc": "2026-10-22T02:00:00Z",
         "governance": {
             "lead_d_signoff": "approved",
-            "lead_d_signoff_date": "2026-10-21",
+            "lead_d_signoff_date": "2026-10-22",
             "lead_d_decision_reference": "CALIBRATION_V1_1_4_ADJUDICATION_D_DECISIONS.md",
             "lead_d_decision_sha256": TARGET_HASH_D_DECISION,
             "member_b_qa_status": "qa_approved",
@@ -101,7 +115,18 @@ def main():
             "dictionary_version": "1.0.0",
             "dictionary_sha256": TARGET_HASH_DICTIONARY,
             "blind_view_sha256": TARGET_HASH_BLIND_VIEW,
-            "training_blocked": True
+            "training_blocked": True,
+            "training_exclusion_policy": (
+                "Toàn bộ 24 mẫu Calibration v1.1.4 (bao gồm cả 17 mẫu có binary_model_eligible=true) "
+                "đều bị loại trừ vĩnh viễn khỏi toàn bộ các tập train, validation và test của các mô hình M0–M3. "
+                "Trường binary_model_eligible chỉ mô tả cấu trúc nhãn lớp trong phân tích Calibration, "
+                "tuyệt đối không cấp quyền dùng cho huấn luyện."
+            ),
+            "adjudicated_confidence_policy": (
+                "Lead D phê chuẩn nhãn phân xử, căn cứ bằng chứng và loại trang; "
+                "Lead D không tự gán điểm tin cậy (confidence) mới để tránh phát sinh định tính chủ quan ngoài Codebook. "
+                "Điểm tin cậy gốc của rater được lưu độc lập tại tệp Pass 1 gốc."
+            )
         },
         "summary": {
             "total_samples": 24,
@@ -138,9 +163,9 @@ def main():
 
 **Dự án:** NCKH_2 — Phát hiện website phishing mạo danh tổ chức bằng học máy  
 **Mốc kỹ thuật:** Đóng mốc Hiệu chuẩn Calibration v1.1.4 (CALIBRATION-V1.1-24)  
-**Ngày ký duyệt:** 21/10/2026  
-**Chủ trì phê duyệt:** Lead D (Anh Tuấn)  
-**Đại diện QA & Rater độc lập:** Member B (Phùng Tấn Minh)  
+**Ngày ký duyệt:** 22/10/2026  
+**Chủ trì phê duyệt:** Lead D (Anh Tuấn) — Đã chấp thuận chính thức toàn bộ nội dung phân xử  
+**Đại diện QA & Rater độc lập:** Member B (Phùng Tấn Minh) — Đã nghiệm thu QA 100%  
 **Đại diện Pipeline & Dữ liệu:** Member C  
 
 ---
@@ -166,7 +191,7 @@ def main():
 
 ## 2. KẾT QUẢ KÝ DUYỆT CHÍNH THỨC 24/24 MẪU
 
-Theo quyết định chính thức của Lead D và báo cáo QA của Member B:
+Theo quyết định phê duyệt chính thức của Lead D (22/10/2026) và báo cáo thẩm định QA của Member B:
 
 ### A. Tập nhãn đủ điều kiện cho mô hình nhị phân (17 mẫu - `binary_model_eligible = True`):
 - **11 mẫu Benign:**
@@ -204,15 +229,17 @@ Theo quyết định chính thức của Lead D và báo cáo QA của Member B:
 
 ## 3. KỶ LUẬT DỮ LIỆU & BẢO LƯU
 
-1. **Cô lập tập nhị phân:** Tuyệt đối không đưa 5 mẫu QC `pending_evidence` và 2 mẫu `insufficient_evidence` vào tập dữ liệu huấn luyện hoặc đánh giá mô hình nhị phân M0–M3.
-2. **Khóa dữ liệu huấn luyện:** Tiếp tục duy trì `training_blocked = true`. Không mở tập huấn luyện chính thức khi chưa nghiệm thu PLAN-01.
-3. **Đóng mốc Calibration v1.1.4:** Toàn bộ dữ liệu 24 mẫu hiệu chuẩn này được khóa cố định và chuyển sang trạng thái tham chiếu xác minh.
+1. **Loại trừ vĩnh viễn toàn bộ 24 mẫu khỏi huấn luyện và kiểm thử mô hình:** Toàn bộ 24 mẫu thuộc hồ sơ Calibration v1.1.4 (bao gồm cả 17 mẫu có `binary_model_eligible = true`) đều bị **loại trừ vĩnh viễn (permanently excluded)** khỏi toàn bộ các tập dữ liệu Train, Validation và Test của các mô hình M0–M3.
+2. **Phạm vi trường `binary_model_eligible`:** Trường `binary_model_eligible = true` chỉ thuần túy mô tả thuộc tính cấu trúc nhãn lớp hợp lệ phục vụ phân tích độ đồng thuận rater và thống kê nội bộ hiệu chuẩn, tuyệt đối KHÔNG cấp quyền đưa vào tập dữ liệu huấn luyện hoặc kiểm thử mô hình.
+3. **Điểm tin cậy phân xử (Adjudicated Confidence):** Lead D phê chuẩn nhãn phân xử, căn cứ bằng chứng và loại trang; Lead D không tự gán điểm tin cậy (confidence) mới để tránh định tính chủ quan ngoài Codebook (`adjudicated_confidence_status = not_assigned_by_adjudicator`). Điểm tin cậy gốc của từng rater được lưu độc lập tại tệp Pass 1 gốc.
+4. **Khóa dữ liệu huấn luyện:** Tiếp tục duy trì `training_blocked = true`. Không mở tập huấn luyện chính thức khi chưa nghiệm thu PLAN-01.
+5. **Đóng mốc Calibration v1.1.4:** Toàn bộ dữ liệu 24 mẫu hiệu chuẩn này được khóa cố định và chuyển sang trạng thái tham chiếu xác minh.
 
 ---
-**Xác nhận ký duyệt bởi:**  
-- **Lead D (Anh Tuấn):** Đã phê duyệt chính thức (21/10/2026)  
-- **Member B (Phùng Tấn Minh):** Đã nghiệm thu QA (21/10/2026)  
-- **Member C:** Đã lập và khóa kiểm chứng SHA-256 (21/10/2026)  
+**Xác nhận ký duyệt chính thức:**  
+- **Lead D (Anh Tuấn):** Đã phê duyệt chính thức nội dung phân xử (22/10/2026)  
+- **Member B (Phùng Tấn Minh):** Đã nghiệm thu QA 100% (21/10/2026)  
+- **Member C:** Đã lập và khóa kiểm chứng SHA-256 (22/10/2026)  
 """
     minutes_path = labels_dir / "CALIBRATION_V1_1_4_SIGN_OFF_MINUTES.md"
     minutes_path.write_text(minutes_content, encoding="utf-8")
