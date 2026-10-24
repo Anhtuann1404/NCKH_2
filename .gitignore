@@ -28,6 +28,11 @@ data/annotations/*
 !data/annotations/blind_view_pilot.json
 !data/annotations/templates/
 !data/annotations/templates/*
+data/clean_calibration_candidates*.json
+data/*_candidates.json
+data/*_candidates_restricted.json
+data/restricted/
+restricted_packages/
 artifacts/models/
 models/
 artifacts/runs/
@@ -37,5 +42,7 @@ data/source_audit/phreshphish/pilot_20_rows.json
 tmp/
 logs/
 *.log
+*.patch
+*.zip
+MANIFEST_TASK_CLI_TIMER_PAUSE.json
 scratch/
-

@@ -1,18 +1,18 @@
 {
-  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261023",
-  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 6 lô (148 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
-  "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-23 (Đối chiếu toàn bộ 6 lô, 148 mẫu, bao gồm EXCL-PILOT-02-REBUILD và làm rõ giới hạn 20 mẫu summary fingerprint)",
+  "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261024",
+  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 7 lô (180 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch Đợt B cho A",
+  "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-24 (Đối chiếu toàn bộ 7 lô, 180 mẫu, loại trừ 32 locator đợt cũ đã xuất hiện trên Git và làm rõ giới hạn 20 mẫu summary fingerprint)",
   "governance": {
     "training_blocked": true,
     "official_test_used": false,
     "registry_version": "1.1.0",
-    "registry_sha256": "4b752a59b34393896ea4016554476d565701d7f54c489e927ee5c115b68e814e",
-    "total_excluded_entries_in_registry": 6,
-    "total_excluded_samples_in_registry": 148
+    "registry_sha256": "e989b94043ad999890fe09f0735a1a48da4d0f70dea58301ab33c8fbaa742985",
+    "total_excluded_entries_in_registry": 7,
+    "total_excluded_samples_in_registry": 180
   },
   "inventory": {
-    "total_batches_count": 6,
-    "total_samples_count": 148,
+    "total_batches_count": 7,
+    "total_samples_count": 180,
     "batches": [
       {
         "exclusion_id": "EXCL-PILOT-01",
@@ -73,12 +73,22 @@
         "unique_group_sha256": 8,
         "unique_summary_fingerprints": 0,
         "action": "permanently_exclude_from_train_val_test"
+      },
+      {
+        "exclusion_id": "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT",
+        "description": "32 mẫu ứng viên đợt A bị lộ locator trên Git (24 chính + 8 dự phòng)",
+        "sample_count": 32,
+        "unique_url_sha256": 34,
+        "unique_html_sha256": 32,
+        "unique_group_sha256": 32,
+        "unique_summary_fingerprints": 0,
+        "action": "permanently_exclude_from_train_val_test"
       }
     ],
     "registry_fingerprints_summary": {
-      "all_unique_url_sha256": 134,
-      "all_unique_html_sha256": 128,
-      "all_unique_group_sha256": 127,
+      "all_unique_url_sha256": 168,
+      "all_unique_html_sha256": 160,
+      "all_unique_group_sha256": 159,
       "all_unique_summary_fingerprints": 20
     }
   },

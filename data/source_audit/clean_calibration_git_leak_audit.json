@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "audit_id": "CLEAN-CALIBRATION-GIT-LEAK-AUDIT-20261024",
+  "audit_timestamp_utc": "2026-10-24T00:58:25.015979+00:00",
+  "status": "leak_contained_and_remediated",
+  "governance": {
+    "ready_for_annotation": false,
+    "training_blocked": true,
+    "force_push_used": false,
+    "audit_trail_preserved": true
+  },
+  "leak_incident": {
+    "file_path": "data/clean_calibration_candidates.json",
+    "first_committed_commit": "226d4226e5e84acd3437dd4573ca0b5d9d593c5b",
+    "second_committed_commit": "fefb89ee5e11043efeb6cb45c0882ef9ff8ee301",
+    "branch": "feat/c-calibration-v1-1-4-adjudication",
+    "samples_exposed_count": 32,
+    "composition": "24 main samples + 8 reserve samples",
+    "exposure_risk_assessment": "Tệp không chứa nhãn phân loại (label), nhưng chứa thông tin locator định vị dòng (relative_path và row_offset trong 2 shard nguồn train-000.parquet và train-055.parquet). Điều này tạo nguy cơ lộ mẫu nếu người gán nhãn hoặc bên thứ ba truy ngược lại dòng raw parquet. Để bảo vệ tính toàn vẹn của giao thức mù đôi (double-blind annotation), toàn bộ 32 mẫu này bị đình chỉ phát hành ngay lập tức."
+  },
+  "remediation_actions": [
+    {
+      "step": 1,
+      "action": "halt_blind_view_release",
+      "detail": "Đình chỉ hoàn toàn việc xuất và bàn giao Blind View của 32 ứng viên đợt A. Đánh dấu đợt chọn này là không dùng cho Pass 1 sạch."
+    },
+    {
+      "step": 2,
+      "action": "preserve_git_history",
+      "detail": "Không thực hiện git push --force hay rewrite history; giữ nguyên 2 commit 226d422 và fefb89e làm bằng chứng kiểm toán độc lập."
+    },
+    {
+      "step": 3,
+      "action": "register_in_exclusion_registry",
+      "detail": "Đăng ký toàn bộ 32 mẫu bị lộ vào data/exclusion_registry.json với mã lô EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT. Loại trừ vĩnh viễn khỏi toàn bộ tập huấn luyện, xác thực và kiểm thử (M0-M3)."
+    },
+    {
+      "step": 4,
+      "action": "untrack_from_git_and_ignore",
+      "detail": "Thực hiện 'git rm --cached' để gỡ tệp khỏi theo dõi của Git và cập nhật .gitignore nhằm ngăn chặn mọi tệp locator/ứng viên chi tiết bị commit lên Git trong tương lai."
+    },
+    {
+      "step": 5,
+      "action": "rerun_selection_with_locked_seeds",
+      "detail": "Thực hiện tuyển chọn lại đợt mới (Đợt B: 24 chính + 8 dự phòng) với seed 20261027, loại trừ toàn bộ 180 mẫu (148 mẫu cũ + 32 mẫu lộ). Lưu trữ tệp locator trong khu vực hạn chế ngoài Git."
+    }
+  ],
+  "affected_samples": [
+    {
+      "candidate_id": "SMP-001",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 51
+      },
+      "url_sha256": "51f22da3d295b7c79542efdc3ab2b0338a65624d31a84af728b0fc35a17eb186",
+      "html_sha256": "b4f90cf4210efa0c8a86797b9d0869a961db11b36f3e64aea0657fce19d9005a",
+      "group_id": "domain:learngala.com"
+    },
+    {
+      "candidate_id": "SMP-002",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 329
+      },
+      "url_sha256": "93edea9e2597312728486c32fc669989adb86972ab975d9b8010ff47f74599aa",
+      "html_sha256": "44665d654fc7a79737d1eb4b79d0f83af2320ab5411447f31fd05e6676e2ddad",
+      "group_id": "domain:whastapp-5g.com"
+    },
+    {
+      "candidate_id": "SMP-003",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 129
+      },
+      "url_sha256": "97758cfe72ad62bbccfc48e904e560697d8779f4028fe949b0ca970595bde580",
+      "html_sha256": "7c9403e3c2bc46c774c1be6fd3f4f81d00767f3b5744a68a45faec06fba4b4ad",
+      "group_id": "domain:apple.com"
+    },
+    {
+      "candidate_id": "SMP-004",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 691
+      },
+      "url_sha256": "12c3d2a501c364f903b15ec9d0ae8d8c0ac7a3e468b5cb9d84e1a630ae40eb3e",
+      "html_sha256": "9742d1de5c04a002973cf6e190c760f6635d968fa7525cf0bfbaaab050ef2b1b",
+      "group_id": "domain:baesystems.com"
+    },
+    {
+      "candidate_id": "SMP-005",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 146
+      },
+      "url_sha256": "3c831e3ec962ccbd133db43ad6b3b0ef5a6a43f4087b56dcc5fdb38b011e267d",
+      "html_sha256": "ce9224107a7760f5e46e0cec8fbbbf02a89bf4ee36a81efc9fdf1ac143579e13",
+      "group_id": "domain:wiktionary.org"
+    },
+    {
+      "candidate_id": "SMP-006",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 382
+      },
+      "url_sha256": "8780bc9353317eb3ee244cfd1eac99c97e68fda834fd5dd132f821a90ac93e56",
+      "html_sha256": "fea35be79effb54ca1583f1bf7151fd9f2ec0d9c2786e3924001f7dcd5470bc1",
+      "group_id": "domain:me-taplatform.vercel.app"
+    },
+    {
+      "candidate_id": "SMP-007",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-055.parquet",
+        "row_offset": 336
+      },
+      "url_sha256": "165d0245b12b00a093c3b5d18786187c016b89ab8cfea0906c5892ec38b491fb",
+      "html_sha256": "d26bc44c38e430cb66c78460e36662dbfb290a19a25908f6fe0cccaed0cbbdce",
+      "group_id": "domain:ucb.com"
+    },
+    {
+      "candidate_id": "SMP-008",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 308
+      },
+      "url_sha256": "744c32c7557316fd218cec36ff86c4c9079238b07dc6f546bab18c2ebf7d0a83",
+      "html_sha256": "062c8e4b44371f638c07a553b8c7a0a865fa28a2cabc5ee7af7a7c190675c691",
+      "group_id": "domain:howtogeek.com"
+    },
+    {
+      "candidate_id": "SMP-009",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-055.parquet",
+        "row_offset": 40
+      },
+      "url_sha256": "9cbd230c48bf19c8df574900b48ede59846a10ccd2d111a7923e4df49a313b46",
+      "html_sha256": "c4b09a719cc82ae65d25b11874f4c54d7e05e1165b3fb8b85ab63f9c807d2605",
+      "group_id": "domain:suportspagee.com"
+    },
+    {
+      "candidate_id": "SMP-010",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 968
+      },
+      "url_sha256": "0960e32a834da53d10b6dbe5f754791d406decad3368191d5fae8781b75a98b0",
+      "html_sha256": "19216af8e22af7a9b491ad62b9435fa310caa0cf0ef190cb0ac35d26d6cbb0c6",
+      "group_id": "domain:iolkamerawogil.info"
+    },
+    {
+      "candidate_id": "SMP-011",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 626
+      },
+      "url_sha256": "3e899614800897a48382c125417de21fb560c1b2600d668bd0d7f0d369037b1c",
+      "html_sha256": "70e1ffd946305a3e0433f8d94cb4afb218c9e139432d9512fd56e4a6bc70104d",
+      "group_id": "domain:com-id1313.icu"
+    },
+    {
+      "candidate_id": "SMP-012",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-055.parquet",
+        "row_offset": 209
+      },
+      "url_sha256": "1ad0bd359724d65ee7a21827b86e5e9e40d45431de76b97d6216102c68df4335",
+      "html_sha256": "af25fcaceb4202e80cbd1d7c8c0b55989f92735f0970bd2fb3e9c57d2747c8cf",
+      "group_id": "domain:facemall.shopping"
+    },
+    {
+      "candidate_id": "SMP-013",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 327
+      },
+      "url_sha256": "281b40d80062c6563d26f50d09edfa33798895d5bf4b7077cce401a1836a6a89",
+      "html_sha256": "135f486ffef6265d3590a57e64d2c07b490c8f2b4f1071ee3067613c42f143dd",
+      "group_id": "domain:sterkfamilylaw.com"
+    },
+    {
+      "candidate_id": "SMP-014",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 179
+      },
+      "url_sha256": "b72b9e0854bdc1b2c2c90b7b89a1628a8bf555fa2c90be98085ac4911d230059",
+      "html_sha256": "53be962382e67dd9b657e27a71067aebf2bc00d81dc834b41970af79ccdc20ad",
+      "group_id": "domain:templatearchive.com"
+    },
+    {
+      "candidate_id": "SMP-015",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 739
+      },
+      "url_sha256": "247a5972601e67780009682bfe72189bf75a3035c2804388b959456a2fa0ac2e",
+      "html_sha256": "cce36d4ce3813fc6cd3ee01c8c05770af0bad135b0cda250d72afd31b0fa2d1f",
+      "group_id": "domain:hsforms.com"
+    },
+    {
+      "candidate_id": "SMP-016",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 823
+      },
+      "url_sha256": "bcea35f34741615a742640bddb2de9e406618fb55726fa69d1102eb4cfafc42f",
+      "html_sha256": "802e7c4bf17e2ab224d0bdf97ad038290e3c7d38c97f231fb29a39c06a87d080",
+      "group_id": "domain:qd-design.co.uk"
+    },
+    {
+      "candidate_id": "SMP-017",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 892
+      },
+      "url_sha256": "03db3ed395769da053fab1a0260ce8d69a6272df5f59b23b8437ff9c1d285fcf",
+      "html_sha256": "46e47c09b5763682ba0316ce53fec3c7e47a06483f094c44f149fc35f32a9b7b",
+      "group_id": "domain:pornofilmova.top"
+    },
+    {
+      "candidate_id": "SMP-018",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 953
+      },
+      "url_sha256": "9b38cf5acf0fabb2e3161d5666b2f4060923d399930db29c5643fad41e0cae3e",
+      "html_sha256": "38e97abc4ff92fe71be612478891492bf47355aa384f98437d94f076a0d52117",
+      "group_id": "domain:dj.studio"
+    },
+    {
+      "candidate_id": "SMP-019",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 325
+      },
+      "url_sha256": "5918d6e1598fdc8773faff46657e24ae7847110cc6167d46e2c6b705ba1d0c2b",
+      "html_sha256": "622ab0c69d653737e33eae02c29f2e0332e5955c8ce68a2c513f979d302425ae",
+      "group_id": "domain:mention-case.com"
+    },
+    {
+      "candidate_id": "SMP-020",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 520
+      },
+      "url_sha256": "9fd196060e9e3561e8ce32628c4de2760aaf471cc1b177a7140548b65f5b3b3f",
+      "html_sha256": "237cdcdd69c66bf85a61452b2560bb88f590a9730b916d5d2defa95a8edda564",
+      "group_id": "domain:intersaversfin.com"
+    },
+    {
+      "candidate_id": "SMP-021",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 656
+      },
+      "url_sha256": "28ca55189ffb72f97edea4d998c92b132213da80c5bcb375e02459d5b5030a38",
+      "html_sha256": "134c52f335a7ca0a5ea01a6e5a58d46e2f5865a2fc44b9c714488a5d88f035bf",
+      "group_id": "domain:mof.go.jp"
+    },
+    {
+      "candidate_id": "SMP-022",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 505
+      },
+      "url_sha256": "e015d665b5c1d44682936df6e4eb00ece5c46e25bba0fe9dfeb7401d449bc47d",
+      "html_sha256": "874e71d9ecd0c7c8bda6e4071eccc8827546136ebc356d0b905589c0bff8f281",
+      "group_id": "domain:termserviceupdate.wixsite.com"
+    },
+    {
+      "candidate_id": "SMP-023",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 125
+      },
+      "url_sha256": "400c97406ba520c23931a4b9dc3b51f1898065ba721c38bd5cd12816ecd2a209",
+      "html_sha256": "cb7fb12381e2d7bf98dfeae03870eeef242c5d47ab4a1653a5b097ff2f69aa89",
+      "group_id": "domain:good-gay.tv"
+    },
+    {
+      "candidate_id": "SMP-024",
+      "role": "main_24",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 375
+      },
+      "url_sha256": "3541cee0a3ce8380e849202da298d43f696bb8d4ea87b42d199cd687d798d523",
+      "html_sha256": "f0fcb1b6278ed572957f189c7cb1e656a6930a1860dc664383aa808c23ab8dc9",
+      "group_id": "domain:autosoffer.shop"
+    },
+    {
+      "candidate_id": "RSV-001",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 25
+      },
+      "url_sha256": "9826fdac38f38345354d391053eee9bc8b734c4f76adac22c9b2171dd40f8145",
+      "html_sha256": "a1685a0ccdd5a6edba1e4c285a4fbd54fb3ed7a0beb9b44fc16fa7f905bc065f",
+      "group_id": "domain:help-live-lwegerr.webflow.io"
+    },
+    {
+      "candidate_id": "RSV-002",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-055.parquet",
+        "row_offset": 347
+      },
+      "url_sha256": "79687c875b3b96b5989d17c029d95d3a91b5a9e7c9d58bca1a6a46333ba8a8de",
+      "html_sha256": "6abecd970ae156569b88f339e2b55a51c2c30b262676d2fad4ef43cf14ddb354",
+      "group_id": "domain:iphiview.com"
+    },
+    {
+      "candidate_id": "RSV-003",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 169
+      },
+      "url_sha256": "0414663b4762af4547aa56c62d7ca59b2353e792ecf4a6f524e4685241469557",
+      "html_sha256": "ac515372a874a1e0f885c993dd95a19164a71c08cca2bf6bd1611121e9a19a52",
+      "group_id": "domain:google.com"
+    },
+    {
+      "candidate_id": "RSV-004",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 642
+      },
+      "url_sha256": "593f84156804953420d94f48b8ada2531c217dbc865ce1973c3ad89d6c8fb576",
+      "html_sha256": "c9cffb7e98ad2d8016bb4d8be08b4ba674b40590679917d54336c1d9a7d71afa",
+      "group_id": "domain:tiktok.com"
+    },
+    {
+      "candidate_id": "RSV-005",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 837
+      },
+      "url_sha256": "6eeac1fa8b593308fcc9056374e505682a63d8f8e4360ead012e80edbf8ce69f",
+      "html_sha256": "b8b66b7bac1d9397855034372eb5a16684f773596602a1c8ab3ad44049de2e39",
+      "group_id": "domain:americanexpress.com"
+    },
+    {
+      "candidate_id": "RSV-006",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 197
+      },
+      "url_sha256": "67c5499d29de60a250c1324ae0607878910244aecafc72e94fc01a3c9f7bac21",
+      "html_sha256": "6ffb751a812850b9647d7b1d61d12dbdeab01a8b847c4c7ebb33c3530d2308bd",
+      "group_id": "domain:chipper-bienenstitch-a00fdd.netlify.app"
+    },
+    {
+      "candidate_id": "RSV-007",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 409
+      },
+      "url_sha256": "b661857a5303923d960624aeada31a4f0dbd97552de4671136ae80e5b0071ee1",
+      "html_sha256": "b56a6d4515dd3ad16bd8bb5c6eea1c082ae531c9061c9c136b130c42b23f0536",
+      "group_id": "domain:tn.gov"
+    },
+    {
+      "candidate_id": "RSV-008",
+      "role": "reserve_08",
+      "locator": {
+        "relative_path": "data/train-055.parquet",
+        "row_offset": 82
+      },
+      "url_sha256": "e71ef3b9b3fdf65ead2b373b2c98125a211b68c51a07478bc7e0c9a991e14134",
+      "html_sha256": "3bb83eff858f3cbef16a97a8185b64ad4a22d9218c05beca7ff0d3564fdbaf80",
+      "group_id": "domain:sso--coinbasepro--cdnn-opp.webflow.io"
+    }
+  ]
+}

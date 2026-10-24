@@ -37,14 +37,15 @@ def main():
     with open(registry_path, encoding="utf-8") as f:
         registry = json.load(f)
 
-    # Danh mục toàn bộ 6 lô (tổng 148 mẫu) trong registry theo chỉ đạo trực tiếp của Lead D
+    # Danh mục toàn bộ 7 lô (tổng 180 mẫu) trong registry theo chỉ đạo trực tiếp của Lead D
     all_batches = [
         {"id": "EXCL-PILOT-01", "name": "20 mẫu tập dượt ban đầu (summary fingerprint)", "expected_count": 20},
         {"id": "EXCL-REAL-PILOT-32", "name": "32 mẫu Pilot V1 thật", "expected_count": 32},
         {"id": "EXCL-PILOT-02", "name": "32 mẫu Pilot V2 thật", "expected_count": 32},
         {"id": "EXCL-PILOT-02-REBUILD-e039c774ef5f", "name": "32 mẫu Pilot V2 Rebuild (URL hash bổ sung)", "expected_count": 32},
         {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24", "name": "24 mẫu Calibration v1.1.4 chính đã xem", "expected_count": 24},
-        {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08", "name": "8 mẫu dự phòng Calibration đã đăng ký trong registry", "expected_count": 8}
+        {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08", "name": "8 mẫu dự phòng Calibration đã đăng ký trong registry", "expected_count": 8},
+        {"id": "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT", "name": "32 mẫu ứng viên đợt A bị lộ locator trên Git (24 chính + 8 dự phòng)", "expected_count": 32},
     ]
 
     exclusions_map = {e["exclusion_id"]: e for e in registry.get("exclusions", [])}
@@ -98,19 +99,19 @@ def main():
         })
         total_samples += actual_count
 
-    assert total_samples == 148, f"Tổng số mẫu loại trừ toàn bộ 6 lô phải là 148, thực tế: {total_samples}"
+    assert total_samples == 180, f"Tổng số mẫu loại trừ toàn bộ 7 lô phải là 180, thực tế: {total_samples}"
 
     report = {
-        "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261023",
-        "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 6 lô (148 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch cho A",
-        "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-23 (Đối chiếu toàn bộ 6 lô, 148 mẫu, bao gồm EXCL-PILOT-02-REBUILD và làm rõ giới hạn 20 mẫu summary fingerprint)",
+        "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261024",
+        "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 7 lô (180 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch Đợt B cho A",
+        "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-24 (Đối chiếu toàn bộ 7 lô, 180 mẫu, loại trừ 32 locator đợt cũ đã xuất hiện trên Git và làm rõ giới hạn 20 mẫu summary fingerprint)",
         "governance": {
             "training_blocked": True,
             "official_test_used": False,
             "registry_version": registry.get("version", "1.1.0"),
             "registry_sha256": hashlib.sha256(registry_path.read_bytes()).hexdigest(),
             "total_excluded_entries_in_registry": registry.get("total_excluded_entries", len(registry.get("exclusions", []))),
-            "total_excluded_samples_in_registry": registry.get("total_excluded_samples", 148)
+            "total_excluded_samples_in_registry": registry.get("total_excluded_samples", 180)
         },
         "inventory": {
             "total_batches_count": len(all_batches),

@@ -188,3 +188,69 @@ class TestCleanCalibrationSelectionUnit:
         assert "login_credential_form" in rule_counts
         assert rule_counts["login_credential_form"] == 8
         assert hard_cases >= 0
+
+
+class TestCleanCalibrationV2SafetyAndExclusion:
+    """Kiểm thử chốt chặn an toàn cho Đợt B: loại trừ 180 mẫu, cô lập locator ngoài Git, bảo vệ tính mù đôi."""
+
+    def test_exclusion_registry_contains_180_samples_and_git_leak_batch(self):
+        """Chứng minh exclusion_registry chứa đủ 7 lô với 180 mẫu và lô rò rỉ locator được khóa vĩnh viễn."""
+        root = Path(__file__).resolve().parents[1]
+        registry_path = root / "data/exclusion_registry.json"
+        assert registry_path.exists()
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+
+        assert registry["total_excluded_entries"] == 7
+        assert registry["total_excluded_samples"] == 180
+
+        excl_map = {e["exclusion_id"]: e for e in registry["exclusions"]}
+        assert "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT" in excl_map
+        leak_batch = excl_map["EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT"]
+        assert leak_batch["n_samples"] == 32
+        assert leak_batch["action"] == "permanently_exclude_from_train_val_test"
+        assert len(leak_batch["samples"]) == 32
+
+    def test_clean_calibration_v2_manifest_governance_contract(self):
+        """Chứng minh manifest Đợt B giữ trạng thái pending, ready_for_annotation=false và tham chiếu đúng."""
+        root = Path(__file__).resolve().parents[1]
+        manifest_path = root / "configs/calibration_clean_a_manifest.json"
+        assert manifest_path.exists()
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        assert manifest["manifest_id"] == "CALIBRATION-CLEAN-A-MANIFEST-V1.1-PROPOSAL"
+        assert manifest["status"] == "pending_lead_d_and_member_b_review"
+        assert manifest["governance"]["ready_for_annotation"] is False
+        assert manifest["governance"]["training_blocked"] is True
+        assert manifest["governance"]["known_excluded_samples_count"] == 180
+        assert manifest["sampling_spec"]["random_seed"] == 20261027
+        assert manifest["sampling_spec"]["random_seed_main_shuffle"] == 20261028
+        assert manifest["sampling_spec"]["random_seed_reserve_shuffle"] == 20261029
+
+    def test_clean_calibration_inspection_report_contains_zero_locators_and_matches_restricted_hash(self):
+        """Chứng minh báo cáo trên Git là báo cáo tổng hợp thuần túy (không chứa locator/URL) và khớp SHA-256."""
+        import hashlib
+        root = Path(__file__).resolve().parents[1]
+        report_path = root / "data/source_audit/clean_calibration_selection_inspection_report.json"
+        assert report_path.exists()
+        report_text = report_path.read_text(encoding="utf-8")
+        report = json.loads(report_text)
+
+        # 1. Báo cáo tổng hợp không chứa trường locator, url hoặc html
+        assert "main_locators" not in report
+        assert "reserve_locators" not in report
+        assert "candidates" not in report
+        assert "row_offset" not in report_text
+
+        # 2. Khớp phân tầng 24 chính (12 phish/12 benign) + 8 dự phòng (4 phish/4 benign)
+        assert report["selection_summary"]["main_samples_count"] == 24
+        assert report["selection_summary"]["reserve_samples_count"] == 8
+        assert report["selection_summary"]["distinct_groups_count"] == 32
+        assert report["selection_summary"]["deduplication_vs_registry_180_overlaps"] == 0
+        assert report["template_similarity_scan"]["clone_detected_count"] == 0
+
+        # 3. Tệp ứng viên chi tiết nằm ngoài Git tại data/restricted và khớp hash
+        restricted_file = root / "data/restricted/clean_calibration_candidates_v2_restricted.json"
+        assert restricted_file.exists(), "Tệp ứng viên hạn chế phải được lưu ngoài Git"
+        actual_hash = hashlib.sha256(restricted_file.read_bytes()).hexdigest()
+        assert report["artifacts"]["restricted_candidates_sha256"] == actual_hash
+

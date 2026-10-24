@@ -236,17 +236,17 @@ def evaluate_clean_selection_strata(
 def execute_clean_selection(
     output_candidates_path: Path,
     output_report_path: Path,
-    seed: int = 20261022,
-    main_shuffle_seed: int = 20261023,
-    reserve_shuffle_seed: int = 20261024,
+    seed: int = 20261027,
+    main_shuffle_seed: int = 20261028,
+    reserve_shuffle_seed: int = 20261029,
 ) -> Dict[str, Any]:
-    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu 148 mẫu registry."""
+    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu 180 mẫu registry."""
     import pyarrow.parquet as pq
 
     source_manifest_path = ROOT / "configs/source_manifest.json"
     registry_path = ROOT / "data/exclusion_registry.json"
 
-    # 1. Khóa và nạp bộ lọc chống rò rỉ từ 148 mẫu của 6 lô
+    # 1. Khóa và nạp bộ lọc chống rò rỉ từ 180 mẫu của 7 lô
     blocked = load_blocked_fingerprints_from_registry(registry_path)
 
     # 2. Định vị 2 verified source shards
@@ -406,10 +406,10 @@ def execute_clean_selection(
             "source_date": str(r.get("date")),
         })
 
-    # 7. Xuất tệp ứng viên kỹ thuật
+    # 7. Xuất tệp ứng viên kỹ thuật (lưu trữ trong khu vực hạn chế ngoài Git)
     candidates_payload = {
-        "dataset_id": "CALIBRATION-CLEAN-32",
-        "description": "Gói tuyển chọn ứng viên sạch gồm 24 mẫu chính + 8 mẫu dự phòng cho Calibration Clean A",
+        "dataset_id": "CALIBRATION-CLEAN-B-32",
+        "description": "Gói tuyển chọn ứng viên sạch Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng cho Calibration Clean A (được lưu ngoài Git trong khu vực hạn chế)",
         "generated_at_utc": date.today().isoformat(),
         "seed": seed,
         "main_shuffle_seed": main_shuffle_seed,
@@ -425,9 +425,10 @@ def execute_clean_selection(
     output_candidates_path.write_bytes(c_bytes)
     c_hash = hashlib.sha256(c_bytes).hexdigest()
 
-    # 8. Xuất báo cáo nghiệm thu kiểm tra ứng viên (Inspection Report)
+    # 8. Xuất báo cáo nghiệm thu kiểm tra ứng viên (Inspection Report - Tổng hợp trên Git, không chứa locator truy ngược)
     inspection_report = {
-        "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261023",
+        "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261024",
+        "purpose": "Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên Gói Hiệu chuẩn Sạch Đợt B (24 chính + 8 dự phòng) loại trừ 180 mẫu registry và 0 clone template; không chứa locator truy ngược mẫu trên Git.",
         "status": "candidates_generated_ready_for_lead_d_review",
         "governance": {
             "training_blocked": True,
@@ -438,7 +439,7 @@ def execute_clean_selection(
         "filtering_summary": {
             "total_corpus_rows_scanned": total_scanned,
             "total_out_of_date_window": total_out_of_date_window,
-            "total_excluded_by_registry_148": total_excluded_by_registry,
+            "total_excluded_by_registry_180": total_excluded_by_registry,
             "eligible_candidates_pool": len(candidates),
         },
         "selection_summary": {
@@ -448,7 +449,7 @@ def execute_clean_selection(
             "distinct_groups_count": len(set(c["group_sha256"] for c in detailed_candidates)),
             "distinct_urls_count": len(set(c["url_sha256"] for c in detailed_candidates)),
             "distinct_htmls_count": len(set(c["html_sha256"] for c in detailed_candidates)),
-            "deduplication_vs_registry_148_overlaps": 0,
+            "deduplication_vs_registry_180_overlaps": 0,
         },
         "template_similarity_scan": {
             "status": template_scan_res["status"],
@@ -456,12 +457,13 @@ def execute_clean_selection(
             "clone_detected_count": template_scan_res["clone_detected_count"],
         },
         "difficulty_strata": {
+            "note": "Các cờ bề mặt chỉ là đặc điểm phân tầng (stratification characteristics), không gọi là ca khó đã xác minh.",
             "surface_rules_distribution": difficulty_counts,
-            "hard_cases_in_main_24": hard_cases_count,
+            "stratification_flags_in_main_24": hard_cases_count,
         },
         "artifacts": {
-            "candidates_file": str(output_candidates_path.relative_to(ROOT)),
-            "candidates_sha256": c_hash,
+            "restricted_candidates_file": str(output_candidates_path.relative_to(ROOT)),
+            "restricted_candidates_sha256": c_hash,
         },
     }
     output_report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -480,17 +482,17 @@ def execute_clean_selection(
 
 
 def main():
-    print("=== BẮT ĐẦU TUYỂN CHỌN GÓI HIỆU CHUẨN SẠCH (CALIBRATION-CLEAN-32) ===")
-    out_candidates = ROOT / "data/clean_calibration_candidates.json"
+    print("=== BẮT ĐẦU TUYỂN CHỌN GÓI HIỆU CHUẨN SẠCH ĐỢT B (CALIBRATION-CLEAN-B-32) ===")
+    out_candidates = ROOT / "data/restricted/clean_calibration_candidates_v2_restricted.json"
     out_report = ROOT / "data/source_audit/clean_calibration_selection_inspection_report.json"
 
     res = execute_clean_selection(
         output_candidates_path=out_candidates,
         output_report_path=out_report,
     )
-    print(f"-> ĐÃ XUẤT TẬP ỨNG VIÊN: {res['candidates_path']}")
+    print(f"-> ĐÃ XUẤT TẬP ỨNG VIÊN HẠN CHẾ (NGOÀI GIT): {res['candidates_path']}")
     print(f"   24 mẫu chính + 8 mẫu dự phòng | SHA-256: {res['candidates_hash']}")
-    print(f"-> ĐÃ XUẤT BÁO CÁO NGHIỆM THU: {res['report_path']}")
+    print(f"-> ĐÃ XUẤT BÁO CÁO TỔNG HỢP (TRÊN GIT): {res['report_path']}")
     print(f"   SHA-256: {res['report_hash']}")
     print("=== TUYỂN CHỌN VÀ HẬU KIỂM HOÀN TẤT THÀNH CÔNG ===")
 
