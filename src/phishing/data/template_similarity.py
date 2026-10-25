@@ -127,12 +127,14 @@ class TemplateSimilarityEngine:
 
     def check_candidate_similarity(
         self,
-        candidate_text: str,
+        candidate_text: str = "",
         candidate_html: str = "",
+        candidate_simhash: Optional[int] = None,
+        candidate_dom_tags: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Kiểm tra một ứng viên xem có bị trùng lặp template với các mẫu đã đăng ký hay không."""
-        c_simhash = compute_token_simhash_64(candidate_text or candidate_html)
-        c_dom_tags = extract_dom_tag_multiset(candidate_html) if candidate_html else []
+        c_simhash = candidate_simhash if candidate_simhash is not None else compute_token_simhash_64(candidate_text or candidate_html)
+        c_dom_tags = candidate_dom_tags if candidate_dom_tags is not None else (extract_dom_tag_multiset(candidate_html) if candidate_html else [])
 
         min_distance = 64
         max_jaccard = 0.0

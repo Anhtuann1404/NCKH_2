@@ -1,6 +1,6 @@
 {
-  "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261024",
-  "purpose": "Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên Gói Hiệu chuẩn Sạch Đợt B (24 chính + 8 dự phòng) loại trừ 180 mẫu registry và 0 clone template; không chứa locator truy ngược mẫu trên Git.",
+  "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261025",
+  "purpose": "Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên Gói Hiệu chuẩn Sạch Đợt B (24 chính + 8 dự phòng) loại trừ 180 mẫu registry, 0 clone template với mẫu nhận diện và 0 xung đột tương đồng trong toàn bộ 496 cặp; không chứa locator truy ngược mẫu trên Git.",
   "status": "candidates_generated_ready_for_lead_d_review",
   "governance": {
     "training_blocked": true,
@@ -45,20 +45,33 @@
     "total_scanned": 32,
     "clone_detected_count": 0
   },
+  "pairwise_template_similarity_scan": {
+    "status": "pairwise_template_similarity_scan_completed",
+    "total_samples": 32,
+    "total_pairs_scanned": 496,
+    "thresholds": {
+      "max_allowed_simhash_distance": 10,
+      "min_allowed_dom_jaccard": 0.85
+    },
+    "conflict_pairs_count": 0,
+    "min_pairwise_simhash_distance": 13,
+    "max_pairwise_dom_jaccard": 0.8889,
+    "resolution_summary": "Phát hiện 01 cặp xung đột tương đồng trong tập chính ban đầu (SMP-001 vs SMP-012, dist=1, jaccard=0.9375). Đã thực thi thay thế tất định theo đúng thứ tự dự phòng đã khóa: đưa mẫu dự phòng phish đầu tiên RSV-002 (train-000 row 891) lên tập chính thay cho SMP-012; bổ sung mẫu dự phòng phish mới từ bể ứng viên đã khóa seed (train-055 row 91). Toàn bộ 496 cặp đạt 0 xung đột tương đồng."
+  },
   "difficulty_strata": {
     "note": "Các cờ bề mặt chỉ là đặc điểm phân tầng (stratification characteristics), không gọi là ca khó đã xác minh.",
     "surface_rules_distribution": {
       "shared_hosting_or_ugc": 4,
       "brand_in_subdomain_or_path": 3,
-      "login_credential_form": 8,
-      "suspicious_url_syntax": 2,
-      "non_ascii_or_cjk": 17,
-      "external_action_or_links": 12
+      "login_credential_form": 7,
+      "suspicious_url_syntax": 3,
+      "non_ascii_or_cjk": 18,
+      "external_action_or_links": 13
     },
     "stratification_flags_in_main_24": 23
   },
   "artifacts": {
-    "restricted_candidates_file": "data\\restricted\\clean_calibration_candidates_v2_restricted.json",
-    "restricted_candidates_sha256": "3ac4011a8f406f42f1b26d8ce1b580c1c9f2f9c879f3bacb4f1501c9e8079e24"
+    "restricted_candidates_file": "data/restricted/clean_calibration_candidates_v2_restricted.json",
+    "restricted_candidates_sha256": "fb451ebbadaf75930784c04b99324ead7849b48a4479a643eef5c45a3bfbf4f2"
   }
 }

@@ -226,9 +226,8 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert manifest["sampling_spec"]["random_seed_main_shuffle"] == 20261028
         assert manifest["sampling_spec"]["random_seed_reserve_shuffle"] == 20261029
 
-    def test_clean_calibration_inspection_report_contains_zero_locators_and_matches_restricted_hash(self):
-        """Chứng minh báo cáo trên Git là báo cáo tổng hợp thuần túy (không chứa locator/URL) và khớp SHA-256."""
-        import hashlib
+    def test_clean_calibration_inspection_report_public_contract(self):
+        """Chứng minh báo cáo trên Git là báo cáo tổng hợp thuần túy (không chứa locator/URL) độc lập với dữ liệu hạn chế."""
         root = Path(__file__).resolve().parents[1]
         report_path = root / "data/source_audit/clean_calibration_selection_inspection_report.json"
         assert report_path.exists()
@@ -248,9 +247,28 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert report["selection_summary"]["deduplication_vs_registry_180_overlaps"] == 0
         assert report["template_similarity_scan"]["clone_detected_count"] == 0
 
-        # 3. Tệp ứng viên chi tiết nằm ngoài Git tại data/restricted và khớp hash
+        # 3. Quét tương đồng cặp toàn bộ 496 cặp đạt 0 xung đột
+        assert "pairwise_template_similarity_scan" in report
+        assert report["pairwise_template_similarity_scan"]["total_pairs_scanned"] == 496
+        assert report["pairwise_template_similarity_scan"]["conflict_pairs_count"] == 0
+
+        # 4. Hash tệp hạn chế được khai báo đầy đủ (64 hex ký tự)
+        restricted_hash = report["artifacts"]["restricted_candidates_sha256"]
+        assert isinstance(restricted_hash, str) and len(restricted_hash) == 64
+
+    @pytest.mark.integration
+    def test_integration_restricted_candidates_package_hash_matches_inspection_report(self):
+        """Integration test (có điều kiện): đối soát SHA-256 giữa tệp ứng viên hạn chế và báo cáo tổng hợp."""
+        import hashlib
+        root = Path(__file__).resolve().parents[1]
         restricted_file = root / "data/restricted/clean_calibration_candidates_v2_restricted.json"
-        assert restricted_file.exists(), "Tệp ứng viên hạn chế phải được lưu ngoài Git"
+        if not restricted_file.exists():
+            pytest.skip("Bỏ qua test integration khi checkout sạch chưa có tệp hạn chế data/restricted/")
+
+        report_path = root / "data/source_audit/clean_calibration_selection_inspection_report.json"
+        assert report_path.exists()
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+
         actual_hash = hashlib.sha256(restricted_file.read_bytes()).hexdigest()
         assert report["artifacts"]["restricted_candidates_sha256"] == actual_hash
 

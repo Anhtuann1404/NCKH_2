@@ -56,11 +56,11 @@
     "exclusion_audit_sha256": "e1c63dc910fec66e7608a706c346b3eaa131f6ae9af0b7a4d4732e0dcfe98675",
     "known_excluded_samples_count": 180,
     "git_leak_audit_reference": "data/source_audit/clean_calibration_git_leak_audit.json",
-    "git_leak_audit_sha256": "38d476e1a32b3cc5783d9847b1fbad783d2796ccf6405c275f2ded5914622a20",
+    "git_leak_audit_sha256": "a74d056bdbd730f3ac8c14b7e932e6e76e38d57c00645d6fadc7881b0da30a7a",
     "candidates_inspection_report_reference": "data/source_audit/clean_calibration_selection_inspection_report.json",
-    "candidates_inspection_report_sha256": "ec2e488455eeffbc89e696d2e3818a2269b3f1c9aea0d038bdebb22b7d42baff",
+    "candidates_inspection_report_sha256": "a6e0de44637aa972c1be1dc4ddb2e4c9d08dba30326483b71726e282a43725d8",
     "restricted_candidates_reference": "data/restricted/clean_calibration_candidates_v2_restricted.json",
-    "restricted_candidates_sha256": "3ac4011a8f406f42f1b26d8ce1b580c1c9f2f9c879f3bacb4f1501c9e8079e24"
+    "restricted_candidates_sha256": "fb451ebbadaf75930784c04b99324ead7849b48a4479a643eef5c45a3bfbf4f2"
   },
   "protocol": {
     "evaluation_mode": "double_blind_parallel_pass1",
