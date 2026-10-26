@@ -349,6 +349,55 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert "row" not in res_summary.lower(), "resolution_summary không được chứa từ khóa row"
         assert "parquet" not in res_summary.lower(), "resolution_summary không được chứa đuôi tệp parquet"
 
+    def test_member_b_qa_package_zero_leak_and_boundary(self):
+        """Chứng minh ranh giới bàn giao gói QA cho Member B: 100% không rò rỉ dữ liệu và tách biệt với Lead D."""
+        import zipfile
+        root = Path(__file__).resolve().parents[1]
+        zip_b_path = root / "GOI_QA_MEMBER_B_CALIBRATION_CLEAN_32.zip"
+        zip_d_path = root / "GOI_RA_SOAT_HAN_CHE_CALIBRATION_CLEAN_32_V2.zip"
+
+        if not zip_b_path.exists() or not zip_d_path.exists():
+            from scripts.data.create_restricted_review_package import create_lead_d_package, create_member_b_qa_package
+            create_lead_d_package()
+            create_member_b_qa_package()
+
+        assert zip_b_path.exists(), "Thiếu tệp GOI_QA_MEMBER_B_CALIBRATION_CLEAN_32.zip"
+        assert zip_d_path.exists(), "Thiếu tệp GOI_RA_SOAT_HAN_CHE_CALIBRATION_CLEAN_32_V2.zip"
+
+        # 1. Kiểm tra gói Lead D: chứa tệp hạn chế và mô tả dành riêng cho D
+        with zipfile.ZipFile(zip_d_path, "r") as z_d:
+            d_files = z_d.namelist()
+            assert "candidates_restricted.json" in d_files
+            assert "clean_calibration_git_leak_audit.json" in d_files
+            assert "MANIFEST_RESTRICTED.json" in d_files
+
+            manifest_d = json.loads(z_d.read("MANIFEST_RESTRICTED.json").decode("utf-8"))
+            assert "Lead D" in manifest_d["recipient"]
+            assert "dành cho Member B" not in manifest_d["purpose"]
+            assert manifest_d["governance"]["contains_raw_locators"] is True
+
+        # 2. Kiểm tra gói Member B: cấm tuyệt đối locator và tệp nhạy cảm
+        with zipfile.ZipFile(zip_b_path, "r") as z_b:
+            b_files = z_b.namelist()
+            assert "candidates_restricted.json" not in b_files, "LỖI: Gói B chứa candidates_restricted.json"
+            assert "clean_calibration_git_leak_audit.json" not in b_files, "LỖI: Gói B chứa clean_calibration_git_leak_audit.json"
+            assert "MANIFEST_QA_MEMBER_B.json" in b_files
+            assert "verify_member_b_qa.py" in b_files
+
+            manifest_b = json.loads(z_b.read("MANIFEST_QA_MEMBER_B.json").decode("utf-8"))
+            assert "Member B" in manifest_b["recipient"]
+            assert manifest_b["governance"]["contains_raw_locators"] is False
+            assert manifest_b["governance"]["contains_source_labels"] is False
+            assert manifest_b["governance"]["ready_for_annotation"] is False
+            assert manifest_b["governance"]["training_blocked"] is True
+
+        # 3. Chạy công cụ kiểm tra tự động verify_member_b_package
+        from scripts.data.verify_member_b_qa import verify_member_b_package
+        qa_result = verify_member_b_package(zip_b_path)
+        assert qa_result["zero_leak_verified"] is True
+        assert qa_result["hash_integrity_verified"] is True
+        assert qa_result["status"] == "QA_PASSED_READY_FOR_LEAD_D_SIGN_OFF"
+
     @pytest.mark.integration
     def test_integration_restricted_candidates_package_hash_matches_inspection_report(self):
         """Integration test (có điều kiện): đối soát SHA-256 giữa tệp ứng viên hạn chế và báo cáo tổng hợp."""
