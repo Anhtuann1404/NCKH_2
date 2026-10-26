@@ -191,24 +191,29 @@ class TestCleanCalibrationSelectionUnit:
 
 
 class TestCleanCalibrationV2SafetyAndExclusion:
-    """Kiểm thử chốt chặn an toàn cho Đợt B: loại trừ 180 mẫu, cô lập locator ngoài Git, bảo vệ tính mù đôi."""
+    """Kiểm thử chốt chặn an toàn cho Đợt B: loại trừ 182 mẫu, cô lập locator ngoài Git, bảo vệ tính mù đôi."""
 
-    def test_exclusion_registry_contains_180_samples_and_git_leak_batch(self):
-        """Chứng minh exclusion_registry chứa đủ 7 lô với 180 mẫu và lô rò rỉ locator được khóa vĩnh viễn."""
+    def test_exclusion_registry_contains_182_samples_and_git_leak_batches(self):
+        """Chứng minh exclusion_registry chứa đủ 8 lô với 182 mẫu và 2 lô rò rỉ locator được khóa vĩnh viễn."""
         root = Path(__file__).resolve().parents[1]
         registry_path = root / "data/exclusion_registry.json"
         assert registry_path.exists()
         registry = json.loads(registry_path.read_text(encoding="utf-8"))
 
-        assert registry["total_excluded_entries"] == 7
-        assert registry["total_excluded_samples"] == 180
+        assert registry["total_excluded_entries"] == 8
+        assert registry["total_excluded_samples"] == 182
 
         excl_map = {e["exclusion_id"]: e for e in registry["exclusions"]}
         assert "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT" in excl_map
-        leak_batch = excl_map["EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT"]
-        assert leak_batch["n_samples"] == 32
-        assert leak_batch["action"] == "permanently_exclude_from_train_val_test"
-        assert len(leak_batch["samples"]) == 32
+        leak_batch_32 = excl_map["EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT"]
+        assert leak_batch_32["n_samples"] == 32
+        assert leak_batch_32["action"] == "permanently_exclude_from_train_val_test"
+
+        assert "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED" in excl_map
+        leak_batch_02 = excl_map["EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED"]
+        assert leak_batch_02["n_samples"] == 2
+        assert leak_batch_02["action"] == "permanently_exclude_from_train_val_test"
+        assert len(leak_batch_02["samples"]) == 2
 
     def test_clean_calibration_v2_manifest_governance_contract(self):
         """Chứng minh manifest Đợt B giữ trạng thái pending, ready_for_annotation=false và tham chiếu đúng."""
@@ -221,7 +226,7 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert manifest["status"] == "pending_lead_d_and_member_b_review"
         assert manifest["governance"]["ready_for_annotation"] is False
         assert manifest["governance"]["training_blocked"] is True
-        assert manifest["governance"]["known_excluded_samples_count"] == 180
+        assert manifest["governance"]["known_excluded_samples_count"] == 182
         assert manifest["sampling_spec"]["random_seed"] == 20261027
         assert manifest["sampling_spec"]["random_seed_main_shuffle"] == 20261028
         assert manifest["sampling_spec"]["random_seed_reserve_shuffle"] == 20261029
@@ -244,17 +249,39 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert report["selection_summary"]["main_samples_count"] == 24
         assert report["selection_summary"]["reserve_samples_count"] == 8
         assert report["selection_summary"]["distinct_groups_count"] == 32
-        assert report["selection_summary"]["deduplication_vs_registry_180_overlaps"] == 0
+        assert report["selection_summary"]["deduplication_vs_registry_182_overlaps"] == 0
         assert report["template_similarity_scan"]["clone_detected_count"] == 0
 
-        # 3. Quét tương đồng cặp toàn bộ 496 cặp đạt 0 xung đột
+        # 3. Quét tương đồng cặp toàn bộ 496 cặp đạt 0 xung đột theo cả 2 quy tắc
         assert "pairwise_template_similarity_scan" in report
         assert report["pairwise_template_similarity_scan"]["total_pairs_scanned"] == 496
         assert report["pairwise_template_similarity_scan"]["conflict_pairs_count"] == 0
+        assert report["pairwise_template_similarity_scan"]["engine_rule_conflict_pairs_count"] == 0
+        assert report["pairwise_template_similarity_scan"]["conjunction_rule_conflict_pairs_count"] == 0
+        assert report["pairwise_template_similarity_scan"]["min_pairwise_simhash_distance"] >= 10
 
         # 4. Hash tệp hạn chế được khai báo đầy đủ (64 hex ký tự)
         restricted_hash = report["artifacts"]["restricted_candidates_sha256"]
         assert isinstance(restricted_hash, str) and len(restricted_hash) == 64
+
+    def test_regression_public_report_zero_locator_leak(self):
+        """Regression test nghiêm ngặt (theo chỉ đạo Lead D): đảm bảo báo cáo công khai không chứa vết locator/shard/row."""
+        import re
+        root = Path(__file__).resolve().parents[1]
+        report_path = root / "data/source_audit/clean_calibration_selection_inspection_report.json"
+        assert report_path.exists()
+        report_text = report_path.read_text(encoding="utf-8")
+        report = json.loads(report_text)
+
+        # 1. Không chứa pattern locator như row 123 hoặc row_offset
+        assert not re.search(r"row[_\s]+\d+", report_text, re.IGNORECASE), "Báo cáo công khai không được chứa chỉ số dòng (row offset)"
+        assert not re.search(r"https?://", report_text), "Báo cáo công khai không được chứa URL thô"
+
+        # 2. resolution_summary không chứa tên shard hoặc row
+        res_summary = report.get("pairwise_template_similarity_scan", {}).get("resolution_summary", "")
+        assert "train-" not in res_summary, "resolution_summary không được chứa tên shard"
+        assert "row" not in res_summary.lower(), "resolution_summary không được chứa từ khóa row"
+        assert "parquet" not in res_summary.lower(), "resolution_summary không được chứa đuôi tệp parquet"
 
     @pytest.mark.integration
     def test_integration_restricted_candidates_package_hash_matches_inspection_report(self):

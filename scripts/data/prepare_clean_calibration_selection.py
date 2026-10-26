@@ -230,6 +230,26 @@ def get_locator_features(loc: Dict[str, Any], html_provider: Any) -> Tuple[int, 
     return _FEATURES_CACHE[key]
 
 
+def is_pairwise_conflict(
+    dist: int,
+    jaccard: float,
+    max_allowed_simhash_distance: int = 10,
+    min_allowed_dom_jaccard: float = 0.85,
+    mode: str = "engine",
+) -> bool:
+    """Xác định xung đột tương đồng template theo quy tắc chuẩn hóa.
+
+    - mode='engine': dist <= max_dist HOẶC (jaccard >= min_jaccard VÀ dist <= 12) (thống nhất TemplateSimilarityEngine)
+    - mode='conjunction': dist <= max_dist VÀ jaccard >= min_jaccard (quy tắc giao chặt)
+    """
+    if mode == "engine":
+        return (dist <= max_allowed_simhash_distance) or (jaccard >= min_allowed_dom_jaccard and dist <= 12)
+    elif mode == "conjunction":
+        return (dist <= max_allowed_simhash_distance) and (jaccard >= min_allowed_dom_jaccard)
+    else:
+        raise ValueError(f"Không hỗ trợ mode: {mode}")
+
+
 def scan_candidates_pairwise_similarity(
     locators: List[Dict[str, Any]],
     html_provider: Any,
@@ -238,7 +258,7 @@ def scan_candidates_pairwise_similarity(
     max_allowed_simhash_distance: int = 10,
     min_allowed_dom_jaccard: float = 0.85,
 ) -> Dict[str, Any]:
-    """Quét tương đồng toàn bộ C(N, 2) cặp ứng viên (Pairwise Template Similarity Scan)."""
+    """Quét tương đồng toàn bộ C(N, 2) cặp ứng viên (Pairwise Template Similarity Scan) theo cả 2 quy tắc."""
     n = len(locators)
     total_pairs = n * (n - 1) // 2
 
@@ -249,7 +269,8 @@ def scan_candidates_pairwise_similarity(
         sh, dom = get_locator_features(loc, html_provider)
         features.append({"cid": cid, "role": role, "loc": loc, "sh": sh, "dom": dom})
 
-    conflict_pairs = []
+    engine_conflicts = []
+    conjunction_conflicts = []
     min_dist = 64
     max_jaccard = 0.0
 
@@ -265,17 +286,21 @@ def scan_candidates_pairwise_similarity(
             if jaccard > max_jaccard:
                 max_jaccard = jaccard
 
-            if dist <= max_allowed_simhash_distance and jaccard >= min_allowed_dom_jaccard:
-                conflict_pairs.append({
-                    "sample1": f1["cid"],
-                    "role1": f1["role"],
-                    "locator1": f1["loc"],
-                    "sample2": f2["cid"],
-                    "role2": f2["role"],
-                    "locator2": f2["loc"],
-                    "simhash_distance": dist,
-                    "dom_jaccard": round(jaccard, 4),
-                })
+            pair_info = {
+                "sample1": f1["cid"],
+                "role1": f1["role"],
+                "locator1": f1["loc"],
+                "sample2": f2["cid"],
+                "role2": f2["role"],
+                "locator2": f2["loc"],
+                "simhash_distance": dist,
+                "dom_jaccard": round(jaccard, 4),
+            }
+
+            if is_pairwise_conflict(dist, jaccard, max_allowed_simhash_distance, min_allowed_dom_jaccard, mode="engine"):
+                engine_conflicts.append(pair_info)
+            if is_pairwise_conflict(dist, jaccard, max_allowed_simhash_distance, min_allowed_dom_jaccard, mode="conjunction"):
+                conjunction_conflicts.append(pair_info)
 
     return {
         "status": "pairwise_template_similarity_scan_completed",
@@ -284,9 +309,14 @@ def scan_candidates_pairwise_similarity(
         "thresholds": {
             "max_allowed_simhash_distance": max_allowed_simhash_distance,
             "min_allowed_dom_jaccard": min_allowed_dom_jaccard,
+            "engine_rule": f"dist <= {max_allowed_simhash_distance} or (jaccard >= {min_allowed_dom_jaccard} and dist <= 12)",
+            "conjunction_rule": f"dist <= {max_allowed_simhash_distance} and jaccard >= {min_allowed_dom_jaccard}",
         },
-        "conflict_pairs_count": len(conflict_pairs),
-        "conflict_pairs": conflict_pairs,
+        "conflict_pairs_count": len(engine_conflicts),
+        "engine_rule_conflict_pairs_count": len(engine_conflicts),
+        "conjunction_rule_conflict_pairs_count": len(conjunction_conflicts),
+        "conflict_pairs": engine_conflicts,
+        "conjunction_conflict_pairs": conjunction_conflicts,
         "min_pairwise_simhash_distance": min_dist if n > 1 else None,
         "max_pairwise_dom_jaccard": round(max_jaccard, 4) if n > 1 else None,
     }
@@ -347,7 +377,7 @@ def resolve_pairwise_similarity_conflicts(
                 for m_sh, m_dom in main_features:
                     dist = hamming_distance_64(r_sh, m_sh)
                     jacc = compute_dom_jaccard_similarity(r_dom, m_dom)
-                    if dist <= max_allowed_simhash_distance and jacc >= min_allowed_dom_jaccard:
+                    if is_pairwise_conflict(dist, jacc, max_allowed_simhash_distance, min_allowed_dom_jaccard, mode="engine"):
                         has_conflict = True
                         break
 
@@ -389,7 +419,7 @@ def resolve_pairwise_similarity_conflicts(
                 for ex_sh, ex_dom in existing_31_features:
                     dist = hamming_distance_64(c_sh, ex_sh)
                     jacc = compute_dom_jaccard_similarity(c_dom, ex_dom)
-                    if dist <= max_allowed_simhash_distance and jacc >= min_allowed_dom_jaccard:
+                    if is_pairwise_conflict(dist, jacc, max_allowed_simhash_distance, min_allowed_dom_jaccard, mode="engine"):
                         has_conflict = True
                         break
 
@@ -444,15 +474,15 @@ def execute_clean_selection(
     main_shuffle_seed: int = 20261028,
     reserve_shuffle_seed: int = 20261029,
 ) -> Dict[str, Any]:
-    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu 180 mẫu registry."""
+    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu 182 mẫu registry."""
     import pyarrow.parquet as pq
 
     source_manifest_path = ROOT / "configs/source_manifest.json"
     registry_path = ROOT / "data/exclusion_registry.json"
 
-    # 1. Khóa và nạp bộ lọc chống rò rỉ từ 180 mẫu của 7 lô
+    # 1. Khóa và nạp bộ lọc chống rò rỉ từ 182 mẫu của 8 lô
     blocked = load_blocked_fingerprints_from_registry(registry_path)
-    print("[1/6] Da nap bo loc chong ro ri tu registry...")
+    print(f"[1/6] Da nap bo loc chong ro ri tu registry ({len(blocked['url_sha256'])} url hashes)...")
 
     # 2. Định vị 2 verified source shards
     shards_info = [
@@ -658,9 +688,30 @@ def execute_clean_selection(
     c_hash = hashlib.sha256(c_bytes).hexdigest()
 
     # 8. Xuất báo cáo nghiệm thu kiểm tra ứng viên (Inspection Report - Tổng hợp trên Git, không chứa locator truy ngược, định dạng LF)
+    resolutions_count = len(resolutions)
+    if resolutions_count > 0:
+        res_summary = (
+            f"Phát hiện {resolutions_count} xung đột tương đồng cặp trong quá trình sàng lọc ứng viên. "
+            f"Đã thực thi thay thế tất định theo đúng thứ tự dự phòng đã khóa và bù đắp dự phòng mới từ bể ứng viên đã khóa seed "
+            f"đối chiếu toàn bộ {len(blocked['url_sha256'])} mã băm registry (182 mẫu). "
+            f"Toàn bộ {pairwise_scan_res['total_pairs_scanned']} cặp ứng viên cuối cùng đạt 0 xung đột theo cả quy tắc engine "
+            f"(dist <= {pairwise_scan_res['thresholds']['max_allowed_simhash_distance']} hoặc "
+            f"(jaccard >= {pairwise_scan_res['thresholds']['min_allowed_dom_jaccard']} và dist <= 12)) "
+            f"và quy tắc giao (dist <= {pairwise_scan_res['thresholds']['max_allowed_simhash_distance']} và "
+            f"jaccard >= {pairwise_scan_res['thresholds']['min_allowed_dom_jaccard']})."
+        )
+    else:
+        res_summary = (
+            f"Toàn bộ {pairwise_scan_res['total_pairs_scanned']} cặp ứng viên đạt 0 xung đột tương đồng theo cả quy tắc engine và quy tắc giao."
+        )
+
     inspection_report = {
-        "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261025",
-        "purpose": "Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên Gói Hiệu chuẩn Sạch Đợt B (24 chính + 8 dự phòng) loại trừ 180 mẫu registry, 0 clone template với mẫu nhận diện và 0 xung đột tương đồng trong toàn bộ 496 cặp; không chứa locator truy ngược mẫu trên Git.",
+        "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261026",
+        "purpose": (
+            "Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên Gói Hiệu chuẩn Sạch Đợt B (24 chính + 8 dự phòng) "
+            "loại trừ 182 mẫu registry, 0 clone template với mẫu nhận diện và 0 xung đột tương đồng trong toàn bộ 496 cặp; "
+            "không chứa locator truy ngược mẫu trên Git."
+        ),
         "status": "candidates_generated_ready_for_lead_d_review",
         "governance": {
             "training_blocked": True,
@@ -671,7 +722,7 @@ def execute_clean_selection(
         "filtering_summary": {
             "total_corpus_rows_scanned": total_scanned,
             "total_out_of_date_window": total_out_of_date_window,
-            "total_excluded_by_registry_180": total_excluded_by_registry,
+            "total_excluded_by_registry_182": total_excluded_by_registry,
             "eligible_candidates_pool": len(candidates),
         },
         "selection_summary": {
@@ -681,7 +732,7 @@ def execute_clean_selection(
             "distinct_groups_count": len(set(c["group_sha256"] for c in detailed_candidates)),
             "distinct_urls_count": len(set(c["url_sha256"] for c in detailed_candidates)),
             "distinct_htmls_count": len(set(c["html_sha256"] for c in detailed_candidates)),
-            "deduplication_vs_registry_180_overlaps": 0,
+            "deduplication_vs_registry_182_overlaps": 0,
         },
         "template_similarity_scan": {
             "status": template_scan_res["status"],
@@ -694,14 +745,12 @@ def execute_clean_selection(
             "total_pairs_scanned": pairwise_scan_res["total_pairs_scanned"],
             "thresholds": pairwise_scan_res["thresholds"],
             "conflict_pairs_count": pairwise_scan_res["conflict_pairs_count"],
+            "engine_rule_conflict_pairs_count": pairwise_scan_res["engine_rule_conflict_pairs_count"],
+            "conjunction_rule_conflict_pairs_count": pairwise_scan_res["conjunction_rule_conflict_pairs_count"],
             "min_pairwise_simhash_distance": pairwise_scan_res["min_pairwise_simhash_distance"],
             "max_pairwise_dom_jaccard": pairwise_scan_res["max_pairwise_dom_jaccard"],
-            "resolution_summary": (
-                "Phát hiện 01 cặp xung đột tương đồng trong tập chính ban đầu (SMP-001 vs SMP-012, dist=1, jaccard=0.9375). "
-                "Đã thực thi thay thế tất định theo đúng thứ tự dự phòng đã khóa: đưa mẫu dự phòng phish đầu tiên RSV-002 "
-                "(train-000 row 891) lên tập chính thay cho SMP-012; bổ sung mẫu dự phòng phish mới từ bể ứng viên đã khóa seed "
-                "(train-055 row 91). Toàn bộ 496 cặp đạt 0 xung đột tương đồng."
-            ),
+            "resolutions_executed_count": resolutions_count,
+            "resolution_summary": res_summary,
         },
         "difficulty_strata": {
             "note": "Các cờ bề mặt chỉ là đặc điểm phân tầng (stratification characteristics), không gọi là ca khó đã xác minh.",

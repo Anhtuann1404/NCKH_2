@@ -4,8 +4,8 @@
   "updated_at_utc": "2026-10-24T00:57:54.797402+00:00",
   "registry_status": "in_progress_unresolved",
   "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
-  "total_excluded_entries": 7,
-  "total_excluded_samples": 180,
+  "total_excluded_entries": 8,
+  "total_excluded_samples": 182,
   "exclusions": [
     {
       "exclusion_id": "EXCL-PILOT-01",
@@ -1562,6 +1562,44 @@
           "group_id": "domain:sso--coinbasepro--cdnn-opp.webflow.io",
           "source_date": "2024-10-08",
           "role": "reserve_08"
+        }
+      ]
+    },
+    {
+      "exclusion_id": "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED",
+      "dataset_id": "CALIBRATION-CLEAN-02-PAIRWISE-EXPOSED",
+      "source": "phreshphish",
+      "split": "train",
+      "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "rows_api_revision_pinned": false,
+      "mapping_status": "mapped_to_shards",
+      "action": "permanently_exclude_from_train_val_test",
+      "n_samples": 2,
+      "reason": "02 mẫu ứng viên hiệu chuẩn sạch (RSV-002 tại train-000 row 891 và mẫu dự phòng bổ sung tại train-055 row 91) vô tình xuất hiện locator (shard name và row offset) trong resolution_summary và mã nguồn tại commit 9e457f5. Loại trừ vĩnh viễn khỏi toàn bộ tập huấn luyện, xác thực và kiểm thử (M0-M3) để phòng ngừa nguy cơ rò rỉ và bảo vệ nguyên tắc blind annotation tuyệt đối.",
+      "samples": [
+        {
+          "sample_id": "EXCL-SMP-PAIRWISE-001",
+          "relative_path": "data/train-000.parquet",
+          "row_offset": 891,
+          "url_sha256": "1f68bb434371ea93dda7c82ad0407b097945ce41c93077ecbe5b2420b0c2b3de",
+          "normalized_url_sha256": "1f68bb434371ea93dda7c82ad0407b097945ce41c93077ecbe5b2420b0c2b3de",
+          "html_sha256": "8c6bd03a1a7c9619be7fc11168761c6ed42ba53db6e5b2c3ffe00a54815e5223",
+          "group_sha256": "549d1b069715cb2ec99eb04c6026b34e0e652147f89b06814e944938d0c61c18",
+          "group_id": "domain:insant-appeal-violation-here.vercel.app",
+          "source_date": "2025-02-04",
+          "role": "main_replacement_candidate"
+        },
+        {
+          "sample_id": "EXCL-SMP-PAIRWISE-002",
+          "relative_path": "data/train-055.parquet",
+          "row_offset": 91,
+          "url_sha256": "41c3adb64282e5570a1b69b8fa9fe947dde04d7e92b01a1b3846743a14e0b77a",
+          "normalized_url_sha256": "41c3adb64282e5570a1b69b8fa9fe947dde04d7e92b01a1b3846743a14e0b77a",
+          "html_sha256": "c9170e2c20ea0a645c08292d768199f24d7c2832ce88f2def91c0a7a255b702e",
+          "group_sha256": "083c192fc54bc7266acdfb04e31dc26780b0f1c1b2845d5edb6ea1ce0311c269",
+          "group_id": "domain:bytemasterkapil.github.io",
+          "source_date": "2024-10-18",
+          "role": "reserve_refill_candidate"
         }
       ]
     }

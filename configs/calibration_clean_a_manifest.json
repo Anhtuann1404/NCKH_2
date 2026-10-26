@@ -51,16 +51,16 @@
     "dictionary_reference": "configs/dictionary_v1.json",
     "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
     "exclusion_registry_reference": "data/exclusion_registry.json",
-    "exclusion_registry_sha256": "e989b94043ad999890fe09f0735a1a48da4d0f70dea58301ab33c8fbaa742985",
+    "exclusion_registry_sha256": "ecd90db8f5bf14ab8995ada5b04f5a56864c97341d7ebb3eb13d0645b04afd7b",
     "exclusion_audit_reference": "data/source_audit/clean_calibration_exclusion_audit_report.json",
     "exclusion_audit_sha256": "e1c63dc910fec66e7608a706c346b3eaa131f6ae9af0b7a4d4732e0dcfe98675",
-    "known_excluded_samples_count": 180,
+    "known_excluded_samples_count": 182,
     "git_leak_audit_reference": "data/source_audit/clean_calibration_git_leak_audit.json",
     "git_leak_audit_sha256": "a74d056bdbd730f3ac8c14b7e932e6e76e38d57c00645d6fadc7881b0da30a7a",
     "candidates_inspection_report_reference": "data/source_audit/clean_calibration_selection_inspection_report.json",
-    "candidates_inspection_report_sha256": "a6e0de44637aa972c1be1dc4ddb2e4c9d08dba30326483b71726e282a43725d8",
+    "candidates_inspection_report_sha256": "ce52e02f0b707dbc49fc06fecdef0575f0a26b46febdcce9552a4efe2d26a5d3",
     "restricted_candidates_reference": "data/restricted/clean_calibration_candidates_v2_restricted.json",
-    "restricted_candidates_sha256": "fb451ebbadaf75930784c04b99324ead7849b48a4479a643eef5c45a3bfbf4f2"
+    "restricted_candidates_sha256": "340d27ab587f7a9ff4424b927cac777b329f4d60ee0844163a5815ccf3b916dc"
   },
   "protocol": {
     "evaluation_mode": "double_blind_parallel_pass1",
@@ -70,5 +70,5 @@
     "template_similarity_policy": "mandatory_post_candidate_selection_step_simhash_dom",
     "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
   },
-  "notes": "Manifest kỹ thuật v1.1-Proposal: Đã hoàn thành tuyển chọn Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261027/20261028/20261029; đối chiếu toàn bộ 180 mẫu trong 7 lô registry (bao gồm 32 mẫu đợt A bị lộ locator trên Git); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template; tệp chi tiết locator được cô lập trong khu vực hạn chế ngoài Git; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D và Member B nghiệm thu."
+  "notes": "Manifest kỹ thuật v1.1-Proposal: Đã hoàn thành tuyển chọn Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261027/20261028/20261029; đối chiếu toàn bộ 182 mẫu trong 8 lô registry (bao gồm 32 mẫu đợt A và 2 mẫu resolution summary bị lộ locator trên Git); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp; tệp chi tiết locator được cô lập trong khu vực hạn chế ngoài Git; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D và Member B nghiệm thu."
 }
