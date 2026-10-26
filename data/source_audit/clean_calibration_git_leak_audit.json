@@ -7,7 +7,94 @@
     "ready_for_annotation": false,
     "training_blocked": true,
     "force_push_used": false,
-    "audit_trail_preserved": true
+    "audit_trail_preserved": true,
+    "total_incidents_recorded": 2,
+    "total_exposed_locators_remediated": 34,
+    "total_registry_batches_created": 2,
+    "registry_batches": [
+      "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT",
+      "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED"
+    ],
+    "total_samples_in_exclusion_registry": 182
+  },
+  "incidents": [
+    {
+      "incident_id": "INCIDENT-01-CANDIDATES-JSON-32-LOCATORS",
+      "file_path": "data/clean_calibration_candidates.json",
+      "first_committed_commit": "226d4226e5e84acd3437dd4573ca0b5d9d593c5b",
+      "second_committed_commit": "fefb89ee5e11043efeb6cb45c0882ef9ff8ee301",
+      "branch": "feat/c-calibration-v1-1-4-adjudication",
+      "samples_exposed_count": 32,
+      "composition": "24 main samples + 8 reserve samples",
+      "exposure_risk_assessment": "Tệp không chứa nhãn phân loại (label), nhưng chứa thông tin locator định vị dòng (relative_path và row_offset trong 2 shard nguồn train-000.parquet và train-055.parquet). Điều này tạo nguy cơ lộ mẫu nếu người gán nhãn hoặc bên thứ ba truy ngược lại dòng raw parquet. Để bảo vệ tính toàn vẹn của giao thức mù đôi (double-blind annotation), toàn bộ 32 mẫu này bị đình chỉ phát hành ngay lập tức.",
+      "exclusion_batch_id": "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT",
+      "status": "fully_remediated"
+    },
+    {
+      "incident_id": "INCIDENT-02-PAIRWISE-RESOLUTION-SUMMARY-02-LOCATORS",
+      "file_path": "data/source_audit/clean_calibration_selection_inspection_report.json / scripts/data/prepare_clean_calibration_selection.py",
+      "committed_commit": "9e457f59d5b41054b1f629fa2a06ee5a2a297e68",
+      "branch": "feat/c-calibration-v1-1-4-adjudication",
+      "samples_exposed_count": 2,
+      "composition": "1 main replacement candidate + 1 reserve refill candidate",
+      "exposure_risk_assessment": "Trong quá trình giải quyết xung đột template pairwise giữa SMP-001 và SMP-012 tại commit 9e457f5, resolution_summary trong báo cáo công khai trên Git và mã nguồn scripts/data/prepare_clean_calibration_selection.py vô tình ghi nhận cụ thể shard và row offset của 02 mẫu thay thế. Dù không kèm nhãn phân loại, locator này tạo nguy cơ truy ngược raw parquet. Căn cứ nguyên tắc mù tuyệt đối, 02 mẫu này lập tức bị hủy bỏ sử dụng cho Pass 1 sạch.",
+      "exclusion_batch_id": "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED",
+      "status": "fully_remediated"
+    }
+  ],
+  "leak_incident_2": {
+    "incident_id": "INCIDENT-02-PAIRWISE-RESOLUTION-SUMMARY-02-LOCATORS",
+    "committed_commit": "9e457f59d5b41054b1f629fa2a06ee5a2a297e68",
+    "branch": "feat/c-calibration-v1-1-4-adjudication",
+    "samples_exposed_count": 2,
+    "exposed_locators": [
+      {
+        "sample_id": "EXCL-SMP-PAIRWISE-001",
+        "relative_path": "data/train-000.parquet",
+        "row_offset": 891,
+        "url_sha256": "1f68bb434371ea93dda7c82ad0407b097945ce41c93077ecbe5b2420b0c2b3de",
+        "html_sha256": "8c6bd03a1a7c9619be7fc11168761c6ed42ba53db6e5b2c3ffe00a54815e5223",
+        "group_id": "domain:insant-appeal-violation-here.vercel.app",
+        "role_at_incident": "main_replacement_candidate (thay thế SMP-012 bị loại vì trùng template với SMP-001)"
+      },
+      {
+        "sample_id": "EXCL-SMP-PAIRWISE-002",
+        "relative_path": "data/train-055.parquet",
+        "row_offset": 91,
+        "url_sha256": "41c3adb64282e5570a1b69b8fa9fe947dde04d7e92b01a1b3846743a14e0b77a",
+        "html_sha256": "c9170e2c20ea0a645c08292d768199f24d7c2832ce88f2def91c0a7a255b702e",
+        "group_id": "domain:bytemasterkapil.github.io",
+        "role_at_incident": "reserve_refill_candidate (bổ sung dự phòng lấp đầy vị trí reserve)"
+      }
+    ],
+    "exposure_risk_assessment": "Trong quá trình giải quyết xung đột template pairwise giữa SMP-001 và SMP-012 tại commit 9e457f5, resolution_summary trong báo cáo công khai trên Git và mã nguồn scripts/data/prepare_clean_calibration_selection.py vô tình ghi nhận cụ thể shard và row offset của 02 mẫu thay thế. Dù không kèm nhãn phân loại, locator này tạo nguy cơ truy ngược raw parquet. Căn cứ nguyên tắc mù tuyệt đối, 02 mẫu này lập tức bị hủy bỏ sử dụng cho Pass 1 sạch.",
+    "remediation_actions": [
+      {
+        "step": 1,
+        "action": "preserve_git_history",
+        "detail": "Không force-push hay viết lại lịch sử commit; giữ nguyên commit 9e457f5 làm bằng chứng kiểm toán."
+      },
+      {
+        "step": 2,
+        "action": "register_in_exclusion_registry",
+        "detail": "Đăng ký vĩnh viễn 02 mẫu vào data/exclusion_registry.json với mã lô EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED, nâng tổng mẫu loại trừ trong registry lên 182 mẫu thuộc 8 lô."
+      },
+      {
+        "step": 3,
+        "action": "refactor_code_and_sanitize_public_report",
+        "detail": "Sửa tận gốc mã scripts/data/prepare_clean_calibration_selection.py: resolution_summary trên Git chỉ báo cáo số lượng cặp phát hiện, số lần thay thế và kết quả tổng hợp, loại bỏ 100% locator/shard/row. Mọi chi tiết kỹ thuật được chuyển vào khu vực hạn chế data/restricted/."
+      },
+      {
+        "step": 4,
+        "action": "add_regression_leak_tests",
+        "detail": "Bổ sung test_regression_public_report_zero_locator_leak trong test suite nhằm quét regex phát hiện tự động nếu có bất kỳ locator/shard/row/URL nào xuất hiện trong báo cáo công khai."
+      },
+      {
+        "step": 5,
+        "action": "rerun_deterministic_selection_from_pool",
+        "detail": "Tuyển chọn ứng viên hợp lệ tiếp theo theo thứ tự dự phòng tất định đã khóa, đạt 24 chính (12/12) + 8 dự phòng (4/4), 496 cặp quét pairwise đạt 0 xung đột theo cả 2 quy tắc, 0 trùng lặp với toàn bộ 182 mẫu trong registry."
+      }
+    ]
   },
   "leak_incident": {
     "file_path": "data/clean_calibration_candidates.json",

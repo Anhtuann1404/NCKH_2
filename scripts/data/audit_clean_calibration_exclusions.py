@@ -37,7 +37,7 @@ def main():
     with open(registry_path, encoding="utf-8") as f:
         registry = json.load(f)
 
-    # Danh mục toàn bộ 7 lô (tổng 180 mẫu) trong registry theo chỉ đạo trực tiếp của Lead D
+    # Danh mục toàn bộ các lô trong registry theo chỉ đạo trực tiếp của Lead D
     all_batches = [
         {"id": "EXCL-PILOT-01", "name": "20 mẫu tập dượt ban đầu (summary fingerprint)", "expected_count": 20},
         {"id": "EXCL-REAL-PILOT-32", "name": "32 mẫu Pilot V1 thật", "expected_count": 32},
@@ -46,9 +46,12 @@ def main():
         {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-MAIN-24", "name": "24 mẫu Calibration v1.1.4 chính đã xem", "expected_count": 24},
         {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08", "name": "8 mẫu dự phòng Calibration đã đăng ký trong registry", "expected_count": 8},
         {"id": "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT", "name": "32 mẫu ứng viên đợt A bị lộ locator trên Git (24 chính + 8 dự phòng)", "expected_count": 32},
+        {"id": "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED", "name": "02 mẫu ứng viên bị lộ locator trong resolution_summary tại commit 9e457f5", "expected_count": 2},
     ]
 
     exclusions_map = {e["exclusion_id"]: e for e in registry.get("exclusions", [])}
+    expected_sample_count = registry.get("total_excluded_samples", sum(pb["expected_count"] for pb in all_batches))
+    expected_batch_count = registry.get("total_excluded_entries", len(all_batches))
 
     audit_summary = []
     total_samples = 0
@@ -99,19 +102,20 @@ def main():
         })
         total_samples += actual_count
 
-    assert total_samples == 180, f"Tổng số mẫu loại trừ toàn bộ 7 lô phải là 180, thực tế: {total_samples}"
+    assert total_samples == expected_sample_count, f"Tổng số mẫu loại trừ ({total_samples}) không khớp với registry ({expected_sample_count})"
+    assert len(all_batches) == expected_batch_count, f"Tổng số lô ({len(all_batches)}) không khớp với registry ({expected_batch_count})"
 
     report = {
         "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261024",
-        "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 7 lô (180 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch Đợt B cho A",
-        "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-24 (Đối chiếu toàn bộ 7 lô, 180 mẫu, loại trừ 32 locator đợt cũ đã xuất hiện trên Git và làm rõ giới hạn 20 mẫu summary fingerprint)",
+        "purpose": f"Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ {len(all_batches)} lô ({total_samples} mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch Đợt B cho A",
+        "lead_d_directive_reference": f"Chỉ đạo Lead D (Đối chiếu toàn bộ {len(all_batches)} lô, {total_samples} mẫu, loại trừ các locator đợt cũ bị lộ trên Git và làm rõ giới hạn 20 mẫu summary fingerprint)",
         "governance": {
             "training_blocked": True,
             "official_test_used": False,
             "registry_version": registry.get("version", "1.1.0"),
             "registry_sha256": hashlib.sha256(registry_path.read_bytes()).hexdigest(),
-            "total_excluded_entries_in_registry": registry.get("total_excluded_entries", len(registry.get("exclusions", []))),
-            "total_excluded_samples_in_registry": registry.get("total_excluded_samples", 180)
+            "total_excluded_entries_in_registry": registry.get("total_excluded_entries", len(all_batches)),
+            "total_excluded_samples_in_registry": registry.get("total_excluded_samples", total_samples)
         },
         "inventory": {
             "total_batches_count": len(all_batches),
@@ -158,7 +162,7 @@ def main():
                 "sẽ được đưa vào báo cáo nghiệm thu ứng viên trước khi phát hành gói."
             ),
             "scientific_disclaimer": (
-                "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 148 mẫu (đủ 6 lô bao gồm cả Pilot Rebuild và 8 mẫu dự phòng Calibration) "
+                f"Đã kiểm tra đối chiếu trực tiếp trên toàn bộ {total_samples} mẫu (đủ {len(all_batches)} lô bao gồm cả Pilot Rebuild, 8 mẫu dự phòng Calibration và các mẫu bị lộ locator trên Git) "
                 "trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
             )
         }
@@ -172,7 +176,7 @@ def main():
     report_hash = hashlib.sha256(report_bytes).hexdigest()
 
     print(f"-> ĐÃ XUẤT BÁO CÁO KIỂM KÊ LOẠI TRỪ: {report_path}")
-    print(f"   Tổng số mẫu phạm vi toàn bộ 6 lô: {total_samples} mẫu")
+    print(f"   Tổng số mẫu phạm vi toàn bộ {len(all_batches)} lô: {total_samples} mẫu")
     print(f"   Fingerprints duy nhất: URL={len(unique_urls)}, HTML={len(unique_htmls)}, Group={len(unique_groups)}, SummaryFP={len(unique_summary_fps)}")
     print(f"   SHA-256: {report_hash}")
     print("=== HOÀN TẤT KIỂM KÊ BẰNG CHỨNG LOẠI TRỪ THÀNH CÔNG ===")

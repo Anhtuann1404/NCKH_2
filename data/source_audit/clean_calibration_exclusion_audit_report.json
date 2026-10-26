@@ -1,18 +1,18 @@
 {
   "report_id": "CLEAN-CALIBRATION-EXCLUSION-AUDIT-20261024",
-  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 7 lô (180 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch Đợt B cho A",
-  "lead_d_directive_reference": "Chỉ đạo Lead D ngày 2026-10-24 (Đối chiếu toàn bộ 7 lô, 180 mẫu, loại trừ 32 locator đợt cũ đã xuất hiện trên Git và làm rõ giới hạn 20 mẫu summary fingerprint)",
+  "purpose": "Bằng chứng kiểm kê trực tiếp data/exclusion_registry.json gồm toàn bộ 8 lô (182 mẫu) trước khi tuyển chọn Gói Hiệu chuẩn Sạch Đợt B cho A",
+  "lead_d_directive_reference": "Chỉ đạo Lead D (Đối chiếu toàn bộ 8 lô, 182 mẫu, loại trừ các locator đợt cũ bị lộ trên Git và làm rõ giới hạn 20 mẫu summary fingerprint)",
   "governance": {
     "training_blocked": true,
     "official_test_used": false,
     "registry_version": "1.1.0",
-    "registry_sha256": "e989b94043ad999890fe09f0735a1a48da4d0f70dea58301ab33c8fbaa742985",
-    "total_excluded_entries_in_registry": 7,
-    "total_excluded_samples_in_registry": 180
+    "registry_sha256": "ecd90db8f5bf14ab8995ada5b04f5a56864c97341d7ebb3eb13d0645b04afd7b",
+    "total_excluded_entries_in_registry": 8,
+    "total_excluded_samples_in_registry": 182
   },
   "inventory": {
-    "total_batches_count": 7,
-    "total_samples_count": 180,
+    "total_batches_count": 8,
+    "total_samples_count": 182,
     "batches": [
       {
         "exclusion_id": "EXCL-PILOT-01",
@@ -83,12 +83,22 @@
         "unique_group_sha256": 32,
         "unique_summary_fingerprints": 0,
         "action": "permanently_exclude_from_train_val_test"
+      },
+      {
+        "exclusion_id": "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED",
+        "description": "02 mẫu ứng viên bị lộ locator trong resolution_summary tại commit 9e457f5",
+        "sample_count": 2,
+        "unique_url_sha256": 2,
+        "unique_html_sha256": 2,
+        "unique_group_sha256": 2,
+        "unique_summary_fingerprints": 0,
+        "action": "permanently_exclude_from_train_val_test"
       }
     ],
     "registry_fingerprints_summary": {
-      "all_unique_url_sha256": 168,
-      "all_unique_html_sha256": 160,
-      "all_unique_group_sha256": 159,
+      "all_unique_url_sha256": 170,
+      "all_unique_html_sha256": 162,
+      "all_unique_group_sha256": 161,
       "all_unique_summary_fingerprints": 20
     }
   },
@@ -107,6 +117,6 @@
       "summary_fingerprint_hash (đối chiếu cấu trúc 20 mẫu pilot lịch sử)"
     ],
     "template_similarity_policy": "Bước kiểm tra bắt buộc sẽ thực hiện ngay sau khi chạy thuật toán tuyển chọn ứng viên ngẫu nhiên; kết quả đo lường độ tương đồng SimHash 64-bit và DOM Jaccard thực tế giữa ứng viên và các mẫu đã biết sẽ được đưa vào báo cáo nghiệm thu ứng viên trước khi phát hành gói.",
-    "scientific_disclaimer": "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 148 mẫu (đủ 6 lô bao gồm cả Pilot Rebuild và 8 mẫu dự phòng Calibration) trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
+    "scientific_disclaimer": "Đã kiểm tra đối chiếu trực tiếp trên toàn bộ 182 mẫu (đủ 8 lô bao gồm cả Pilot Rebuild, 8 mẫu dự phòng Calibration và các mẫu bị lộ locator trên Git) trong data/exclusion_registry.json. Không phát biểu tuyên bố tuyệt đối hóa ngoài phạm vi kiểm chứng."
   }
 }

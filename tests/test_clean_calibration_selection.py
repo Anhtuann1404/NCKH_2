@@ -215,6 +215,72 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert leak_batch_02["action"] == "permanently_exclude_from_train_val_test"
         assert len(leak_batch_02["samples"]) == 2
 
+    def test_tripartite_exclusion_consistency(self):
+        """Chứng minh tính nhất quán trực tiếp ba bên: exclusion_registry, audit_report và manifest (chỉ đạo Lead D)."""
+        import hashlib
+        root = Path(__file__).resolve().parents[1]
+
+        registry_path = root / "data/exclusion_registry.json"
+        audit_path = root / "data/source_audit/clean_calibration_exclusion_audit_report.json"
+        git_leak_path = root / "data/source_audit/clean_calibration_git_leak_audit.json"
+        manifest_path = root / "configs/calibration_clean_a_manifest.json"
+
+        assert registry_path.exists(), "Thiếu data/exclusion_registry.json"
+        assert audit_path.exists(), "Thiếu data/source_audit/clean_calibration_exclusion_audit_report.json"
+        assert git_leak_path.exists(), "Thiếu data/source_audit/clean_calibration_git_leak_audit.json"
+        assert manifest_path.exists(), "Thiếu configs/calibration_clean_a_manifest.json"
+
+        registry_bytes = registry_path.read_bytes()
+        audit_bytes = audit_path.read_bytes()
+        git_leak_bytes = git_leak_path.read_bytes()
+
+        registry_sha256 = hashlib.sha256(registry_bytes).hexdigest()
+        audit_sha256 = hashlib.sha256(audit_bytes).hexdigest()
+        git_leak_sha256 = hashlib.sha256(git_leak_bytes).hexdigest()
+
+        registry = json.loads(registry_bytes.decode("utf-8"))
+        audit = json.loads(audit_bytes.decode("utf-8"))
+        git_leak = json.loads(git_leak_bytes.decode("utf-8"))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        # 1. Trụ 1: Registry kiểm đếm mẫu và lô
+        reg_entries = registry["total_excluded_entries"]
+        reg_samples = registry["total_excluded_samples"]
+        assert reg_entries == 8, f"Registry phải có 8 lô, thực tế: {reg_entries}"
+        assert reg_samples == 182, f"Registry phải có 182 mẫu, thực tế: {reg_samples}"
+        assert len(registry["exclusions"]) == 8
+        counted_samples = sum(e.get("n_samples", len(e.get("samples", []))) for e in registry["exclusions"])
+        assert counted_samples == 182
+
+        # 2. Trụ 2: Báo cáo kiểm kê loại trừ đối soát trực tiếp registry
+        assert audit["governance"]["registry_sha256"] == registry_sha256
+        assert audit["governance"]["total_excluded_entries_in_registry"] == 8
+        assert audit["governance"]["total_excluded_samples_in_registry"] == 182
+        assert audit["inventory"]["total_batches_count"] == 8
+        assert audit["inventory"]["total_samples_count"] == 182
+        assert len(audit["inventory"]["batches"]) == 8
+        audit_batch_sum = sum(b["sample_count"] for b in audit["inventory"]["batches"])
+        assert audit_batch_sum == 182
+
+        # 3. Trụ 3: Manifest liên kết mã băm cryptographic và số lượng chốt chặn
+        manifest_gov = manifest["governance"]
+        assert manifest_gov["exclusion_registry_sha256"] == registry_sha256
+        assert manifest_gov["exclusion_audit_sha256"] == audit_sha256
+        assert manifest_gov["git_leak_audit_sha256"] == git_leak_sha256
+        assert manifest_gov["known_excluded_samples_count"] == 182
+        assert manifest_gov["ready_for_annotation"] is False
+        assert manifest_gov["training_blocked"] is True
+
+        # 4. Đối soát ba bên chéo (Tripartite Cross-Check)
+        assert reg_samples == audit["inventory"]["total_samples_count"] == manifest_gov["known_excluded_samples_count"] == 182
+        assert reg_entries == audit["inventory"]["total_batches_count"] == 8
+
+        # 5. Hồ sơ kiểm toán sự cố Git leak ghi nhận đủ cả 2 sự cố và 34 locator
+        assert git_leak["governance"]["total_incidents_recorded"] == 2
+        assert git_leak["governance"]["total_exposed_locators_remediated"] == 34
+        assert len(git_leak["incidents"]) == 2
+        assert git_leak["governance"]["total_samples_in_exclusion_registry"] == 182
+
     def test_clean_calibration_v2_manifest_governance_contract(self):
         """Chứng minh manifest Đợt B giữ trạng thái pending, ready_for_annotation=false và tham chiếu đúng."""
         root = Path(__file__).resolve().parents[1]
