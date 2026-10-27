@@ -4,8 +4,8 @@
   "updated_at_utc": "2026-10-24T00:57:54.797402+00:00",
   "registry_status": "in_progress_unresolved",
   "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
-  "total_excluded_entries": 8,
-  "total_excluded_samples": 182,
+  "total_excluded_entries": 9,
+  "total_excluded_samples": 214,
   "exclusions": [
     {
       "exclusion_id": "EXCL-PILOT-01",
@@ -1600,6 +1600,310 @@
           "group_id": "domain:bytemasterkapil.github.io",
           "source_date": "2024-10-18",
           "role": "reserve_refill_candidate"
+        }
+      ]
+    },
+    {
+      "exclusion_id": "EXCL-CALIBRATION-CLEAN-RUNWAY-32",
+      "dataset_id": "CALIBRATION-CLEAN-RUNWAY-32",
+      "reason": "32 mẫu tuyển chọn cho Clean Calibration Runway A (24 chính + 8 dự phòng) loại trừ vĩnh viễn khỏi toàn bộ train, validation và test của các mô hình M0-M3; locators và vai trò được cô lập ngoài Git.",
+      "source": "phreshphish",
+      "split": "train",
+      "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+      "rows_api_revision_pinned": true,
+      "mapping_status": "verified_cryptographic_hashes_locators_restricted_offline",
+      "mapping_notes": "Locators (shard và row offset), vai trò (chính vs dự phòng) và thứ tự mẫu được lưu trữ an toàn trong hồ sơ hạn chế ngoài Git (data/restricted/clean_calibration_exclusion_mapping_32.json) để bảo vệ ranh giới mù đôi của A và B.",
+      "batch_sha256": "467a4686e8e6395ac4b46348f5beda5eed5575a6f4f2c820e7109791f4f92486",
+      "action": "permanently_exclude_from_train_val_test",
+      "n_samples": 32,
+      "samples": [
+        {
+          "sample_id": "EXCL-CLN-001",
+          "url_sha256": "00c858741eb5b43adcdff83d0640708b4ed79225fb078554d7470e89b26971e6",
+          "normalized_url_sha256": "feda08c29ae5987ae9e76daef8e6a7925696224d1cd128a4b88535f7693fb070",
+          "html_sha256": "24222f26df160492b0324180eca8a3710af3f6d10fe18f6b224e3326e251c216",
+          "group_sha256": "2282cc04652c1df3ab0cb1112deb786d004aff731353efcb764d9cf8ccb7a201",
+          "group_id": "domain:iptvel.com",
+          "source_date": "2025-06-27"
+        },
+        {
+          "sample_id": "EXCL-CLN-002",
+          "url_sha256": "0161bd79a5e292986ffdf6c9f9b8184dfecd9a43d2c6d1c153c04835090f8aa0",
+          "normalized_url_sha256": "0161bd79a5e292986ffdf6c9f9b8184dfecd9a43d2c6d1c153c04835090f8aa0",
+          "html_sha256": "57b6998321d6906aaec9e6934cf770b485e5060f8a897a75d077827602074303",
+          "group_sha256": "04da80c6bf77fbbbe7130b95400caba62c682557f9f377d80c21b3c87345c4da",
+          "group_id": "domain:cheesestorebh.com",
+          "source_date": "2025-08-03"
+        },
+        {
+          "sample_id": "EXCL-CLN-003",
+          "url_sha256": "0b50a6e53ae852f20618abb152f069e8cb94b168be48dc6e35c77bf73212259e",
+          "normalized_url_sha256": "0b50a6e53ae852f20618abb152f069e8cb94b168be48dc6e35c77bf73212259e",
+          "html_sha256": "dcd8f235e7513fba9eeb56c86ed841d14e8a76d926640123c054778e2e2688e4",
+          "group_sha256": "97262ea5b51ca7814dace2d740504f623ff18b8a793eb7f6814e80befa82d457",
+          "group_id": "domain:astromart.com",
+          "source_date": "2024-10-01"
+        },
+        {
+          "sample_id": "EXCL-CLN-004",
+          "url_sha256": "16dafc5618d9d27282184cfbbdd8b532adae4026c23094d93dfe599ecc49e224",
+          "normalized_url_sha256": "16dafc5618d9d27282184cfbbdd8b532adae4026c23094d93dfe599ecc49e224",
+          "html_sha256": "83917dcb7a2474983bd6c05d0672e4502f4bd5f9169a673e7049a86085a9872d",
+          "group_sha256": "1100126742c2c9d8049f6b55ed02e51d2a0cf0b5ff52b66a139e4d4b36a9c20f",
+          "group_id": "domain:jellyfishinlove.com",
+          "source_date": "2025-09-04"
+        },
+        {
+          "sample_id": "EXCL-CLN-005",
+          "url_sha256": "1854673c655adfd416298ba5cb1aaa9c02e9dc5c9e0d0a29f731e59bf1f7fbcb",
+          "normalized_url_sha256": "1854673c655adfd416298ba5cb1aaa9c02e9dc5c9e0d0a29f731e59bf1f7fbcb",
+          "html_sha256": "ae7ff22e52eee1e79226132a2b88119e7a94dc60e27c4100e167903537fc81e7",
+          "group_sha256": "b25463de0ac5aacd9dfe16edd14204ba484237d6d91918120427fc2d92c48813",
+          "group_id": "domain:chippewacountywi.gov",
+          "source_date": "2025-08-12"
+        },
+        {
+          "sample_id": "EXCL-CLN-006",
+          "url_sha256": "1d03bb563d23f41a3afb287599138e862e12a63050eec56b8e4ba7b1c89faa43",
+          "normalized_url_sha256": "1d03bb563d23f41a3afb287599138e862e12a63050eec56b8e4ba7b1c89faa43",
+          "html_sha256": "86ab5184e7869e5862799c919b0cbd268efe40c0750682632da5a4899821b9ac",
+          "group_sha256": "2ab7b14b7d24a25f1963cb535dc6cfb106c02dcc2012ec7aba1edc8814d08693",
+          "group_id": "domain:hayspost.com",
+          "source_date": "2025-08-21"
+        },
+        {
+          "sample_id": "EXCL-CLN-007",
+          "url_sha256": "1fea9cf97d21c5c0c72b4734aed16805b2df36f9b6876a91b9cc9491cb546a1a",
+          "normalized_url_sha256": "1fea9cf97d21c5c0c72b4734aed16805b2df36f9b6876a91b9cc9491cb546a1a",
+          "html_sha256": "ffcf9b62c82f6f03cefc9e1bd4afbc9344da25d889615e6398d612fe48049411",
+          "group_sha256": "92865691688eb9acd6818cec78f5cefda8e11c8bd6e082ae96c21639823a7a1a",
+          "group_id": "domain:14news.com",
+          "source_date": "2025-09-07"
+        },
+        {
+          "sample_id": "EXCL-CLN-008",
+          "url_sha256": "28b1cafa76d3745f0c56be469995b648c5756c856193d6ecc942ca6e49abaa7f",
+          "normalized_url_sha256": "28b1cafa76d3745f0c56be469995b648c5756c856193d6ecc942ca6e49abaa7f",
+          "html_sha256": "28638edb282410a4ae636d4e4b9d64e49e88db7078691c749d97dab5d58b4abd",
+          "group_sha256": "4fed52671001916631e46740adde254c0bc905e2169c0fcda337cbaa8699c5de",
+          "group_id": "domain:techzyme.vercel.app",
+          "source_date": "2025-07-05"
+        },
+        {
+          "sample_id": "EXCL-CLN-009",
+          "url_sha256": "2d6be52d443c71986889aa569900f520936c04359262b1e03af7d095cc2c5460",
+          "normalized_url_sha256": "2d6be52d443c71986889aa569900f520936c04359262b1e03af7d095cc2c5460",
+          "html_sha256": "f73772dcb3805e7012d03ac8582251b1171b2f1b813c5676909996e2317385e1",
+          "group_sha256": "e8ac2d5b98391aacbaf3accc8eeeb92ea9badb4a00d26ce4e3adf339f9f35748",
+          "group_id": "domain:pixels-jeandlc.vercel.app",
+          "source_date": "2025-07-28"
+        },
+        {
+          "sample_id": "EXCL-CLN-010",
+          "url_sha256": "319b30373bca007ea978fff60b84edb8020a3cb8bb91c311a831734678f97c6f",
+          "normalized_url_sha256": "319b30373bca007ea978fff60b84edb8020a3cb8bb91c311a831734678f97c6f",
+          "html_sha256": "666421523bf68db9616ff45b0809255b91611e35124de1ea23237eccc75b9520",
+          "group_sha256": "189d634c2d68f2b8ff49965115cf455c69667a12b7305d411d5e32abf0f9e46a",
+          "group_id": "domain:prau-pc.jp",
+          "source_date": "2025-07-12"
+        },
+        {
+          "sample_id": "EXCL-CLN-011",
+          "url_sha256": "39b9809e277d67f0b8dd6fc8c2fb2e96cada98b6f1a8ad398494830da0b3275f",
+          "normalized_url_sha256": "39b9809e277d67f0b8dd6fc8c2fb2e96cada98b6f1a8ad398494830da0b3275f",
+          "html_sha256": "0e751d2cfd54a7dd34c2ad79e1dda3f5c238e51cab7ec3ec8dc56a0b2c997a72",
+          "group_sha256": "ac3753360b8d463a2c7797b77f3ef2875565bc96ca0abd05989421c7bc28bb78",
+          "group_id": "domain:fciralco.ir",
+          "source_date": "2025-01-20"
+        },
+        {
+          "sample_id": "EXCL-CLN-012",
+          "url_sha256": "4666caa595167906f8dd96718ca14016c9b4575612c84407ee032e6f02882389",
+          "normalized_url_sha256": "4666caa595167906f8dd96718ca14016c9b4575612c84407ee032e6f02882389",
+          "html_sha256": "efdc254608bdbbb410577e620fcf6f8f837fb7df3dbbec50ed0bac578be132ea",
+          "group_sha256": "ecd8c676d995eeeb3af39d84d4e44ca314900116093cc5bc6db34a2f5e75ffd1",
+          "group_id": "domain:apps-auth--ledgre.webflow.io",
+          "source_date": "2025-02-09"
+        },
+        {
+          "sample_id": "EXCL-CLN-013",
+          "url_sha256": "482dc9f360f0b5582afc16288d4124042444c38fd1a82f819963add84a71da0e",
+          "normalized_url_sha256": "482dc9f360f0b5582afc16288d4124042444c38fd1a82f819963add84a71da0e",
+          "html_sha256": "143641616f720a58d722a768aabe18d885e96bae92b9934e6774a855ceb10856",
+          "group_sha256": "247a2cc20231be3001135cab882e78e805aaa62f7e9a1f440db7cc79ed3215cf",
+          "group_id": "domain:aecmqfzq.shop",
+          "source_date": "2025-01-09"
+        },
+        {
+          "sample_id": "EXCL-CLN-014",
+          "url_sha256": "4ace9b4a6d10abe468af55e39575ae84d155291e193a7f5d711aeacc63815488",
+          "normalized_url_sha256": "4ace9b4a6d10abe468af55e39575ae84d155291e193a7f5d711aeacc63815488",
+          "html_sha256": "50c7d02c0cc54341cf192813ae1066f22fdf048d3c9e799669fdcd4ffaf73702",
+          "group_sha256": "419373a5b8154d71add555e9af18355cd8f176ee55ef0f5ea85f91945749a0ca",
+          "group_id": "domain:gitbook.io",
+          "source_date": "2024-11-30"
+        },
+        {
+          "sample_id": "EXCL-CLN-015",
+          "url_sha256": "4f4638ab35d4558a46081e5babef01654b6f49dc575f387cbc408e0498eeac21",
+          "normalized_url_sha256": "4f4638ab35d4558a46081e5babef01654b6f49dc575f387cbc408e0498eeac21",
+          "html_sha256": "18b003af1a5039eeec01c5dea7e412b66cd17f562534abb8cffaa980e0310cd6",
+          "group_sha256": "25f67a8420eb687819d62c1ba8f9b0add6cbc2d3e8bdda96cc52ba8a3ae8edc8",
+          "group_id": "domain:youtube.com",
+          "source_date": "2025-08-22"
+        },
+        {
+          "sample_id": "EXCL-CLN-016",
+          "url_sha256": "646e9ac8d4e0eb5fac32b30fc7de0458d5d96bd08cb12eb546e14c59fa0bb890",
+          "normalized_url_sha256": "646e9ac8d4e0eb5fac32b30fc7de0458d5d96bd08cb12eb546e14c59fa0bb890",
+          "html_sha256": "a777bc967712e92576c342e90aff3c59d1c06e9b049f55a93bf7a4661d2489a3",
+          "group_sha256": "4d9303566af8532636091d061d10002da0fe847c52af50eb14f357925cec843d",
+          "group_id": "domain:dickssportinggoodsdirect.com",
+          "source_date": "2025-01-06"
+        },
+        {
+          "sample_id": "EXCL-CLN-017",
+          "url_sha256": "6a56e085a1bfa69e0830034d2d0aa63fe035f9ef80611a9e9b9d06b158fb8ad3",
+          "normalized_url_sha256": "6a56e085a1bfa69e0830034d2d0aa63fe035f9ef80611a9e9b9d06b158fb8ad3",
+          "html_sha256": "25d1cc9535366ce29292af91a708b60f9223f423aeec18dc68a728efcd2fcc89",
+          "group_sha256": "06dd080c7eeda63defb1d03d037f182f6a277869132454628f4deb4f588e0179",
+          "group_id": "domain:sandiegozoo.org",
+          "source_date": "2025-06-12"
+        },
+        {
+          "sample_id": "EXCL-CLN-018",
+          "url_sha256": "70897ced3bece48f56ee16c02bc390041eecb92690520a7ff1191dca0ba9cb07",
+          "normalized_url_sha256": "70897ced3bece48f56ee16c02bc390041eecb92690520a7ff1191dca0ba9cb07",
+          "html_sha256": "3ed5aa3b0e296d661ed5434204dddf12973b28bf03cf873eab203c23a086fc2b",
+          "group_sha256": "3177c468c3491d34a04e2845c38885a3082d75d02ea6b31b34c1c4cc442b0165",
+          "group_id": "domain:collinsdictionary.com",
+          "source_date": "2024-10-01"
+        },
+        {
+          "sample_id": "EXCL-CLN-019",
+          "url_sha256": "7a2dbbc97a76f598532d05cc7ecbb08937eb47f4617c29056775446bbc11fee8",
+          "normalized_url_sha256": "7a2dbbc97a76f598532d05cc7ecbb08937eb47f4617c29056775446bbc11fee8",
+          "html_sha256": "de26d32d7313ba74c51c555f31502bf18e60c98089afbd75ebbf9428f9b78d17",
+          "group_sha256": "584a8a1d333c0d11c428c9243eba0cea797f5abc478cb488be571eeae3d92c26",
+          "group_id": "domain:quartierdix30.com",
+          "source_date": "2024-10-03"
+        },
+        {
+          "sample_id": "EXCL-CLN-020",
+          "url_sha256": "8a91e03e8e1712263d51e88a89ce3180fc1754d3d56abdb2b80eb20ad7f0ead5",
+          "normalized_url_sha256": "8a91e03e8e1712263d51e88a89ce3180fc1754d3d56abdb2b80eb20ad7f0ead5",
+          "html_sha256": "fba0a41b5897d533872ce4927a7569cac30746caecd43101b095c233f8faa905",
+          "group_sha256": "95f4629dbed61a9920b6e5e20ca4fcbd0e22d9758086a93ba6005478c47fd090",
+          "group_id": "domain:blogspot.co.il",
+          "source_date": "2024-10-07"
+        },
+        {
+          "sample_id": "EXCL-CLN-021",
+          "url_sha256": "8c5148d11e93c95c9b622f72aba12576823d735cc6b1a5748533b1407248f30a",
+          "normalized_url_sha256": "8c5148d11e93c95c9b622f72aba12576823d735cc6b1a5748533b1407248f30a",
+          "html_sha256": "9dbe97f348267099a61d825da23a9d67a7c66282d47567f81d59f4c6abbe463f",
+          "group_sha256": "42ec4df0f3f9fbf0bbb34abe129cd39daba662dbfdb11dc2ebcad6afead0ae58",
+          "group_id": "domain:vzy.io",
+          "source_date": "2024-10-14"
+        },
+        {
+          "sample_id": "EXCL-CLN-022",
+          "url_sha256": "909247aece081efab668066fabef1e0d2d761cee378f1b80316fafbfd64556ce",
+          "normalized_url_sha256": "909247aece081efab668066fabef1e0d2d761cee378f1b80316fafbfd64556ce",
+          "html_sha256": "bda044a5b48f0f1165d9c2651efdc09398da3c07a14489163606a6711b74a123",
+          "group_sha256": "12da4eedec1836429b679c57d46254de0833d19447dd2bb0d9e1e082cbd7dd32",
+          "group_id": "domain:trilltrill.jp",
+          "source_date": "2025-07-31"
+        },
+        {
+          "sample_id": "EXCL-CLN-023",
+          "url_sha256": "95fcd107f41fef3eb70a04ab310bfd61b7892aa332288749a1f8198c1fb98a65",
+          "normalized_url_sha256": "95fcd107f41fef3eb70a04ab310bfd61b7892aa332288749a1f8198c1fb98a65",
+          "html_sha256": "3a57bcf69b9800dfd585b55f8c7dafc44e827c0da6d49405fac2a9820671689d",
+          "group_sha256": "99389d5d89ae8430885be4d272744dec14b1aa3f63d97305e631183febbbf8bb",
+          "group_id": "domain:lakeofthewoodsmn.com",
+          "source_date": "2024-10-02"
+        },
+        {
+          "sample_id": "EXCL-CLN-024",
+          "url_sha256": "a2c2b1731c7c428ce0e51de24a725a701d9246377f42c8ec2c54462d48af1bf7",
+          "normalized_url_sha256": "a2c2b1731c7c428ce0e51de24a725a701d9246377f42c8ec2c54462d48af1bf7",
+          "html_sha256": "c326e239d648e99260cbcf3e03d790428b7ca47f24f619be99e0513abee95235",
+          "group_sha256": "5197d6c89e186bb9097ff872caddbbb2cda2d5b946a59078ab6f8b793e4e90ff",
+          "group_id": "domain:fandom.com",
+          "source_date": "2024-10-10"
+        },
+        {
+          "sample_id": "EXCL-CLN-025",
+          "url_sha256": "a45462e8d927b068f4ec622c156ebd84a2cbfe50564f7bea5b0635b3dc4c4c00",
+          "normalized_url_sha256": "a45462e8d927b068f4ec622c156ebd84a2cbfe50564f7bea5b0635b3dc4c4c00",
+          "html_sha256": "2f1157e5f8088f49361ef80a5fe56de91b7f0af77ed9fd9b14855e205c2fd0fc",
+          "group_sha256": "b588f729f4bd9537fdc21685e0893c522cbf018200c923e0546fc7786843592c",
+          "group_id": "domain:wordhelp.com",
+          "source_date": "2025-07-29"
+        },
+        {
+          "sample_id": "EXCL-CLN-026",
+          "url_sha256": "a4a7ea83bc7bd93d41eddd87844d5cc69547a4d662e250e9448eb69925703162",
+          "normalized_url_sha256": "a4a7ea83bc7bd93d41eddd87844d5cc69547a4d662e250e9448eb69925703162",
+          "html_sha256": "c456150243f7e22d023779db9624fb7a3f51b5324cf13c8b2b1ece228117e6fc",
+          "group_sha256": "8665307309f312859d594dbb8f14ad8e651891bfc30dfc3095d489fe45db9bd6",
+          "group_id": "domain:rebrand.ly",
+          "source_date": "2025-01-16"
+        },
+        {
+          "sample_id": "EXCL-CLN-027",
+          "url_sha256": "a8ff46c1a740acf78b4e1ee8098386a642dcf0de5d2de1153c6ad376b8fad272",
+          "normalized_url_sha256": "a8ff46c1a740acf78b4e1ee8098386a642dcf0de5d2de1153c6ad376b8fad272",
+          "html_sha256": "e1cb0331e6ad801bebcad927502ce3ee05ad05ffa606ab99393723a1a1759e6f",
+          "group_sha256": "8db4c8da476ea5476d857776514bf9b8479734d01b4712462d0f142d4687d416",
+          "group_id": "domain:en---apps--phantome-com--auth.webflow.io",
+          "source_date": "2024-11-29"
+        },
+        {
+          "sample_id": "EXCL-CLN-028",
+          "url_sha256": "c5cb2b1f2558d858f0a711a61c71e13b1b5505e9ac996bd41e9fe6e4222ac45f",
+          "normalized_url_sha256": "c5cb2b1f2558d858f0a711a61c71e13b1b5505e9ac996bd41e9fe6e4222ac45f",
+          "html_sha256": "2febe1d1c3f0af2e4515b49ac173409ba7380b765fea30b6e758a0d7ec3339e0",
+          "group_sha256": "e00456fd7d518f88147d010101b9560e9ebc730ba9139eedbf06c316b09c3ada",
+          "group_id": "domain:confirmation-id8295.com",
+          "source_date": "2025-08-05"
+        },
+        {
+          "sample_id": "EXCL-CLN-029",
+          "url_sha256": "c8ce50913fcd7cc2ea69c5027aa9cf68a5c6ddc5b2a0e550eb8ac2c68151a986",
+          "normalized_url_sha256": "c8ce50913fcd7cc2ea69c5027aa9cf68a5c6ddc5b2a0e550eb8ac2c68151a986",
+          "html_sha256": "145368638264f58f477b10eb3cbc42869d7a4413e01ab3ae57fb143b672220f7",
+          "group_sha256": "4124dda1ad8ee1d194aa9509952d8bfd0c3d5ebc27917093d6ca16fb61c15867",
+          "group_id": "domain:wikipedia.org",
+          "source_date": "2025-07-31"
+        },
+        {
+          "sample_id": "EXCL-CLN-030",
+          "url_sha256": "e5e219211fa6f5a2165ab9ff09b7a8c954d35059923a029952e18079d54e52ac",
+          "normalized_url_sha256": "e5e219211fa6f5a2165ab9ff09b7a8c954d35059923a029952e18079d54e52ac",
+          "html_sha256": "b896603bc30f994ce078645b7e8012d26237905ae9befc9f4a81e0f81032c894",
+          "group_sha256": "ab524dd6b6b58d1deb3bcc14df4e211b5aebfd1a1d2dfa5e45d424bba47d69d9",
+          "group_id": "domain:ssaa3lopao.fra1.digitaloceanspaces.com",
+          "source_date": "2024-12-18"
+        },
+        {
+          "sample_id": "EXCL-CLN-031",
+          "url_sha256": "f299bfe3d411ae7621991940b6fd619d47e94fb2ad12261228a7ea56906634fd",
+          "normalized_url_sha256": "f299bfe3d411ae7621991940b6fd619d47e94fb2ad12261228a7ea56906634fd",
+          "html_sha256": "e60d6880e35c51559de5eff758546de767a172802ece0b12470998e4843fbf64",
+          "group_sha256": "cd456e5e26ffd60d54eda2269b6992124b8e1020f25936180d93fd4f265ccbfa",
+          "group_id": "domain:com-case78346.com",
+          "source_date": "2024-10-19"
+        },
+        {
+          "sample_id": "EXCL-CLN-032",
+          "url_sha256": "f615ea9e5246e03a18f04c5eeeef197827bdfb745350fd221bed66aa8be6dd63",
+          "normalized_url_sha256": "f615ea9e5246e03a18f04c5eeeef197827bdfb745350fd221bed66aa8be6dd63",
+          "html_sha256": "debe4e3559106f66ea1317dd2315832c62047ae5f527b035a338e7e4ba00b9bc",
+          "group_sha256": "bde00e6aadfe7ae1ac3f7039cd18a4f38bbe4111f014fc4b5c6fc3fe3c0b38ab",
+          "group_id": "domain:neworleanssaints.com",
+          "source_date": "2025-09-06"
         }
       ]
     }

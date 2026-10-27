@@ -47,6 +47,7 @@ def main():
         {"id": "EXCL-CALIBRATION-PROPOSAL-V1.1-RESERVE-08", "name": "8 mẫu dự phòng Calibration đã đăng ký trong registry", "expected_count": 8},
         {"id": "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT", "name": "32 mẫu ứng viên đợt A bị lộ locator trên Git (24 chính + 8 dự phòng)", "expected_count": 32},
         {"id": "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED", "name": "02 mẫu ứng viên bị lộ locator trong resolution_summary tại commit 9e457f5", "expected_count": 2},
+        {"id": "EXCL-CALIBRATION-CLEAN-RUNWAY-32", "name": "32 mẫu ứng viên Calibration Sạch Runway A (24 chính + 8 dự phòng) loại trừ vĩnh viễn", "expected_count": 32},
     ]
 
     exclusions_map = {e["exclusion_id"]: e for e in registry.get("exclusions", [])}

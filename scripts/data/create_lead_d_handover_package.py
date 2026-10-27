@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Build Handover Package for Lead D's Final Review (24 Main Samples Blind View).
+"""Build Handover Package for Lead D's Final Review (Clean Calibration Runway A).
 
 Package: GOI_NGHIEM_THU_LEAD_D_CALIBRATION_CLEAN_24.zip
 Contains:
-1. clean_calibration_blind_view_24.json (The 24 main samples Blind View for A and B)
-2. calibration_clean_a_manifest.json (Synchronized manifest)
-3. MANIFEST_HANDOVER_LEAD_D.json (Handover metadata and component checksums)
-4. verify_lead_d_handover.py (Standalone automated verification tool for Lead D)
+1. clean_calibration_blind_view_24.json (The 24 main samples Blind View with offline translations)
+2. clean_calibration_blind_view_24_base.json (Untranslated base view audit trail)
+3. clean_calibration_exclusion_mapping_32.json (Restricted 32-sample exclusion mapping for Lead D verification)
+4. calibration_clean_a_manifest.json (Synchronized manifest v1.1-PROPOSAL)
+5. MANIFEST_HANDOVER_LEAD_D.json (Handover metadata and component checksums)
+6. verify_lead_d_handover.py (Standalone automated verification tool for Lead D)
 """
 
 from __future__ import annotations
@@ -22,6 +24,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_24.json"
+BASE_VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_24_base.json"
+MAPPING_PATH = ROOT / "data/restricted/clean_calibration_exclusion_mapping_32.json"
 MANIFEST_PATH = ROOT / "configs/calibration_clean_a_manifest.json"
 OUTPUT_ZIP = ROOT / "GOI_NGHIEM_THU_LEAD_D_CALIBRATION_CLEAN_24.zip"
 
@@ -41,10 +45,14 @@ import sys
 DIR = Path(__file__).resolve().parent
 
 VIEW_FILE = DIR / "clean_calibration_blind_view_24.json"
+BASE_VIEW_FILE = DIR / "clean_calibration_blind_view_24_base.json"
+MAPPING_FILE = DIR / "clean_calibration_exclusion_mapping_32.json"
 MANIFEST_FILE = DIR / "calibration_clean_a_manifest.json"
 HANDOVER_FILE = DIR / "MANIFEST_HANDOVER_LEAD_D.json"
 
 EXPECTED_VIEW_SHA256 = "__EXPECTED_VIEW_SHA256__"
+EXPECTED_BASE_VIEW_SHA256 = "__EXPECTED_BASE_VIEW_SHA256__"
+EXPECTED_MAPPING_SHA256 = "__EXPECTED_MAPPING_SHA256__"
 EXPECTED_MANIFEST_SHA256 = "__EXPECTED_MANIFEST_SHA256__"
 
 
@@ -58,18 +66,33 @@ def main() -> int:
     print("=== KIỂM ĐỊNH TỰ ĐỘNG GÓI NGHIỆM THU CUỐI CHO LEAD D ===")
     
     # 1. Check files existence
-    for f in (VIEW_FILE, MANIFEST_FILE, HANDOVER_FILE):
+    files_to_check = [
+        ("Blind View (với bản dịch)", VIEW_FILE),
+        ("Blind View Base (dấu vết gốc)", BASE_VIEW_FILE),
+        ("Ánh xạ loại trừ hạn chế", MAPPING_FILE),
+        ("Manifest phát hành", MANIFEST_FILE),
+        ("Handover Manifest", HANDOVER_FILE),
+    ]
+    for desc, f in files_to_check:
         if not f.exists():
-            print(f"❌ THIẾU TỆP: {f.name}")
+            print(f"❌ THIẾU TỆP: {desc} ({f.name})")
             return 1
-    print("✅ Đủ 3 tệp thành phần trong gói nghiệm thu.")
+    print(f"✅ Đủ {len(files_to_check)} tệp thành phần trong gói nghiệm thu.")
 
     # 2. Check Line endings (pure LF)
     view_bytes = VIEW_FILE.read_bytes()
+    base_bytes = BASE_VIEW_FILE.read_bytes()
+    mapping_bytes = MAPPING_FILE.read_bytes()
     manifest_bytes = MANIFEST_FILE.read_bytes()
     handover_bytes = HANDOVER_FILE.read_bytes()
 
-    for name, raw in [("Blind View", view_bytes), ("Manifest", manifest_bytes), ("Handover Manifest", handover_bytes)]:
+    for name, raw in [
+        ("Blind View", view_bytes),
+        ("Base View", base_bytes),
+        ("Mapping Dossier", mapping_bytes),
+        ("Manifest", manifest_bytes),
+        ("Handover Manifest", handover_bytes),
+    ]:
         if b"\\r\\n" in raw:
             print(f"❌ LỖI LINE ENDING: {name} chứa byte CRLF. Bắt buộc pure Unix LF.")
             return 1
@@ -77,15 +100,19 @@ def main() -> int:
 
     # 3. Check SHA-256
     view_hash = sha256(view_bytes)
+    base_hash = sha256(base_bytes)
+    mapping_hash = sha256(mapping_bytes)
     manifest_hash = sha256(manifest_bytes)
-    if view_hash != EXPECTED_VIEW_SHA256:
-        print(f"❌ SAI KHÁC SHA-256 BLIND VIEW: {view_hash} != {EXPECTED_VIEW_SHA256}")
-        return 1
-    if manifest_hash != EXPECTED_MANIFEST_SHA256:
-        print(f"❌ SAI KHÁC SHA-256 MANIFEST: {manifest_hash} != {EXPECTED_MANIFEST_SHA256}")
-        return 1
-    print(f"✅ SHA-256 Blind View khớp: {view_hash}")
-    print(f"✅ SHA-256 Manifest khớp:   {manifest_hash}")
+
+    assert view_hash == EXPECTED_VIEW_SHA256, f"Sai SHA-256 Blind View: {view_hash} != {EXPECTED_VIEW_SHA256}"
+    assert base_hash == EXPECTED_BASE_VIEW_SHA256, f"Sai SHA-256 Base View: {base_hash} != {EXPECTED_BASE_VIEW_SHA256}"
+    assert mapping_hash == EXPECTED_MAPPING_SHA256, f"Sai SHA-256 Mapping: {mapping_hash} != {EXPECTED_MAPPING_SHA256}"
+    assert manifest_hash == EXPECTED_MANIFEST_SHA256, f"Sai SHA-256 Manifest: {manifest_hash} != {EXPECTED_MANIFEST_SHA256}"
+
+    print(f"✅ SHA-256 Blind View (dịch) khớp:  {view_hash}")
+    print(f"✅ SHA-256 Base View (gốc) khớp:    {base_hash}")
+    print(f"✅ SHA-256 Mapping hạn chế khớp:    {mapping_hash}")
+    print(f"✅ SHA-256 Manifest phát hành khớp: {manifest_hash}")
 
     # 4. Check Blind View contents
     view = json.loads(view_bytes.decode("utf-8"))
@@ -117,7 +144,33 @@ def main() -> int:
             return 1
     print("✅ Zero Label & Locator Leakage: assert_no_label_leak đạt 100%.")
 
-    # 7. Check Manifest Governance Locks
+    # 7. Check Offline Translations (R-A09)
+    translated_samples = {s["sample_id"]: s for s in samples if s.get("translation_provided")}
+    expected_translated = {"SMP-007", "SMP-008", "SMP-010"}
+    if set(translated_samples.keys()) != expected_translated:
+        print(f"❌ SAI MẪU ĐƯỢC DỊCH: {set(translated_samples.keys())} != {expected_translated}")
+        return 1
+    for sid, s in translated_samples.items():
+        t_hash = sha256(s["translated_text"].encode("utf-8"))
+        if s["translation_sha256"] != t_hash:
+            print(f"❌ SAI HASH BẢN DỊCH {sid}: {s['translation_sha256']} != {t_hash}")
+            return 1
+    print(f"✅ Gắn bản dịch ngoại tuyến MarianMT đạt chuẩn R-A09 cho 3 mẫu (SMP-007/008 JA, SMP-010 RU).")
+
+    # 8. Check Exclusion Mapping Dossier
+    mapping = json.loads(mapping_bytes.decode("utf-8"))
+    entries = mapping.get("mapping", [])
+    if len(entries) != 32:
+        print(f"❌ SAI SỐ LƯỢNG MẪU ÁNH XẠ: {len(entries)} != 32")
+        return 1
+    main_count = sum(1 for e in entries if e["role"] == "main_24")
+    res_count = sum(1 for e in entries if e["role"] == "reserve_08")
+    if main_count != 24 or res_count != 8:
+        print(f"❌ SAI PHÂN TẦNG ÁNH XẠ: main={main_count}, reserve={res_count}")
+        return 1
+    print(f"✅ Hồ sơ ánh xạ loại trừ đủ 32 mẫu (24 chính + 8 dự phòng) được sắp xếp ẩn danh hóa url_sha256.")
+
+    # 9. Check Manifest Governance Locks
     manifest = json.loads(manifest_bytes.decode("utf-8"))
     if manifest.get("ready_for_annotation") is not False or manifest.get("training_blocked") is not True:
         print("❌ LỖI CHỐT KHÓA QUẢN TRỊ: ready_for_annotation hoặc training_blocked sai giá trị an toàn!")
@@ -128,9 +181,13 @@ def main() -> int:
     if manifest.get("acceptance", {}).get("D") == "approved":
         print("❌ CẢNH BÁO: D chưa ra lệnh nghiệm thu cuối nhưng acceptance.D đã là approved!")
         return 1
+    if manifest.get("governance", {}).get("known_excluded_samples_count") != 214:
+        print(f"❌ SAI SỐ MẪU LOẠI TRỪ TRONG MANIFEST: {manifest.get('governance', {}).get('known_excluded_samples_count')} != 214")
+        return 1
     print("✅ Chốt quản trị an toàn nghiêm ngặt:")
     print("   - ready_for_annotation: False (Chờ Lead D duyệt cuối và ra lệnh mở)")
     print("   - training_blocked:     True (Khóa cứng huấn luyện M0-M3)")
+    print("   - known_excluded_count: 214 mẫu across 9 batches")
     print("   - acceptance.B:         approved (Đã tiếp thu biên bản QA của Member B)")
     print("   - acceptance.D:         pending_final_verification (Chờ Lead D nghiệm thu)")
 
@@ -146,22 +203,31 @@ if __name__ == "__main__":
 def build_handover_package() -> dict:
     if not VIEW_PATH.exists():
         raise FileNotFoundError(f"Missing Blind View at {VIEW_PATH}")
+    if not BASE_VIEW_PATH.exists():
+        raise FileNotFoundError(f"Missing Base View at {BASE_VIEW_PATH}")
+    if not MAPPING_PATH.exists():
+        raise FileNotFoundError(f"Missing Mapping Dossier at {MAPPING_PATH}")
     if not MANIFEST_PATH.exists():
         raise FileNotFoundError(f"Missing Manifest at {MANIFEST_PATH}")
 
     view_bytes = VIEW_PATH.read_bytes()
+    base_bytes = BASE_VIEW_PATH.read_bytes()
+    mapping_bytes = MAPPING_PATH.read_bytes()
     manifest_bytes = MANIFEST_PATH.read_bytes()
 
     view_sha256 = file_sha256(VIEW_PATH)
+    base_sha256 = file_sha256(BASE_VIEW_PATH)
+    mapping_sha256 = file_sha256(MAPPING_PATH)
     manifest_sha256 = file_sha256(MANIFEST_PATH)
 
     handover_manifest = {
         "package_name": "GOI_NGHIEM_THU_LEAD_D_CALIBRATION_CLEAN_24.zip",
-        "created_at_utc": "2026-10-27T21:30:00Z",
+        "created_at_utc": "2026-10-27T22:20:00Z",
         "recipient": "Lead D (Anh Tuấn)",
         "sender": "Member C (Data Pipeline & Blind View)",
         "purpose": (
             "Gói bàn giao nghiệm thu Blind View chính thức gồm 24 mẫu chính (Clean Calibration Runway A) "
+            "kèm bản dịch ngoại tuyến MarianMT, bản lưu dấu vết gốc, hồ sơ ánh xạ loại trừ 32 mẫu hạn chế, "
             "dành riêng cho Lead D đối soát và nghiệm thu cuối trước khi phát hành cho A và B."
         ),
         "governance": {
@@ -175,12 +241,24 @@ def build_handover_package() -> dict:
             "main_samples_count": 24,
             "zero_locator_leak": True,
             "zero_source_label_leak": True,
+            "total_excluded_samples_registry": 214,
+            "total_batches_registry": 9,
         },
         "components": {
             "clean_calibration_blind_view_24.json": {
                 "byte_size": len(view_bytes),
                 "sha256": view_sha256,
-                "description": "Blind View gồm đúng 24 mẫu chính (SMP-001..SMP-024) không nhãn, không locator",
+                "description": "Blind View gồm đúng 24 mẫu chính (SMP-001..SMP-024) có bản dịch ngoại tuyến R-A09",
+            },
+            "clean_calibration_blind_view_24_base.json": {
+                "byte_size": len(base_bytes),
+                "sha256": base_sha256,
+                "description": "Bản lưu dấu vết kiểm toán chưa dịch (24 mẫu gốc được trích xuất trực tiếp từ parquet)",
+            },
+            "clean_calibration_exclusion_mapping_32.json": {
+                "byte_size": len(mapping_bytes),
+                "sha256": mapping_sha256,
+                "description": "Hồ sơ đối soát hạn chế nối mã băm EXCL-CLN-001..032 với locator và vai trò dành riêng cho D",
             },
             "calibration_clean_a_manifest.json": {
                 "byte_size": len(manifest_bytes),
@@ -200,7 +278,10 @@ def build_handover_package() -> dict:
     handover_sha256 = hashlib.sha256(handover_bytes).hexdigest()
 
     verify_script_content = (
-        VERIFY_SCRIPT_CODE.replace("__EXPECTED_VIEW_SHA256__", view_sha256)
+        VERIFY_SCRIPT_CODE
+        .replace("__EXPECTED_VIEW_SHA256__", view_sha256)
+        .replace("__EXPECTED_BASE_VIEW_SHA256__", base_sha256)
+        .replace("__EXPECTED_MAPPING_SHA256__", mapping_sha256)
         .replace("__EXPECTED_MANIFEST_SHA256__", manifest_sha256)
         .encode("utf-8")
         .replace(b"\r\n", b"\n")
@@ -209,6 +290,8 @@ def build_handover_package() -> dict:
     # Create immutable ZIP package
     with zipfile.ZipFile(OUTPUT_ZIP, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("clean_calibration_blind_view_24.json", view_bytes)
+        zf.writestr("clean_calibration_blind_view_24_base.json", base_bytes)
+        zf.writestr("clean_calibration_exclusion_mapping_32.json", mapping_bytes)
         zf.writestr("calibration_clean_a_manifest.json", manifest_bytes)
         zf.writestr("MANIFEST_HANDOVER_LEAD_D.json", handover_bytes)
         zf.writestr("verify_lead_d_handover.py", verify_script_content)
@@ -218,19 +301,24 @@ def build_handover_package() -> dict:
     zip_size = len(zip_bytes)
 
     print("=== ĐÃ TẠO GÓI BÀN GIAO NGHIỆM THU CHO LEAD D ===")
-    print(f"📦 Tệp ZIP:      {OUTPUT_ZIP.name}")
-    print(f"📏 Dung lượng:    {zip_size:,} bytes")
-    print(f"🔒 SHA-256 ZIP:   {zip_sha256}")
-    print(f"📄 Blind View:   {view_sha256} ({len(view_bytes):,} bytes)")
-    print(f"📋 Manifest:     {manifest_sha256} ({len(manifest_bytes):,} bytes)")
-    print(f"📝 Handover Mf:  {handover_sha256} ({len(handover_bytes):,} bytes)")
+    print(f"📦 Tệp ZIP:           {OUTPUT_ZIP.name}")
+    print(f"📏 Dung lượng:         {zip_size:,} bytes")
+    print(f"🔒 SHA-256 ZIP:        {zip_sha256}")
+    print(f"📄 Blind View (dịch):  {view_sha256} ({len(view_bytes):,} bytes)")
+    print(f"📄 Base View (gốc):    {base_sha256} ({len(base_bytes):,} bytes)")
+    print(f"🗺️ Mapping Dossier:    {mapping_sha256} ({len(mapping_bytes):,} bytes)")
+    print(f"📋 Manifest:          {manifest_sha256} ({len(manifest_bytes):,} bytes)")
+    print(f"📝 Handover Mf:       {handover_sha256} ({len(handover_bytes):,} bytes)")
 
     return {
         "zip_path": str(OUTPUT_ZIP),
         "zip_size": zip_size,
         "zip_sha256": zip_sha256,
         "view_sha256": view_sha256,
+        "base_sha256": base_sha256,
+        "mapping_sha256": mapping_sha256,
         "manifest_sha256": manifest_sha256,
+        "handover_sha256": handover_sha256,
     }
 
 
