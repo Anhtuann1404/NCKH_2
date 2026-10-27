@@ -470,17 +470,19 @@ def evaluate_clean_selection_strata(
 def execute_clean_selection(
     output_candidates_path: Path,
     output_report_path: Path,
-    seed: int = 20261027,
-    main_shuffle_seed: int = 20261028,
-    reserve_shuffle_seed: int = 20261029,
+    seed: int = 20261030,
+    main_shuffle_seed: int = 20261031,
+    reserve_shuffle_seed: int = 20261032,
+    dataset_id: str = "CALIBRATION-CLEAN-C-32",
+    report_id: str = "CLEAN-CALIBRATION-SELECTION-INSPECTION-ROUND-C",
 ) -> Dict[str, Any]:
-    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu 182 mẫu registry."""
+    """Thực thi đường ống tuyển chọn Gói Hiệu chuẩn Sạch đối chiếu registry."""
     import pyarrow.parquet as pq
 
     source_manifest_path = ROOT / "configs/source_manifest.json"
     registry_path = ROOT / "data/exclusion_registry.json"
 
-    # 1. Khóa và nạp bộ lọc chống rò rỉ từ 182 mẫu của 8 lô
+    # 1. Khóa và nạp bộ lọc chống rò rỉ từ toàn bộ các lô registry
     blocked = load_blocked_fingerprints_from_registry(registry_path)
     print(f"[1/6] Da nap bo loc chong ro ri tu registry ({len(blocked['url_sha256'])} url hashes)...")
 
@@ -669,8 +671,8 @@ def execute_clean_selection(
 
     # 7. Xuất tệp ứng viên kỹ thuật (lưu trữ trong khu vực hạn chế ngoài Git, định dạng LF)
     candidates_payload = {
-        "dataset_id": "CALIBRATION-CLEAN-B-32",
-        "description": "Gói tuyển chọn ứng viên sạch Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng cho Calibration Clean A (được lưu ngoài Git trong khu vực hạn chế)",
+        "dataset_id": dataset_id,
+        "description": f"Gói tuyển chọn ứng viên sạch {dataset_id} gồm 24 mẫu chính + 8 mẫu dự phòng cho Calibration Clean (được lưu ngoài Git trong khu vực hạn chế)",
         "generated_at_utc": date.today().isoformat(),
         "seed": seed,
         "main_shuffle_seed": main_shuffle_seed,
@@ -693,7 +695,7 @@ def execute_clean_selection(
         res_summary = (
             f"Phát hiện {resolutions_count} xung đột tương đồng cặp trong quá trình sàng lọc ứng viên. "
             f"Đã thực thi thay thế tất định theo đúng thứ tự dự phòng đã khóa và bù đắp dự phòng mới từ bể ứng viên đã khóa seed "
-            f"đối chiếu toàn bộ {len(blocked['url_sha256'])} mã băm registry (182 mẫu). "
+            f"đối chiếu toàn bộ {len(blocked['url_sha256'])} mã băm registry. "
             f"Toàn bộ {pairwise_scan_res['total_pairs_scanned']} cặp ứng viên cuối cùng đạt 0 xung đột theo cả quy tắc engine "
             f"(dist <= {pairwise_scan_res['thresholds']['max_allowed_simhash_distance']} hoặc "
             f"(jaccard >= {pairwise_scan_res['thresholds']['min_allowed_dom_jaccard']} và dist <= 12)) "
@@ -706,11 +708,11 @@ def execute_clean_selection(
         )
 
     inspection_report = {
-        "report_id": "CLEAN-CALIBRATION-SELECTION-INSPECTION-20261026",
+        "report_id": report_id,
         "purpose": (
-            "Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên Gói Hiệu chuẩn Sạch Đợt B (24 chính + 8 dự phòng) "
-            "loại trừ 182 mẫu registry, 0 clone template với mẫu nhận diện và 0 xung đột tương đồng trong toàn bộ 496 cặp; "
-            "không chứa locator truy ngược mẫu trên Git."
+            f"Báo cáo tổng hợp nghiệm thu kiểm tra ứng viên {dataset_id} (24 chính + 8 dự phòng) "
+            f"loại trừ {len(blocked['url_sha256'])} mã băm registry, 0 clone template với mẫu nhận diện và 0 xung đột tương đồng trong toàn bộ 496 cặp; "
+            f"không chứa locator truy ngược mẫu trên Git."
         ),
         "status": "candidates_generated_ready_for_lead_d_review",
         "governance": {
@@ -722,7 +724,7 @@ def execute_clean_selection(
         "filtering_summary": {
             "total_corpus_rows_scanned": total_scanned,
             "total_out_of_date_window": total_out_of_date_window,
-            "total_excluded_by_registry_182": total_excluded_by_registry,
+            "total_excluded_by_registry": total_excluded_by_registry,
             "eligible_candidates_pool": len(candidates),
         },
         "selection_summary": {
@@ -732,7 +734,7 @@ def execute_clean_selection(
             "distinct_groups_count": len(set(c["group_sha256"] for c in detailed_candidates)),
             "distinct_urls_count": len(set(c["url_sha256"] for c in detailed_candidates)),
             "distinct_htmls_count": len(set(c["html_sha256"] for c in detailed_candidates)),
-            "deduplication_vs_registry_182_overlaps": 0,
+            "deduplication_vs_registry_overlaps": 0,
         },
         "template_similarity_scan": {
             "status": template_scan_res["status"],
@@ -758,7 +760,7 @@ def execute_clean_selection(
             "stratification_flags_in_main_24": hard_cases_count,
         },
         "artifacts": {
-            "restricted_candidates_file": str(output_candidates_path.relative_to(ROOT)).replace("\\", "/"),
+            "restricted_candidates_file": str(output_candidates_path.resolve().relative_to(ROOT.resolve())).replace("\\", "/"),
             "restricted_candidates_sha256": c_hash,
         },
     }
@@ -778,14 +780,38 @@ def execute_clean_selection(
 
 
 def main():
-    print("=== BAT DAU TUYEN CHON GOI HIEU CHUAN SACH DOT B (CALIBRATION-CLEAN-B-32) ===")
-    out_candidates = ROOT / "data/restricted/clean_calibration_candidates_v2_restricted.json"
-    out_report = ROOT / "data/source_audit/clean_calibration_selection_inspection_report.json"
+    parser = argparse.ArgumentParser(description="Clean calibration selection pipeline")
+    parser.add_argument("--round-c", action="store_true", default=True, help="Tuyển chọn Đợt C mới")
+    parser.add_argument("--round-b", action="store_true", help="Tuyển chọn Đợt B (lưu vết cũ)")
+    args = parser.parse_args()
 
-    res = execute_clean_selection(
-        output_candidates_path=out_candidates,
-        output_report_path=out_report,
-    )
+    if args.round_b:
+        print("=== BAT DAU TUYEN CHON GOI HIEU CHUAN SACH DOT B (CALIBRATION-CLEAN-B-32) ===")
+        out_candidates = ROOT / "data/restricted/clean_calibration_candidates_v2_restricted.json"
+        out_report = ROOT / "data/source_audit/clean_calibration_selection_inspection_report.json"
+        res = execute_clean_selection(
+            output_candidates_path=out_candidates,
+            output_report_path=out_report,
+            seed=20261027,
+            main_shuffle_seed=20261028,
+            reserve_shuffle_seed=20261029,
+            dataset_id="CALIBRATION-CLEAN-B-32",
+            report_id="CLEAN-CALIBRATION-SELECTION-INSPECTION-20261026",
+        )
+    else:
+        print("=== BAT DAU TUYEN CHON GOI HIEU CHUAN SACH DOT C (CALIBRATION-CLEAN-C-32) ===")
+        out_candidates = ROOT / "data/restricted/clean_calibration_candidates_v3_restricted.json"
+        out_report = ROOT / "data/source_audit/clean_calibration_round_c_inspection_report.json"
+        res = execute_clean_selection(
+            output_candidates_path=out_candidates,
+            output_report_path=out_report,
+            seed=20261030,
+            main_shuffle_seed=20261031,
+            reserve_shuffle_seed=20261032,
+            dataset_id="CALIBRATION-CLEAN-C-32",
+            report_id="CLEAN-CALIBRATION-SELECTION-INSPECTION-ROUND-C",
+        )
+
     print(f"-> DA XUAT TAP UNG VIEN HAN CHE (NGOAI GIT): {res['candidates_path']}")
     print(f"   24 mau chinh + 8 mau du phong | SHA-256: {res['candidates_hash']}")
     print(f"-> DA XUAT BAO CAO TONG HOP (TREN GIT): {res['report_path']}")

@@ -5,15 +5,15 @@
   "version": "1.1.0-PROPOSAL",
   "created_at_utc": "2026-10-24T01:00:00Z",
   "status": "pending_lead_d_and_member_b_review",
-  "description": "Manifest kỹ thuật Đợt B cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) gồm 24 mẫu chính + 8 mẫu dự phòng tuyển chọn sạch đối chiếu 214 mẫu registry (loại trừ các locator bị lộ trên Git và 32 mẫu sạch Runway A).",
+  "description": "Manifest kỹ thuật Đợt C cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) gồm 24 mẫu chính + 8 mẫu dự phòng tuyển chọn sạch đối chiếu 246 mẫu registry (loại trừ vĩnh viễn 32 mẫu Đợt B do phơi nhiễm Git và toàn bộ các lô lịch sử trước).",
   "sampling_spec": {
     "total_samples": 32,
     "main_samples_count": 24,
     "reserve_samples_count": 8,
     "sampling_strata_policy": "source_class_ratios_restricted_to_lead_d_verification",
-    "random_seed": 20261027,
-    "random_seed_main_shuffle": 20261028,
-    "random_seed_reserve_shuffle": 20261029,
+    "random_seed": 20261035,
+    "random_seed_main_shuffle": 20261036,
+    "random_seed_reserve_shuffle": 20261037,
     "verified_source_shards": [
       {
         "file_name": "train-000.parquet",
@@ -39,14 +39,13 @@
     "official_test_used": false,
     "acceptance": {
       "candidate_selection_member_b_qa": {
-        "status": "approved",
-        "scope": "32_candidates_pool_selection_and_pairwise_similarity",
-        "verified_package_sha256": "8616bf4872520c54a25c5f782745618ae320bace25ecbe40bc77f31fb6a46345"
+        "status": "pending_member_b_qa",
+        "scope": "32_candidates_pool_selection_and_pairwise_similarity_round_c"
       },
       "blind_view_member_b_qa": {
         "status": "pending_automated_verification",
         "scope": "24_main_samples_blind_view_release",
-        "expected_blind_view_sha256": "759b9bc950eedd9d81594bfaf3f1514d433315fa49d3f23536e4b6bdd7818187"
+        "expected_blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b"
       },
       "lead_d": "pending_final_verification"
     },
@@ -62,18 +61,18 @@
     "git_leak_audit_reference": "data/source_audit/clean_calibration_git_leak_audit.json",
     "git_leak_audit_sha256": "4d380092be0c055ef70cec613c3bf7464afc9a601796d98ba7f9c6460faf875e",
     "incident_03_audit_reference": "data/source_audit/clean_calibration_incident_03_audit_report.json",
-    "incident_03_audit_sha256": "0cd408db97b1ec47f005ed4a4f305cd3516b1173ddd8937bdbacfa8d7d0b6ab4",
-    "candidates_inspection_report_reference": "data/source_audit/clean_calibration_selection_inspection_report.json",
-    "candidates_inspection_report_sha256": "26baf8155407ba9683c99d13a48dcc273f268a40bbb69093df9e3ee0fbddcba2",
-    "restricted_candidates_reference": "data/restricted/clean_calibration_candidates_v2_restricted.json",
-    "restricted_candidates_sha256": "0942c81bb554996724d08c670fbef22250f626273ebcf00dfd0d7397456e7f61",
-    "restricted_exclusion_mapping_reference": "data/restricted/clean_calibration_exclusion_mapping_32.json",
-    "base_blind_view_reference": "data/annotations/clean_calibration_blind_view_24_base.json",
-    "base_blind_view_sha256": "a6b9c4399cc92ce16b18c478e0657710739dcfcdd0724aa6769d98ff20b48f0c",
-    "base_blind_view_byte_size": 239290,
+    "incident_03_audit_sha256": "ce74c5ff5d8e7d68a755fa5917af3c32216e23f9bcf71bad51a39fdf0be0d2f1",
+    "candidates_inspection_report_reference": "data/source_audit/clean_calibration_round_c_inspection_report.json",
+    "candidates_inspection_report_sha256": "489a0e010fb859a6aa1e7613824c750ee73fa9bc9c999a07327d2ad369253dc3",
+    "restricted_candidates_reference": "data/restricted/clean_calibration_candidates_v3_restricted.json",
+    "restricted_candidates_sha256": "f542a66e27789f024aa0d2afa6371ec256c51b29940df32bf99cebc0a504097a",
+    "restricted_exclusion_mapping_reference": "data/restricted/clean_calibration_exclusion_mapping_c_32.json",
+    "base_blind_view_reference": "data/annotations/clean_calibration_blind_view_round_c_base.json",
+    "base_blind_view_sha256": "3447e5b2b8d1220532c1004cd1fe5c1ca7228c51294256a0a9ca9f1dc4ba7d50",
+    "base_blind_view_byte_size": 144691,
     "blind_view_reference": "data/annotations/clean_calibration_blind_view_24.json",
-    "blind_view_sha256": "759b9bc950eedd9d81594bfaf3f1514d433315fa49d3f23536e4b6bdd7818187",
-    "blind_view_byte_size": 255617
+    "blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
+    "blind_view_byte_size": 154350
   },
   "protocol": {
     "evaluation_mode": "double_blind_parallel_pass1",
@@ -86,7 +85,7 @@
     "template_similarity_policy": "mandatory_post_candidate_selection_step_simhash_dom",
     "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
   },
-  "notes": "Manifest kỹ thuật v1.1-Proposal: Đã hoàn thành tuyển chọn Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261027/20261028/20261029; đối chiếu toàn bộ 214 mẫu trong 9 lô registry (bao gồm 32 mẫu đợt A, 2 mẫu resolution summary bị lộ locator trên Git, và 32 mẫu sạch Runway A); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp; tệp chi tiết locator và ánh xạ loại trừ được cô lập trong khu vực hạn chế ngoài Git; gắn bản dịch MarianMT ngoại tuyến cho 3 mẫu phi tiếng Anh (SMP-007, SMP-008, SMP-010) theo R-A09; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D và Member B nghiệm thu.",
+  "notes": "Manifest kỹ thuật v1.1-Proposal (Đợt C): Đã hoàn thành tuyển chọn Đợt C gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261035/20261036/20261037; đối chiếu toàn bộ 246 mẫu trong 10 lô registry (bao gồm 32 mẫu Đợt B đã retired vĩnh viễn và 32 mẫu Đợt C mới); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp; tệp chi tiết locator và ánh xạ loại trừ được cô lập trong khu vực hạn chế ngoài Git; gắn bản dịch MarianMT ngoại tuyến cho 3 mẫu phi tiếng Anh (SMP-008 JA, SMP-009 JA, SMP-015 RU) theo R-A09; phân tách rõ ràng phạm vi QA tuyển chọn và nghiệm thu view cuối của B; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D nghiệm thu.",
   "sample_count": 24,
   "sampling_plan_version": "CALIBRATION-CLEAN-PLAN-V1.1-STRATIFIED",
   "codebook_version": "1.1.0",
@@ -96,14 +95,13 @@
   "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
   "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
   "blind_view_path": "data/annotations/clean_calibration_blind_view_24.json",
-  "blind_view_sha256": "759b9bc950eedd9d81594bfaf3f1514d433315fa49d3f23536e4b6bdd7818187",
-  "blind_view_byte_size": 255617,
+  "blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
+  "blind_view_byte_size": 154350,
   "ready_for_annotation": false,
   "training_blocked": true,
   "candidate_selection_qa": {
-    "B": "approved",
-    "package_sha256": "8616bf4872520c54a25c5f782745618ae320bace25ecbe40bc77f31fb6a46345",
-    "scope": "32_candidates_pool_selection_and_pairwise_similarity"
+    "B": "pending_member_b_qa",
+    "D": "pending_final_verification"
   },
   "acceptance": {
     "B": "pending_automated_verification",

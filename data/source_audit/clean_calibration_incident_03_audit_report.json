@@ -22,8 +22,8 @@
     "second_committed_commit": "96c1927",
     "branch": "feat/c-calibration-v1-1-4-adjudication",
     "exposed_fields": [
-      "group_id (plain text eTLD+1 domain string, e.g. domain:iptvel.com)",
-      "source_date (collection date in YYYY-MM-DD, e.g. 2025-06-27)"
+      "group_id (plain text eTLD+1 domain string, e.g. domain:example-exposed-tenant.local)",
+      "source_date (collection date in YYYY-MM-DD, e.g. 2025-XX-XX)"
     ],
     "traceability_vector": "Trong 2 shard parquet nguồn (train-000 và train-055), mỗi dòng đều có cột URL và cột source_date. Sự kết hợp giữa tên miền nguyên bản và ngày nguồn cho phép lọc chính xác dòng dữ liệu trong shard parquet mà không cần row_offset. Người có quyền truy cập shard có thể tra ngược nhãn nguồn (phish vs benign). Khi đối chiếu với Blind View (chứa URL chuẩn hóa), người gán nhãn có thể khớp tên miền và phá vỡ tính mù đôi.",
     "severity_level": "CRITICAL_METHODOLOGICAL_VULNERABILITY"

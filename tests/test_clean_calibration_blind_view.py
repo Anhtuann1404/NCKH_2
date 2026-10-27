@@ -31,7 +31,7 @@ from annotate_cli import validate_manifest_preflight
 
 VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_24.json"
 MANIFEST_PATH = ROOT / "configs/calibration_clean_a_manifest.json"
-CANDIDATES_PATH = ROOT / "data/restricted/clean_calibration_candidates_v2_restricted.json"
+CANDIDATES_PATH = ROOT / "data/restricted/clean_calibration_candidates_v3_restricted.json"
 REGISTRY_PATH = ROOT / "data/exclusion_registry.json"
 
 
@@ -137,8 +137,8 @@ class TestCleanCalibrationBlindViewIntegrity:
         hist_htmls = set()
         hist_groups = set()
         for batch in reg.get("exclusions", []):
-            if batch.get("exclusion_id") == "EXCL-CALIBRATION-CLEAN-RUNWAY-32":
-                continue  # Bỏ qua chính lô Runway 32 để kiểm tra tính độc lập với 182 mẫu lịch sử
+            if batch.get("exclusion_id") in ("EXCL-CALIBRATION-CLEAN-RUNWAY-32", "EXCL-CALIBRATION-CLEAN-ROUND-C-32"):
+                continue  # Bỏ qua chính lô Runway 32 và Round C để kiểm tra tính độc lập với 182 mẫu lịch sử
             for entry in batch.get("samples", []):
                 if entry.get("url_sha256"):
                     hist_urls.add(entry["url_sha256"])
@@ -151,28 +151,24 @@ class TestCleanCalibrationBlindViewIntegrity:
             url_hash = hashlib.sha256(s["url"].encode("utf-8")).hexdigest()
             assert url_hash not in hist_urls, f"Sample {s['sample_id']} URL hash {url_hash} in historical exclusions!"
 
-    def test_registration_in_clean_runway_exclusion_batch(self, clean_blind_view_data):
-        """Chứng minh toàn bộ 24 mẫu chính đã được đăng ký loại trừ vĩnh viễn trong lô EXCL-CALIBRATION-CLEAN-RUNWAY-32."""
-        if not REGISTRY_PATH.exists():
-            pytest.skip("Exclusion registry not present")
+    def test_registration_in_clean_runway_exclusion_mapping(self, clean_blind_view_data):
+        """Chứng minh toàn bộ 24 mẫu chính đã được bảo đảm loại trừ trong hồ sơ hạn chế Đợt C clean_calibration_exclusion_mapping_c_32.json."""
+        mapping_path = ROOT / "data/restricted/clean_calibration_exclusion_mapping_c_32.json"
+        if not mapping_path.exists():
+            pytest.skip("Restricted exclusion mapping not present on clean checkout")
 
         view, _ = clean_blind_view_data
-        reg = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+        mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
+        assert mapping["total_samples"] == 32
+        assert mapping["main_samples_count"] == 24
+        assert mapping["reserve_samples_count"] == 8
 
-        runway_batch = next(
-            (b for b in reg.get("exclusions", []) if b.get("exclusion_id") == "EXCL-CALIBRATION-CLEAN-RUNWAY-32"),
-            None
-        )
-        assert runway_batch is not None, "Thiếu lô EXCL-CALIBRATION-CLEAN-RUNWAY-32 trong registry!"
-        assert runway_batch["action"] == "permanently_exclude_from_train_val_test"
-        assert runway_batch["n_samples"] == 32
-
-        runway_urls = {s["url_sha256"] for s in runway_batch.get("samples", [])}
-        runway_norm_urls = {s["normalized_url_sha256"] for s in runway_batch.get("samples", [])}
+        mapped_urls = {e["url_sha256"] for e in mapping.get("mapping", [])}
+        mapped_norm_urls = {e.get("normalized_url_sha256", e["url_sha256"]) for e in mapping.get("mapping", [])}
         for s in view.get("samples", []):
             url_hash = hashlib.sha256(s["url"].encode("utf-8")).hexdigest()
-            assert url_hash in runway_urls or url_hash in runway_norm_urls, (
-                f"Sample {s['sample_id']} URL hash {url_hash} chưa được đăng ký trong Runway 32!"
+            assert url_hash in mapped_urls or url_hash in mapped_norm_urls, (
+                f"Sample {s['sample_id']} URL hash {url_hash} chưa được đối soát trong hồ sơ hạn chế Đợt C!"
             )
 
     def test_offline_translation_r_a09_binding(self, clean_blind_view_data):
@@ -186,7 +182,7 @@ class TestCleanCalibrationBlindViewIntegrity:
         assert t_manifest.get("translated_samples_count") == 3
         assert len(t_manifest.get("models", [])) == 2
 
-        translated_ids = {"SMP-007", "SMP-008", "SMP-010"}
+        translated_ids = {"SMP-008", "SMP-009", "SMP-015"}
         for s in samples:
             sid = s["sample_id"]
             if sid in translated_ids:

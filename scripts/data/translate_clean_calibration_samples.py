@@ -46,7 +46,7 @@ from scripts.data.run_offline_translation_experiment import (
 
 JA_MODEL_DIR = ROOT / "models/translation/opus-mt-ja-en"
 RU_MODEL_DIR = ROOT / "models/translation/opus-mt-ru-en"
-VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_24.json"
+VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_round_c_base.json"
 OUT_TRANSLATIONS = ROOT / "data/restricted/clean_calibration_translations.json"
 
 
@@ -68,9 +68,9 @@ def generate_clean_translations() -> dict:
     ru_translator = OfflineTranslator(RU_MODEL_DIR, max_chunk_tokens=200, num_beams=4, num_threads=4)
 
     targets = [
-        ("SMP-007", "ja", ja_translator, "Helsinki-NLP/opus-mt-ja-en", "0770961a39ba6bd66305b149c3f4110bcafca2e6"),
         ("SMP-008", "ja", ja_translator, "Helsinki-NLP/opus-mt-ja-en", "0770961a39ba6bd66305b149c3f4110bcafca2e6"),
-        ("SMP-010", "ru", ru_translator, "Helsinki-NLP/opus-mt-ru-en", "fbd6dc73284f95536648512cc21d57f19191961a"),
+        ("SMP-009", "ja", ja_translator, "Helsinki-NLP/opus-mt-ja-en", "0770961a39ba6bd66305b149c3f4110bcafca2e6"),
+        ("SMP-015", "ru", ru_translator, "Helsinki-NLP/opus-mt-ru-en", "fbd6dc73284f95536648512cc21d57f19191961a"),
     ]
 
     translations = {}
