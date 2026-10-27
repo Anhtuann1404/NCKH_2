@@ -175,8 +175,11 @@ def main() -> int:
     if manifest.get("ready_for_annotation") is not False or manifest.get("training_blocked") is not True:
         print("❌ LỖI CHỐT KHÓA QUẢN TRỊ: ready_for_annotation hoặc training_blocked sai giá trị an toàn!")
         return 1
-    if manifest.get("acceptance", {}).get("B") != "approved":
-        print("❌ LỖI BIÊN BẢN B: Member B chưa được ghi nhận approved!")
+    if manifest.get("candidate_selection_qa", {}).get("B") != "approved" and manifest.get("governance", {}).get("acceptance", {}).get("candidate_selection_member_b_qa", {}).get("status") != "approved":
+        print("❌ LỖI BIÊN BẢN B: Phạm vi QA tuyển chọn của Member B chưa được ghi nhận approved!")
+        return 1
+    if manifest.get("acceptance", {}).get("B") == "approved":
+        print("❌ LỖI NGHIỆM THU VIEW: Member B chưa kiểm định Blind View phát hành nhưng acceptance.B đã là approved!")
         return 1
     if manifest.get("acceptance", {}).get("D") == "approved":
         print("❌ CẢNH BÁO: D chưa ra lệnh nghiệm thu cuối nhưng acceptance.D đã là approved!")
@@ -185,11 +188,12 @@ def main() -> int:
         print(f"❌ SAI SỐ MẪU LOẠI TRỪ TRONG MANIFEST: {manifest.get('governance', {}).get('known_excluded_samples_count')} != 214")
         return 1
     print("✅ Chốt quản trị an toàn nghiêm ngặt:")
-    print("   - ready_for_annotation: False (Chờ Lead D duyệt cuối và ra lệnh mở)")
-    print("   - training_blocked:     True (Khóa cứng huấn luyện M0-M3)")
-    print("   - known_excluded_count: 214 mẫu across 9 batches")
-    print("   - acceptance.B:         approved (Đã tiếp thu biên bản QA của Member B)")
-    print("   - acceptance.D:         pending_final_verification (Chờ Lead D nghiệm thu)")
+    print("   - ready_for_annotation:   False (Chờ Lead D duyệt cuối và ra lệnh mở)")
+    print("   - training_blocked:       True (Khóa cứng huấn luyện M0-M3)")
+    print("   - known_excluded_count:   214 mẫu across 9 batches")
+    print("   - candidate_selection_qa: approved (Member B đã nghiệm thu gói tuyển chọn 32 mẫu)")
+    print("   - acceptance.B (view):    pending (Chờ B kiểm tự động Blind View phát hành)")
+    print("   - acceptance.D:           pending_final_verification (Chờ Lead D nghiệm thu)")
 
     print("\\n🎉 TẤT CẢ CÁC BƯỚC KIỂM ĐỊNH ĐÃ ĐẠT 100%! GÓI ĐỦ ĐIỀU KIỆN ĐỂ LEAD D DUYỆT CUỐI.")
     return 0

@@ -38,7 +38,16 @@
     "ready_for_annotation": false,
     "official_test_used": false,
     "acceptance": {
-      "member_b_qa": "approved",
+      "candidate_selection_member_b_qa": {
+        "status": "approved",
+        "scope": "32_candidates_pool_selection_and_pairwise_similarity",
+        "verified_package_sha256": "8616bf4872520c54a25c5f782745618ae320bace25ecbe40bc77f31fb6a46345"
+      },
+      "blind_view_member_b_qa": {
+        "status": "pending_automated_verification",
+        "scope": "24_main_samples_blind_view_release",
+        "expected_blind_view_sha256": "759b9bc950eedd9d81594bfaf3f1514d433315fa49d3f23536e4b6bdd7818187"
+      },
       "lead_d": "pending_final_verification"
     },
     "codebook_reference": "docs/CODEBOOK_V1_1.md",
@@ -89,8 +98,13 @@
   "blind_view_byte_size": 255617,
   "ready_for_annotation": false,
   "training_blocked": true,
-  "acceptance": {
+  "candidate_selection_qa": {
     "B": "approved",
+    "package_sha256": "8616bf4872520c54a25c5f782745618ae320bace25ecbe40bc77f31fb6a46345",
+    "scope": "32_candidates_pool_selection_and_pairwise_similarity"
+  },
+  "acceptance": {
+    "B": "pending_automated_verification",
     "D": "pending_final_verification"
   }
 }
