@@ -77,6 +77,6 @@
   },
   "artifacts": {
     "restricted_candidates_file": "data/restricted/clean_calibration_candidates_v2_restricted.json",
-    "restricted_candidates_sha256": "340d27ab587f7a9ff4424b927cac777b329f4d60ee0844163a5815ccf3b916dc"
+    "restricted_candidates_sha256": "0942c81bb554996724d08c670fbef22250f626273ebcf00dfd0d7397456e7f61"
   }
 }

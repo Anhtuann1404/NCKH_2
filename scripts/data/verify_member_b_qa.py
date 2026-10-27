@@ -82,6 +82,14 @@ def check_zero_leakage_in_text(file_name: str, content_str: str) -> list[str]:
     if re.search(r'"main_locators"\s*:\s*\[', content_str) or re.search(r'"reserve_locators"\s*:\s*\[', content_str):
         violations.append(f"[{file_name}] Phát hiện mảng locator chi tiết")
 
+    # 5. Quét rò rỉ tỷ lệ nhãn nguồn / số đếm lớp (chống thiên kiến kỳ vọng của annotator)
+    if re.search(r"(?:main|reserve)_(?:phish|benign)_count", content_str, re.IGNORECASE):
+        violations.append(f"[{file_name}] Phát hiện trường đếm nhãn nguồn (main/reserve phish/benign count)")
+    if re.search(r"\b(?:12|4)\s*(?:phish|benign)", content_str, re.IGNORECASE):
+        violations.append(f"[{file_name}] Phát hiện tỷ lệ nhãn nguồn phish/benign")
+    if re.search(r"\b(?:12\s*/\s*12|4\s*/\s*4)\b", content_str):
+        violations.append(f"[{file_name}] Phát hiện tỷ lệ nhãn nguồn dạng cân bằng lớp")
+
     return violations
 
 
@@ -170,14 +178,21 @@ def verify_member_b_package(package_dir_or_zip: Path) -> dict:
     assert inspection_report["governance"]["ready_for_annotation"] is False
     assert inspection_report["governance"]["training_blocked"] is True
 
-    # Stratification check
+    # Stratification check (chỉ kiểm tra tổng số mẫu, tuyệt đối không tiết lộ tỷ lệ nhãn cho annotator)
     sel = inspection_report["selection_summary"]
     assert sel["main_samples_count"] == 24, "Số mẫu chính phải là 24"
     assert sel["reserve_samples_count"] == 8, "Số mẫu dự phòng phải là 8"
     assert sel["total_selected"] == 32, "Tổng số mẫu phải là 32"
     assert sel["distinct_groups_count"] == 32, "Phải có đủ 32 nhóm miền độc lập"
     assert sel["deduplication_vs_registry_182_overlaps"] == 0, "Không được trùng lặp với 182 mẫu trong registry"
-    print("    [PASS] Phân tầng: 24 chính (12/12) + 8 dự phòng (4/4), 32 nhóm miền độc lập, 0 trùng lặp registry.")
+    print("    [PASS] Phân tầng: 24 mẫu chính + 8 mẫu dự phòng (tổng 32 mẫu), 32 nhóm miền độc lập, 0 trùng lặp registry.")
+
+    # Class balance blindness check: Manifest và báo cáo cho annotator KHÔNG được công bố trước tỷ lệ nhãn
+    sampling_spec = calib_manifest.get("sampling_spec", {})
+    assert "stratification" not in sampling_spec, "Manifest dành cho annotator không được công bố trước tỷ lệ nhãn (stratification)"
+    assert "main_phish_count" not in sampling_spec, "Manifest không được chứa main_phish_count"
+    assert "reserve_phish_count" not in sampling_spec, "Manifest không được chứa reserve_phish_count"
+    print("    [PASS] Bảo vệ tính mù nhãn nguồn: 0 tỷ lệ nhãn công bố trước trong manifest và báo cáo.")
 
     # Pairwise scan check
     pw = inspection_report["pairwise_template_similarity_scan"]

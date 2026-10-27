@@ -286,16 +286,27 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         root = Path(__file__).resolve().parents[1]
         manifest_path = root / "configs/calibration_clean_a_manifest.json"
         assert manifest_path.exists()
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_text = manifest_path.read_text(encoding="utf-8")
+        manifest = json.loads(manifest_text)
 
         assert manifest["manifest_id"] == "CALIBRATION-CLEAN-A-MANIFEST-V1.1-PROPOSAL"
         assert manifest["status"] == "pending_lead_d_and_member_b_review"
         assert manifest["governance"]["ready_for_annotation"] is False
         assert manifest["governance"]["training_blocked"] is True
         assert manifest["governance"]["known_excluded_samples_count"] == 182
+        assert manifest["sampling_spec"]["total_samples"] == 32
+        assert manifest["sampling_spec"]["main_samples_count"] == 24
+        assert manifest["sampling_spec"]["reserve_samples_count"] == 8
         assert manifest["sampling_spec"]["random_seed"] == 20261027
         assert manifest["sampling_spec"]["random_seed_main_shuffle"] == 20261028
         assert manifest["sampling_spec"]["random_seed_reserve_shuffle"] == 20261029
+
+        # Chốt chặn mù nhãn nguồn: Manifest dành cho annotator KHÔNG được công bố trước tỷ lệ nhãn
+        assert "stratification" not in manifest["sampling_spec"], "Manifest không được chứa trường stratification tiết lộ nhãn"
+        assert "main_phish_count" not in manifest_text, "Manifest không được chứa main_phish_count"
+        assert "main_benign_count" not in manifest_text, "Manifest không được chứa main_benign_count"
+        assert "reserve_phish_count" not in manifest_text, "Manifest không được chứa reserve_phish_count"
+        assert "reserve_benign_count" not in manifest_text, "Manifest không được chứa reserve_benign_count"
 
     def test_clean_calibration_inspection_report_public_contract(self):
         """Chứng minh báo cáo trên Git là báo cáo tổng hợp thuần túy (không chứa locator/URL) độc lập với dữ liệu hạn chế."""
@@ -397,6 +408,55 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert qa_result["zero_leak_verified"] is True
         assert qa_result["hash_integrity_verified"] is True
         assert qa_result["status"] == "QA_PASSED_READY_FOR_LEAD_D_SIGN_OFF"
+
+    def test_regression_zero_source_label_ratio_leak_in_annotator_artifacts(self):
+        """Regression test nghiêm ngặt (chỉ đạo Lead D): tài liệu annotator (Member B) không được công bố trước tỷ lệ nhãn."""
+        import re
+        import zipfile
+        root = Path(__file__).resolve().parents[1]
+
+        # 1. calibration_clean_a_manifest.json không chứa tỷ lệ nhãn
+        manifest_path = root / "configs/calibration_clean_a_manifest.json"
+        manifest_text = manifest_path.read_text(encoding="utf-8")
+        assert not re.search(r"(?:main|reserve)_(?:phish|benign)_count", manifest_text), "Manifest không được chứa trường đếm nhãn nguồn"
+        assert not re.search(r"\b12\s*(?:phish|benign)", manifest_text, re.IGNORECASE), "Manifest không được chứa 12 phish/benign"
+        assert not re.search(r"\b4\s*(?:phish|benign)", manifest_text, re.IGNORECASE), "Manifest không được chứa 4 phish/benign"
+
+        # 2. clean_calibration_selection_inspection_report.json không chứa nhãn phân loại hay tỷ lệ
+        report_path = root / "data/source_audit/clean_calibration_selection_inspection_report.json"
+        report_text = report_path.read_text(encoding="utf-8")
+        assert not re.search(r"\bphish\b", report_text, re.IGNORECASE), "Báo cáo công khai không được chứa nhãn phish"
+        assert not re.search(r"\bbenign\b", report_text, re.IGNORECASE), "Báo cáo công khai không được chứa nhãn benign"
+        assert not re.search(r"\b12/12\b", report_text), "Báo cáo công khai không được chứa 12/12"
+        assert not re.search(r"\b4/4\b", report_text), "Báo cáo công khai không được chứa 4/4"
+
+        # 3. verify_member_b_qa.py không chứa 12/12 hoặc 4/4
+        verify_tool_path = root / "scripts/data/verify_member_b_qa.py"
+        verify_tool_text = verify_tool_path.read_text(encoding="utf-8")
+        assert "12/12" not in verify_tool_text, "verify_member_b_qa.py không được in hoặc chứa tỷ lệ 12/12"
+        assert "4/4" not in verify_tool_text, "verify_member_b_qa.py không được in hoặc chứa tỷ lệ 4/4"
+
+        # 4. Toàn bộ tệp trong GOI_QA_MEMBER_B_CALIBRATION_CLEAN_32.zip không chứa tỷ lệ nhãn
+        zip_b_path = root / "GOI_QA_MEMBER_B_CALIBRATION_CLEAN_32.zip"
+        if zip_b_path.exists():
+            with zipfile.ZipFile(zip_b_path, "r") as z_b:
+                for fname in z_b.namelist():
+                    if fname.endswith(".json"):
+                        content = z_b.read(fname).decode("utf-8")
+                        assert not re.search(r"(?:main|reserve)_(?:phish|benign)_count", content), f"Tệp {fname} trong gói B chứa trường đếm nhãn"
+                        assert not re.search(r"\b12\s*(?:phish|benign)", content, re.IGNORECASE), f"Tệp {fname} trong gói B chứa 12 phish/benign"
+                        assert not re.search(r"\b12/12\b", content), f"Tệp {fname} trong gói B chứa 12/12"
+
+        # 5. Hồ sơ hạn chế data/restricted/ (chỉ D xem) lưu giữ đầy đủ cân bằng lớp để D tự nghiệm thu
+        restricted_file = root / "data/restricted/clean_calibration_candidates_v2_restricted.json"
+        if restricted_file.exists():
+            restr_data = json.loads(restricted_file.read_text(encoding="utf-8"))
+            assert "source_class_balance" in restr_data, "Hồ sơ hạn chế của D phải lưu trữ source_class_balance"
+            balance = restr_data["source_class_balance"]
+            assert balance["main_strata"]["phish"] == 12
+            assert balance["main_strata"]["benign"] == 12
+            assert balance["reserve_strata"]["phish"] == 4
+            assert balance["reserve_strata"]["benign"] == 4
 
     @pytest.mark.integration
     def test_integration_restricted_candidates_package_hash_matches_inspection_report(self):

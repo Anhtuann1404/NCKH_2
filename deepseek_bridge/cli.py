@@ -2,8 +2,8 @@ import argparse
 import sys
 from pathlib import Path
 
-# Đảm bảo in tiếng Việt chuẩn trên Windows console khi chạy terminal tương tác
-if hasattr(sys.stdout, "reconfigure") and sys.stdout and sys.stdout.isatty():
+# Đảm bảo in tiếng Việt chuẩn trên Windows console ngay cả khi chạy subprocess/pipe
+if hasattr(sys.stdout, "reconfigure") and sys.stdout:
     try:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
