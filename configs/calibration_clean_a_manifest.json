@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "manifest_id": "CALIBRATION-CLEAN-A-MANIFEST-V1.1-PROPOSAL",
-  "dataset_id": "CALIBRATION-CLEAN-B-32",
+  "dataset_id": "CALIBRATION-CLEAN-24",
   "version": "1.1.0-PROPOSAL",
   "created_at_utc": "2026-10-24T01:00:00Z",
   "status": "pending_lead_d_and_member_b_review",
@@ -55,15 +55,38 @@
     "candidates_inspection_report_reference": "data/source_audit/clean_calibration_selection_inspection_report.json",
     "candidates_inspection_report_sha256": "26baf8155407ba9683c99d13a48dcc273f268a40bbb69093df9e3ee0fbddcba2",
     "restricted_candidates_reference": "data/restricted/clean_calibration_candidates_v2_restricted.json",
-    "restricted_candidates_sha256": "0942c81bb554996724d08c670fbef22250f626273ebcf00dfd0d7397456e7f61"
+    "restricted_candidates_sha256": "0942c81bb554996724d08c670fbef22250f626273ebcf00dfd0d7397456e7f61",
+    "blind_view_reference": "data/annotations/clean_calibration_blind_view_24.json",
+    "blind_view_sha256": "a6b9c4399cc92ce16b18c478e0657710739dcfcdd0724aa6769d98ff20b48f0c",
+    "blind_view_byte_size": 239290
   },
   "protocol": {
     "evaluation_mode": "double_blind_parallel_pass1",
-    "annotators": ["Annotator A", "Annotator B (QA Lead)"],
+    "annotators": [
+      "Annotator A",
+      "Annotator B (QA Lead)"
+    ],
     "blind_view_policy": "zero_source_labels_zero_matchers_zero_confidences",
     "timing_policy": "interactive_pause_resume_with_idle_deduction_implemented_and_tested",
     "template_similarity_policy": "mandatory_post_candidate_selection_step_simhash_dom",
     "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
   },
-  "notes": "Manifest kỹ thuật v1.1-Proposal: Đã hoàn thành tuyển chọn Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261027/20261028/20261029; đối chiếu toàn bộ 182 mẫu trong 8 lô registry (bao gồm 32 mẫu đợt A và 2 mẫu resolution summary bị lộ locator trên Git); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp; tệp chi tiết locator được cô lập trong khu vực hạn chế ngoài Git; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D và Member B nghiệm thu."
+  "notes": "Manifest kỹ thuật v1.1-Proposal: Đã hoàn thành tuyển chọn Đợt B gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261027/20261028/20261029; đối chiếu toàn bộ 182 mẫu trong 8 lô registry (bao gồm 32 mẫu đợt A và 2 mẫu resolution summary bị lộ locator trên Git); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp; tệp chi tiết locator được cô lập trong khu vực hạn chế ngoài Git; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D và Member B nghiệm thu.",
+  "sample_count": 24,
+  "sampling_plan_version": "CALIBRATION-CLEAN-PLAN-V1.1-STRATIFIED",
+  "codebook_version": "1.1.0",
+  "codebook_status": "locked",
+  "dictionary_version": "1.0.0",
+  "dictionary_status": "locked",
+  "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
+  "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
+  "blind_view_path": "data/annotations/clean_calibration_blind_view_24.json",
+  "blind_view_sha256": "a6b9c4399cc92ce16b18c478e0657710739dcfcdd0724aa6769d98ff20b48f0c",
+  "blind_view_byte_size": 239290,
+  "ready_for_annotation": false,
+  "training_blocked": true,
+  "acceptance": {
+    "B": "pending_review",
+    "D": "pending_review"
+  }
 }
