@@ -69,15 +69,13 @@ def register_clean_calibration_exclusions(
     for idx, c in enumerate(sorted_candidates):
         neutral_id = f"EXCL-CLN-{idx + 1:03d}"
 
-        # Public Git entry: ONLY 4 cryptographic hashes + neutral metadata (NO locator, NO role, NO raw URL)
+        # Public Git entry: ONLY 4 cryptographic hashes + neutral ID (NO locator, NO role, NO raw URL, NO plain domain, NO source date)
         entry = {
             "sample_id": neutral_id,
             "url_sha256": c["url_sha256"],
             "normalized_url_sha256": c["normalized_url_sha256"],
             "html_sha256": c["html_sha256"],
             "group_sha256": c["group_sha256"],
-            "group_id": c["group_id"],
-            "source_date": c["source_date"],
         }
         public_entries.append(entry)
 

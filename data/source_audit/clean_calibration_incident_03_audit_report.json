@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "audit_id": "CLEAN-CALIBRATION-INCIDENT-03-AUDIT-20261028",
+  "audit_timestamp_utc": "2026-10-28T00:45:00Z",
+  "incident_id": "INCIDENT-03-REGISTRY-DOMAIN-DATE-EXPOSURE",
+  "status": "contained_and_remediated",
+  "reporter": "Lead D (Anh Tuấn)",
+  "investigator": "Member C (Data Pipeline & Blind View)",
+  "consultation_mode": "Duo Mode (DeepSeek V4 Reasoner)",
+  "governance": {
+    "ready_for_annotation": false,
+    "training_blocked": true,
+    "force_push_used": false,
+    "git_history_preserved": true,
+    "total_samples_affected": 32,
+    "main_samples_count": 24,
+    "reserve_samples_count": 8
+  },
+  "incident_details": {
+    "file_path": "data/exclusion_registry.json",
+    "first_committed_commit": "f89dccc",
+    "second_committed_commit": "96c1927",
+    "branch": "feat/c-calibration-v1-1-4-adjudication",
+    "exposed_fields": [
+      "group_id (plain text eTLD+1 domain string, e.g. domain:iptvel.com)",
+      "source_date (collection date in YYYY-MM-DD, e.g. 2025-06-27)"
+    ],
+    "traceability_vector": "Trong 2 shard parquet nguồn (train-000 và train-055), mỗi dòng đều có cột URL và cột source_date. Sự kết hợp giữa tên miền nguyên bản và ngày nguồn cho phép lọc chính xác dòng dữ liệu trong shard parquet mà không cần row_offset. Người có quyền truy cập shard có thể tra ngược nhãn nguồn (phish vs benign). Khi đối chiếu với Blind View (chứa URL chuẩn hóa), người gán nhãn có thể khớp tên miền và phá vỡ tính mù đôi.",
+    "severity_level": "CRITICAL_METHODOLOGICAL_VULNERABILITY"
+  },
+  "clean_room_precedent_evaluation": {
+    "incident_01_precedent": "Tại Sự cố 01 (commit 226d422 lộ locator 32 mẫu), quy tắc phòng sạch tuyệt đối đã đình chỉ và loại trừ vĩnh viễn toàn bộ 32 mẫu khỏi Pass 1 sạch để bảo vệ tính toàn vẹn của bài báo.",
+    "incident_02_precedent": "Tại Sự cố 02 (commit 9e457f5 lộ 2 mẫu trong resolution summary), 2 mẫu bị hủy bỏ sử dụng ngay lập tức.",
+    "incident_03_recommendation": "Căn cứ tiền lệ và kỷ luật ARS, Thành viên C đề xuất loại bỏ toàn bộ 32 mẫu này khỏi Pass 1 sạch nếu Lead D yêu cầu bảo toàn 100% tính nguyên vẹn trước bình duyệt quốc tế, hoặc chỉ giữ lại khi Lead D phê duyệt phương án làm sạch triệt để registry và cô lập hoàn toàn."
+  },
+  "remediation_actions": [
+    {
+      "step": 1,
+      "action": "preserve_git_history",
+      "detail": "Tuyệt đối không force-push hay xóa dấu vết trên Git; giữ nguyên các commit f89dccc và 96c1927 làm bằng chứng kiểm toán độc lập."
+    },
+    {
+      "step": 2,
+      "action": "sanitize_public_exclusion_registry",
+      "detail": "Gỡ bỏ hoàn toàn trường group_id (domain thô) và source_date khỏi tệp data/exclusion_registry.json trên Git. Trên Git chỉ cam kết 4 mã băm mật mã an toàn (url_sha256, normalized_url_sha256, html_sha256, group_sha256)."
+    },
+    {
+      "step": 3,
+      "action": "isolate_full_mapping_offline",
+      "detail": "Toàn bộ bản đồ ánh xạ 1-1 (entry_id, candidate_id, role, locator, group_id, source_date) được cô lập tại data/restricted/clean_calibration_exclusion_mapping_32.json (nằm trong .gitignore, không đưa lên Git) và chỉ bàn giao trong gói nén riêng cho Lead D."
+    },
+    {
+      "step": 4,
+      "action": "verify_fail_closed_filtering",
+      "detail": "Xác nhận ExclusionRegistry (src/phishing/data/exclusion.py) hoạt động hoàn toàn dựa trên mã băm (url_sha256, html_sha256, group_sha256); việc xóa bỏ domain thô và ngày tháng không làm suy giảm khả năng chặn rò rỉ dữ liệu trong split/fit."
+    },
+    {
+      "step": 5,
+      "action": "add_zero_git_leak_regression_tests",
+      "detail": "Bổ sung test suite tests/test_clean_calibration_zero_git_leak_regression.py quét tự động registry, manifest và toàn bộ báo cáo công khai để ngăn chặn mọi rò rỉ domain thô, ngày nguồn hoặc locator."
+    }
+  ]
+}

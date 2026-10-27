@@ -6,9 +6,10 @@ Contains:
 1. clean_calibration_blind_view_24.json (The 24 main samples Blind View with offline translations)
 2. clean_calibration_blind_view_24_base.json (Untranslated base view audit trail)
 3. clean_calibration_exclusion_mapping_32.json (Restricted 32-sample exclusion mapping for Lead D verification)
-4. calibration_clean_a_manifest.json (Synchronized manifest v1.1-PROPOSAL)
-5. MANIFEST_HANDOVER_LEAD_D.json (Handover metadata and component checksums)
-6. verify_lead_d_handover.py (Standalone automated verification tool for Lead D)
+4. clean_calibration_incident_03_audit_report.json (Audit report for Incident 03: domain/date exposure & remediation)
+5. calibration_clean_a_manifest.json (Synchronized manifest v1.1-PROPOSAL)
+6. MANIFEST_HANDOVER_LEAD_D.json (Handover metadata and component checksums)
+7. verify_lead_d_handover.py (Standalone automated verification tool for Lead D)
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ if str(ROOT) not in sys.path:
 VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_24.json"
 BASE_VIEW_PATH = ROOT / "data/annotations/clean_calibration_blind_view_24_base.json"
 MAPPING_PATH = ROOT / "data/restricted/clean_calibration_exclusion_mapping_32.json"
+INCIDENT_03_PATH = ROOT / "data/source_audit/clean_calibration_incident_03_audit_report.json"
 MANIFEST_PATH = ROOT / "configs/calibration_clean_a_manifest.json"
 OUTPUT_ZIP = ROOT / "GOI_NGHIEM_THU_LEAD_D_CALIBRATION_CLEAN_24.zip"
 
@@ -47,12 +49,14 @@ DIR = Path(__file__).resolve().parent
 VIEW_FILE = DIR / "clean_calibration_blind_view_24.json"
 BASE_VIEW_FILE = DIR / "clean_calibration_blind_view_24_base.json"
 MAPPING_FILE = DIR / "clean_calibration_exclusion_mapping_32.json"
+INCIDENT_03_FILE = DIR / "clean_calibration_incident_03_audit_report.json"
 MANIFEST_FILE = DIR / "calibration_clean_a_manifest.json"
 HANDOVER_FILE = DIR / "MANIFEST_HANDOVER_LEAD_D.json"
 
 EXPECTED_VIEW_SHA256 = "__EXPECTED_VIEW_SHA256__"
 EXPECTED_BASE_VIEW_SHA256 = "__EXPECTED_BASE_VIEW_SHA256__"
 EXPECTED_MAPPING_SHA256 = "__EXPECTED_MAPPING_SHA256__"
+EXPECTED_INCIDENT_03_SHA256 = "__EXPECTED_INCIDENT_03_SHA256__"
 EXPECTED_MANIFEST_SHA256 = "__EXPECTED_MANIFEST_SHA256__"
 
 
@@ -70,6 +74,7 @@ def main() -> int:
         ("Blind View (với bản dịch)", VIEW_FILE),
         ("Blind View Base (dấu vết gốc)", BASE_VIEW_FILE),
         ("Ánh xạ loại trừ hạn chế", MAPPING_FILE),
+        ("Báo cáo Sự cố 03", INCIDENT_03_FILE),
         ("Manifest phát hành", MANIFEST_FILE),
         ("Handover Manifest", HANDOVER_FILE),
     ]
@@ -83,6 +88,7 @@ def main() -> int:
     view_bytes = VIEW_FILE.read_bytes()
     base_bytes = BASE_VIEW_FILE.read_bytes()
     mapping_bytes = MAPPING_FILE.read_bytes()
+    incident_03_bytes = INCIDENT_03_FILE.read_bytes()
     manifest_bytes = MANIFEST_FILE.read_bytes()
     handover_bytes = HANDOVER_FILE.read_bytes()
 
@@ -90,6 +96,7 @@ def main() -> int:
         ("Blind View", view_bytes),
         ("Base View", base_bytes),
         ("Mapping Dossier", mapping_bytes),
+        ("Incident 03 Report", incident_03_bytes),
         ("Manifest", manifest_bytes),
         ("Handover Manifest", handover_bytes),
     ]:
@@ -102,16 +109,19 @@ def main() -> int:
     view_hash = sha256(view_bytes)
     base_hash = sha256(base_bytes)
     mapping_hash = sha256(mapping_bytes)
+    incident_03_hash = sha256(incident_03_bytes)
     manifest_hash = sha256(manifest_bytes)
 
     assert view_hash == EXPECTED_VIEW_SHA256, f"Sai SHA-256 Blind View: {view_hash} != {EXPECTED_VIEW_SHA256}"
     assert base_hash == EXPECTED_BASE_VIEW_SHA256, f"Sai SHA-256 Base View: {base_hash} != {EXPECTED_BASE_VIEW_SHA256}"
     assert mapping_hash == EXPECTED_MAPPING_SHA256, f"Sai SHA-256 Mapping: {mapping_hash} != {EXPECTED_MAPPING_SHA256}"
+    assert incident_03_hash == EXPECTED_INCIDENT_03_SHA256, f"Sai SHA-256 Incident 03: {incident_03_hash} != {EXPECTED_INCIDENT_03_SHA256}"
     assert manifest_hash == EXPECTED_MANIFEST_SHA256, f"Sai SHA-256 Manifest: {manifest_hash} != {EXPECTED_MANIFEST_SHA256}"
 
     print(f"✅ SHA-256 Blind View (dịch) khớp:  {view_hash}")
     print(f"✅ SHA-256 Base View (gốc) khớp:    {base_hash}")
     print(f"✅ SHA-256 Mapping hạn chế khớp:    {mapping_hash}")
+    print(f"✅ SHA-256 Incident 03 Audit khớp:  {incident_03_hash}")
     print(f"✅ SHA-256 Manifest phát hành khớp: {manifest_hash}")
 
     # 4. Check Blind View contents
@@ -211,34 +221,39 @@ def build_handover_package() -> dict:
         raise FileNotFoundError(f"Missing Base View at {BASE_VIEW_PATH}")
     if not MAPPING_PATH.exists():
         raise FileNotFoundError(f"Missing Mapping Dossier at {MAPPING_PATH}")
+    if not INCIDENT_03_PATH.exists():
+        raise FileNotFoundError(f"Missing Incident 03 Audit Report at {INCIDENT_03_PATH}")
     if not MANIFEST_PATH.exists():
         raise FileNotFoundError(f"Missing Manifest at {MANIFEST_PATH}")
 
     view_bytes = VIEW_PATH.read_bytes()
     base_bytes = BASE_VIEW_PATH.read_bytes()
     mapping_bytes = MAPPING_PATH.read_bytes()
+    incident_03_bytes = INCIDENT_03_PATH.read_bytes()
     manifest_bytes = MANIFEST_PATH.read_bytes()
 
     view_sha256 = file_sha256(VIEW_PATH)
     base_sha256 = file_sha256(BASE_VIEW_PATH)
     mapping_sha256 = file_sha256(MAPPING_PATH)
+    incident_03_sha256 = file_sha256(INCIDENT_03_PATH)
     manifest_sha256 = file_sha256(MANIFEST_PATH)
 
     handover_manifest = {
         "package_name": "GOI_NGHIEM_THU_LEAD_D_CALIBRATION_CLEAN_24.zip",
-        "created_at_utc": "2026-10-27T22:20:00Z",
+        "created_at_utc": "2026-10-28T00:45:00Z",
         "recipient": "Lead D (Anh Tuấn)",
         "sender": "Member C (Data Pipeline & Blind View)",
         "purpose": (
             "Gói bàn giao nghiệm thu Blind View chính thức gồm 24 mẫu chính (Clean Calibration Runway A) "
             "kèm bản dịch ngoại tuyến MarianMT, bản lưu dấu vết gốc, hồ sơ ánh xạ loại trừ 32 mẫu hạn chế, "
-            "dành riêng cho Lead D đối soát và nghiệm thu cuối trước khi phát hành cho A và B."
+            "và báo cáo kiểm toán Sự cố 03, dành riêng cho Lead D đối soát và nghiệm thu cuối trước khi phát hành cho A và B."
         ),
         "governance": {
             "training_blocked": True,
             "ready_for_annotation": False,
             "official_test_used": False,
-            "member_b_qa_status": "approved",
+            "candidate_selection_member_b_qa": "approved",
+            "blind_view_member_b_qa": "pending_automated_verification",
             "lead_d_status": "pending_final_verification",
             "reserve_samples_sealed": True,
             "reserve_samples_count": 8,
@@ -264,6 +279,11 @@ def build_handover_package() -> dict:
                 "sha256": mapping_sha256,
                 "description": "Hồ sơ đối soát hạn chế nối mã băm EXCL-CLN-001..032 với locator và vai trò dành riêng cho D",
             },
+            "clean_calibration_incident_03_audit_report.json": {
+                "byte_size": len(incident_03_bytes),
+                "sha256": incident_03_sha256,
+                "description": "Báo cáo kiểm toán độc lập Sự cố 03 (lộ domain/date trong registry và biện pháp khắc phục)",
+            },
             "calibration_clean_a_manifest.json": {
                 "byte_size": len(manifest_bytes),
                 "sha256": manifest_sha256,
@@ -286,6 +306,7 @@ def build_handover_package() -> dict:
         .replace("__EXPECTED_VIEW_SHA256__", view_sha256)
         .replace("__EXPECTED_BASE_VIEW_SHA256__", base_sha256)
         .replace("__EXPECTED_MAPPING_SHA256__", mapping_sha256)
+        .replace("__EXPECTED_INCIDENT_03_SHA256__", incident_03_sha256)
         .replace("__EXPECTED_MANIFEST_SHA256__", manifest_sha256)
         .encode("utf-8")
         .replace(b"\r\n", b"\n")
@@ -296,6 +317,7 @@ def build_handover_package() -> dict:
         zf.writestr("clean_calibration_blind_view_24.json", view_bytes)
         zf.writestr("clean_calibration_blind_view_24_base.json", base_bytes)
         zf.writestr("clean_calibration_exclusion_mapping_32.json", mapping_bytes)
+        zf.writestr("clean_calibration_incident_03_audit_report.json", incident_03_bytes)
         zf.writestr("calibration_clean_a_manifest.json", manifest_bytes)
         zf.writestr("MANIFEST_HANDOVER_LEAD_D.json", handover_bytes)
         zf.writestr("verify_lead_d_handover.py", verify_script_content)
@@ -311,6 +333,7 @@ def build_handover_package() -> dict:
     print(f"📄 Blind View (dịch):  {view_sha256} ({len(view_bytes):,} bytes)")
     print(f"📄 Base View (gốc):    {base_sha256} ({len(base_bytes):,} bytes)")
     print(f"🗺️ Mapping Dossier:    {mapping_sha256} ({len(mapping_bytes):,} bytes)")
+    print(f"📋 Incident 03 Audit: {incident_03_sha256} ({len(incident_03_bytes):,} bytes)")
     print(f"📋 Manifest:          {manifest_sha256} ({len(manifest_bytes):,} bytes)")
     print(f"📝 Handover Mf:       {handover_sha256} ({len(handover_bytes):,} bytes)")
 
@@ -321,6 +344,7 @@ def build_handover_package() -> dict:
         "view_sha256": view_sha256,
         "base_sha256": base_sha256,
         "mapping_sha256": mapping_sha256,
+        "incident_03_sha256": incident_03_sha256,
         "manifest_sha256": manifest_sha256,
         "handover_sha256": handover_sha256,
     }
