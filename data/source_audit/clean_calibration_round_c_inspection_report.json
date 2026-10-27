@@ -55,13 +55,13 @@
       "engine_rule": "dist <= 10 or (jaccard >= 0.85 and dist <= 12)",
       "conjunction_rule": "dist <= 10 and jaccard >= 0.85"
     },
-    "conflict_pairs_count": 2,
-    "engine_rule_conflict_pairs_count": 2,
+    "conflict_pairs_count": 0,
+    "engine_rule_conflict_pairs_count": 0,
     "conjunction_rule_conflict_pairs_count": 0,
-    "min_pairwise_simhash_distance": 10,
-    "max_pairwise_dom_jaccard": 0.9286,
-    "resolutions_executed_count": 1,
-    "resolution_summary": "Phát hiện 1 xung đột tương đồng cặp trong quá trình sàng lọc ứng viên. Đã thực thi thay thế tất định theo đúng thứ tự dự phòng đã khóa và bù đắp dự phòng mới từ bể ứng viên đã khóa seed đối chiếu toàn bộ 203 mã băm registry. Toàn bộ 496 cặp ứng viên cuối cùng đạt 0 xung đột theo cả quy tắc engine (dist <= 10 hoặc (jaccard >= 0.85 và dist <= 12)) và quy tắc giao (dist <= 10 và jaccard >= 0.85)."
+    "min_pairwise_simhash_distance": 11,
+    "max_pairwise_dom_jaccard": 0.7429,
+    "resolutions_executed_count": 3,
+    "resolution_summary": "Phát hiện 3 xung đột tương đồng cặp trong quá trình sàng lọc ứng viên. Đã thực thi thay thế tất định theo đúng thứ tự dự phòng đã khóa và bù đắp dự phòng mới từ bể ứng viên đã khóa seed đối chiếu toàn bộ 203 mã băm registry. Toàn bộ 496 cặp ứng viên cuối cùng đạt 0 xung đột theo cả quy tắc engine (dist <= 10 hoặc (jaccard >= 0.85 và dist <= 12)) và quy tắc giao (dist <= 10 và jaccard >= 0.85)."
   },
   "difficulty_strata": {
     "note": "Các cờ bề mặt chỉ là đặc điểm phân tầng (stratification characteristics), không gọi là ca khó đã xác minh.",
@@ -77,6 +77,6 @@
   },
   "artifacts": {
     "restricted_candidates_file": "data/restricted/clean_calibration_candidates_v3_restricted.json",
-    "restricted_candidates_sha256": "f542a66e27789f024aa0d2afa6371ec256c51b29940df32bf99cebc0a504097a"
+    "restricted_candidates_sha256": "f17880a9319feaed44a7d3ac8f0d3fac51fe7c6d9ab292c997d175fb6704e41f"
   }
 }

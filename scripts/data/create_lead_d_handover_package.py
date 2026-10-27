@@ -232,6 +232,22 @@ def main() -> int:
     print("   - acceptance.B (view):    pending_automated_verification (Chờ B kiểm tự động Blind View phát hành)")
     print("   - acceptance.D:           pending_final_verification (Chờ Lead D nghiệm thu)")
 
+    # 11. Check Inspection Report Conflict Counts & Text Consistency (Chỉ đạo Lead D 2026-10-27)
+    inspection = json.loads(inspection_bytes.decode("utf-8"))
+    pairwise_scan = inspection.get("pairwise_template_similarity_scan", {})
+    conflict_count = pairwise_scan.get("conflict_pairs_count")
+    engine_conflicts = pairwise_scan.get("engine_rule_conflict_pairs_count")
+    conj_conflicts = pairwise_scan.get("conjunction_rule_conflict_pairs_count")
+    res_summary = pairwise_scan.get("resolution_summary", "")
+
+    if conflict_count != 0 or engine_conflicts != 0 or conj_conflicts != 0:
+        print(f"❌ XUNG ĐỘT TƯƠNG ĐỒNG CẶP CHƯA BẰNG 0: conflict={conflict_count}, engine={engine_conflicts}, conj={conj_conflicts}")
+        return 1
+    if "0 xung đột" not in res_summary:
+        print(f"❌ MÂU THUẪN BÁO CÁO: resolution_summary không xác nhận 0 xung đột: {res_summary}")
+        return 1
+    print("✅ Báo cáo kiểm tra Đợt C: 0 xung đột tương đồng trên toàn bộ 496 cặp (engine rule = 0, conjunction rule = 0), số liệu và kết luận đồng bộ 100%.")
+
     print("\\n🎉 TẤT CẢ CÁC BƯỚC KIỂM ĐỊNH ĐÃ ĐẠT 100%! GÓI ĐỦ ĐIỀU KIỆN ĐỂ LEAD D DUYỆT CUỐI.")
     return 0
 

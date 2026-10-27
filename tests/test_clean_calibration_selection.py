@@ -347,6 +347,42 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         restricted_hash = report["artifacts"]["restricted_candidates_sha256"]
         assert isinstance(restricted_hash, str) and len(restricted_hash) == 64
 
+    def test_clean_calibration_round_c_inspection_report_public_contract(self):
+        """Chứng minh báo cáo Đợt C trên Git là báo cáo tổng hợp thuần túy (không chứa locator/URL) đạt 0 xung đột trên toàn bộ 496 cặp."""
+        root = Path(__file__).resolve().parents[1]
+        report_path = root / "data/source_audit/clean_calibration_round_c_inspection_report.json"
+        assert report_path.exists()
+        report_text = report_path.read_text(encoding="utf-8")
+        report = json.loads(report_text)
+
+        # 1. Báo cáo tổng hợp không chứa trường locator, url hoặc html
+        assert "main_locators" not in report
+        assert "reserve_locators" not in report
+        assert "candidates" not in report
+        assert "row_offset" not in report_text
+        assert "train-" not in report["pairwise_template_similarity_scan"]["resolution_summary"]
+
+        # 2. Khớp phân tầng 24 chính + 8 dự phòng
+        assert report["selection_summary"]["main_samples_count"] == 24
+        assert report["selection_summary"]["reserve_samples_count"] == 8
+        assert report["selection_summary"]["distinct_groups_count"] == 32
+        assert report["selection_summary"]["deduplication_vs_registry_overlaps"] == 0
+        assert report["template_similarity_scan"]["clone_detected_count"] == 0
+
+        # 3. Quét tương đồng cặp toàn bộ 496 cặp đạt 0 xung đột theo cả 2 quy tắc
+        assert "pairwise_template_similarity_scan" in report
+        pairwise = report["pairwise_template_similarity_scan"]
+        assert pairwise["total_pairs_scanned"] == 496
+        assert pairwise["conflict_pairs_count"] == 0
+        assert pairwise["engine_rule_conflict_pairs_count"] == 0
+        assert pairwise["conjunction_rule_conflict_pairs_count"] == 0
+        assert pairwise["min_pairwise_simhash_distance"] >= 10
+        assert "0 xung đột" in pairwise["resolution_summary"]
+
+        # 4. Hash tệp hạn chế được khai báo đầy đủ (64 hex ký tự)
+        restricted_hash = report["artifacts"]["restricted_candidates_sha256"]
+        assert isinstance(restricted_hash, str) and len(restricted_hash) == 64
+
     def test_regression_public_report_zero_locator_leak(self):
         """Regression test nghiêm ngặt (theo chỉ đạo Lead D): đảm bảo báo cáo công khai không chứa vết locator/shard/row."""
         import re
@@ -366,12 +402,17 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert "row" not in res_summary.lower(), "resolution_summary không được chứa từ khóa row"
         assert "parquet" not in res_summary.lower(), "resolution_summary không được chứa đuôi tệp parquet"
 
+    @pytest.mark.integration
     def test_member_b_qa_package_zero_leak_and_boundary(self):
         """Chứng minh ranh giới bàn giao gói QA cho Member B: 100% không rò rỉ dữ liệu và tách biệt với Lead D."""
         import zipfile
         root = Path(__file__).resolve().parents[1]
         zip_b_path = root / "GOI_QA_MEMBER_B_CALIBRATION_CLEAN_32.zip"
         zip_d_path = root / "GOI_RA_SOAT_HAN_CHE_CALIBRATION_CLEAN_32_V2.zip"
+        cand_v2 = root / "data/restricted/clean_calibration_candidates_v2_restricted.json"
+
+        if not (zip_b_path.exists() and zip_d_path.exists()) and not cand_v2.exists():
+            pytest.skip("Bỏ qua test gói rà soát hạn chế khi checkout sạch chưa có tệp hạn chế data/restricted/")
 
         if not zip_b_path.exists() or not zip_d_path.exists():
             from scripts.data.create_restricted_review_package import create_lead_d_package, create_member_b_qa_package

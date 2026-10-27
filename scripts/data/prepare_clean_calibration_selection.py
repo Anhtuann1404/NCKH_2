@@ -347,7 +347,9 @@ def resolve_pairwise_similarity_conflicts(
     resolutions = []
     current_main = list(main_locs)
     current_reserve = list(reserve_locs)
+    used_locs = {(loc["relative_path"], loc["row_offset"]) for loc in current_main + current_reserve}
 
+    # 1. Giải quyết xung đột nội bộ tập main (nếu có) bằng cách đôn từ reserve và bù đắp reserve từ pool
     if initial_main_scan["conflict_pairs_count"] > 0:
         for conflict in initial_main_scan["conflict_pairs"]:
             loc2 = conflict["locator2"]
@@ -392,7 +394,6 @@ def resolve_pairwise_similarity_conflicts(
             current_main[main_idx] = promoted_reserve_loc
             del current_reserve[promoted_reserve_idx]
 
-            used_locs = {(loc["relative_path"], loc["row_offset"]) for loc in current_main + current_reserve + [loc2]}
             used_groups = {extract_group_id(row_provider(loc)["url"]) for loc in current_main + current_reserve}
 
             existing_31_features = [
@@ -430,6 +431,7 @@ def resolve_pairwise_similarity_conflicts(
             if new_reserve_loc is None:
                 raise RuntimeError(f"Không tìm được ứng viên bù đắp cho reserve từ pool ứng viên.")
 
+            used_locs.add((new_reserve_loc["relative_path"], new_reserve_loc["row_offset"]))
             current_reserve.insert(promoted_reserve_idx, new_reserve_loc)
 
             resolutions.append({
@@ -441,6 +443,96 @@ def resolve_pairwise_similarity_conflicts(
                 "promoted_from_reserve_locator": promoted_reserve_loc,
                 "new_reserve_refill_locator": new_reserve_loc,
             })
+
+    # 2. Quét và giải quyết xung đột trên toàn bộ C(32, 2) = 496 cặp ứng viên (Lead D chỉ đạo 2026-10-27)
+    # Ưu tiên bảo toàn 24 mẫu chính, thay thế các mẫu dự phòng bị xung đột
+    max_steps = 30
+    for step in range(max_steps):
+        all_selected = current_main + current_reserve
+        all_cids = [f"SMP-{i+1:03d}" if i < len(current_main) else f"RSV-{i-len(current_main)+1:03d}" for i in range(len(all_selected))]
+        all_roles = ["main_24" if i < len(current_main) else "reserve_08" for i in range(len(all_selected))]
+
+        scan_res = scan_candidates_pairwise_similarity(
+            all_selected,
+            html_provider,
+            all_cids,
+            all_roles,
+            max_allowed_simhash_distance=max_allowed_simhash_distance,
+            min_allowed_dom_jaccard=min_allowed_dom_jaccard,
+        )
+        conflicts = scan_res["conflict_pairs"]
+        if not conflicts:
+            break
+
+        conf = conflicts[0]
+        s1, r1 = conf["sample1"], conf["role1"]
+        s2, r2 = conf["sample2"], conf["role2"]
+        loc1, loc2 = conf["locator1"], conf["locator2"]
+
+        if r2 == "reserve_08":
+            replace_loc = loc2
+            replace_cid = s2
+        elif r1 == "reserve_08":
+            replace_loc = loc1
+            replace_cid = s1
+        else:
+            replace_loc = loc2
+            replace_cid = s2
+
+        if replace_cid.startswith("RSV"):
+            res_idx = next(i for i, loc in enumerate(current_reserve) if loc == replace_loc)
+            del current_reserve[res_idx]
+
+            lbl = source_label(row_provider(replace_loc)["label"])
+            rem_locs = current_main + current_reserve
+            used_groups = {extract_group_id(row_provider(loc)["url"]) for loc in rem_locs}
+            rem_features = [get_locator_features(loc, html_provider) for loc in rem_locs]
+
+            shuffled_pool = list(candidates_pool)
+            random.Random(seed + 100 + step).shuffle(shuffled_pool)
+
+            new_loc = None
+            for cand_loc, cand_lbl, cand_fp in shuffled_pool:
+                if cand_lbl != lbl:
+                    continue
+                loc_key = (cand_loc["relative_path"], cand_loc["row_offset"])
+                if loc_key in used_locs:
+                    continue
+                if cand_fp.get("group_id") in used_groups:
+                    continue
+
+                c_sh, c_dom = get_locator_features(cand_loc, html_provider)
+                has_conflict = False
+                for ex_sh, ex_dom in rem_features:
+                    dist = hamming_distance_64(c_sh, ex_sh)
+                    jacc = compute_dom_jaccard_similarity(c_dom, ex_dom)
+                    if is_pairwise_conflict(dist, jacc, max_allowed_simhash_distance, min_allowed_dom_jaccard, mode="engine"):
+                        has_conflict = True
+                        break
+
+                if not has_conflict:
+                    new_loc = cand_loc
+                    break
+
+            if new_loc is None:
+                raise RuntimeError(f"Không tìm được ứng viên bù đắp cho reserve {replace_cid} từ pool ứng viên.")
+
+            used_locs.add((new_loc["relative_path"], new_loc["row_offset"]))
+            current_reserve.insert(res_idx, new_loc)
+
+            resolutions.append({
+                "conflict_pair": [s1, s2],
+                "conflict_simhash_distance": conf["simhash_distance"],
+                "conflict_dom_jaccard": conf["dom_jaccard"],
+                "replaced_sample": replace_cid,
+                "replaced_locator": replace_loc,
+                "promoted_from_reserve_locator": None,
+                "new_reserve_refill_locator": new_loc,
+            })
+        else:
+            raise RuntimeError(f"Xung đột main-main chưa được giải quyết giữa {s1} và {s2}")
+    else:
+        raise RuntimeError(f"Không thể giải quyết toàn bộ xung đột cặp sau {max_steps} bước thay thế.")
 
     return current_main, current_reserve, resolutions
 
@@ -636,6 +728,9 @@ def execute_clean_selection(
         max_allowed_simhash_distance=10,
         min_allowed_dom_jaccard=0.85,
     )
+    assert pairwise_scan_res["conflict_pairs_count"] == 0, f"Vẫn còn {pairwise_scan_res['conflict_pairs_count']} xung đột cặp!"
+    assert pairwise_scan_res["engine_rule_conflict_pairs_count"] == 0, "Xung đột engine rule phải bằng 0!"
+    assert pairwise_scan_res["conjunction_rule_conflict_pairs_count"] == 0, "Xung đột conjunction rule phải bằng 0!"
 
     # 5. Đánh giá phân tầng bề mặt (difficulty strata)
     difficulty_counts, hard_cases_count = evaluate_clean_selection_strata(main_locs, row_provider)
@@ -688,6 +783,38 @@ def execute_clean_selection(
     c_bytes = (json.dumps(candidates_payload, indent=2, ensure_ascii=False) + "\n").encode("utf-8").replace(b"\r\n", b"\n")
     output_candidates_path.write_bytes(c_bytes)
     c_hash = hashlib.sha256(c_bytes).hexdigest()
+
+    # 7b. Nếu là Đợt C: xuất hồ sơ ánh xạ loại trừ hạn chế (clean_calibration_exclusion_mapping_c_32.json)
+    if dataset_id == "CALIBRATION-CLEAN-C-32":
+        mapping_path = ROOT / "data/restricted/clean_calibration_exclusion_mapping_c_32.json"
+        sorted_cands = sorted(detailed_candidates, key=lambda c: c["url_sha256"])
+        mapping_entries = []
+        for i, c in enumerate(sorted_cands, 1):
+            mapping_entries.append({
+                "entry_id": f"EXCL-CLN-C-{i:03d}",
+                "candidate_id": c["candidate_id"],
+                "role": c["role"],
+                "locator": c["locator"],
+                "url_sha256": c["url_sha256"],
+                "normalized_url_sha256": c["normalized_url_sha256"],
+                "html_sha256": c["html_sha256"],
+                "group_sha256": c["group_sha256"],
+                "group_id": c["group_id"],
+                "source_date": c["source_date"],
+            })
+        mapping_payload = {
+            "dataset_id": dataset_id,
+            "batch_id": "CLEAN-CALIBRATION-EXCLUSION-BATCH-C",
+            "total_samples": len(detailed_candidates),
+            "main_samples_count": len(main_locs),
+            "reserve_samples_count": len(reserve_locs),
+            "sorted_by": "url_sha256",
+            "purpose": "Hồ sơ ánh xạ hạn chế ngoài Git dùng cho Lead D đối soát loại trừ 32 mẫu Đợt C mà không lộ vai trò, locator hay thứ tự cho A/B",
+            "mapping": mapping_entries,
+        }
+        mapping_path.parent.mkdir(parents=True, exist_ok=True)
+        m_bytes = (json.dumps(mapping_payload, indent=2, ensure_ascii=False) + "\n").encode("utf-8").replace(b"\r\n", b"\n")
+        mapping_path.write_bytes(m_bytes)
 
     # 8. Xuất báo cáo nghiệm thu kiểm tra ứng viên (Inspection Report - Tổng hợp trên Git, không chứa locator truy ngược, định dạng LF)
     resolutions_count = len(resolutions)
@@ -805,9 +932,9 @@ def main():
         res = execute_clean_selection(
             output_candidates_path=out_candidates,
             output_report_path=out_report,
-            seed=20261030,
-            main_shuffle_seed=20261031,
-            reserve_shuffle_seed=20261032,
+            seed=20261035,
+            main_shuffle_seed=20261036,
+            reserve_shuffle_seed=20261037,
             dataset_id="CALIBRATION-CLEAN-C-32",
             report_id="CLEAN-CALIBRATION-SELECTION-INSPECTION-ROUND-C",
         )
