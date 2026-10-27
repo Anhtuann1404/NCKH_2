@@ -38,8 +38,8 @@
     "ready_for_annotation": false,
     "official_test_used": false,
     "acceptance": {
-      "member_b_qa": "pending_review",
-      "lead_d": "pending_review"
+      "member_b_qa": "approved",
+      "lead_d": "pending_final_verification"
     },
     "codebook_reference": "docs/CODEBOOK_V1_1.md",
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
@@ -86,7 +86,7 @@
   "ready_for_annotation": false,
   "training_blocked": true,
   "acceptance": {
-    "B": "pending_review",
-    "D": "pending_review"
+    "B": "approved",
+    "D": "pending_final_verification"
   }
 }
