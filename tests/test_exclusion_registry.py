@@ -711,6 +711,22 @@ class TestFailClosedPipelinePathsRegression:
         assert exit_code == 1
         assert "LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ" in buf_err.getvalue()
 
+    def test_generate_splits_cli_help_flag_succeeds(self):
+        """Lead D kiểm tra: Lệnh --help phải thoát mã 0, định dạng chuỗi trợ giúp không lỗi escape %."""
+        import subprocess
+        import sys
+        script = PROJECT_ROOT / "scripts" / "data" / "generate_splits.py"
+        proc = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            cwd=PROJECT_ROOT,
+        )
+        assert proc.returncode == 0, f"--help lỗi: {proc.stderr}"
+        assert "--fixture-mode" in proc.stdout
+        assert "100%" in proc.stdout
+
     def test_generate_splits_probe_row_51_real_sample_fails_closed(self, setup_pipeline_env):
         """Lead D probe: 50 bản ghi đầu là fixture, bản ghi thứ 51 có ID PP-real-last.
 

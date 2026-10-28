@@ -430,6 +430,20 @@ class TestLeadDProbesRegression:
             assert fpath.is_file(), f"Artifact '{fname}' bị xóa khi CLI gặp lỗi!"
             assert fpath.read_text(encoding="utf-8") == expected_content, f"Artifact '{fname}' bị sửa đổi nội dung!"
 
+    def test_cli_help_flag_succeeds(self) -> None:
+        """Kiểm tra gọi --help trên CLI generate_splits.py thoát mã 0 và không lỗi định dạng chuỗi trợ giúp."""
+        script = PROJECT_ROOT / "scripts" / "data" / "generate_splits.py"
+        proc = subprocess.run(
+            [sys.executable, str(script), "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            cwd=PROJECT_ROOT,
+        )
+        assert proc.returncode == 0, f"CLI --help thất bại với mã lỗi {proc.returncode}. Stderr: {proc.stderr}"
+        assert "--fixture-mode" in proc.stdout
+        assert "100%" in proc.stdout
+
     def test_probe1_cli_rejects_overwrite_without_flag(self, tmp_path: Path) -> None:
         """Probe 1: Thư mục đã có artifacts cũ phải từ chối nếu không truyền cờ --overwrite."""
         out_dir = tmp_path / "splits_run"

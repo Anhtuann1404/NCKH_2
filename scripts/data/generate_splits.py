@@ -219,7 +219,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help=(
             "Khai báo tường minh chế độ dữ liệu mô phỏng (fixture/synthetic). "
-            "HỢP ĐỒNG FIXTURE BẮT BUỘC: 100% bản ghi phải có bằng chứng mô phỏng tường minh "
+            "HỢP ĐỒNG FIXTURE BẮT BUỘC: Toàn bộ 100%% bản ghi phải có bằng chứng mô phỏng tường minh "
             "(metadata 'is_synthetic': true, 'is_fixture': true hoặc 'provenance': 'synthetic') "
             "và tuyệt đối không chứa bất kỳ dấu vết dữ liệu thật nào. "
             "Mặc định khi không có cờ này, mọi đầu vào đều được coi là dữ liệu thật và bắt buộc phải có "
