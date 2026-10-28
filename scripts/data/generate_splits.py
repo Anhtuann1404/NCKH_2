@@ -164,6 +164,35 @@ def detect_real_data_record(record: Dict[str, Any], id_field: str = "sample_id")
     return None
 
 
+def validate_fixture_provenance(record: Dict[str, Any], id_field: str = "sample_id") -> Optional[str]:
+    """Kiểm tra một bản ghi có bằng chứng fixture/synthetic tường minh và hợp lệ hay không.
+
+    HỢP ĐỒNG FIXTURE BẮT BUỘC (Strict Provenance Contract):
+    1. Tuyệt đối không mang bất kỳ dấu vết dữ liệu thật nào (detect_real_data_record trả về None).
+    2. Bắt buộc phải có bằng chứng mô phỏng tường minh:
+       'is_synthetic' is True HOẶC 'is_fixture' is True HOẶC 'provenance' in {"synthetic", "fixture"}.
+
+    Trả về None nếu hợp lệ, hoặc chuỗi mô tả lý do từ chối.
+    """
+    # 1. Kiểm tra dấu vết dữ liệu thật trước tiên
+    real_reason = detect_real_data_record(record, id_field=id_field)
+    if real_reason is not None:
+        return f"phát hiện dấu vết dữ liệu thật ({real_reason})"
+
+    # 2. Kiểm tra bằng chứng fixture tường minh
+    is_synth = record.get("is_synthetic")
+    is_fix = record.get("is_fixture")
+    prov = str(record.get("provenance", "")).strip().lower()
+
+    if is_synth is True or is_fix is True or prov in {"synthetic", "fixture"}:
+        return None
+
+    return (
+        "thiếu bằng chứng mô phỏng tường minh "
+        "(yêu cầu metadata 'is_synthetic': true, 'is_fixture': true hoặc 'provenance': 'synthetic')"
+    )
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="NCKH_2 Anti-Leakage Data Splitting Tool (Grouped 5-Fold & Temporal 60/20/20)."
@@ -188,7 +217,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--fixture-mode",
         action="store_true",
-        help="Khai báo tường minh chế độ dữ liệu mô phỏng (fixture/synthetic). Toàn bộ bản ghi phải được kiểm tra nguồn gốc nghiêm ngặt; nếu phát hiện bất kỳ dấu vết dữ liệu thật nào sẽ bị từ chối fail-closed ngay lập tức.",
+        help=(
+            "Khai báo tường minh chế độ dữ liệu mô phỏng (fixture/synthetic). "
+            "HỢP ĐỒNG FIXTURE BẮT BUỘC: 100% bản ghi phải có bằng chứng mô phỏng tường minh "
+            "(metadata 'is_synthetic': true, 'is_fixture': true hoặc 'provenance': 'synthetic') "
+            "và tuyệt đối không chứa bất kỳ dấu vết dữ liệu thật nào. "
+            "Mặc định khi không có cờ này, mọi đầu vào đều được coi là dữ liệu thật và bắt buộc phải có "
+            "ExclusionRegistry cùng cam kết hạn chế hợp lệ."
+        ),
     )
     parser.add_argument(
         "--synthetic-fixture",
@@ -275,48 +311,31 @@ def main(argv: Optional[List[str]] = None) -> int:
     input_sha256 = calculate_sha256(input_path)
 
     # 4b. Kiểm tra chốt chặn cam kết hạn chế và phòng chống rò rỉ dữ liệu (Anti-Leakage Protocol)
-    # QUY TẮC KHÔNG CẮT NGẮN CỬA SỔ (Zero-Windowing): Quét toàn bộ 100% bản ghi và metadata nguồn
-    first_real_reason: Optional[str] = None
-    first_real_record_idx: int = -1
-    first_real_record_id: str = ""
-
-    for idx, r in enumerate(records):
-        reason = detect_real_data_record(r, id_field=args.id_field)
-        if reason is not None:
-            first_real_reason = reason
-            first_real_record_idx = idx
-            first_real_record_id = str(r.get(args.id_field, f"row_{idx}"))
-            break
-
-    # Phân loại chế độ vận hành (Fail-closed by default)
+    # NGUYÊN TẮC BẢO VỆ DỮ LIỆU: MẶC ĐỊNH MỌI ĐẦU VÀO ĐỀU LÀ DỮ LIỆU THẬT.
+    # Chỉ được phép kích hoạt nhánh fixture khi hội tụ đủ 2 điều kiện:
+    # 1. Có cờ tường minh --fixture-mode (hoặc --synthetic-fixture).
+    # 2. 100% bản ghi có bằng chứng mô phỏng tường minh ('is_synthetic': true, 'is_fixture': true hoặc 'provenance': 'synthetic')
+    #    và tuyệt đối không mang bất kỳ dấu vết dữ liệu thật nào.
     if args.fixture_mode:
-        # Trường hợp khai báo tường minh --fixture-mode:
-        # Phải kiểm chứng nguồn gốc fixture 100%. Nếu có bất kỳ bản ghi thật nào -> Từ chối ngay!
-        if first_real_reason is not None:
-            print(
-                f"[!] LỖI RÒ RỈ DỮ LIỆU THẬT VÀO CHẾ ĐỘ FIXTURE:\n"
-                f"    Phát hiện bản ghi thực tế tại dòng {first_real_record_idx + 1} (ID: '{first_real_record_id}').\n"
-                f"    Dấu hiệu: {first_real_reason}.\n"
-                f"    Cờ --fixture-mode nghiêm cấm tiếp nhận dữ liệu thật hoặc tệp trộn thật-fixture! Từ chối fail-closed.",
-                file=sys.stderr,
-            )
-            return 1
+        for idx, r in enumerate(records):
+            violation = validate_fixture_provenance(r, id_field=args.id_field)
+            if violation is not None:
+                sid = r.get(args.id_field, f"row_{idx}")
+                print(
+                    f"[!] LỖI HỢP ĐỒNG FIXTURE (Anti-Leakage Protocol):\n"
+                    f"    Bản ghi tại dòng {idx + 1} (ID: '{sid}') không đáp ứng quy chuẩn fixture: {violation}.\n"
+                    f"    Quy tắc: Cờ --fixture-mode yêu cầu 100% bản ghi phải có bằng chứng synthetic tường minh ('is_synthetic': true) "
+                    f"    và tuyệt đối cấm tệp trộn thật-fixture hoặc dữ liệu thật. Từ chối fail-closed.",
+                    file=sys.stderr,
+                )
+                return 1
         is_real_data = False
         is_fixture_mode = True
     else:
-        # Khi không có cờ --fixture-mode:
-        if first_real_reason is not None:
-            # Phát hiện dù chỉ 1 bản ghi thật -> áp dụng chế độ dữ liệu thật cho TOÀN BỘ input
-            is_real_data = True
-            is_fixture_mode = False
-        elif args.is_real_data:
-            # Người dùng chủ động chỉ định dữ liệu thật
-            is_real_data = True
-            is_fixture_mode = False
-        else:
-            # 100% bản ghi là dữ liệu mô phỏng không mang dấu vết thật
-            is_real_data = False
-            is_fixture_mode = True
+        # MẶC ĐỊNH XỬ LÝ LÀ DỮ LIỆU THẬT (kể cả ID trung tính, không có metadata nguồn)
+        # Bắt buộc phải có ExclusionRegistry và hồ sơ cam kết hạn chế ngoài Git hợp lệ
+        is_real_data = True
+        is_fixture_mode = False
 
     reg_path = args.exclusion_registry
     if reg_path is None and is_real_data:

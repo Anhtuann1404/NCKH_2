@@ -505,7 +505,7 @@ class TestLeadDProbesRegression:
     def test_probe6_empty_seeds_and_provenance_manifest(self, tmp_path: Path) -> None:
         """Probe 6: chặn seeds rỗng/trùng; manifest ghi đầy đủ PSL snapshot hash, tham số CLI và code hash."""
         records = [
-            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}", "is_synthetic": True}
             for i in range(20)
         ]
         # Seeds rỗng
@@ -531,6 +531,7 @@ class TestLeadDProbesRegression:
                 "--output-dir", str(out_dir),
                 "--seeds", "42,100",
                 "-k", "5",
+                "--fixture-mode",
             ],
             capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
         )
@@ -591,7 +592,7 @@ class TestLeadDProbesRegression:
     def test_atomic_staging_and_skip_temporal_cleans_stale_artifact(self, tmp_path: Path) -> None:
         """Lead D probe 3: --skip-temporal phải dọn dẹp temporal artifact cũ của run trước."""
         records = [
-            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}", "is_synthetic": True}
             for i in range(20)
         ]
         in_file = tmp_path / "corpus.jsonl"
@@ -602,7 +603,7 @@ class TestLeadDProbesRegression:
 
         # Run 1: có temporal splits
         proc1 = subprocess.run(
-            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir), "-k", "3", "--seeds", "42"],
+            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir), "-k", "3", "--seeds", "42", "--fixture-mode"],
             capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
         )
         assert proc1.returncode == 0
@@ -610,7 +611,7 @@ class TestLeadDProbesRegression:
 
         # Run 2: với --skip-temporal --overwrite -> temporal_splits.json cũ phải bị dọn dẹp triệt để
         proc2 = subprocess.run(
-            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir), "-k", "3", "--seeds", "42", "--skip-temporal", "--overwrite"],
+            [sys.executable, str(script), "--input", str(in_file), "--output-dir", str(out_dir), "-k", "3", "--seeds", "42", "--skip-temporal", "--overwrite", "--fixture-mode"],
             capture_output=True, text=True, encoding="utf-8", cwd=PROJECT_ROOT,
         )
         assert proc2.returncode == 0
@@ -651,7 +652,7 @@ class TestLeadDProbesRegression:
         from scripts.data import generate_splits
 
         records_run1 = [
-            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            {"sample_id": f"S{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}", "is_synthetic": True}
             for i in range(20)
         ]
         in_file1 = tmp_path / "corpus1.jsonl"
@@ -668,6 +669,7 @@ class TestLeadDProbesRegression:
                 "--output-dir", str(out_dir),
                 "-k", "3",
                 "--seeds", "42",
+                "--fixture-mode",
             ])
         assert exit_code1 == 0
         assert (out_dir / "groups.json").exists()
@@ -684,7 +686,7 @@ class TestLeadDProbesRegression:
 
         # 2. Chuẩn bị run 2 với dữ liệu mới
         records_run2 = [
-            {"sample_id": f"NEW_{i}", "url": f"https://newdomain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-02-{i+1:02d}"}
+            {"sample_id": f"NEW_{i}", "url": f"https://newdomain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-02-{i+1:02d}", "is_synthetic": True}
             for i in range(20)
         ]
         in_file2 = tmp_path / "corpus2.jsonl"
@@ -713,6 +715,7 @@ class TestLeadDProbesRegression:
                     "-k", "3",
                     "--seeds", "42",
                     "--overwrite",
+                    "--fixture-mode",
                 ])
 
         # 3. KIỂM ĐỊNH ROLLBACK: Toàn bộ 4 artifact cũ phải được khôi phục nguyên vẹn 100%
@@ -739,7 +742,7 @@ class TestLeadDProbesRegression:
         # 1. Chạy run 1 ban đầu tạo sẵn 4 artifacts
         out_dir = tmp_path / "splits_output"
         records_run1 = [
-            {"sample_id": f"OLD_{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}"}
+            {"sample_id": f"OLD_{i}", "url": f"https://domain{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-01-{i+1:02d}", "is_synthetic": True}
             for i in range(20)
         ]
         in_file1 = tmp_path / "corpus1.jsonl"
@@ -753,6 +756,7 @@ class TestLeadDProbesRegression:
                 "--output-dir", str(out_dir),
                 "-k", "3",
                 "--seeds", "42",
+                "--fixture-mode",
             ])
 
         original_hashes = {
@@ -763,7 +767,7 @@ class TestLeadDProbesRegression:
 
         # 2. Chuẩn bị run 2
         records_run2 = [
-            {"sample_id": f"NEW_{i}", "url": f"https://new{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-02-{i+1:02d}"}
+            {"sample_id": f"NEW_{i}", "url": f"https://new{i}.com/", "class_label": "phishing" if i % 2 == 0 else "benign", "collected_at": f"2025-02-{i+1:02d}", "is_synthetic": True}
             for i in range(20)
         ]
         in_file2 = tmp_path / "corpus2.jsonl"
@@ -797,6 +801,7 @@ class TestLeadDProbesRegression:
                     "-k", "3",
                     "--seeds", "42",
                     "--overwrite",
+                    "--fixture-mode",
                 ])
 
         # 3. KIỂM ĐỊNH BẢO LƯU BACKUP:

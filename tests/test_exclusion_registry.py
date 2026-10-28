@@ -806,7 +806,7 @@ class TestFailClosedPipelinePathsRegression:
     def test_generate_splits_mixed_fixture_real_in_fixture_mode_fails_closed(self, setup_pipeline_env):
         """Lead D ca 3: Tệp trộn fixture-thật nhưng người dùng cố ý khai báo --fixture-mode.
 
-        CLI phải từ chối fail-closed với thông báo lỗi rò rỉ dữ liệu thật vào chế độ fixture.
+        CLI phải từ chối fail-closed với thông báo lỗi hợp đồng fixture.
         """
         import io
         import contextlib
@@ -820,6 +820,7 @@ class TestFailClosedPipelinePathsRegression:
                 "url": f"https://synthetic-{i}.com/page",
                 "class_label": "phishing" if i % 2 == 0 else "benign",
                 "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+                "is_synthetic": True,
             }
             for i in range(10)
         ]
@@ -828,6 +829,7 @@ class TestFailClosedPipelinePathsRegression:
             "url": "https://mixed-domain.com/login",
             "class_label": "phishing",
             "collected_at": "2025-01-15",
+            "is_synthetic": True,
         })
 
         mixed_file = tmp_path / "mixed_fixture_real.jsonl"
@@ -846,7 +848,141 @@ class TestFailClosedPipelinePathsRegression:
 
         assert exit_code == 1
         err_msg = buf_err.getvalue()
-        assert "LỖI RÒ RỈ DỮ LIỆU THẬT VÀO CHẾ ĐỘ FIXTURE" in err_msg
+        assert "LỖI HỢP ĐỒNG FIXTURE" in err_msg
+        assert "phát hiện dấu vết dữ liệu thật" in err_msg
+        assert not (out_dir / "manifest.json").exists()
+
+    def test_generate_splits_neutral_id_without_flags_defaults_to_real_and_fails_closed(self, setup_pipeline_env):
+        """Lead D ca phát hiện mới: Tệp có ID trung tính, không có metadata nguồn và KHÔNG truyền --fixture-mode.
+
+        Quy tắc an toàn tuyệt đối: Mặc định luôn coi là dữ liệu thật.
+        Khi thiếu registry hoặc hồ sơ cam kết hạn chế, CLI phải fail-closed thoát mã 1, không tạo artifacts.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        neutral_recs = [
+            {
+                "sample_id": f"REC_{i:03d}",
+                "url": f"https://neutral-domain-{i}.org/index",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(20)
+        ]
+
+        neutral_file = tmp_path / "neutral_records_no_flags.jsonl"
+        neutral_file.write_text("\n".join(json.dumps(r) for r in neutral_recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_neutral_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(neutral_file),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["missing_reg_file"]),
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1, "Tệp trung tính không cờ phải mặc định coi là dữ liệu thật và thoát mã 1!"
+        assert "LỆNH CHẶN FAIL-CLOSED" in buf_err.getvalue()
+        assert not (out_dir / "manifest.json").exists()
+        assert not (out_dir / "groups.json").exists()
+
+    def test_generate_splits_fixture_mode_without_synthetic_evidence_fails_closed(self, setup_pipeline_env):
+        """Lead D hợp đồng fixture: Khai báo --fixture-mode nhưng bản ghi thiếu 'is_synthetic: true'.
+
+        CLI phải từ chối fail-closed với lỗi hợp đồng fixture và thoát mã 1.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        unproven_recs = [
+            {
+                "sample_id": f"NEUTRAL_{i:03d}",
+                "url": f"https://unproven-domain-{i}.com/page",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+                # Cố tình thiếu metadata "is_synthetic": True
+            }
+            for i in range(15)
+        ]
+
+        unproven_file = tmp_path / "unproven_fixture.jsonl"
+        unproven_file.write_text("\n".join(json.dumps(r) for r in unproven_recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_unproven_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(unproven_file),
+                "--output-dir", str(out_dir),
+                "--fixture-mode",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1
+        err_msg = buf_err.getvalue()
+        assert "LỖI HỢP ĐỒNG FIXTURE" in err_msg
+        assert "thiếu bằng chứng mô phỏng tường minh" in err_msg
+        assert not (out_dir / "manifest.json").exists()
+
+    def test_generate_splits_fake_fixture_with_real_sample_at_end_fails_closed(self, setup_pipeline_env):
+        """Lead D probe: Fixture giả có 50 dòng hợp lệ ('is_synthetic: true') nhưng dòng cuối là bản ghi thật.
+
+        CLI phải quét qua toàn bộ 51 dòng, phát hiện bản ghi thật ở dòng 51 và fail-closed thoát mã 1.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        fake_fix_recs = [
+            {
+                "sample_id": f"VALID_FIX_{i}",
+                "url": f"https://valid-fix-{i}.com/test",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+                "is_synthetic": True,
+            }
+            for i in range(50)
+        ]
+        # Dòng 51: bản ghi thật có gắn cờ giả is_synthetic=True
+        fake_fix_recs.append({
+            "sample_id": "PP-real-last-in-fixture",
+            "url": "https://real-last.com/secret",
+            "class_label": "phishing",
+            "collected_at": "2025-01-26",
+            "is_synthetic": True,
+        })
+
+        fake_file = tmp_path / "fake_fixture_51.jsonl"
+        fake_file.write_text("\n".join(json.dumps(r) for r in fake_fix_recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_fake_fixture_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(fake_file),
+                "--output-dir", str(out_dir),
+                "--fixture-mode",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1
+        err_msg = buf_err.getvalue()
+        assert "LỖI HỢP ĐỒNG FIXTURE" in err_msg
+        assert "phát hiện dấu vết dữ liệu thật" in err_msg
         assert not (out_dir / "manifest.json").exists()
 
     def test_generate_splits_valid_fixture_succeeds_without_verified_robust(self, setup_pipeline_env):
@@ -866,6 +1002,7 @@ class TestFailClosedPipelinePathsRegression:
                 "url": f"https://fixture-domain-{i}.com/page",
                 "class_label": "phishing" if i % 2 == 0 else "benign",
                 "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+                "is_synthetic": True,
             }
             for i in range(20)
         ]
