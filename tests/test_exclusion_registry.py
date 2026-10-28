@@ -711,3 +711,267 @@ class TestFailClosedPipelinePathsRegression:
         assert exit_code == 1
         assert "LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ" in buf_err.getvalue()
 
+    def test_generate_splits_probe_row_51_real_sample_fails_closed(self, setup_pipeline_env):
+        """Lead D probe: 50 bản ghi đầu là fixture, bản ghi thứ 51 có ID PP-real-last.
+
+        Khi thiếu hồ sơ loại trừ hạn chế, CLI KHÔNG được phép nhận diện nhầm là fixture,
+        phải fail-closed thoát mã 1 và không công bố split artifacts verified_robust.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        # Tạo 51 bản ghi: 50 fixture đầu + bản ghi 51 là PP-real-last
+        recs = [
+            {
+                "sample_id": f"S{i}",
+                "url": f"https://synthetic-domain-{i}.com/page",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(50)
+        ]
+        recs.append({
+            "sample_id": "PP-real-last",
+            "url": "https://real-domain-last.com/page",
+            "class_label": "phishing",
+            "collected_at": "2025-01-26",
+        })
+
+        probe_file = tmp_path / "probe_51_records.jsonl"
+        probe_file.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_probe_51_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(probe_file),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["missing_reg_file"]),
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1, f"Probe thất bại: CLI thoát mã 0 thay vì fail-closed 1. Stderr: {buf_err.getvalue()}"
+        assert "LỆNH CHẶN FAIL-CLOSED" in buf_err.getvalue()
+        # Không được phép sinh manifest verified_robust
+        manifest_file = out_dir / "manifest.json"
+        if manifest_file.exists():
+            manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+            assert manifest.get("verified_robust") is not True
+
+    def test_generate_splits_generic_id_with_real_metadata_fails_closed(self, setup_pipeline_env):
+        """Lead D ca 2: ID không mang tiền tố (GEN_01) nhưng metadata nguồn (source_id / locator) là thật.
+
+        CLI phải phát hiện metadata nguồn thật và áp dụng chế độ dữ liệu thật, fail-closed thoát mã 1.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        recs = [
+            {
+                "sample_id": f"GEN_{i:03d}",
+                "source_id": "phreshphish",
+                "locator": {"source_id": "phreshphish", "parquet_path": "train-000.parquet", "row_offset": i},
+                "url": f"https://real-meta-domain-{i}.com/page",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(20)
+        ]
+
+        in_file = tmp_path / "generic_id_real_meta.jsonl"
+        in_file.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_generic_id_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(in_file),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["missing_reg_file"]),
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1
+        assert "LỆNH CHẶN FAIL-CLOSED" in buf_err.getvalue()
+        assert not (out_dir / "manifest.json").exists()
+
+    def test_generate_splits_mixed_fixture_real_in_fixture_mode_fails_closed(self, setup_pipeline_env):
+        """Lead D ca 3: Tệp trộn fixture-thật nhưng người dùng cố ý khai báo --fixture-mode.
+
+        CLI phải từ chối fail-closed với thông báo lỗi rò rỉ dữ liệu thật vào chế độ fixture.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        recs = [
+            {
+                "sample_id": f"SYN_{i}",
+                "url": f"https://synthetic-{i}.com/page",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(10)
+        ]
+        recs.append({
+            "sample_id": "PP-000-MIXED-01",
+            "url": "https://mixed-domain.com/login",
+            "class_label": "phishing",
+            "collected_at": "2025-01-15",
+        })
+
+        mixed_file = tmp_path / "mixed_fixture_real.jsonl"
+        mixed_file.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_mixed_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(mixed_file),
+                "--output-dir", str(out_dir),
+                "--fixture-mode",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1
+        err_msg = buf_err.getvalue()
+        assert "LỖI RÒ RỈ DỮ LIỆU THẬT VÀO CHẾ ĐỘ FIXTURE" in err_msg
+        assert not (out_dir / "manifest.json").exists()
+
+    def test_generate_splits_valid_fixture_succeeds_without_verified_robust(self, setup_pipeline_env):
+        """Lead D ca 4: Fixture hợp lệ 100% dữ liệu mô phỏng chạy qua --fixture-mode.
+
+        CLI cho phép chạy thử nghiệm kiểm toán cấu trúc split nhưng KHÔNG xuất verified_robust=true.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        recs = [
+            {
+                "sample_id": f"FIXTURE_{i}",
+                "url": f"https://fixture-domain-{i}.com/page",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(20)
+        ]
+
+        fix_file = tmp_path / "valid_fixture.jsonl"
+        fix_file.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_valid_fixture_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(fix_file),
+                "--output-dir", str(out_dir),
+                "--fixture-mode",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 0
+        manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["verified_robust"] is False
+        assert manifest["usable_for_training"] is False
+        assert manifest["anti_leakage_status"] == "synthetic_fixture_test_mode"
+
+        # Từng fold cũng phải được đánh dấu is_usable=False
+        splits_data = json.loads((out_dir / "grouped_5fold_splits.json").read_text(encoding="utf-8"))
+        for seed_val, folds in splits_data["splits_by_seed"].items():
+            for fold in folds:
+                assert fold["is_usable"] is False
+                assert "không được phép dùng để huấn luyện" in fold.get("unusable_reason", "")
+
+    def test_generate_splits_excluded_sample_leak_detected_fails_closed(self, setup_pipeline_env):
+        """Lead D ca 8: Dữ liệu thật chứa mẫu thuộc danh mục loại trừ (Exclusion Registry).
+
+        CLI phải phát hiện rò rỉ mẫu loại trừ, fail-closed thoát mã 1 và không xuất artifacts.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        # Tập dữ liệu chứa mẫu bị loại trừ
+        recs = [
+            {
+                "sample_id": f"PP-000-S{i:05d}",
+                "source_id": "phreshphish",
+                "url": f"https://real-ok-domain-{i}.com/page",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(15)
+        ]
+        # Chèn mẫu nằm trong dossier loại trừ
+        recs.append(env["restricted_sample"])
+
+        leak_file = tmp_path / "corpus_with_leak.jsonl"
+        leak_file.write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+        out_dir = tmp_path / "splits_leak_detected_out"
+
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(leak_file),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["valid_reg_file"]),
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 1
+        assert "LỖI RÒ RỈ DỮ LIỆU ĐẦU VÀO SPLITS" in buf_err.getvalue()
+        assert not (out_dir / "manifest.json").exists()
+
+    def test_generate_splits_allow_unverified_commitments_is_audit_only(self, setup_pipeline_env):
+        """Lead D ca bổ sung: Cờ --allow-unverified-commitments cho phép audit nhưng KHÔNG xuất verified_robust.
+
+        Mọi fold phải mang is_usable=False và usable_for_training=False.
+        """
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        tmp_path = env["tmp_path"]
+
+        out_dir = tmp_path / "splits_audit_only_out"
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(env["corpus_file"]),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["missing_reg_file"]),
+                "--allow-unverified-commitments",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+
+        assert exit_code == 0
+        manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["verified_robust"] is False
+        assert manifest["usable_for_training"] is False
+        assert manifest["anti_leakage_status"] == "audit_only_unverified_commitments"
+
+        splits_data = json.loads((out_dir / "grouped_5fold_splits.json").read_text(encoding="utf-8"))
+        for seed_val, folds in splits_data["splits_by_seed"].items():
+            for fold in folds:
+                assert fold["is_usable"] is False
+                assert "chỉ dùng cho kiểm toán (audit-only)" in fold.get("unusable_reason", "")
+

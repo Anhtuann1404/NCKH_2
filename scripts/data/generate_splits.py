@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import sys
 from typing import Any, Dict, List, Optional, Set
@@ -115,6 +116,54 @@ def calculate_composite_code_sha256(code_hashes: Dict[str, str]) -> str:
     return hasher.hexdigest()
 
 
+def detect_real_data_record(record: Dict[str, Any], id_field: str = "sample_id") -> Optional[str]:
+    """Kiểm tra một bản ghi có mang dấu vết/metadata nguồn dữ liệu thật hay không.
+
+    Duyệt toàn bộ metadata nguồn gồm sample_id, source_id, locator, source_revision,
+    dataset, định danh shard parquet.
+    Trả về lý do phát hiện (chuỗi) nếu có dấu vết dữ liệu thật, hoặc None nếu là dữ liệu mô phỏng.
+    """
+    sid = str(record.get(id_field, "")).strip()
+
+    # 1. Kiểm tra tiền tố và mẫu ID nguồn dữ liệu thật
+    if sid.startswith(("PP-", "PV-", "SMP-", "RSV-", "train-", "test-", "val-")):
+        return f"sample_id '{sid}' mang tiền tố dữ liệu thật (PP-/PV-/SMP-/RSV-/train-/test-/val-)"
+    if re.match(r"^(PP|PV|SMP|RSV|PHISH|BENIGN)[-_]", sid, re.IGNORECASE):
+        return f"sample_id '{sid}' khớp định dạng mẫu dữ liệu thật"
+
+    # 2. Kiểm tra source_id
+    src = str(record.get("source_id", "")).strip().lower()
+    if src in {"phreshphish", "phishvn"} or "phreshphish" in src or "phishvn" in src:
+        return f"source_id '{src}' chỉ định nguồn dữ liệu nghiên cứu thật"
+
+    # 3. Kiểm tra locator
+    loc = record.get("locator")
+    if isinstance(loc, dict):
+        loc_src = str(loc.get("source_id", "")).strip().lower()
+        if loc_src in {"phreshphish", "phishvn"} or "phreshphish" in loc_src or "phishvn" in loc_src:
+            return f"locator.source_id '{loc_src}' chỉ định nguồn dữ liệu thật"
+        for k, v in loc.items():
+            v_str = str(v).lower()
+            if any(term in v_str for term in ["shard", "parquet", "train-00", "train-055", "row_offset"]):
+                return f"locator.{k}='{v}' chứa định danh shard/offset parquet thực tế"
+    elif isinstance(loc, str) and loc.strip():
+        loc_lower = loc.lower()
+        if any(term in loc_lower for term in ["phreshphish", "phishvn", ".parquet", "train-00", "train-055", "shard", "row_offset"]):
+            return f"locator chuỗi '{loc}' chứa định danh shard/offset parquet thực tế"
+
+    # 4. Kiểm tra source_revision
+    src_rev = record.get("source_revision")
+    if src_rev and str(src_rev).strip():
+        return f"source_revision '{src_rev}' chỉ định nguồn dữ liệu thật"
+
+    # 5. Kiểm tra trường dataset
+    dataset = str(record.get("dataset", "")).strip().lower()
+    if dataset in {"phreshphish", "phishvn"} or "phreshphish" in dataset or "phishvn" in dataset:
+        return f"dataset '{dataset}' chỉ định nguồn dữ liệu thật"
+
+    return None
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="NCKH_2 Anti-Leakage Data Splitting Tool (Grouped 5-Fold & Temporal 60/20/20)."
@@ -135,6 +184,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         type=str,
         default=None,
         help="Đường dẫn exclusion_registry.json để kiểm tra chốt chặn cam kết hạn chế và rò rỉ dữ liệu.",
+    )
+    parser.add_argument(
+        "--fixture-mode",
+        action="store_true",
+        help="Khai báo tường minh chế độ dữ liệu mô phỏng (fixture/synthetic). Toàn bộ bản ghi phải được kiểm tra nguồn gốc nghiêm ngặt; nếu phát hiện bất kỳ dấu vết dữ liệu thật nào sẽ bị từ chối fail-closed ngay lập tức.",
+    )
+    parser.add_argument(
+        "--synthetic-fixture",
+        action="store_true",
+        dest="fixture_mode",
+        help="Bí danh tương đương với --fixture-mode.",
     )
     parser.add_argument(
         "--is-real-data",
@@ -215,20 +275,48 @@ def main(argv: Optional[List[str]] = None) -> int:
     input_sha256 = calculate_sha256(input_path)
 
     # 4b. Kiểm tra chốt chặn cam kết hạn chế và phòng chống rò rỉ dữ liệu (Anti-Leakage Protocol)
-    is_real_data = args.is_real_data
-    if not is_real_data:
-        # Tự động phát hiện dữ liệu thật dựa trên sample_id hoặc locator
-        for r in records[:50]:
-            sid = str(r.get(args.id_field, ""))
-            src = str(r.get("source_id", ""))
-            loc = r.get("locator", {})
-            if (
-                sid.startswith(("PP-", "PV-", "SMP-", "RSV-"))
-                or src in {"phreshphish", "phishvn"}
-                or (isinstance(loc, dict) and loc.get("source_id") in {"phreshphish", "phishvn"})
-            ):
-                is_real_data = True
-                break
+    # QUY TẮC KHÔNG CẮT NGẮN CỬA SỔ (Zero-Windowing): Quét toàn bộ 100% bản ghi và metadata nguồn
+    first_real_reason: Optional[str] = None
+    first_real_record_idx: int = -1
+    first_real_record_id: str = ""
+
+    for idx, r in enumerate(records):
+        reason = detect_real_data_record(r, id_field=args.id_field)
+        if reason is not None:
+            first_real_reason = reason
+            first_real_record_idx = idx
+            first_real_record_id = str(r.get(args.id_field, f"row_{idx}"))
+            break
+
+    # Phân loại chế độ vận hành (Fail-closed by default)
+    if args.fixture_mode:
+        # Trường hợp khai báo tường minh --fixture-mode:
+        # Phải kiểm chứng nguồn gốc fixture 100%. Nếu có bất kỳ bản ghi thật nào -> Từ chối ngay!
+        if first_real_reason is not None:
+            print(
+                f"[!] LỖI RÒ RỈ DỮ LIỆU THẬT VÀO CHẾ ĐỘ FIXTURE:\n"
+                f"    Phát hiện bản ghi thực tế tại dòng {first_real_record_idx + 1} (ID: '{first_real_record_id}').\n"
+                f"    Dấu hiệu: {first_real_reason}.\n"
+                f"    Cờ --fixture-mode nghiêm cấm tiếp nhận dữ liệu thật hoặc tệp trộn thật-fixture! Từ chối fail-closed.",
+                file=sys.stderr,
+            )
+            return 1
+        is_real_data = False
+        is_fixture_mode = True
+    else:
+        # Khi không có cờ --fixture-mode:
+        if first_real_reason is not None:
+            # Phát hiện dù chỉ 1 bản ghi thật -> áp dụng chế độ dữ liệu thật cho TOÀN BỘ input
+            is_real_data = True
+            is_fixture_mode = False
+        elif args.is_real_data:
+            # Người dùng chủ động chỉ định dữ liệu thật
+            is_real_data = True
+            is_fixture_mode = False
+        else:
+            # 100% bản ghi là dữ liệu mô phỏng không mang dấu vết thật
+            is_real_data = False
+            is_fixture_mode = True
 
     reg_path = args.exclusion_registry
     if reg_path is None and is_real_data:
@@ -237,51 +325,69 @@ def main(argv: Optional[List[str]] = None) -> int:
             reg_path = str(default_reg)
 
     commitments_verified = False
-    if is_real_data or args.exclusion_registry is not None:
+    if is_real_data:
         if reg_path is None or not Path(reg_path).exists():
-            if is_real_data:
+            print(
+                "[!] LỆNH CHẶN FAIL-CLOSED: Chế độ dữ liệu thật bắt buộc phải có exclusion registry hợp lệ!",
+                file=sys.stderr,
+            )
+            return 1
+
+        try:
+            registry = ExclusionRegistry(reg_path)
+        except Exception as reg_err:
+            print(f"[!] LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ: {reg_err}", file=sys.stderr)
+            return 1
+
+        try:
+            registry.assert_restricted_commitments_verified()
+            commitments_verified = True
+        except RuntimeError as err:
+            commitments_verified = False
+            if not args.allow_unverified_commitments:
                 print(
-                    "[!] LỆNH CHẶN FAIL-CLOSED: Chế độ dữ liệu thật bắt buộc phải có exclusion registry hợp lệ!",
+                    f"[!] LỆNH CHẶN FAIL-CLOSED: Không thể phân chia tập dữ liệu thật khi hồ sơ cam kết hạn chế ngoài Git chưa được xác minh toàn vẹn!\n"
+                    f"    Chi tiết: {err}",
                     file=sys.stderr,
                 )
                 return 1
-        else:
-            try:
-                registry = ExclusionRegistry(reg_path)
-            except Exception as reg_err:
-                print(f"[!] LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ: {reg_err}", file=sys.stderr)
-                return 1
 
+        # Kiểm tra rò rỉ mẫu loại trừ trong tập dữ liệu đầu vào của splits
+        try:
+            registry.assert_no_leakage(
+                "splits_input",
+                records,
+                allow_unverified_commitments=args.allow_unverified_commitments,
+            )
+        except ValueError as leak_err:
+            print(f"[!] LỖI RÒ RỈ DỮ LIỆU ĐẦU VÀO SPLITS: {leak_err}", file=sys.stderr)
+            return 1
+        except RuntimeError as fail_closed_err:
+            if not args.allow_unverified_commitments:
+                print(f"[!] LỆNH CHẶN FAIL-CLOSED: {fail_closed_err}", file=sys.stderr)
+                return 1
+    elif args.exclusion_registry is not None:
+        try:
+            registry = ExclusionRegistry(args.exclusion_registry)
             try:
                 registry.assert_restricted_commitments_verified()
                 commitments_verified = True
-            except RuntimeError as err:
+            except RuntimeError:
                 commitments_verified = False
-                if is_real_data and not args.allow_unverified_commitments:
-                    print(
-                        f"[!] LỆNH CHẶN FAIL-CLOSED: Không thể phân chia tập dữ liệu thật khi hồ sơ cam kết hạn chế ngoài Git chưa được xác minh toàn vẹn!\n"
-                        f"    Chi tiết: {err}",
-                        file=sys.stderr,
-                    )
-                    return 1
-
-            # Kiểm tra rò rỉ mẫu loại trừ trong tập dữ liệu đầu vào của splits
-            try:
-                registry.assert_no_leakage(
-                    "splits_input",
-                    records,
-                    allow_unverified_commitments=args.allow_unverified_commitments,
-                )
-            except ValueError as leak_err:
-                print(f"[!] LỖI RÒ RỈ DỮ LIỆU ĐẦU VÀO SPLITS: {leak_err}", file=sys.stderr)
-                return 1
-            except RuntimeError as fail_closed_err:
-                if is_real_data and not args.allow_unverified_commitments:
-                    print(f"[!] LỆNH CHẶN FAIL-CLOSED: {fail_closed_err}", file=sys.stderr)
-                    return 1
+            registry.assert_no_leakage(
+                "splits_input",
+                records,
+                allow_unverified_commitments=args.allow_unverified_commitments,
+            )
+        except ValueError as leak_err:
+            print(f"[!] LỖI RÒ RỈ DỮ LIỆU ĐẦU VÀO SPLITS: {leak_err}", file=sys.stderr)
+            return 1
+        except Exception as err:
+            print(f"[!] LỖI EXCLUSION REGISTRY: {err}", file=sys.stderr)
+            return 1
     else:
         # Chế độ fixture/synthetic: không yêu cầu cam kết hạn chế thực tế
-        commitments_verified = True
+        commitments_verified = False
 
     # 5. Trích xuất groups có bảo toàn component trùng nội dung và kiểm tra tính hợp lệ
     print("[*] Extracting group_id (eTLD+1, UGC tenant & pre-identified components)...")
@@ -420,7 +526,58 @@ def main(argv: Optional[List[str]] = None) -> int:
             "split": temporal_result,
         }
 
-    # 8. MỌI TÍNH TOÁN ĐÃ HOÀN TẤT VÀ XÁC THỰC THÀNH CÔNG -> Ghi vào STAGING DIR trước khi công bố
+    # 8. Đánh giá tính vững chắc tổng thể (verified_robust) và điều kiện sử dụng để huấn luyện
+    all_folds_sufficient = all(
+        f["class_sufficiency"]["status"] == "sufficient"
+        for fold_list in grouped_splits.values()
+        for f in fold_list
+    )
+    all_folds_usable = all(
+        f.get("is_usable", True)
+        for fold_list in grouped_splits.values()
+        for f in fold_list
+    )
+    temporal_evaluable = (temporal_result.get("status") == "evaluable") if temporal_result is not None else True
+
+    # TIÊU CHÍ VERIFIED_ROBUST: Bắt buộc là dữ liệu thật ĐÃ ĐƯỢC XÁC MINH TOÀN VẸN cam kết hạn chế
+    if is_fixture_mode:
+        verified_robust = False
+        anti_leakage_status = "synthetic_fixture_test_mode"
+        usable_for_training = False
+    elif not commitments_verified:
+        verified_robust = False
+        anti_leakage_status = "audit_only_unverified_commitments"
+        usable_for_training = False
+    elif all_folds_sufficient and all_folds_usable and temporal_evaluable:
+        verified_robust = True
+        anti_leakage_status = "verified_robust"
+        usable_for_training = True
+    else:
+        verified_robust = False
+        anti_leakage_status = "provisional_insufficient_classes"
+        usable_for_training = False
+
+    # Nếu không đủ điều kiện huấn luyện (audit-only hoặc fixture), khóa is_usable trên mọi fold
+    if not usable_for_training:
+        for seed_val, fold_list in grouped_splits.items():
+            for fold in fold_list:
+                fold["is_usable"] = False
+                fold["unusable_reason"] = (
+                    "Chế độ dữ liệu mô phỏng (fixture): không được phép dùng để huấn luyện mô hình thực tế."
+                    if is_fixture_mode
+                    else "Hồ sơ cam kết hạn chế chưa được xác minh toàn vẹn: chỉ dùng cho kiểm toán (audit-only), không được phép dùng để huấn luyện."
+                )
+
+    grouped_manifest["metadata"]["usable_for_training"] = usable_for_training
+    grouped_manifest["metadata"]["verified_robust"] = verified_robust
+    grouped_manifest["metadata"]["anti_leakage_status"] = anti_leakage_status
+
+    if temporal_manifest is not None:
+        temporal_manifest["metadata"]["usable_for_training"] = usable_for_training
+        temporal_manifest["metadata"]["verified_robust"] = verified_robust
+        temporal_manifest["metadata"]["anti_leakage_status"] = anti_leakage_status
+
+    # 9. MỌI TÍNH TOÁN ĐÃ HOÀN TẤT VÀ XÁC THỰC THÀNH CÔNG -> Ghi vào STAGING DIR trước khi công bố
     staging_dir = output_dir.parent / f".staging_{output_dir.name}_{uuid.uuid4().hex[:8]}"
     staging_dir.mkdir(parents=True, exist_ok=True)
 
@@ -444,35 +601,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 json.dump(temporal_manifest, f, indent=2, ensure_ascii=False)
             temporal_sha256 = calculate_sha256(stg_temporal_file)
 
-        # 9. Đánh giá tính vững chắc tổng thể (verified_robust)
-        all_folds_sufficient = all(
-            f["class_sufficiency"]["status"] == "sufficient"
-            for fold_list in grouped_splits.values()
-            for f in fold_list
-        )
-        all_folds_usable = all(
-            f.get("is_usable", True)
-            for fold_list in grouped_splits.values()
-            for f in fold_list
-        )
-        temporal_evaluable = (temporal_result.get("status") == "evaluable") if temporal_result is not None else True
-
-        verified_robust = bool(
-            all_folds_sufficient
-            and all_folds_usable
-            and temporal_evaluable
-            and commitments_verified
-        )
-
         code_hashes = calculate_code_hashes()
         composite_code_sha256 = calculate_composite_code_sha256(code_hashes)
-
-        if not commitments_verified:
-            anti_leakage_status = "provisional_unverified_commitments"
-        elif verified_robust:
-            anti_leakage_status = "verified_robust"
-        else:
-            anti_leakage_status = "provisional_insufficient_classes"
 
         # 10. Ghi Manifest liên kết đầy đủ mã băm xuất xứ (Provenance Manifest)
         manifest: Dict[str, Any] = {
@@ -492,6 +622,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "label_field": args.label_field,
                 "skip_temporal": args.skip_temporal,
                 "is_real_data": is_real_data,
+                "fixture_mode": is_fixture_mode,
                 "commitments_verified": commitments_verified,
             },
             "grouping_metadata": {
@@ -509,11 +640,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             },
             "anti_leakage_status": anti_leakage_status,
             "verified_robust": verified_robust,
+            "usable_for_training": usable_for_training,
             "verification_summary": {
                 "all_folds_sufficient": all_folds_sufficient,
                 "all_folds_usable": all_folds_usable,
                 "temporal_evaluable": temporal_evaluable,
                 "commitments_verified": commitments_verified,
+                "usable_for_training": usable_for_training,
             },
         }
 
