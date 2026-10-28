@@ -62,6 +62,8 @@ class ExclusionRegistry:
         self._url_hashes: Set[str] = set()
         self._html_hashes: Set[str] = set()
         self._group_hashes: Set[str] = set()
+        self._restricted_commitments_loaded: Dict[str, bool] = {}
+        self._restricted_commitments_details: Dict[str, Dict[str, Any]] = {}
         self.training_blocked: bool = True
         self.training_block_reason: str = ""
         self._load_registry()
@@ -87,6 +89,53 @@ class ExclusionRegistry:
 
         self._raw_exclusions = data.get("exclusions", [])
         for excl in self._raw_exclusions:
+            eid = excl.get("exclusion_id", "UNKNOWN")
+
+            # 1. Xử lý lô niêm phong cam kết hạn chế ngoài Git (Restricted Commitment)
+            if excl.get("status") == "sealed_restricted_commitment":
+                ref = excl.get("restricted_dossier_reference")
+                expected_commitment = excl.get("commitment_sha256")
+                if ref and Path(ref).is_absolute():
+                    dossier_path = Path(ref)
+                elif ref:
+                    dossier_path = PROJECT_ROOT / ref
+                else:
+                    dossier_path = None
+                if dossier_path and dossier_path.exists():
+                    actual_commitment = hashlib.sha256(dossier_path.read_bytes()).hexdigest()
+                    if actual_commitment != expected_commitment:
+                        raise RuntimeError(
+                            f"LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ: Mã băm của '{ref}' ({actual_commitment}) "
+                            f"không khớp với mã băm cam kết đã đăng ký ({expected_commitment})!"
+                        )
+                    dossier_data = json.loads(dossier_path.read_text(encoding="utf-8"))
+                    for entry in dossier_data.get("mapping", []):
+                        if entry.get("url_sha256"):
+                            self._url_hashes.add(entry["url_sha256"])
+                        if entry.get("normalized_url_sha256"):
+                            self._url_hashes.add(entry["normalized_url_sha256"])
+                        if entry.get("html_sha256"):
+                            self._html_hashes.add(entry["html_sha256"])
+                        if entry.get("group_sha256"):
+                            self._group_hashes.add(entry["group_sha256"])
+                    self._restricted_commitments_loaded[eid] = True
+                    self._restricted_commitments_details[eid] = {
+                        "reference": ref,
+                        "commitment_sha256": expected_commitment,
+                        "verified": True,
+                        "samples_count": len(dossier_data.get("mapping", [])),
+                    }
+                else:
+                    self._restricted_commitments_loaded[eid] = False
+                    self._restricted_commitments_details[eid] = {
+                        "reference": ref,
+                        "commitment_sha256": expected_commitment,
+                        "verified": False,
+                        "samples_count": excl.get("n_samples", 0),
+                    }
+                continue
+
+            # 2. Xử lý các lô công khai thông thường
             batch_sha = excl.get("batch_sha256")
             if batch_sha:
                 self._excluded_batches.add(batch_sha)
@@ -196,26 +245,41 @@ class ExclusionRegistry:
                 f"xuất hiện trong tập '{split_name}'!"
             )
 
+    def assert_restricted_commitments_verified(self) -> None:
+        """Kiểm tra và bắt buộc toàn bộ hồ sơ loại trừ cam kết hạn chế ngoài Git phải có mặt và đúng mã băm."""
+        for eid, loaded in self._restricted_commitments_loaded.items():
+            if not loaded:
+                details = self._restricted_commitments_details.get(eid, {})
+                ref = details.get("reference", "unknown")
+                raise RuntimeError(
+                    f"LỆNH CHẶN FAIL-CLOSED (Anti-Leakage Protocol): Thiếu hoặc chưa nạp được hồ sơ loại trừ hạn chế ngoài Git '{ref}' cho lô '{eid}'. "
+                    f"Cơ chế split/fit/train bắt buộc phải có đầy đủ hồ sơ hạn chế hợp lệ để ngăn chặn rò rỉ dữ liệu."
+                )
+
     def assert_training_allowed(self) -> None:
-        """Ném lỗi RuntimeError chặn huấn luyện mô hình chính nếu có bất kỳ lô loại trừ nào chưa giải quyết ánh xạ.
+        """Ném lỗi RuntimeError chặn huấn luyện mô hình chính nếu có bất kỳ lô loại trừ nào chưa giải quyết ánh xạ
+        hoặc thiếu hồ sơ loại trừ cam kết hạn chế ngoài Git.
 
         Cơ chế phòng vệ chiều sâu (Defense-in-depth):
         1. Kiểm tra cờ training_blocked tổng thể.
-        2. Duyệt trực tiếp từng lô trong exclusion registry:
-           Nếu bất kỳ lô nào có mapping_status != 'resolved' hoặc rows_api_revision_pinned is not True,
-           bắt buộc ném lỗi chặn huấn luyện kể cả khi cờ training_blocked bị can thiệp thành False.
+        2. Kiểm tra fail-closed sự hiện diện và tính hợp lệ của toàn bộ hồ sơ hạn chế đã cam kết.
+        3. Duyệt trực tiếp từng lô trong exclusion registry:
+           Nếu bất kỳ lô nào có mapping_status không thuộc {'resolved', 'resolved_in_restricted_dossier'}
+           hoặc rows_api_revision_pinned is not True, bắt buộc ném lỗi chặn huấn luyện kể cả khi cờ training_blocked bị can thiệp thành False.
         """
         if self.training_blocked:
             raise RuntimeError(
                 f"LỆNH CHẶN HUẤN LUYỆN CHÍNH (Anti-Leakage Protocol): {self.training_block_reason}"
             )
 
+        self.assert_restricted_commitments_verified()
+
         for excl in self._raw_exclusions:
             excl_id = excl.get("exclusion_id", "UNKNOWN")
             mapping_status = excl.get("mapping_status")
             rows_pinned = excl.get("rows_api_revision_pinned", False)
 
-            if mapping_status != "resolved" or not rows_pinned:
+            if mapping_status not in ("resolved", "resolved_in_restricted_dossier") or not rows_pinned:
                 raise RuntimeError(
                     f"LỆNH CHẶN HUẤN LUYỆN CHÍNH (Anti-Leakage Protocol): Lô loại trừ '{excl_id}' "
                     f"có trạng thái mapping='{mapping_status}' (rows_api_revision_pinned={rows_pinned}). "

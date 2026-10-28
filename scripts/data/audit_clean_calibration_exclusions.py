@@ -48,6 +48,7 @@ def main():
         {"id": "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT", "name": "32 mẫu ứng viên đợt A bị lộ locator trên Git (24 chính + 8 dự phòng)", "expected_count": 32},
         {"id": "EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED", "name": "02 mẫu ứng viên bị lộ locator trong resolution_summary tại commit 9e457f5", "expected_count": 2},
         {"id": "EXCL-CALIBRATION-CLEAN-RUNWAY-32", "name": "32 mẫu ứng viên Calibration Sạch Runway A (24 chính + 8 dự phòng) loại trừ vĩnh viễn", "expected_count": 32},
+        {"id": "EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED", "name": "32 mẫu ứng viên Calibration Sạch Đợt C (24 chính + 8 dự phòng) niêm phong cam kết hạn chế ngoài Git", "expected_count": 32},
     ]
 
     exclusions_map = {e["exclusion_id"]: e for e in registry.get("exclusions", [])}
@@ -66,6 +67,12 @@ def main():
         assert eid in exclusions_map, f"Thiếu mục loại trừ {eid} trong registry!"
         entry = exclusions_map[eid]
         samples = entry.get("samples", [])
+        if not samples and entry.get("status") == "sealed_restricted_commitment":
+            ref = entry.get("restricted_dossier_reference")
+            dossier_p = ROOT / ref if ref else None
+            if dossier_p and dossier_p.exists():
+                d_data = json.loads(dossier_p.read_text(encoding="utf-8"))
+                samples = d_data.get("mapping", [])
         actual_count = entry.get("n_samples", len(samples))
         assert actual_count == pb["expected_count"], f"Số mẫu tại {eid} không khớp: {actual_count} != {pb['expected_count']}"
 

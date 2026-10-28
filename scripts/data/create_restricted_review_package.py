@@ -110,8 +110,9 @@ def create_member_b_qa_package() -> dict:
     # Danh sách các tệp đưa vào gói QA của Member B: KHÔNG có locator hay thông tin truy ngược nguồn
     files_map = {
         "calibration_clean_a_manifest.json": ROOT / "configs/calibration_clean_a_manifest.json",
-        "clean_calibration_selection_inspection_report.json": ROOT / "data/source_audit/clean_calibration_selection_inspection_report.json",
+        "clean_calibration_round_c_inspection_report.json": ROOT / "data/source_audit/clean_calibration_round_c_inspection_report.json",
         "clean_calibration_exclusion_audit_report.json": ROOT / "data/source_audit/clean_calibration_exclusion_audit_report.json",
+        "clean_calibration_blind_view_24.json": ROOT / "data/annotations/clean_calibration_blind_view_24.json",
         "verify_member_b_qa.py": ROOT / "scripts/data/verify_member_b_qa.py",
     }
 
@@ -125,10 +126,10 @@ def create_member_b_qa_package() -> dict:
         }
 
     pkg_manifest = {
-        "package_id": "PKG-QA-MEMBER-B-CALIBRATION-CLEAN-32",
-        "created_at_utc": "2026-10-27T00:30:00Z",
+        "package_id": "PKG-QA-MEMBER-B-CALIBRATION-CLEAN-C-32",
+        "created_at_utc": "2026-10-28T07:00:00Z",
         "recipient": "Member B (QA Lead kiêm Annotator B)",
-        "purpose": "Gói kiểm định QA độc lập dành riêng cho Member B (QA Lead kiêm Annotator B) trước khi kích hoạt quy trình gán nhãn mù. Gói chỉ gồm báo cáo tổng hợp, mã băm đối soát và công cụ kiểm định tự động không tiết lộ locator, nhãn nguồn hay danh sách dự phòng.",
+        "purpose": "Gói kiểm định QA độc lập Đợt C dành riêng cho Member B (QA Lead kiêm Annotator B) trước khi kích hoạt quy trình gán nhãn mù. Gói gồm báo cáo kiểm tra tuyển chọn Đợt C, báo cáo kiểm kê loại trừ, manifest, Blind View 24 mẫu và công cụ kiểm định tự động verify_member_b_qa.py. Phân tách rõ kết quả QA tuyển chọn và QA Blind View cuối mà không tiết lộ locator, nhãn nguồn, mapping hay danh sách dự phòng.",
         "access_boundary": "Dedicated for Member B QA validation. Zero raw locators, zero raw URLs, zero candidate labels, zero reserve identities.",
         "governance": {
             "ready_for_annotation": False,
@@ -138,7 +139,8 @@ def create_member_b_qa_package() -> dict:
             "contains_source_labels": False,
             "contains_reserve_candidate_list": False,
             "contains_source_class_ratios": False,
-            "status": "pending_member_b_qa_review",
+            "scope_1_candidate_selection_qa_status": "pending_member_b_verification",
+            "scope_2_blind_view_qa_status": "pending_member_b_verification",
         },
         "contents": manifest_entries,
     }

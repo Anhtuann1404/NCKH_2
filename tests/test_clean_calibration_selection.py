@@ -193,15 +193,15 @@ class TestCleanCalibrationSelectionUnit:
 class TestCleanCalibrationV2SafetyAndExclusion:
     """Kiểm thử chốt chặn an toàn cho Đợt B: loại trừ 214 mẫu (gồm 182 mẫu cũ + 32 mẫu sạch Runway A), cô lập locator ngoài Git, bảo vệ tính mù đôi."""
 
-    def test_exclusion_registry_contains_214_samples_and_git_leak_batches(self):
-        """Chứng minh exclusion_registry chứa đủ 9 lô với 214 mẫu và 2 lô rò rỉ locator được khóa vĩnh viễn cùng 32 mẫu sạch Runway A."""
+    def test_exclusion_registry_contains_246_samples_and_restricted_commitment_batch(self):
+        """Chứng minh exclusion_registry chứa đủ 10 lô với 246 mẫu, bao gồm 32 mẫu Đợt C niêm phong cam kết hạn chế ngoài Git."""
         root = Path(__file__).resolve().parents[1]
         registry_path = root / "data/exclusion_registry.json"
         assert registry_path.exists()
         registry = json.loads(registry_path.read_text(encoding="utf-8"))
 
-        assert registry["total_excluded_entries"] == 9
-        assert registry["total_excluded_samples"] == 214
+        assert registry["total_excluded_entries"] == 10
+        assert registry["total_excluded_samples"] == 246
 
         excl_map = {e["exclusion_id"]: e for e in registry["exclusions"]}
         assert "EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT" in excl_map
@@ -220,6 +220,14 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert clean_runway_batch["n_samples"] == 32
         assert clean_runway_batch["action"] == "permanently_exclude_from_train_val_test"
         assert len(clean_runway_batch["samples"]) == 32
+
+        # Lô 10: Cam kết loại trừ hạn chế Đợt C (Zero Git Fingerprint Leakage)
+        assert "EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED" in excl_map
+        batch_c = excl_map["EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED"]
+        assert batch_c["n_samples"] == 32
+        assert batch_c["status"] == "sealed_restricted_commitment"
+        assert batch_c["commitment_sha256"] == "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805"
+        assert "samples" not in batch_c or len(batch_c.get("samples", [])) == 0, "LỖI AN TOÀN: Tuyệt đối không đưa danh sách fingerprint mẫu Đợt C lên Git"
 
     def test_tripartite_exclusion_consistency(self):
         """Chứng minh tính nhất quán trực tiếp ba bên: exclusion_registry, audit_report và manifest (chỉ đạo Lead D)."""
@@ -252,34 +260,34 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         # 1. Trụ 1: Registry kiểm đếm mẫu và lô
         reg_entries = registry["total_excluded_entries"]
         reg_samples = registry["total_excluded_samples"]
-        assert reg_entries == 9, f"Registry phải có 9 lô, thực tế: {reg_entries}"
-        assert reg_samples == 214, f"Registry phải có 214 mẫu, thực tế: {reg_samples}"
-        assert len(registry["exclusions"]) == 9
+        assert reg_entries == 10, f"Registry phải có 10 lô, thực tế: {reg_entries}"
+        assert reg_samples == 246, f"Registry phải có 246 mẫu, thực tế: {reg_samples}"
+        assert len(registry["exclusions"]) == 10
         counted_samples = sum(e.get("n_samples", len(e.get("samples", []))) for e in registry["exclusions"])
-        assert counted_samples == 214
+        assert counted_samples == 246
 
         # 2. Trụ 2: Báo cáo kiểm kê loại trừ đối soát trực tiếp registry
         assert audit["governance"]["registry_sha256"] == registry_sha256
-        assert audit["governance"]["total_excluded_entries_in_registry"] == 9
-        assert audit["governance"]["total_excluded_samples_in_registry"] == 214
-        assert audit["inventory"]["total_batches_count"] == 9
-        assert audit["inventory"]["total_samples_count"] == 214
-        assert len(audit["inventory"]["batches"]) == 9
+        assert audit["governance"]["total_excluded_entries_in_registry"] == 10
+        assert audit["governance"]["total_excluded_samples_in_registry"] == 246
+        assert audit["inventory"]["total_batches_count"] == 10
+        assert audit["inventory"]["total_samples_count"] == 246
+        assert len(audit["inventory"]["batches"]) == 10
         audit_batch_sum = sum(b["sample_count"] for b in audit["inventory"]["batches"])
-        assert audit_batch_sum == 214
+        assert audit_batch_sum == 246
 
         # 3. Trụ 3: Manifest liên kết mã băm cryptographic và số lượng chốt chặn
         manifest_gov = manifest["governance"]
         assert manifest_gov["exclusion_registry_sha256"] == registry_sha256
         assert manifest_gov["exclusion_audit_sha256"] == audit_sha256
         assert manifest_gov["git_leak_audit_sha256"] == git_leak_sha256
-        assert manifest_gov["known_excluded_samples_count"] == 214
+        assert manifest_gov["known_excluded_samples_count"] == 246
         assert manifest_gov["ready_for_annotation"] is False
         assert manifest_gov["training_blocked"] is True
 
         # 4. Đối soát ba bên chéo (Tripartite Cross-Check)
-        assert reg_samples == audit["inventory"]["total_samples_count"] == manifest_gov["known_excluded_samples_count"] == 214
-        assert reg_entries == audit["inventory"]["total_batches_count"] == 9
+        assert reg_samples == audit["inventory"]["total_samples_count"] == manifest_gov["known_excluded_samples_count"] == 246
+        assert reg_entries == audit["inventory"]["total_batches_count"] == 10
 
         # 5. Hồ sơ kiểm toán sự cố Git leak ghi nhận đủ cả 2 sự cố và 34 locator
         assert git_leak["governance"]["total_incidents_recorded"] == 2
@@ -299,7 +307,7 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert manifest["status"] == "pending_lead_d_and_member_b_review"
         assert manifest["governance"]["ready_for_annotation"] is False
         assert manifest["governance"]["training_blocked"] is True
-        assert manifest["governance"]["known_excluded_samples_count"] == 214
+        assert manifest["governance"]["known_excluded_samples_count"] == 246
         assert manifest["sampling_spec"]["total_samples"] == 32
         assert manifest["sampling_spec"]["main_samples_count"] == 24
         assert manifest["sampling_spec"]["reserve_samples_count"] == 8

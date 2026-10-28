@@ -4,8 +4,8 @@
   "updated_at_utc": "2026-10-24T00:57:54.797402+00:00",
   "registry_status": "in_progress_unresolved",
   "description": "Danh mục các mẫu kỹ thuật, pilot và kiểm tra sơ bộ bị loại trừ vĩnh viễn khỏi tập thực nghiệm và đánh giá chính thức để chống rò rỉ dữ liệu (Anti-Leakage Protocol).",
-  "total_excluded_entries": 9,
-  "total_excluded_samples": 214,
+  "total_excluded_entries": 10,
+  "total_excluded_samples": 246,
   "exclusions": [
     {
       "exclusion_id": "EXCL-PILOT-01",
@@ -1842,9 +1842,25 @@
           "group_sha256": "bde00e6aadfe7ae1ac3f7039cd18a4f38bbe4111f014fc4b5c6fc3fe3c0b38ab"
         }
       ]
+    },
+    {
+      "exclusion_id": "EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED",
+      "dataset_id": "CALIBRATION-CLEAN-C-32",
+      "reason": "Gói ứng viên Hiệu chuẩn Sạch Đợt C (24 chính + 8 dự phòng) được chốt loại trừ vĩnh viễn khỏi toàn bộ tập huấn luyện, xác thực và kiểm thử (M0-M3); các dấu vân tay từng mẫu được niêm phong trong hồ sơ hạn chế ngoài Git để bảo vệ ranh giới mù đôi của A và B.",
+      "source": "phreshphish",
+      "split": "train-000 + train-055",
+      "source_metadata_revision": "locked_clean_candidates_v3_selection",
+      "rows_api_revision_pinned": true,
+      "mapping_status": "resolved_in_restricted_dossier",
+      "mapping_notes": "Locators (shard và row offset), vai trò (chính vs dự phòng), thứ tự mẫu và mã băm URL/HTML/group được lưu trữ an toàn trong hồ sơ hạn chế ngoài Git (data/restricted/clean_calibration_exclusion_mapping_c_32.json) để chống rò rỉ đối chiếu ngược với 2 shard nguồn công khai.",
+      "status": "sealed_restricted_commitment",
+      "action": "permanently_exclude_from_train_val_test",
+      "n_samples": 32,
+      "restricted_dossier_reference": "data/restricted/clean_calibration_exclusion_mapping_c_32.json",
+      "commitment_sha256": "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805"
     }
   ],
   "training_blocked": true,
   "training_block_reason": "Pilot mapping remains unresolved (rows_api_revision_pinned=false). Main model training is strictly blocked until 1-to-1 byte content matching to pinned revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a is resolved.",
-  "counting_note": "Entry memberships, not deduplicated unique samples; prior exclusions preserved."
+  "counting_note": "Tổng số mẫu được tính theo từng lô bao gồm 214 mẫu công khai từ 9 lô lịch sử/sự cố và 32 mẫu Đợt C niêm phong cam kết hạn chế ngoài Git (commitment hash 67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805); các phép đối soát loại trừ thực nghiệm nạp đầy đủ 246 mẫu."
 }

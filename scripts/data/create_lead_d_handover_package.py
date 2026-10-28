@@ -30,6 +30,7 @@ CANDIDATES_PATH = ROOT / "data/restricted/clean_calibration_candidates_v3_restri
 MAPPING_PATH = ROOT / "data/restricted/clean_calibration_exclusion_mapping_c_32.json"
 INSPECTION_PATH = ROOT / "data/source_audit/clean_calibration_round_c_inspection_report.json"
 INCIDENT_03_PATH = ROOT / "data/source_audit/clean_calibration_incident_03_audit_report.json"
+EXCLUSION_AUDIT_PATH = ROOT / "data/source_audit/clean_calibration_exclusion_audit_report.json"
 MANIFEST_PATH = ROOT / "configs/calibration_clean_a_manifest.json"
 OUTPUT_ZIP = ROOT / "GOI_NGHIEM_THU_LEAD_D_CALIBRATION_CLEAN_24.zip"
 
@@ -54,6 +55,7 @@ CANDIDATES_FILE = DIR / "clean_calibration_candidates_v3_restricted.json"
 MAPPING_FILE = DIR / "clean_calibration_exclusion_mapping_c_32.json"
 INSPECTION_FILE = DIR / "clean_calibration_round_c_inspection_report.json"
 INCIDENT_03_FILE = DIR / "clean_calibration_incident_03_audit_report.json"
+EXCLUSION_AUDIT_FILE = DIR / "clean_calibration_exclusion_audit_report.json"
 MANIFEST_FILE = DIR / "calibration_clean_a_manifest.json"
 HANDOVER_FILE = DIR / "MANIFEST_HANDOVER_LEAD_D.json"
 
@@ -63,6 +65,7 @@ EXPECTED_CANDIDATES_SHA256 = "__EXPECTED_CANDIDATES_SHA256__"
 EXPECTED_MAPPING_SHA256 = "__EXPECTED_MAPPING_SHA256__"
 EXPECTED_INSPECTION_SHA256 = "__EXPECTED_INSPECTION_SHA256__"
 EXPECTED_INCIDENT_03_SHA256 = "__EXPECTED_INCIDENT_03_SHA256__"
+EXPECTED_EXCLUSION_AUDIT_SHA256 = "__EXPECTED_EXCLUSION_AUDIT_SHA256__"
 EXPECTED_MANIFEST_SHA256 = "__EXPECTED_MANIFEST_SHA256__"
 
 
@@ -83,6 +86,7 @@ def main() -> int:
         ("Ánh xạ loại trừ hạn chế Đợt C", MAPPING_FILE),
         ("Báo cáo nghiệm thu kiểm tra Đợt C", INSPECTION_FILE),
         ("Báo cáo Sự cố 03", INCIDENT_03_FILE),
+        ("Báo cáo kiểm kê loại trừ 10 lô", EXCLUSION_AUDIT_FILE),
         ("Manifest phát hành", MANIFEST_FILE),
         ("Handover Manifest", HANDOVER_FILE),
     ]
@@ -99,6 +103,7 @@ def main() -> int:
     mapping_bytes = MAPPING_FILE.read_bytes()
     inspection_bytes = INSPECTION_FILE.read_bytes()
     incident_03_bytes = INCIDENT_03_FILE.read_bytes()
+    excl_bytes = EXCLUSION_AUDIT_FILE.read_bytes()
     manifest_bytes = MANIFEST_FILE.read_bytes()
     handover_bytes = HANDOVER_FILE.read_bytes()
 
@@ -109,10 +114,11 @@ def main() -> int:
         ("Mapping Dossier", mapping_bytes),
         ("Inspection Report", inspection_bytes),
         ("Incident 03 Report", incident_03_bytes),
+        ("Exclusion Audit Report", excl_bytes),
         ("Manifest", manifest_bytes),
         ("Handover Manifest", handover_bytes),
     ]:
-        if b"\\r\\n" in raw:
+        if bytes([13, 10]) in raw:
             print(f"❌ LỖI LINE ENDING: {name} chứa byte CRLF. Bắt buộc pure Unix LF.")
             return 1
     print("✅ 100% tệp sử dụng chuẩn hóa kết thúc dòng Unix LF.")
@@ -124,6 +130,7 @@ def main() -> int:
     mapping_hash = sha256(mapping_bytes)
     inspection_hash = sha256(inspection_bytes)
     incident_03_hash = sha256(incident_03_bytes)
+    excl_hash = sha256(excl_bytes)
     manifest_hash = sha256(manifest_bytes)
 
     assert view_hash == EXPECTED_VIEW_SHA256, f"Sai SHA-256 Blind View: {view_hash} != {EXPECTED_VIEW_SHA256}"
@@ -132,6 +139,7 @@ def main() -> int:
     assert mapping_hash == EXPECTED_MAPPING_SHA256, f"Sai SHA-256 Mapping: {mapping_hash} != {EXPECTED_MAPPING_SHA256}"
     assert inspection_hash == EXPECTED_INSPECTION_SHA256, f"Sai SHA-256 Inspection: {inspection_hash} != {EXPECTED_INSPECTION_SHA256}"
     assert incident_03_hash == EXPECTED_INCIDENT_03_SHA256, f"Sai SHA-256 Incident 03: {incident_03_hash} != {EXPECTED_INCIDENT_03_SHA256}"
+    assert excl_hash == EXPECTED_EXCLUSION_AUDIT_SHA256, f"Sai SHA-256 Exclusion Audit: {excl_hash} != {EXPECTED_EXCLUSION_AUDIT_SHA256}"
     assert manifest_hash == EXPECTED_MANIFEST_SHA256, f"Sai SHA-256 Manifest: {manifest_hash} != {EXPECTED_MANIFEST_SHA256}"
 
     print(f"✅ SHA-256 Blind View (dịch) khớp:      {view_hash}")
@@ -140,6 +148,7 @@ def main() -> int:
     print(f"✅ SHA-256 Mapping hạn chế khớp:        {mapping_hash}")
     print(f"✅ SHA-256 Inspection Report khớp:      {inspection_hash}")
     print(f"✅ SHA-256 Incident 03 Audit khớp:      {incident_03_hash}")
+    print(f"✅ SHA-256 Exclusion Audit khớp:        {excl_hash}")
     print(f"✅ SHA-256 Manifest phát hành khớp:     {manifest_hash}")
 
     # 4. Check Blind View contents
@@ -221,18 +230,28 @@ def main() -> int:
     if manifest.get("acceptance", {}).get("D") == "approved":
         print("❌ CẢNH BÁO: D chưa ra lệnh nghiệm thu cuối nhưng acceptance.D đã là approved!")
         return 1
-    if manifest.get("governance", {}).get("known_excluded_samples_count") != 214:
-        print(f"❌ SAI SỐ MẪU LOẠI TRỪ TRONG MANIFEST: {manifest.get('governance', {}).get('known_excluded_samples_count')} != 214")
+    if manifest.get("governance", {}).get("known_excluded_samples_count") != 246:
+        print(f"❌ SAI SỐ MẪU LOẠI TRỪ TRONG MANIFEST: {manifest.get('governance', {}).get('known_excluded_samples_count')} != 246")
         return 1
     print("✅ Chốt quản trị an toàn nghiêm ngặt:")
     print("   - ready_for_annotation:   False (Chờ Lead D duyệt cuối và ra lệnh mở)")
     print("   - training_blocked:       True (Khóa cứng huấn luyện M0-M3)")
-    print("   - known_excluded_count:   214 mẫu across 9 batches (đã loại trừ 32 mẫu Đợt B)")
+    print("   - known_excluded_count:   246 mẫu across 10 batches (gồm 32 mẫu Đợt C cam kết kín)")
     print("   - candidate_selection_qa: pending_member_b_qa (Chờ Lead D duyệt trước khi bàn giao gói QA cho B)")
     print("   - acceptance.B (view):    pending_automated_verification (Chờ B kiểm tự động Blind View phát hành)")
     print("   - acceptance.D:           pending_final_verification (Chờ Lead D nghiệm thu)")
 
-    # 11. Check Inspection Report Conflict Counts & Text Consistency (Chỉ đạo Lead D 2026-10-27)
+    # 11. Check Exclusion Audit Report (10 batches / 246 samples)
+    excl = json.loads(excl_bytes.decode("utf-8"))
+    if excl.get("inventory", {}).get("total_samples_count") != 246:
+        print(f"❌ SAI SỐ MẪU KIỂM KÊ: {excl.get('inventory', {}).get('total_samples_count')} != 246")
+        return 1
+    if excl.get("inventory", {}).get("total_batches_count") != 10:
+        print(f"❌ SAI SỐ LÔ KIỂM KÊ: {excl.get('inventory', {}).get('total_batches_count')} != 10")
+        return 1
+    print("✅ Kiểm kê loại trừ: 246 mẫu thuộc 10 lô đối chiếu đạt chuẩn (gồm 32 mẫu Đợt C cam kết ngoài Git).")
+
+    # 12. Check Inspection Report Conflict Counts & Text Consistency (Chỉ đạo Lead D 2026-10-27)
     inspection = json.loads(inspection_bytes.decode("utf-8"))
     pairwise_scan = inspection.get("pairwise_template_similarity_scan", {})
     conflict_count = pairwise_scan.get("conflict_pairs_count")
@@ -270,6 +289,8 @@ def build_handover_package() -> dict:
         raise FileNotFoundError(f"Missing Inspection Report at {INSPECTION_PATH}")
     if not INCIDENT_03_PATH.exists():
         raise FileNotFoundError(f"Missing Incident 03 Audit Report at {INCIDENT_03_PATH}")
+    if not EXCLUSION_AUDIT_PATH.exists():
+        raise FileNotFoundError(f"Missing Exclusion Audit Report at {EXCLUSION_AUDIT_PATH}")
     if not MANIFEST_PATH.exists():
         raise FileNotFoundError(f"Missing Manifest at {MANIFEST_PATH}")
 
@@ -279,6 +300,7 @@ def build_handover_package() -> dict:
     mapping_bytes = MAPPING_PATH.read_bytes()
     inspection_bytes = INSPECTION_PATH.read_bytes()
     incident_03_bytes = INCIDENT_03_PATH.read_bytes()
+    excl_bytes = EXCLUSION_AUDIT_PATH.read_bytes()
     manifest_bytes = MANIFEST_PATH.read_bytes()
 
     view_sha256 = file_sha256(VIEW_PATH)
@@ -287,6 +309,7 @@ def build_handover_package() -> dict:
     mapping_sha256 = file_sha256(MAPPING_PATH)
     inspection_sha256 = file_sha256(INSPECTION_PATH)
     incident_03_sha256 = file_sha256(INCIDENT_03_PATH)
+    excl_sha256 = file_sha256(EXCLUSION_AUDIT_PATH)
     manifest_sha256 = file_sha256(MANIFEST_PATH)
 
     handover_manifest = {
@@ -297,7 +320,7 @@ def build_handover_package() -> dict:
         "purpose": (
             "Gói bàn giao nghiệm thu Đợt C gồm 24 mẫu chính (Clean Calibration Runway) "
             "kèm bản dịch ngoại tuyến MarianMT, bản lưu dấu vết gốc, hồ sơ ứng viên và ánh xạ loại trừ 32 mẫu hạn chế, "
-            "báo cáo nghiệm thu kiểm tra Đợt C và báo cáo kiểm toán Sự cố 03, dành riêng cho Lead D đối soát và nghiệm thu cuối."
+            "báo cáo nghiệm thu kiểm tra Đợt C, báo cáo kiểm toán Sự cố 03 và báo cáo kiểm kê loại trừ 10 lô, dành riêng cho Lead D đối soát và nghiệm thu cuối."
         ),
         "governance": {
             "training_blocked": True,
@@ -311,8 +334,9 @@ def build_handover_package() -> dict:
             "main_samples_count": 24,
             "zero_locator_leak": True,
             "zero_source_label_leak": True,
-            "total_excluded_samples_registry": 214,
-            "total_batches_registry": 9,
+            "total_excluded_samples_registry": 246,
+            "total_batches_registry": 10,
+            "restricted_exclusion_mapping_commitment_sha256": "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805",
         },
         "components": {
             "clean_calibration_blind_view_24.json": {
@@ -345,6 +369,11 @@ def build_handover_package() -> dict:
                 "sha256": incident_03_sha256,
                 "description": "Báo cáo kiểm toán độc lập Sự cố 03 (đã trung tính hóa placeholder tên miền)",
             },
+            "clean_calibration_exclusion_audit_report.json": {
+                "byte_size": len(excl_bytes),
+                "sha256": excl_sha256,
+                "description": "Báo cáo kiểm kê loại trừ 10 lô (246 mẫu gồm 32 mẫu Đợt C cam kết kín ngoài Git)",
+            },
             "calibration_clean_a_manifest.json": {
                 "byte_size": len(manifest_bytes),
                 "sha256": manifest_sha256,
@@ -370,6 +399,7 @@ def build_handover_package() -> dict:
         .replace("__EXPECTED_MAPPING_SHA256__", mapping_sha256)
         .replace("__EXPECTED_INSPECTION_SHA256__", inspection_sha256)
         .replace("__EXPECTED_INCIDENT_03_SHA256__", incident_03_sha256)
+        .replace("__EXPECTED_EXCLUSION_AUDIT_SHA256__", excl_sha256)
         .replace("__EXPECTED_MANIFEST_SHA256__", manifest_sha256)
         .encode("utf-8")
         .replace(b"\r\n", b"\n")
@@ -383,6 +413,7 @@ def build_handover_package() -> dict:
         zf.writestr("clean_calibration_exclusion_mapping_c_32.json", mapping_bytes)
         zf.writestr("clean_calibration_round_c_inspection_report.json", inspection_bytes)
         zf.writestr("clean_calibration_incident_03_audit_report.json", incident_03_bytes)
+        zf.writestr("clean_calibration_exclusion_audit_report.json", excl_bytes)
         zf.writestr("calibration_clean_a_manifest.json", manifest_bytes)
         zf.writestr("MANIFEST_HANDOVER_LEAD_D.json", handover_bytes)
         zf.writestr("verify_lead_d_handover.py", verify_script_content)
@@ -401,6 +432,7 @@ def build_handover_package() -> dict:
     print(f"🗺️ Mapping hạn chế:     {mapping_sha256} ({len(mapping_bytes):,} bytes)")
     print(f"📊 Inspection Report:   {inspection_sha256} ({len(inspection_bytes):,} bytes)")
     print(f"📋 Incident 03 Audit:  {incident_03_sha256} ({len(incident_03_bytes):,} bytes)")
+    print(f"📋 Exclusion Audit:    {excl_sha256} ({len(excl_bytes):,} bytes)")
     print(f"📋 Manifest:           {manifest_sha256} ({len(manifest_bytes):,} bytes)")
     print(f"📝 Handover Mf:        {handover_sha256} ({len(handover_bytes):,} bytes)")
 

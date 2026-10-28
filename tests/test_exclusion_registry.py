@@ -75,7 +75,7 @@ class TestExclusionRegistry:
         assert EXCLUSION_PATH.exists()
         data = json.loads(EXCLUSION_PATH.read_text(encoding="utf-8"))
         assert data["version"] == "1.1.0"
-        assert data["total_excluded_samples"] == sum(len(e.get("samples", [])) for e in data["exclusions"])
+        assert data["total_excluded_samples"] == sum(e.get("n_samples", len(e.get("samples", []))) for e in data["exclusions"])
         assert data["total_excluded_samples"] >= 32
         assert data["training_blocked"] is True
 
@@ -230,4 +230,81 @@ class TestExclusionRegistry:
         monkeypatch.setattr(builtins, "__import__", mock_import)
         with pytest.raises(ImportError, match="tldextract bắt buộc phải được cài đặt"):
             registry.is_excluded({"url": "https://login.example.com/"})
+
+    def test_restricted_commitment_round_c_loaded_and_verified(self):
+        """Chứng minh lô Đợt C niêm phong cam kết hạn chế ngoài Git được nạp và xác minh toàn vẹn thành công."""
+        registry = ExclusionRegistry()
+        assert "EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED" in registry._restricted_commitments_loaded
+        assert registry._restricted_commitments_loaded["EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED"] is True
+        details = registry._restricted_commitments_details["EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED"]
+        assert details["verified"] is True
+        assert details["samples_count"] == 32
+        assert details["commitment_sha256"] == "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805"
+
+        # Kiểm tra mẫu từ hồ sơ hạn chế bị chặn trong registry
+        mapping_path = PROJECT_ROOT / "data/restricted/clean_calibration_exclusion_mapping_c_32.json"
+        if mapping_path.exists():
+            mapping_data = json.loads(mapping_path.read_text(encoding="utf-8"))
+            first_entry = mapping_data["mapping"][0]
+            assert registry.is_excluded({"url_sha256": first_entry["url_sha256"]}) is True
+            assert registry.is_excluded({"group_sha256": first_entry["group_sha256"]}) is True
+
+    def test_restricted_commitment_tamper_detection(self, tmp_path):
+        """Kiểm tra cơ chế phát hiện sai lệch mã băm cam kết hạn chế (Tamper Detection)."""
+        import hashlib
+        fake_dossier = tmp_path / "fake_mapping.json"
+        fake_dossier.write_text(json.dumps({"mapping": [{"url_sha256": "abc"}]}), encoding="utf-8")
+        rel_path = str(fake_dossier.resolve()).replace("\\", "/")
+
+        fake_reg = tmp_path / "fake_reg.json"
+        fake_reg.write_text(json.dumps({
+            "registry_status": "in_progress",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "TEST-TAMPER-01",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": rel_path,
+                    "commitment_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "n_samples": 1,
+                }
+            ]
+        }), encoding="utf-8")
+
+        with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
+            ExclusionRegistry(fake_reg)
+
+    def test_restricted_commitment_missing_file_fails_closed(self, tmp_path):
+        """Kiểm tra cơ chế fail-closed khi thiếu hồ sơ loại trừ cam kết hạn chế ngoài Git."""
+        fake_reg = tmp_path / "fake_reg_missing.json"
+        fake_reg.write_text(json.dumps({
+            "registry_status": "in_progress",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "TEST-MISSING-01",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": "non_existent_restricted_dossier.json",
+                    "commitment_sha256": "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805",
+                    "n_samples": 32,
+                    "mapping_status": "resolved_in_restricted_dossier",
+                    "rows_api_revision_pinned": True,
+                },
+                {
+                    "exclusion_id": "TEST-PUBLIC-01",
+                    "mapping_status": "resolved",
+                    "rows_api_revision_pinned": True,
+                    "samples": [{"url_sha256": "1234567890abcdef"}]
+                }
+            ]
+        }), encoding="utf-8")
+
+        reg = ExclusionRegistry(fake_reg)
+        assert reg._restricted_commitments_loaded["TEST-MISSING-01"] is False
+
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            reg.assert_training_allowed()
+
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            reg.assert_restricted_commitments_verified()
 

@@ -47,7 +47,7 @@ class TestConfigIntegrity:
     def test_exclusion_registry_valid(self):
         assert EXCLUSION_PATH.exists()
         excl = json.loads(EXCLUSION_PATH.read_text(encoding="utf-8"))
-        assert excl["total_excluded_samples"] == sum(len(e.get("samples", [])) for e in excl["exclusions"])
+        assert excl["total_excluded_samples"] == sum(e.get("n_samples", len(e.get("samples", []))) for e in excl["exclusions"])
         assert excl["total_excluded_samples"] >= 32
         assert excl["exclusions"][0]["mapping_status"] == "unresolved_source_mapping"
 
