@@ -46,28 +46,44 @@ class TestExclusionRegistry:
         with pytest.raises(RuntimeError, match="LỆNH CHẶN HUẤN LUYỆN CHÍNH"):
             registry.assert_training_allowed()
 
-    def test_training_blocked_even_if_flag_is_false_when_mapping_unresolved(self):
+    def test_training_blocked_even_if_flag_is_false_when_mapping_unresolved(self, tmp_path):
         """Dù cờ training_blocked bị đổi thành False, hàm assert_training_allowed vẫn phải chặn nếu còn lô unresolved."""
-        registry = ExclusionRegistry()
-        # Giả lập can thiệp cờ sai quy chuẩn
-        registry.training_blocked = False
+        reg_file = tmp_path / "registry.json"
+        reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-PILOT-01",
+                    "mapping_status": "unresolved_source_mapping",
+                    "rows_api_revision_pinned": False,
+                    "samples": [{"url_sha256": "1234567890abcdef"}]
+                }
+            ]
+        }), encoding="utf-8")
+        registry = ExclusionRegistry(reg_file)
         with pytest.raises(
             RuntimeError,
             match="Lô loại trừ 'EXCL-PILOT-01' có trạng thái mapping='unresolved_source_mapping'",
         ):
             registry.assert_training_allowed()
 
-    def test_training_allowed_when_all_batches_resolved_and_pinned(self):
+    def test_training_allowed_when_all_batches_resolved_and_pinned(self, tmp_path):
         """Khi tất cả các lô đã được resolved, rows_api_revision_pinned=True và training_blocked=False, cho phép huấn luyện."""
-        registry = ExclusionRegistry()
-        registry.training_blocked = False
-        registry._raw_exclusions = [
-            {
-                "exclusion_id": "EXCL-PILOT-01",
-                "mapping_status": "resolved",
-                "rows_api_revision_pinned": True,
-            }
-        ]
+        reg_file = tmp_path / "registry.json"
+        reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-TEST-01",
+                    "mapping_status": "resolved",
+                    "rows_api_revision_pinned": True,
+                    "samples": [{"url_sha256": "1234567890abcdef"}]
+                }
+            ]
+        }), encoding="utf-8")
+        registry = ExclusionRegistry(reg_file)
         # Không được ném ngoại lệ
         registry.assert_training_allowed()
 
@@ -135,8 +151,7 @@ class TestExclusionRegistry:
         }
         assert registry.is_excluded(clean_sample) is False
 
-    def test_filter_split_isolates_pilot_samples(self):
-        registry = ExclusionRegistry()
+    def test_filter_split_isolates_pilot_samples(self, tmp_path):
         pilot_sample = {
             "pilot_row_idx": 0,
             "label": "benign",
@@ -156,6 +171,19 @@ class TestExclusionRegistry:
             "inputs": 2,
             "password_inputs": 1,
         }
+        reg_file = tmp_path / "registry.json"
+        reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": True,
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-PILOT-01",
+                    "mapping_status": "unresolved",
+                    "samples": [pilot_sample]
+                }
+            ]
+        }), encoding="utf-8")
+        registry = ExclusionRegistry(reg_file)
         dataset = [pilot_sample, clean_sample]
         kept, excluded = registry.filter_split(dataset)
 
@@ -164,8 +192,30 @@ class TestExclusionRegistry:
         assert len(excluded) == 1
         assert excluded[0] == pilot_sample
 
-    def test_assert_no_leakage_raises_on_pilot_entry(self):
-        registry = ExclusionRegistry()
+    def test_assert_no_leakage_raises_on_pilot_entry(self, tmp_path):
+        pilot_sample = {
+            "pilot_row_idx": 0,
+            "label": "benign",
+            "lang": "en",
+            "html_chars": 518982,
+            "text_chars": 27006,
+            "forms": 2,
+            "inputs": 14,
+            "password_inputs": 0,
+        }
+        reg_file = tmp_path / "registry.json"
+        reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": True,
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-PILOT-01",
+                    "mapping_status": "unresolved",
+                    "samples": [pilot_sample]
+                }
+            ]
+        }), encoding="utf-8")
+        registry = ExclusionRegistry(reg_file)
         leaked_split = [
             {
                 "pilot_row_idx": 0,
@@ -231,6 +281,10 @@ class TestExclusionRegistry:
         with pytest.raises(ImportError, match="tldextract bắt buộc phải được cài đặt"):
             registry.is_excluded({"url": "https://login.example.com/"})
 
+    @pytest.mark.skipif(
+        not (PROJECT_ROOT / "data/restricted/clean_calibration_exclusion_mapping_c_32.json").exists(),
+        reason="Yêu cầu tệp dữ liệu hạn chế ngoài Git (clean_calibration_exclusion_mapping_c_32.json). Bỏ qua trên clean checkout.",
+    )
     def test_restricted_commitment_round_c_loaded_and_verified(self):
         """Chứng minh lô Đợt C niêm phong cam kết hạn chế ngoài Git được nạp và xác minh toàn vẹn thành công."""
         registry = ExclusionRegistry()
@@ -248,6 +302,42 @@ class TestExclusionRegistry:
             first_entry = mapping_data["mapping"][0]
             assert registry.is_excluded({"url_sha256": first_entry["url_sha256"]}) is True
             assert registry.is_excluded({"group_sha256": first_entry["group_sha256"]}) is True
+
+    def test_restricted_commitment_self_contained_fixture_loaded_and_verified(self, tmp_path):
+        """Chứng minh cơ chế nạp và thẩm định cam kết kín hoạt động hoàn hảo bằng fixture tự chứa."""
+        import hashlib
+        dossier_file = tmp_path / "mock_restricted_mapping.json"
+        mock_entry = {
+            "url_sha256": "aaaa1111222233334444555566667777888899990000aaaabbbbccccddddeeee",
+            "group_sha256": "bbbb1111222233334444555566667777888899990000aaaabbbbccccddddeeee",
+        }
+        dossier_content = json.dumps({"mapping": [mock_entry]}, indent=2)
+        dossier_file.write_text(dossier_content, encoding="utf-8")
+        commitment_hash = hashlib.sha256(dossier_file.read_bytes()).hexdigest()
+        rel_dossier_path = str(dossier_file.resolve()).replace("\\", "/")
+
+        reg_file = tmp_path / "registry.json"
+        reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "TEST-RESTRICTED-01",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": rel_dossier_path,
+                    "commitment_sha256": commitment_hash,
+                    "n_samples": 1,
+                    "mapping_status": "resolved_in_restricted_dossier",
+                    "rows_api_revision_pinned": True,
+                }
+            ]
+        }), encoding="utf-8")
+
+        reg = ExclusionRegistry(reg_file)
+        assert reg._restricted_commitments_loaded["TEST-RESTRICTED-01"] is True
+        assert reg.is_excluded({"url_sha256": mock_entry["url_sha256"]}) is True
+        assert reg.is_excluded({"group_sha256": mock_entry["group_sha256"]}) is True
+        reg.assert_restricted_commitments_verified()
 
     def test_restricted_commitment_tamper_detection(self, tmp_path):
         """Kiểm tra cơ chế phát hiện sai lệch mã băm cam kết hạn chế (Tamper Detection)."""
@@ -307,4 +397,317 @@ class TestExclusionRegistry:
 
         with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
             reg.assert_restricted_commitments_verified()
+
+
+class TestFailClosedPipelinePathsRegression:
+    """Bộ kiểm thử hồi quy trực tiếp cho chỉ đạo của Lead D (2026-10-28):
+    Kiểm tra fail-closed trên từng đường: filter_split, assert_no_leakage,
+    assert_training_allowed, join_verified_labels_and_filter_eligible và generate_splits.py
+    với 3 trạng thái: (1) Hồ sơ hợp lệ, (2) Thiếu tệp hồ sơ, (3) Sai lệch mã băm (tampered).
+    """
+
+    @pytest.fixture
+    def setup_pipeline_env(self, tmp_path):
+        import hashlib
+        # 1. Tạo tệp hồ sơ hạn chế mẫu
+        dossier_file = tmp_path / "mock_restricted_mapping.json"
+        mock_restricted_url = "https://restricted-candidate.org/login"
+        mock_restricted_group = "domain:restricted-candidate.org"
+        mock_restricted_entry = {
+            "entry_id": "EXCL-TEST-RESTRICTED-001",
+            "url_sha256": hashlib.sha256(mock_restricted_url.encode()).hexdigest(),
+            "group_sha256": hashlib.sha256(mock_restricted_group.encode()).hexdigest(),
+        }
+        dossier_bytes = json.dumps({"mapping": [mock_restricted_entry]}, indent=2).encode("utf-8")
+        dossier_file.write_bytes(dossier_bytes)
+        correct_hash = hashlib.sha256(dossier_bytes).hexdigest()
+        rel_dossier_path = str(dossier_file.resolve()).replace("\\", "/")
+
+        # 2. Registry hợp lệ
+        valid_reg_file = tmp_path / "valid_registry.json"
+        valid_reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "BATCH-VALID-RESTRICTED",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": rel_dossier_path,
+                    "commitment_sha256": correct_hash,
+                    "n_samples": 1,
+                    "mapping_status": "resolved_in_restricted_dossier",
+                    "rows_api_revision_pinned": True,
+                }
+            ]
+        }), encoding="utf-8")
+
+        # 3. Registry thiếu tệp hồ sơ (kèm 1 lô công khai để đảm bảo registry hợp lệ về cấu trúc)
+        missing_reg_file = tmp_path / "missing_registry.json"
+        missing_reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "BATCH-PUBLIC-DUMMY",
+                    "mapping_status": "resolved",
+                    "rows_api_revision_pinned": True,
+                    "samples": [{"url_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}]
+                },
+                {
+                    "exclusion_id": "BATCH-MISSING-RESTRICTED",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": "non_existent_mapping_file.json",
+                    "commitment_sha256": correct_hash,
+                    "n_samples": 1,
+                    "mapping_status": "resolved_in_restricted_dossier",
+                    "rows_api_revision_pinned": True,
+                }
+            ]
+        }), encoding="utf-8")
+
+        # 4. Registry sai lệch mã băm (tampered)
+        tampered_reg_file = tmp_path / "tampered_registry.json"
+        tampered_reg_file.write_text(json.dumps({
+            "version": "1.1.0",
+            "training_blocked": False,
+            "exclusions": [
+                {
+                    "exclusion_id": "BATCH-PUBLIC-DUMMY",
+                    "mapping_status": "resolved",
+                    "rows_api_revision_pinned": True,
+                    "samples": [{"url_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}]
+                },
+                {
+                    "exclusion_id": "BATCH-TAMPERED-RESTRICTED",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": rel_dossier_path,
+                    "commitment_sha256": "bad0000000000000000000000000000000000000000000000000000000000000",
+                    "n_samples": 1,
+                    "mapping_status": "resolved_in_restricted_dossier",
+                    "rows_api_revision_pinned": True,
+                }
+            ]
+        }), encoding="utf-8")
+
+        # 5. Dữ liệu mẫu (mẫu sạch và mẫu thuộc danh mục loại trừ)
+        clean_url = "https://clean-example.com/index"
+        clean_sample = {
+            "sample_id": "PP-000-R000001",
+            "source_id": "phreshphish",
+            "url": clean_url,
+            "raw_url": clean_url,
+            "normalized_url": clean_url,
+            "html_sha256": "1111222233334444555566667777888899990000aaaabbbbccccddddeeeeffff",
+            "url_sha256": hashlib.sha256(clean_url.encode()).hexdigest(),
+            "group_id": "domain:clean-example.com",
+            "group_sha256": hashlib.sha256(b"domain:clean-example.com").hexdigest(),
+            "class_label": "benign",
+            "collected_at": "2025-01-15",
+            "is_valid_url": True,
+            "date_status": "valid",
+            "exclusion_reason": None,
+        }
+        restricted_sample = {
+            "sample_id": "PP-000-R000002",
+            "source_id": "phreshphish",
+            "url": mock_restricted_url,
+            "raw_url": mock_restricted_url,
+            "normalized_url": mock_restricted_url,
+            "html_sha256": "5555222233334444555566667777888899990000aaaabbbbccccddddeeeeffff",
+            "url_sha256": mock_restricted_entry["url_sha256"],
+            "group_id": mock_restricted_group,
+            "group_sha256": mock_restricted_entry["group_sha256"],
+            "class_label": "phishing",
+            "collected_at": "2025-01-16",
+            "is_valid_url": True,
+            "date_status": "valid",
+            "exclusion_reason": None,
+        }
+
+        # 6. Tệp JSONL phục vụ generate_splits.py
+        records = [
+            {
+                "sample_id": f"PP-000-R{i:06d}",
+                "source_id": "phreshphish",
+                "url": f"https://real-domain-{i}.com/path",
+                "class_label": "phishing" if i % 2 == 0 else "benign",
+                "collected_at": f"2025-01-{(i % 25) + 1:02d}",
+            }
+            for i in range(1, 31)
+        ]
+        corpus_file = tmp_path / "real_corpus.jsonl"
+        corpus_file.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+
+        return {
+            "valid_reg_file": valid_reg_file,
+            "missing_reg_file": missing_reg_file,
+            "tampered_reg_file": tampered_reg_file,
+            "clean_sample": clean_sample,
+            "restricted_sample": restricted_sample,
+            "corpus_file": corpus_file,
+            "tmp_path": tmp_path,
+        }
+
+    # 1. Đường lọc filter_split
+    def test_filter_split_path_with_valid_dossier(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["valid_reg_file"])
+        kept, excluded = reg.filter_split([env["clean_sample"], env["restricted_sample"]])
+        assert len(kept) == 1
+        assert kept[0]["sample_id"] == env["clean_sample"]["sample_id"]
+        assert len(excluded) == 1
+        assert excluded[0]["sample_id"] == env["restricted_sample"]["sample_id"]
+
+    def test_filter_split_path_with_missing_dossier_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["missing_reg_file"])
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            reg.filter_split([env["clean_sample"]])
+
+    def test_filter_split_path_with_tampered_hash_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
+            ExclusionRegistry(env["tampered_reg_file"])
+
+    # 2. Đường kiểm tra rò rỉ assert_no_leakage
+    def test_assert_no_leakage_path_with_valid_dossier(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["valid_reg_file"])
+        # Tập sạch không ném ngoại lệ
+        reg.assert_no_leakage("train_clean", [env["clean_sample"]])
+        # Tập có mẫu lọt ném ValueError rò rỉ
+        with pytest.raises(ValueError, match="RÒ RỈ DỮ LIỆU PHÁT HIỆN"):
+            reg.assert_no_leakage("train_leaked", [env["restricted_sample"]])
+
+    def test_assert_no_leakage_path_with_missing_dossier_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["missing_reg_file"])
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            reg.assert_no_leakage("train", [env["clean_sample"]])
+
+    def test_assert_no_leakage_path_with_tampered_hash_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
+            ExclusionRegistry(env["tampered_reg_file"])
+
+    # 3. Đường kiểm tra huấn luyện assert_training_allowed
+    def test_assert_training_allowed_path_with_valid_dossier(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["valid_reg_file"])
+        reg.assert_training_allowed()
+
+    def test_assert_training_allowed_path_with_missing_dossier_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["missing_reg_file"])
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            reg.assert_training_allowed()
+
+    def test_assert_training_allowed_path_with_tampered_hash_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
+            ExclusionRegistry(env["tampered_reg_file"])
+
+    # 4. Đường chuẩn bị fit / join nhãn kiểm chứng
+    def test_join_verified_labels_path_with_valid_dossier(self, setup_pipeline_env):
+        from phishing.data.loader import join_verified_labels_and_filter_eligible
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["valid_reg_file"])
+        vault = {
+            env["clean_sample"]["sample_id"]: {
+                "sample_id": env["clean_sample"]["sample_id"],
+                "class_label": "benign",
+                "label_status": "verified_binary",
+                "html_sha256": env["clean_sample"]["html_sha256"],
+                "raw_url": env["clean_sample"]["url"],
+                "verification_method": "expert_pass",
+                "verified_by": "expert",
+                "verification_evidence": "audit_log",
+            },
+            env["restricted_sample"]["sample_id"]: {
+                "sample_id": env["restricted_sample"]["sample_id"],
+                "class_label": "phishing",
+                "label_status": "verified_binary",
+                "html_sha256": env["restricted_sample"]["html_sha256"],
+                "raw_url": env["restricted_sample"]["url"],
+                "verification_method": "expert_pass",
+                "verified_by": "expert",
+                "verification_evidence": "audit_log",
+            },
+        }
+        joined = join_verified_labels_and_filter_eligible(
+            [env["clean_sample"], env["restricted_sample"]],
+            vault,
+            exclusion_registry=reg,
+        )
+        assert len(joined) == 1
+        assert joined[0]["sample_id"] == env["clean_sample"]["sample_id"]
+
+    def test_join_verified_labels_path_with_missing_dossier_fails_closed(self, setup_pipeline_env):
+        from phishing.data.loader import join_verified_labels_and_filter_eligible
+        env = setup_pipeline_env
+        reg = ExclusionRegistry(env["missing_reg_file"])
+        vault = {env["clean_sample"]["sample_id"]: {"verified_label": "benign"}}
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            join_verified_labels_and_filter_eligible([env["clean_sample"]], vault, exclusion_registry=reg)
+
+    def test_join_verified_labels_path_with_tampered_hash_fails_closed(self, setup_pipeline_env):
+        env = setup_pipeline_env
+        with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
+            ExclusionRegistry(env["tampered_reg_file"])
+
+    # 5. Đường CLI generate_splits.py
+    def test_generate_splits_path_with_valid_dossier(self, setup_pipeline_env):
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        out_dir = env["tmp_path"] / "splits_valid_run"
+        exit_code = generate_splits.main([
+            "--input", str(env["corpus_file"]),
+            "--output-dir", str(out_dir),
+            "--exclusion-registry", str(env["valid_reg_file"]),
+            "--is-real-data",
+            "-k", "3",
+            "--seeds", "42",
+        ])
+        assert exit_code == 0
+        manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["verified_robust"] is True
+        assert manifest["anti_leakage_status"] == "verified_robust"
+
+    def test_generate_splits_path_with_missing_dossier_fails_closed(self, setup_pipeline_env, monkeypatch):
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        out_dir = env["tmp_path"] / "splits_missing_run"
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(env["corpus_file"]),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["missing_reg_file"]),
+                "--is-real-data",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+        assert exit_code == 1
+        assert "LỆNH CHẶN FAIL-CLOSED" in buf_err.getvalue()
+
+    def test_generate_splits_path_with_tampered_hash_fails_closed(self, setup_pipeline_env):
+        import io
+        import contextlib
+        from scripts.data import generate_splits
+        env = setup_pipeline_env
+        out_dir = env["tmp_path"] / "splits_tampered_run"
+        buf_err = io.StringIO()
+        with contextlib.redirect_stderr(buf_err):
+            exit_code = generate_splits.main([
+                "--input", str(env["corpus_file"]),
+                "--output-dir", str(out_dir),
+                "--exclusion-registry", str(env["tampered_reg_file"]),
+                "--is-real-data",
+                "-k", "3",
+                "--seeds", "42",
+            ])
+        assert exit_code == 1
+        assert "LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ" in buf_err.getvalue()
 

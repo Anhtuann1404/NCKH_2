@@ -225,8 +225,20 @@ class ExclusionRegistry:
 
         return False
 
-    def filter_split(self, samples: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Tách danh sách mẫu thành 2 tập: tập giữ lại (kept) và tập bị loại (excluded)."""
+    def filter_split(
+        self,
+        samples: List[Dict[str, Any]],
+        *,
+        allow_unverified_commitments: bool = False,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Tách danh sách mẫu thành 2 tập: tập giữ lại (kept) và tập bị loại (excluded).
+
+        LỆNH CHẶN FAIL-CLOSED (Anti-Leakage Protocol):
+        Bắt buộc toàn bộ hồ sơ loại trừ cam kết hạn chế ngoài Git phải có mặt và đúng mã băm.
+        Ném lỗi RuntimeError nếu thiếu hồ sơ hoặc sai mã băm.
+        """
+        if not allow_unverified_commitments:
+            self.assert_restricted_commitments_verified()
         kept = []
         excluded = []
         for s in samples:
@@ -236,8 +248,21 @@ class ExclusionRegistry:
                 kept.append(s)
         return kept, excluded
 
-    def assert_no_leakage(self, split_name: str, samples: List[Dict[str, Any]]) -> None:
-        """Ném lỗi ValueError nếu phát hiện mẫu bị loại trừ lọt vào tập train/val/test."""
+    def assert_no_leakage(
+        self,
+        split_name: str,
+        samples: List[Dict[str, Any]],
+        *,
+        allow_unverified_commitments: bool = False,
+    ) -> None:
+        """Ném lỗi nếu phát hiện mẫu bị loại trừ lọt vào tập train/val/test hoặc chưa xác minh cam kết hạn chế.
+
+        LỆNH CHẶN FAIL-CLOSED (Anti-Leakage Protocol):
+        1. Bắt buộc toàn bộ hồ sơ loại trừ cam kết hạn chế ngoài Git phải có mặt và đúng mã băm.
+        2. Ném lỗi ValueError nếu phát hiện mẫu loại trừ xuất hiện trong split_name.
+        """
+        if not allow_unverified_commitments:
+            self.assert_restricted_commitments_verified()
         leaked = [s for s in samples if self.is_excluded(s)]
         if leaked:
             raise ValueError(

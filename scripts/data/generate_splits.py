@@ -34,6 +34,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from phishing.data.exclusion import ExclusionRegistry
 from phishing.data.grouping import (
     GROUP_RULES_VERSION,
     PSL_SNAPSHOT_SHA256,
@@ -129,6 +130,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--label-field", type=str, default="class_label", help="Field name for label.")
     parser.add_argument("--skip-temporal", action="store_true", help="Deliberately skip temporal split if dates not available.")
     parser.add_argument("--overwrite", action="store_true", help="Allow overwriting existing artifacts in output-dir.")
+    parser.add_argument(
+        "--exclusion-registry",
+        type=str,
+        default=None,
+        help="Đường dẫn exclusion_registry.json để kiểm tra chốt chặn cam kết hạn chế và rò rỉ dữ liệu.",
+    )
+    parser.add_argument(
+        "--is-real-data",
+        action="store_true",
+        help="Chỉ định rõ chế độ dữ liệu thật: bắt buộc phải có ExclusionRegistry và toàn bộ cam kết hạn chế phải được xác minh.",
+    )
+    parser.add_argument(
+        "--allow-unverified-commitments",
+        action="store_true",
+        help="Chỉ dùng cho testing/audit: cho phép chạy khi chưa xác minh cam kết hạn chế nhưng KHÔNG xuất verified_robust.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -196,6 +213,75 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print(f"[*] Successfully loaded {len(records)} records.")
     input_sha256 = calculate_sha256(input_path)
+
+    # 4b. Kiểm tra chốt chặn cam kết hạn chế và phòng chống rò rỉ dữ liệu (Anti-Leakage Protocol)
+    is_real_data = args.is_real_data
+    if not is_real_data:
+        # Tự động phát hiện dữ liệu thật dựa trên sample_id hoặc locator
+        for r in records[:50]:
+            sid = str(r.get(args.id_field, ""))
+            src = str(r.get("source_id", ""))
+            loc = r.get("locator", {})
+            if (
+                sid.startswith(("PP-", "PV-", "SMP-", "RSV-"))
+                or src in {"phreshphish", "phishvn"}
+                or (isinstance(loc, dict) and loc.get("source_id") in {"phreshphish", "phishvn"})
+            ):
+                is_real_data = True
+                break
+
+    reg_path = args.exclusion_registry
+    if reg_path is None and is_real_data:
+        default_reg = REPO_ROOT / "data" / "exclusion_registry.json"
+        if default_reg.exists():
+            reg_path = str(default_reg)
+
+    commitments_verified = False
+    if is_real_data or args.exclusion_registry is not None:
+        if reg_path is None or not Path(reg_path).exists():
+            if is_real_data:
+                print(
+                    "[!] LỆNH CHẶN FAIL-CLOSED: Chế độ dữ liệu thật bắt buộc phải có exclusion registry hợp lệ!",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            try:
+                registry = ExclusionRegistry(reg_path)
+            except Exception as reg_err:
+                print(f"[!] LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ: {reg_err}", file=sys.stderr)
+                return 1
+
+            try:
+                registry.assert_restricted_commitments_verified()
+                commitments_verified = True
+            except RuntimeError as err:
+                commitments_verified = False
+                if is_real_data and not args.allow_unverified_commitments:
+                    print(
+                        f"[!] LỆNH CHẶN FAIL-CLOSED: Không thể phân chia tập dữ liệu thật khi hồ sơ cam kết hạn chế ngoài Git chưa được xác minh toàn vẹn!\n"
+                        f"    Chi tiết: {err}",
+                        file=sys.stderr,
+                    )
+                    return 1
+
+            # Kiểm tra rò rỉ mẫu loại trừ trong tập dữ liệu đầu vào của splits
+            try:
+                registry.assert_no_leakage(
+                    "splits_input",
+                    records,
+                    allow_unverified_commitments=args.allow_unverified_commitments,
+                )
+            except ValueError as leak_err:
+                print(f"[!] LỖI RÒ RỈ DỮ LIỆU ĐẦU VÀO SPLITS: {leak_err}", file=sys.stderr)
+                return 1
+            except RuntimeError as fail_closed_err:
+                if is_real_data and not args.allow_unverified_commitments:
+                    print(f"[!] LỆNH CHẶN FAIL-CLOSED: {fail_closed_err}", file=sys.stderr)
+                    return 1
+    else:
+        # Chế độ fixture/synthetic: không yêu cầu cam kết hạn chế thực tế
+        commitments_verified = True
 
     # 5. Trích xuất groups có bảo toàn component trùng nội dung và kiểm tra tính hợp lệ
     print("[*] Extracting group_id (eTLD+1, UGC tenant & pre-identified components)...")
@@ -371,10 +457,22 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
         temporal_evaluable = (temporal_result.get("status") == "evaluable") if temporal_result is not None else True
 
-        verified_robust = bool(all_folds_sufficient and all_folds_usable and temporal_evaluable)
+        verified_robust = bool(
+            all_folds_sufficient
+            and all_folds_usable
+            and temporal_evaluable
+            and commitments_verified
+        )
 
         code_hashes = calculate_code_hashes()
         composite_code_sha256 = calculate_composite_code_sha256(code_hashes)
+
+        if not commitments_verified:
+            anti_leakage_status = "provisional_unverified_commitments"
+        elif verified_robust:
+            anti_leakage_status = "verified_robust"
+        else:
+            anti_leakage_status = "provisional_insufficient_classes"
 
         # 10. Ghi Manifest liên kết đầy đủ mã băm xuất xứ (Provenance Manifest)
         manifest: Dict[str, Any] = {
@@ -393,6 +491,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "date_field": args.date_field,
                 "label_field": args.label_field,
                 "skip_temporal": args.skip_temporal,
+                "is_real_data": is_real_data,
+                "commitments_verified": commitments_verified,
             },
             "grouping_metadata": {
                 "group_rules_version": GROUP_RULES_VERSION,
@@ -407,12 +507,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                     {"path": "temporal_splits.json", "sha256": temporal_sha256} if temporal_sha256 else None
                 ),
             },
-            "anti_leakage_status": "verified_robust" if verified_robust else "provisional_insufficient_classes",
+            "anti_leakage_status": anti_leakage_status,
             "verified_robust": verified_robust,
             "verification_summary": {
                 "all_folds_sufficient": all_folds_sufficient,
                 "all_folds_usable": all_folds_usable,
                 "temporal_evaluable": temporal_evaluable,
+                "commitments_verified": commitments_verified,
             },
         }
 
