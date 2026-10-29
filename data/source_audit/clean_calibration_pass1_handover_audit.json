@@ -7,6 +7,7 @@
   "authorized_at_utc": "2026-10-29T17:42:00Z",
   "handed_over_by": "Member C (Data Pipeline & Blind View)",
   "handed_over_at_utc": "2026-10-29T17:45:00Z",
+  "operational_rectification_at_utc": "2026-10-29T18:10:00Z",
   "governance_flags": {
     "ready_for_annotation": true,
     "training_blocked": true,
@@ -16,7 +17,7 @@
   "artifacts_manifest": {
     "blind_view": {
       "file_name": "clean_calibration_blind_view_24.json",
-      "relative_path": "data/annotations/clean_calibration_blind_view_24.json",
+      "target_relative_path": "data/annotations/clean_calibration_blind_view_24.json",
       "sample_count": 24,
       "byte_size": 154350,
       "sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
@@ -24,7 +25,7 @@
     },
     "manifest": {
       "file_name": "calibration_clean_a_manifest.json",
-      "relative_path": "configs/calibration_clean_a_manifest.json",
+      "target_relative_path": "configs/calibration_clean_a_manifest.json",
       "version": "1.1.0",
       "status": "approved",
       "byte_size": 7365,
@@ -32,7 +33,7 @@
     },
     "codebook": {
       "file_name": "CODEBOOK_V1_1.md",
-      "relative_path": "docs/CODEBOOK_V1_1.md",
+      "target_relative_path": "docs/CODEBOOK_V1_1.md",
       "version": "1.1.0",
       "status": "locked",
       "byte_size": 22160,
@@ -40,11 +41,25 @@
     },
     "dictionary": {
       "file_name": "dictionary_v1.json",
-      "relative_path": "configs/dictionary_v1.json",
+      "target_relative_path": "configs/dictionary_v1.json",
       "version": "1.0.0",
       "status": "locked",
       "byte_size": 15329,
       "sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3"
+    }
+  },
+  "verification_separation": {
+    "hash_check_tool": "verify_handover_pass1.py (static SHA-256 integrity check of extracted files)",
+    "runtime_preflight_tool": "scripts/annotate_cli.py (validates manifest governance flags, mutual acceptance, locks, and schema prior to sample rendering)"
+  },
+  "workspace_placement_policy": {
+    "zip_structure": "flat",
+    "required_environment": "Git checkout on branch feat/c-calibration-v1-1-4-adjudication (containing scripts/annotate_cli.py with pause/resume support)",
+    "file_mapping": {
+      "clean_calibration_blind_view_24.json": "data/annotations/clean_calibration_blind_view_24.json",
+      "calibration_clean_a_manifest.json": "configs/calibration_clean_a_manifest.json",
+      "CODEBOOK_V1_1.md": "docs/CODEBOOK_V1_1.md",
+      "dictionary_v1.json": "configs/dictionary_v1.json"
     }
   },
   "recipients": [
@@ -74,14 +89,10 @@
     "locators_status": "zero_leakage_on_git_and_zero_in_blind_view",
     "restricted_commitment_sha256": "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805"
   },
-  "post_pass1_adjudication_protocol": {
+  "raw_receipt_and_epistemic_humility_protocol": {
     "receiving_channel": "Restricted direct transfer to Member C & Lead D",
-    "pre_kappa_checks": [
-      "100% pure Unix LF line endings",
-      "Exactly 24 JSONL records matching SMP-001..SMP-024",
-      "Zero negative timing (seconds_spent >= 0)",
-      "Mandatory confidence field enum validity",
-      "Zero manual tampering / raw editor alterations"
-    ]
+    "raw_bytes_preservation": "Calculate initial raw SHA-256 immediately upon receipt before any file read or copy; archive untouched raw bytes in restricted storage",
+    "line_endings_policy": "Record natural line endings as written by CLI on annotator OS (Windows CRLF or Unix LF); DO NOT modify or normalize original file",
+    "epistemic_humility_statement": "Acknowledge that lack of manual tampering cannot be mathematically proven solely from JSONL content. Evidence consists of cryptographic provenance, sequential timestamps, non-negative seconds_spent, and written confirmation of zero manual tampering from the annotator."
   }
 }
