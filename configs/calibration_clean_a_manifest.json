@@ -4,7 +4,7 @@
   "dataset_id": "CALIBRATION-CLEAN-24",
   "version": "1.1.0",
   "created_at_utc": "2026-10-24T01:00:00Z",
-  "approved_at_utc": "2026-10-29T20:30:00Z",
+  "approved_at_utc": "2026-10-29T15:45:00Z",
   "status": "approved",
   "description": "Manifest kỹ thuật Đợt C cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) gồm 24 mẫu chính + 8 mẫu dự phòng tuyển chọn sạch, bảo đảm không trùng 214 mẫu loại trừ trước đó từ 9 lô lịch sử/sự cố; toàn bộ 32 mẫu Đợt C đã được niêm phong cam kết hạn chế ngoài Git trong lô 10 của registry (tổng cộng 246 mẫu loại trừ). Cơ cấu nhãn nguồn 12/12 mẫu chính và 4/4 dự phòng là kết quả Lead D đối soát độc lập trong hồ sơ hạn chế, không phải điều Member B tự xác minh từ gói QA mù.",
   "sampling_spec": {
@@ -42,13 +42,13 @@
       "candidate_selection_member_b_qa": {
         "status": "approved",
         "scope": "32_candidates_pool_selection_and_pairwise_similarity_round_c",
-        "approved_at_utc": "2026-10-29T20:30:00Z"
+        "approved_at_utc": "2026-10-29T15:45:00Z"
       },
       "blind_view_member_b_qa": {
         "status": "approved",
         "scope": "24_main_samples_blind_view_release",
         "expected_blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
-        "approved_at_utc": "2026-10-29T20:30:00Z"
+        "approved_at_utc": "2026-10-29T15:45:00Z"
       },
       "lead_d": "approved"
     },
