@@ -282,7 +282,7 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         assert manifest_gov["exclusion_audit_sha256"] == audit_sha256
         assert manifest_gov["git_leak_audit_sha256"] == git_leak_sha256
         assert manifest_gov["known_excluded_samples_count"] == 246
-        assert manifest_gov["ready_for_annotation"] is False
+        assert manifest_gov["ready_for_annotation"] is True
         assert manifest_gov["training_blocked"] is True
 
         # 4. Đối soát ba bên chéo (Tripartite Cross-Check)
@@ -303,10 +303,13 @@ class TestCleanCalibrationV2SafetyAndExclusion:
         manifest_text = manifest_path.read_text(encoding="utf-8")
         manifest = json.loads(manifest_text)
 
-        assert manifest["manifest_id"] == "CALIBRATION-CLEAN-A-MANIFEST-V1.1-PROPOSAL"
-        assert manifest["status"] == "pending_lead_d_and_member_b_review"
-        assert manifest["governance"]["ready_for_annotation"] is False
+        assert manifest["manifest_id"] in ("CALIBRATION-CLEAN-A-MANIFEST-V1.1", "CALIBRATION-CLEAN-A-MANIFEST-V1.1-PROPOSAL")
+        assert manifest["status"] in ("approved", "ready_for_annotation")
+        assert manifest["governance"]["ready_for_annotation"] is True
         assert manifest["governance"]["training_blocked"] is True
+        assert manifest["governance"]["official_test_used"] is False
+        assert manifest["acceptance"]["B"] == "approved"
+        assert manifest["acceptance"]["D"] == "approved"
         assert manifest["governance"]["known_excluded_samples_count"] == 246
         assert manifest["sampling_spec"]["total_samples"] == 32
         assert manifest["sampling_spec"]["main_samples_count"] == 24

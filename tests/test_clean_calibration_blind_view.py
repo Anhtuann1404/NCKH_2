@@ -209,15 +209,41 @@ class TestCleanCalibrationBlindViewIntegrity:
         assert manifest["governance"]["blind_view_sha256"] == view_hash
         assert manifest["sample_count"] == 24
         assert manifest["dataset_id"] == "CALIBRATION-CLEAN-24"
-        assert manifest["ready_for_annotation"] is False
+        assert manifest["ready_for_annotation"] is True
+        assert manifest["governance"]["ready_for_annotation"] is True
         assert manifest["training_blocked"] is True
+        assert manifest["governance"]["training_blocked"] is True
+        assert manifest["governance"]["official_test_used"] is False
+        assert manifest["acceptance"]["B"] == "approved"
+        assert manifest["acceptance"]["D"] == "approved"
 
-    def test_annotate_cli_preflight_fail_closed(self, clean_blind_view_data):
+    def test_annotate_cli_preflight_real_manifest_succeeds(self, clean_blind_view_data):
+        """Preflight using the real updated manifest and real blind view must pass 100%."""
+        view, _ = clean_blind_view_data
+        res = validate_manifest_preflight(
+            manifest_path=MANIFEST_PATH,
+            input_path=VIEW_PATH,
+            dataset_data=view,
+        )
+        assert res["dataset_id"] == "CALIBRATION-CLEAN-24"
+        assert res["sample_count"] == 24
+        assert res["ready_for_annotation"] is True
+        assert res["acceptance"]["B"] == "approved"
+        assert res["acceptance"]["D"] == "approved"
+
+    def test_annotate_cli_preflight_fail_closed(self, clean_blind_view_data, clean_manifest_data, tmp_path):
         """CLI preflight must strictly fail-closed when ready_for_annotation=false."""
         view, _ = clean_blind_view_data
+        manifest, _ = clean_manifest_data
+
+        unready_manifest = dict(manifest)
+        unready_manifest["ready_for_annotation"] = False
+        unready_path = tmp_path / "unready_manifest.json"
+        unready_path.write_text(json.dumps(unready_manifest, indent=2), encoding="utf-8")
+
         with pytest.raises(ValueError, match="CHƯA NGHIỆM THU|CHƯA SẴN SÀNG"):
             validate_manifest_preflight(
-                manifest_path=MANIFEST_PATH,
+                manifest_path=unready_path,
                 input_path=VIEW_PATH,
                 dataset_data=view,
             )

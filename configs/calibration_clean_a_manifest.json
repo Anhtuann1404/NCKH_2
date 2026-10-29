@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "manifest_id": "CALIBRATION-CLEAN-A-MANIFEST-V1.1-PROPOSAL",
+  "manifest_id": "CALIBRATION-CLEAN-A-MANIFEST-V1.1",
   "dataset_id": "CALIBRATION-CLEAN-24",
-  "version": "1.1.0-PROPOSAL",
+  "version": "1.1.0",
   "created_at_utc": "2026-10-24T01:00:00Z",
-  "status": "pending_lead_d_and_member_b_review",
-  "description": "Manifest kỹ thuật Đợt C cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) gồm 24 mẫu chính + 8 mẫu dự phòng tuyển chọn sạch đối chiếu và chốt loại trừ toàn bộ 246 mẫu trong 10 lô registry (gồm 214 mẫu công khai từ các lô lịch sử/sự cố và 32 mẫu Đợt C niêm phong cam kết hạn chế ngoài Git).",
+  "approved_at_utc": "2026-10-29T20:30:00Z",
+  "status": "approved",
+  "description": "Manifest kỹ thuật Đợt C cho Gói Hiệu chuẩn Sạch của Thành viên A (chấm song song A-B) gồm 24 mẫu chính + 8 mẫu dự phòng tuyển chọn sạch, bảo đảm không trùng 214 mẫu loại trừ trước đó từ 9 lô lịch sử/sự cố; toàn bộ 32 mẫu Đợt C đã được niêm phong cam kết hạn chế ngoài Git trong lô 10 của registry (tổng cộng 246 mẫu loại trừ). Cơ cấu nhãn nguồn 12/12 mẫu chính và 4/4 dự phòng là kết quả Lead D đối soát độc lập trong hồ sơ hạn chế, không phải điều Member B tự xác minh từ gói QA mù.",
   "sampling_spec": {
     "total_samples": 32,
     "main_samples_count": 24,
@@ -35,19 +36,21 @@
   },
   "governance": {
     "training_blocked": true,
-    "ready_for_annotation": false,
+    "ready_for_annotation": true,
     "official_test_used": false,
     "acceptance": {
       "candidate_selection_member_b_qa": {
-        "status": "pending_member_b_qa",
-        "scope": "32_candidates_pool_selection_and_pairwise_similarity_round_c"
+        "status": "approved",
+        "scope": "32_candidates_pool_selection_and_pairwise_similarity_round_c",
+        "approved_at_utc": "2026-10-29T20:30:00Z"
       },
       "blind_view_member_b_qa": {
-        "status": "pending_automated_verification",
+        "status": "approved",
         "scope": "24_main_samples_blind_view_release",
-        "expected_blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b"
+        "expected_blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
+        "approved_at_utc": "2026-10-29T20:30:00Z"
       },
-      "lead_d": "pending_final_verification"
+      "lead_d": "approved"
     },
     "codebook_reference": "docs/CODEBOOK_V1_1.md",
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
@@ -86,7 +89,7 @@
     "template_similarity_policy": "mandatory_post_candidate_selection_step_simhash_dom",
     "clean_room_pass1_policy": "strict_independent_no_ai_no_third_party_assistance"
   },
-  "notes": "Manifest kỹ thuật v1.1-Proposal (Đợt C): Đã hoàn thành tuyển chọn và chốt loại trừ Đợt C gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261035/20261036/20261037; chốt loại trừ toàn bộ 246 mẫu trong 10 lô registry (gồm 214 mẫu công khai từ các lô lịch sử/sự cố và 32 mẫu Đợt C niêm phong cam kết hạn chế ngoài Git theo chỉ đạo Lead D); 0 mẫu trùng lặp; hậu kiểm Template Similarity scan 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp (engine rule = 0, conjunction rule = 0); 32 ứng viên Đợt C được chốt cam kết loại trừ thông qua mã băm commitment 67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805 trỏ tới clean_calibration_exclusion_mapping_c_32.json (bảo vệ 100% ranh giới mù đôi, zero git leakage); gắn bản dịch MarianMT ngoại tuyến cho 3 mẫu phi tiếng Anh (SMP-008 JA, SMP-009 JA, SMP-015 RU) theo R-A09; phân tách rõ ràng phạm vi QA tuyển chọn và nghiệm thu view cuối của B; giữ nguyên ready_for_annotation=false và training_blocked=true chờ Lead D nghiệm thu.",
+  "notes": "Manifest kỹ thuật v1.1 (Đợt C): Đã hoàn thành tuyển chọn sạch Đợt C gồm 24 mẫu chính + 8 mẫu dự phòng từ train-000 và train-055 với seeds 20261035/20261036/20261037; bảo đảm 0 trùng lặp với 214 mẫu loại trừ trước đó trong 9 lô lịch sử/sự cố; toàn bộ 32 mẫu Đợt C đã được niêm phong cam kết hạn chế ngoài Git theo cam kết băm 67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805 trong lô 10 của registry (tổng cộng 246 mẫu loại trừ vĩnh viễn). Cơ cấu nhãn nguồn (12/12 mẫu chính, 4/4 dự phòng) là kết quả Lead D kiểm tra đối soát độc lập trong hồ sơ hạn chế, không phải điều Member B tự xác minh từ gói QA mù, bảo vệ 100% ranh giới mù đôi cho B. Hậu kiểm Template Similarity scan đạt 0 clone template và 0 xung đột tương đồng trong toàn bộ 496 cặp; gắn bản dịch MarianMT ngoại tuyến cho 3 mẫu phi tiếng Anh (SMP-008 JA, SMP-009 JA, SMP-015 RU) theo R-A09; ghi nhận Member B đã duyệt cả QA tuyển chọn ứng viên và QA Blind View; Lead D phê duyệt chấp thuận mở phiên; ready_for_annotation=true, training_blocked=true, official_test_used=false.",
   "sample_count": 24,
   "sampling_plan_version": "CALIBRATION-CLEAN-PLAN-V1.1-STRATIFIED",
   "codebook_version": "1.1.0",
@@ -98,14 +101,14 @@
   "blind_view_path": "data/annotations/clean_calibration_blind_view_24.json",
   "blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
   "blind_view_byte_size": 154350,
-  "ready_for_annotation": false,
+  "ready_for_annotation": true,
   "training_blocked": true,
   "candidate_selection_qa": {
-    "B": "pending_member_b_qa",
-    "D": "pending_final_verification"
+    "B": "approved",
+    "D": "approved"
   },
   "acceptance": {
-    "B": "pending_automated_verification",
-    "D": "pending_final_verification"
+    "B": "approved",
+    "D": "approved"
   }
 }
