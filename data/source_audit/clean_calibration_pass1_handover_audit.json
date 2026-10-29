@@ -1,0 +1,87 @@
+{
+  "handover_id": "HANDOVER-PASS1-CALIBRATION-CLEAN-RUNWAY-A",
+  "dataset_id": "CALIBRATION-CLEAN-24",
+  "release_version": "1.1.0",
+  "session": "Pass 1 (Independent Parallel Annotation)",
+  "authorized_by": "Lead D (Anh Tuấn)",
+  "authorized_at_utc": "2026-10-29T17:42:00Z",
+  "handed_over_by": "Member C (Data Pipeline & Blind View)",
+  "handed_over_at_utc": "2026-10-29T17:45:00Z",
+  "governance_flags": {
+    "ready_for_annotation": true,
+    "training_blocked": true,
+    "official_test_used": false,
+    "blind_protocol": "double_blind_parallel_pass1"
+  },
+  "artifacts_manifest": {
+    "blind_view": {
+      "file_name": "clean_calibration_blind_view_24.json",
+      "relative_path": "data/annotations/clean_calibration_blind_view_24.json",
+      "sample_count": 24,
+      "byte_size": 154350,
+      "sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
+      "is_synthetic": false
+    },
+    "manifest": {
+      "file_name": "calibration_clean_a_manifest.json",
+      "relative_path": "configs/calibration_clean_a_manifest.json",
+      "version": "1.1.0",
+      "status": "approved",
+      "byte_size": 7365,
+      "sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b"
+    },
+    "codebook": {
+      "file_name": "CODEBOOK_V1_1.md",
+      "relative_path": "docs/CODEBOOK_V1_1.md",
+      "version": "1.1.0",
+      "status": "locked",
+      "byte_size": 22160,
+      "sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd"
+    },
+    "dictionary": {
+      "file_name": "dictionary_v1.json",
+      "relative_path": "configs/dictionary_v1.json",
+      "version": "1.0.0",
+      "status": "locked",
+      "byte_size": 15329,
+      "sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3"
+    }
+  },
+  "recipients": [
+    {
+      "annotator_id": "A",
+      "full_name": "Trần Hồng Khải",
+      "role": "Annotator A",
+      "channel": "Direct private message / restricted checkout",
+      "zero_prior_exposure_confirmed_by_lead_d": true,
+      "output_target": "data/annotations/A/clean_calibration_pass1.jsonl",
+      "command": "python scripts/annotate_cli.py --annotator A --input data/annotations/clean_calibration_blind_view_24.json --output data/annotations/A/clean_calibration_pass1.jsonl --manifest configs/calibration_clean_a_manifest.json --pass-id 1"
+    },
+    {
+      "annotator_id": "B",
+      "full_name": "Phùng Tấn Minh",
+      "role": "Annotator B (QA Lead)",
+      "channel": "Direct private message / restricted checkout",
+      "zero_prior_exposure_confirmed_by_lead_d": true,
+      "output_target": "data/annotations/B/clean_calibration_pass1.jsonl",
+      "command": "python scripts/annotate_cli.py --annotator B --input data/annotations/clean_calibration_blind_view_24.json --output data/annotations/B/clean_calibration_pass1.jsonl --manifest configs/calibration_clean_a_manifest.json --pass-id 1"
+    }
+  ],
+  "confidentiality_boundaries": {
+    "reserve_candidates_count": 8,
+    "reserve_candidates_status": "strictly_concealed",
+    "source_labels_status": "strictly_concealed_in_restricted_dossier",
+    "locators_status": "zero_leakage_on_git_and_zero_in_blind_view",
+    "restricted_commitment_sha256": "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805"
+  },
+  "post_pass1_adjudication_protocol": {
+    "receiving_channel": "Restricted direct transfer to Member C & Lead D",
+    "pre_kappa_checks": [
+      "100% pure Unix LF line endings",
+      "Exactly 24 JSONL records matching SMP-001..SMP-024",
+      "Zero negative timing (seconds_spent >= 0)",
+      "Mandatory confidence field enum validity",
+      "Zero manual tampering / raw editor alterations"
+    ]
+  }
+}
