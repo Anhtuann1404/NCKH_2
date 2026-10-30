@@ -1,17 +1,27 @@
 {
   "audit_id": "PRE-ADJUDICATION-AUDIT-CALIBRATION-CLEAN-RUNWAY-A",
   "dataset_id": "CALIBRATION-CLEAN-24",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "evaluation_stage": "pre_adjudication",
-  "audit_date_utc": "2026-10-30T17:45:00Z",
-  "lead_d_directive_reference": "Chỉ đạo đối soát độc lập Pass 1 và chuẩn bị phân xử của Lead D (Anh Tuấn)",
+  "audit_date_utc": "2026-10-30T18:25:00Z",
+  "lead_d_directive_reference": "Chỉ đạo đối soát độc lập Pass 1 và điều chỉnh ranh giới dữ liệu của Lead D (Anh Tuấn)",
   "governance": {
     "training_blocked": true,
     "official_test_used": false,
-    "ready_for_adjudication_pass2": true,
+    "ready_for_adjudication_pass2": false,
+    "adjudication_readiness_status": "pending_lead_d_review",
+    "lead_d_review_status": "pending_agenda_acceptance",
     "blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
-    "manifest_sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b"
+    "manifest_sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b",
+    "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
+    "restricted_adjudication_dossier_sha256": "cdd486b76cf6f1a98d08db03241ffa63107ff546d8d4969df80a6c583835532a"
+  },
+  "data_boundary_audit": {
+    "incident_reference_commit": "e7a450c",
+    "incident_description": "Tại commit e7a450c trên nhánh feat/c-calibration-v1-1-4-adjudication, tệp báo cáo công khai từng xuất hiện thông tin chi tiết nhãn A/B và mô tả nội dung theo từng mã mẫu.",
+    "verified_exposure_scope": "Phạm vi tiếp xúc được giới hạn 100% trong nội bộ nhóm nghiên cứu; xác minh 0 lượt truy cập từ bên ngoài; không làm lộ mã định vị parquet hay raw URLs của corpus.",
+    "remediation_protocol": "Khắc phục triệt để bằng việc chuyển toàn bộ danh sách ca, bằng chứng và câu hỏi nghị trình chi tiết sang phân vùng hạn chế ngoài Git (data/restricted/); bản công khai trên Git chỉ giữ số liệu tổng hợp, phương pháp luận và bảng mã băm. Tuyệt đối không force-push hay viết lại lịch sử commit nhằm duy trì tính bất biến của audit trail."
   },
   "annotator_packages": {
     "rater_a": {
@@ -25,7 +35,10 @@
       "smp_001_operational_lag_remediation": {
         "status": "remediated_prior_to_viewing_b_labels",
         "lead_d_approval": "approved_as_operational_lag_fix",
-        "audit_policy": "file_1c60d10a_is_official_locked_pass1"
+        "official_locked_sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f",
+        "prefix_draft_sha256": "pending_handoff_from_annotator_a",
+        "field_diff_audit": "Chờ Đánh giá viên A bàn giao bản gốc tiền sửa lỗi; Thành viên C không tự suy đoán diff trường dữ liệu nhằm bảo đảm tính trung thực khoa học tuyệt đối (Zero Hallucination). Ngay khi nhận bản gốc, C sẽ tính SHA-256 và lập bảng so sánh JSON diff chi tiết từng trường.",
+        "audit_policy": "Tệp khóa 1c60d10a... là bản Pass 1 chính thức duy nhất; không tính Kappa trên bản lỗi; không yêu cầu A gán lại; không mở sửa tiếp tệp đã khóa."
       }
     },
     "rater_b": {
@@ -49,11 +62,7 @@
     "interpretation": "Substantial agreement (Landis & Koch, 1977) đạt ngưỡng chất lượng cao trước phân xử",
     "disagreements": {
       "count": 3,
-      "sample_ids": [
-        "SMP-012",
-        "SMP-014",
-        "SMP-024"
-      ]
+      "storage_location": "data/restricted/clean_calibration_adjudication_dossier_restricted.json"
     },
     "confusion_matrix_3x3": {
       "classes": [
@@ -63,9 +72,21 @@
       ],
       "description": "Rows: Annotator A, Columns: Annotator B",
       "matrix": [
-        [11, 1, 2],
-        [0, 10, 0],
-        [0, 0, 0]
+        [
+          11,
+          1,
+          2
+        ],
+        [
+          0,
+          10,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
       ],
       "row_totals_rater_a": {
         "benign": 14,
@@ -81,32 +102,21 @@
   },
   "organization_qc_audit": {
     "status": "flagged_for_adjudication_qc",
-    "total_flagged_cases_count": 12,
-    "flagged_sample_ids": [
-      "SMP-001",
-      "SMP-002",
-      "SMP-003",
-      "SMP-006",
-      "SMP-010",
-      "SMP-011",
-      "SMP-014",
-      "SMP-017",
-      "SMP-019",
-      "SMP-022",
-      "SMP-023",
-      "SMP-024"
-    ],
-    "violation_type": "primary_org_status='identified' but primary_org='unknown'",
-    "codebook_reference": "Codebook v1.1 Mục 3 & 4 (Khi đã xác định thương hiệu claim/victim, primary_org bắt buộc phải là chuỗi định danh cụ thể, không được để unknown)",
-    "policy": "Giữ nguyên bản ghi Pass 1 của A; không công bố Kappa tổ chức như kết luận chính thức; chuyển toàn bộ 12 ca vào hồ sơ phân xử riêng"
+    "annotator_a_format_violation_count": 12,
+    "raw_org_disagreements_count": 5,
+    "resolved_by_locked_alias_table_count": 3,
+    "residual_disagreements_requiring_adjudication_count": 2,
+    "locked_alias_resolution_summary": "Áp dụng configs/dictionary_v1.json: 3 mẫu có bất đồng thô (A ghi 'facebook', B ghi 'meta') được alias bảng khóa ánh xạ đồng thuận về mã canonical 'meta'.",
+    "residual_disagreements_summary": "2 mẫu bất đồng tổ chức ngoài danh mục chuẩn hóa (hệ thống nội bộ và website bán hàng mô hình ck-modellbaushop) được chuyển vào hồ sơ phân xử để hội đồng chuẩn hóa.",
+    "codebook_v1_1_eligible_denominator_specification": "Theo Codebook v1.1 Mục 6, Kappa mã primary_org đơn trị chỉ tính trên các cặp có mục tiêu chính đơn trị hợp lệ của cả hai bên. Trước phân xử, 12 ca lỗi định dạng của A và các ca unknown/no_clear_target không đủ điều kiện đơn trị hợp lệ, làm thu hẹp mẫu số. Do đó, chỉ số Kappa tổ chức chính thức được bảo lưu nghiêm ngặt, chưa công bố trước phiên phân xử.",
+    "policy": "Giữ nguyên bản ghi Pass 1 của A; tách riêng các ca vào hồ sơ phân xử để hội đồng chuẩn hóa định danh tổ chức theo danh mục 14 mã hoặc định danh ngoài danh mục hợp lệ."
   },
   "adjudication_agenda_policy": {
-    "disagreement_class_label_cases": 3,
-    "organization_qc_cases": 12,
     "neutrality_principles": [
+      "Viết câu hỏi dựa trên dấu hiệu quan sát được, tuyệt đối không đưa kết luận hoặc phán đoán vào tiền đề (đặc biệt không gọi trước là 'mạo danh' hay 'mồi nhử lừa đảo')",
       "Chỉ sử dụng Blind View, Codebook v1.1 và evidence_note đã khóa của hai bên",
       "Tuyệt đối không đưa nhãn nguồn, ground truth, parquet locators, matcher rules hay điểm số mô hình vào phiên phân xử",
-      "Lưu trữ hồ sơ chi tiết ngoài Git (data/restricted/); chỉ đưa báo cáo tổng hợp không lộ mẫu lên Git"
+      "Lưu trữ toàn bộ hồ sơ chi tiết và câu hỏi phân xử tại phân vùng hạn chế data/restricted/; bản công khai trên Git chỉ lưu số liệu tổng hợp và phương pháp luận"
     ]
   }
 }
