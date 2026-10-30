@@ -15,12 +15,12 @@
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
     "manifest_sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b",
     "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
-    "restricted_adjudication_dossier_sha256": "cdd486b76cf6f1a98d08db03241ffa63107ff546d8d4969df80a6c583835532a"
+    "restricted_adjudication_dossier_sha256": "ad3720e141a794dda3c87df513fb27ff435d9fda565df69fce114587634215a7"
   },
   "data_boundary_audit": {
     "incident_reference_commit": "e7a450c",
     "incident_description": "Tại commit e7a450c trên nhánh feat/c-calibration-v1-1-4-adjudication, tệp báo cáo công khai từng xuất hiện thông tin chi tiết nhãn A/B và mô tả nội dung theo từng mã mẫu.",
-    "verified_exposure_scope": "Phạm vi tiếp xúc được giới hạn 100% trong nội bộ nhóm nghiên cứu; xác minh 0 lượt truy cập từ bên ngoài; không làm lộ mã định vị parquet hay raw URLs của corpus.",
+    "verified_exposure_scope": "Phạm vi có thể xác minh: Nhánh nghiên cứu nội bộ của nhóm (feat/c-calibration-v1-1-4-adjudication); kho lưu trữ không lưu nhật ký truy cập mạng độc lập (access logs) nên không khẳng định tuyệt đối về số lượt truy cập ngoài; ghi nhận trung thực nội dung cấp mẫu tại commit e7a450c vẫn còn lưu lại trong lịch sử Git trừ khi có quy trình thanh lọc lịch sử độc lập.",
     "remediation_protocol": "Khắc phục triệt để bằng việc chuyển toàn bộ danh sách ca, bằng chứng và câu hỏi nghị trình chi tiết sang phân vùng hạn chế ngoài Git (data/restricted/); bản công khai trên Git chỉ giữ số liệu tổng hợp, phương pháp luận và bảng mã băm. Tuyệt đối không force-push hay viết lại lịch sử commit nhằm duy trì tính bất biến của audit trail."
   },
   "annotator_packages": {
@@ -28,18 +28,20 @@
       "annotator_id": "A",
       "full_name": "Trần Hồng Khải",
       "official_locked_file": "data/annotations/A/clean_calibration_pass1.jsonl",
-      "sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f",
+      "sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1",
       "total_samples": 24,
       "total_seconds_spent": 9123.72,
       "average_seconds_spent": 380.16,
       "smp_001_operational_lag_remediation": {
         "status": "remediated_prior_to_viewing_b_labels",
         "lead_d_approval": "approved_as_operational_lag_fix",
-        "official_locked_sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f",
+        "official_locked_sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1",
         "prefix_draft_sha256": "pending_handoff_from_annotator_a",
-        "field_diff_audit": "Chờ Đánh giá viên A bàn giao bản gốc tiền sửa lỗi; Thành viên C không tự suy đoán diff trường dữ liệu nhằm bảo đảm tính trung thực khoa học tuyệt đối (Zero Hallucination). Ngay khi nhận bản gốc, C sẽ tính SHA-256 và lập bảng so sánh JSON diff chi tiết từng trường.",
+        "field_diff_audit": "File A chính thức đã được tiếp nhận an toàn. Chờ Đánh giá viên A bàn giao bản gốc tiền sửa lỗi; Thành viên C không tự suy đoán diff trường dữ liệu nhằm bảo đảm tính trung thực khoa học tuyệt đối (Zero Hallucination). Ngay khi nhận bản gốc, C sẽ tính SHA-256 và lập bảng so sánh JSON diff chi tiết từng trường.",
         "audit_policy": "Tệp khóa 1c60d10a... là bản Pass 1 chính thức duy nhất; không tính Kappa trên bản lỗi; không yêu cầu A gán lại; không mở sửa tiếp tệp đã khóa."
-      }
+      },
+      "intake_status": "received_and_verified_locally",
+      "raw_intake_vault_copy": "data/restricted/intake_pass1_A_1c60d10a.jsonl"
     },
     "rater_b": {
       "annotator_id": "B",

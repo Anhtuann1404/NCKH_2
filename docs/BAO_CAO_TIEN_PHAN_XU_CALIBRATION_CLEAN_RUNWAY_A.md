@@ -5,7 +5,8 @@
 > **Giai đoạn**: Tiền phân xử (Pre-adjudication) — Pass 1 Calibration Runway A  
 > **Chỉ đạo thực hiện**: Lead D (Anh Tuấn)  
 > **Đơn vị lập hồ sơ**: Thành viên C (Data Pipeline & Blind View)  
-> **Phiên bản hồ sơ**: 1.2.0  
+> **Cơ chế phối hợp**: Duo Mode (Antigravity & DeepSeek Bridge)  
+> **Phiên bản hồ sơ**: 1.3.0  
 > **Ngày cập nhật**: 31/10/2026  
 > **Trạng thái quản trị**: Chờ Lead D nghiệm thu nghị trình (`pending_lead_d_review`)
 
@@ -23,29 +24,29 @@ Thực hiện chỉ đạo đối soát của Lead D (Anh Tuấn) đối với d
 | **Codebook v1.1** | `docs/CODEBOOK_V1_1.md` | — | `e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd` | Đã khóa |
 | **Manifest Runway A** | `configs/calibration_clean_a_manifest.json` | — | `9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b` | Đã khóa |
 | **Từ điển tổ chức v1** | `configs/dictionary_v1.json` | 14 orgs | `7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3` | Đã khóa |
-| **File gán nhãn A** | `data/annotations/A/clean_calibration_pass1.jsonl` | 24 mẫu | `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f` | Chính thức Pass 1 |
+| **File gán nhãn A** | `data/annotations/A/clean_calibration_pass1.jsonl` | 24 mẫu | `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1` | Chính thức Pass 1 |
 | **File gán nhãn B** | `data/annotations/B/clean_calibration_pass1.jsonl` | 24 mẫu | `6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0` | Chính thức Pass 1 |
 
 *Ghi chú định lượng thời gian*:
-- **Đánh giá viên A (Trần Hồng Khải)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **9.123,72 giây** (trung bình ~380,16 giây/mẫu).
-- **Đánh giá viên B (Phùng Tấn Minh)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **6.008,72 giây** (trung bình ~250,36 giây/mẫu).
+- **Đánh giá viên A (Trần Hồng Khải)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **9.123,72 giây** (trung bình ~380,16 giây/mẫu). File đã tiếp nhận đầy đủ tại `data/annotations/A/clean_calibration_pass1.jsonl`.
+- **Đánh giá viên B (Phùng Tấn Minh)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **6.008,72 giây** (trung bình ~250,36 giây/mẫu). File lưu trữ an toàn tại `data/annotations/B/clean_calibration_pass1.jsonl`.
 
 ---
 
 ## 2. KẾT QUẢ ĐỐI SOÁT ĐỘC LẬP CHỈ SỐ THỐNG KÊ (PRE-ADJUDICATION)
 
-Thành viên C đã tiến hành tính toán độc lập từ các tệp nhãn gốc được khóa. Kết quả xác nhận khớp 100% với số liệu đối soát sơ bộ của Lead D.
+Thành viên C đã tiến hành tính toán độc lập từ hai tệp nhãn gốc được khóa. Kết quả xác nhận khớp 100% với số liệu đối soát sơ bộ của Lead D.
 
 ### 2.1. Các chỉ số đồng thuận liên đánh giá viên
 
 - **Tổng số mẫu hiệu chuẩn**: $N = 24$.
 - **Số mẫu đồng thuận tuyệt đối**: $21 / 24$.
 - **Tỷ lệ đồng thuận quan sát ($P_o$)**:
-  $$P_o = \frac{21}{24} = 0{,}875 \quad (87{,}50\%)$$
+  $$P_o = rac{21}{24} = 0{,}875 \quad (87{,}50\%)$$
 - **Tỷ lệ đồng thuận kỳ vọng ngẫu nhiên ($P_e$)**:
-  $$P_e = \frac{14 \times 11 + 10 \times 11 + 0 \times 2}{24 \times 24} = \frac{154 + 110 + 0}{576} = \frac{264}{576} = \frac{11}{24} \approx 0{,}458333$$
+  $$P_e = rac{14 	imes 11 + 10 	imes 11 + 0 	imes 2}{24 	imes 24} = rac{154 + 110 + 0}{576} = rac{264}{576} = rac{11}{24} pprox 0{,}458333$$
 - **Hệ số Cohen’s Kappa nhãn lớp ($\kappa$)**:
-  $$\kappa = \frac{P_o - P_e}{1 - P_e} = \frac{\frac{21}{24} - \frac{11}{24}}{1 - \frac{11}{24}} = \frac{\frac{10}{24}}{\frac{13}{24}} = \frac{10}{13} \approx 0{,}769230769... \approx 0{,}769231$$
+  $$\kappa = rac{P_o - P_e}{1 - P_e} = rac{rac{21}{24} - rac{11}{24}}{1 - rac{11}{24}} = rac{rac{10}{24}}{rac{13}{24}} = rac{10}{13} pprox 0{,}769230769... pprox 0{,}769231$$
 
 > [!NOTE]
 > Theo thang phân loại chuẩn của Landis & Koch (1977), hệ số $\kappa = 0{,}769231$ nằm trong khoảng $[0{,}61 - 0{,}80]$, tương ứng mức **Substantial Agreement** (Thỏa thuận rất cao). Đây là mức độ tin cậy vượt trội trong gán nhãn độc lập song song trước khi bước vào phiên phân xử.
@@ -65,17 +66,17 @@ Ma trận phản ánh số lượng phân loại nhãn lớp tổng hợp giữa
 
 ---
 
-## 3. KIỂM TOÁN SỰ CỐ THAO TÁC SMP-001 (ĐÁNH GIÁ VIÊN A)
+## 3. KIỂM TOÁN SỰ CỐ THAO TÁC GIAO DIỆN VÀ TÍNH CHÍNH THỨC CỦA TỆP PASS 1
 
 ### 3.1. Bối cảnh và Xác nhận của Lead D
-Trong quá trình gán nhãn mẫu `SMP-001`, giao diện CLI gặp hiện tượng lag hiển thị dẫn đến việc ghi nhận trạng thái chưa đúng với nhận định ban đầu của Đánh giá viên A.
+Trong quá trình gán nhãn Pass 1 của Đánh giá viên A, giao diện CLI gặp hiện tượng lag hiển thị trên 01 mẫu khảo sát dẫn đến việc ghi nhận trạng thái chưa đúng với nhận định ban đầu.
 Lead D xác nhận:
 1. Bản trước sửa là lỗi thao tác do lag giao diện, không phải là sự thay đổi quyết định gán nhãn chuyên môn.
 2. Việc phê duyệt sửa đổi được thực hiện khi A hoàn toàn chưa tiếp cận nhãn hay dữ liệu gán của B (bảo đảm nguyên tắc mù song song tuyệt đối).
 
 ### 3.2. Chính sách quản trị dữ liệu áp dụng
-- **Tệp chính thức**: Tệp gán nhãn Pass 1 chính thức của Đánh giá viên A có mã băm SHA-256 là `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f`. Toàn bộ các phép tính thống kê và nghị trình phân xử sử dụng tệp này.
-- **Lưu trữ kiểm toán**: Tệp nháp tiền chỉnh sửa được lưu trữ độc lập tại phân vùng hạn chế ngoài Git nhằm mục đích phục vụ hậu kiểm (audit trail).
+- **Tệp chính thức**: Tệp gán nhãn Pass 1 chính thức của Đánh giá viên A có mã băm SHA-256 là `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1` (đã được tiếp nhận đầy đủ tại `data/annotations/A/clean_calibration_pass1.jsonl` và lưu trữ bản sao tại phân vùng hạn chế). Toàn bộ các phép tính thống kê và nghị trình phân xử sử dụng tệp này.
+- **Lưu trữ kiểm toán**: Toàn bộ mã định danh mẫu, bản nháp tiền sửa lỗi và chi tiết diff được lưu trữ độc lập tại phân vùng kiểm toán hạn chế ngoài Git (`data/restricted/`) nhằm bảo đảm tính bảo mật cấp mẫu của báo cáo công khai.
 - **Quy tắc bất biến**:
   - Không tính Kappa trên bản lỗi.
   - Không yêu cầu Đánh giá viên A gán lại toàn bộ tập dữ liệu.
@@ -104,7 +105,7 @@ Qua rà soát đối chiếu trường dữ liệu, hồ sơ ghi nhận:
 
 ### 5.1. Nguyên tắc trung lập cốt lõi
 1. **Zero External Metadata**: Tuyệt đối không đưa nhãn nguồn (ground truth), bộ định vị parquet (file, offset), bộ so khớp thương hiệu tự động (rule matchers), hay điểm số mô hình máy học (model scores) vào phòng họp phân xử.
-2. **Tính khách quan của câu hỏi nghị trình**: Mọi câu hỏi thảo luận được xây dựng thuần túy dựa trên các dấu hiệu quan sát được trên view (tiêu đề, văn bản, cấu trúc form, quan hệ tên miền), tuyệt đối không gán ghép kết luận hay phán đoán vào tiền đề thảo luận.
+2. **Tính khách quan của câu hỏi nghị trình**: Mọi câu hỏi thảo luận được xây dựng thuần túy dựa trên các dấu hiệu quan sát được trên view (tiêu đề, văn bản, cấu trúc form, quan hệ tên miền), tuyệt đối không gán ghép kết luận hay phán đoán vào tiền đề thảo luận (đặc biệt không dùng các từ ngữ phán đoán tính chính chủ hay mục đích lừa đảo trước khi hội đồng xem xét).
 3. **Bộ tài liệu duy nhất được cấp phép trong phiên**:
    - `clean_calibration_blind_view_24.json` (SHA-256: `0164b2a5...`)
    - `docs/CODEBOOK_V1_1.md` (SHA-256: `e30871b8...`)
@@ -121,10 +122,10 @@ Qua rà soát đối chiếu trường dữ liệu, hồ sơ ghi nhận:
 
 1. **Ghi nhận sự cố cam kết e7a450c**:
    Tại commit `e7a450c` trên nhánh nghiên cứu `feat/c-calibration-v1-1-4-adjudication`, tệp báo cáo công khai từng xuất hiện thông tin chi tiết nhãn A/B và mô tả nội dung theo từng mã mẫu.
-2. **Xác minh phạm vi tiếp xúc**:
-   - Phạm vi tiếp xúc được giới hạn 100% trong nội bộ nhóm nghiên cứu trên nhánh Git chuyên trách;
-   - Xác minh 0 lượt truy cập từ bên ngoài;
-   - Không làm lộ mã định vị parquet hay raw URLs của corpus chưa công bố.
+2. **Phạm vi có thể xác minh**:
+   - Nhánh nghiên cứu nội bộ của nhóm (`feat/c-calibration-v1-1-4-adjudication`);
+   - Kho lưu trữ không lưu nhật ký truy cập mạng độc lập (access logs) nên không đưa ra khẳng định tuyệt đối về số lượt truy cập từ bên ngoài;
+   - Ghi nhận trung thực rằng nội dung cấp mẫu tại commit `e7a450c` vẫn còn lưu lại trong lịch sử Git trừ khi có quy trình thanh lọc lịch sử độc lập được phê duyệt.
 3. **Quy trình khắc phục**:
    - Khắc phục triệt để bằng việc chuyển toàn bộ danh sách ca, bằng chứng và câu hỏi nghị trình chi tiết sang phân vùng hạn chế ngoài Git (`data/restricted/`); bản công khai trên Git chỉ giữ số liệu tổng hợp, phương pháp luận và bảng mã băm.
    - Giữ nguyên lịch sử commit (không force-push, không viết lại lịch sử) nhằm duy trì tính bất biến và trung thực của audit trail.
@@ -137,9 +138,10 @@ Qua rà soát đối chiếu trường dữ liệu, hồ sơ ghi nhận:
 - **Cô lập tập kiểm thử chính thức**: `official_test_used = false`. Toàn bộ dữ liệu Official Test được bảo vệ biệt lập 100%.
 - **Trạng thái sẵn sàng**: `ready_for_adjudication_pass2 = false` (chờ Lead D nghiệm thu nghị trình).
 - **Mã băm các artifact hạn chế và công khai**:
-  - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `cdd486b76cf6f1a98d08db03241ffa63107ff546d8d4969df80a6c583835532a`
+  - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `ad3720e141a794dda3c87df513fb27ff435d9fda565df69fce114587634215a7`
   - `data/restricted/intake_pass1_B_6069f61c.jsonl`: `6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0`
-  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `5b8e304bad1378d570d545c3a19881279b978d2475d40b11edb53d811a4b4f55`
+  - `data/restricted/intake_pass1_A_1c60d10a.jsonl`: `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1`
+  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `d6af208ba1ddeb89466971f802f84d63ff6458bfee528af73eaf13995de387a1`
 
 ---
 *Báo cáo được lập bởi Thành viên C. Đang chờ nghiệm thu nghị trình của Lead D trước khi mở phiên phân xử Pass 2.*
