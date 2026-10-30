@@ -1,0 +1,112 @@
+{
+  "audit_id": "PRE-ADJUDICATION-AUDIT-CALIBRATION-CLEAN-RUNWAY-A",
+  "dataset_id": "CALIBRATION-CLEAN-24",
+  "version": "1.1.0",
+  "evaluation_stage": "pre_adjudication",
+  "audit_date_utc": "2026-10-30T17:45:00Z",
+  "lead_d_directive_reference": "Chỉ đạo đối soát độc lập Pass 1 và chuẩn bị phân xử của Lead D (Anh Tuấn)",
+  "governance": {
+    "training_blocked": true,
+    "official_test_used": false,
+    "ready_for_adjudication_pass2": true,
+    "blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
+    "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
+    "manifest_sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b"
+  },
+  "annotator_packages": {
+    "rater_a": {
+      "annotator_id": "A",
+      "full_name": "Trần Hồng Khải",
+      "official_locked_file": "data/annotations/A/clean_calibration_pass1.jsonl",
+      "sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f",
+      "total_samples": 24,
+      "total_seconds_spent": 9123.72,
+      "average_seconds_spent": 380.16,
+      "smp_001_operational_lag_remediation": {
+        "status": "remediated_prior_to_viewing_b_labels",
+        "lead_d_approval": "approved_as_operational_lag_fix",
+        "audit_policy": "file_1c60d10a_is_official_locked_pass1"
+      }
+    },
+    "rater_b": {
+      "annotator_id": "B",
+      "full_name": "Phùng Tấn Minh",
+      "official_locked_file": "data/annotations/B/clean_calibration_pass1.jsonl",
+      "sha256": "6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0",
+      "total_samples": 24,
+      "total_seconds_spent": 6008.72,
+      "average_seconds_spent": 250.36,
+      "raw_intake_vault_copy": "data/restricted/intake_pass1_B_6069f61c.jsonl"
+    }
+  },
+  "pre_adjudication_metrics": {
+    "total_samples": 24,
+    "agreed_samples_count": 21,
+    "observed_agreement_Po": 0.875,
+    "expected_agreement_Pe": 0.458333,
+    "cohens_kappa_exact": "10/13",
+    "cohens_kappa_float": 0.769231,
+    "interpretation": "Substantial agreement (Landis & Koch, 1977) đạt ngưỡng chất lượng cao trước phân xử",
+    "disagreements": {
+      "count": 3,
+      "sample_ids": [
+        "SMP-012",
+        "SMP-014",
+        "SMP-024"
+      ]
+    },
+    "confusion_matrix_3x3": {
+      "classes": [
+        "benign",
+        "phishing",
+        "insufficient_evidence"
+      ],
+      "description": "Rows: Annotator A, Columns: Annotator B",
+      "matrix": [
+        [11, 1, 2],
+        [0, 10, 0],
+        [0, 0, 0]
+      ],
+      "row_totals_rater_a": {
+        "benign": 14,
+        "phishing": 10,
+        "insufficient_evidence": 0
+      },
+      "col_totals_rater_b": {
+        "benign": 11,
+        "phishing": 11,
+        "insufficient_evidence": 2
+      }
+    }
+  },
+  "organization_qc_audit": {
+    "status": "flagged_for_adjudication_qc",
+    "total_flagged_cases_count": 12,
+    "flagged_sample_ids": [
+      "SMP-001",
+      "SMP-002",
+      "SMP-003",
+      "SMP-006",
+      "SMP-010",
+      "SMP-011",
+      "SMP-014",
+      "SMP-017",
+      "SMP-019",
+      "SMP-022",
+      "SMP-023",
+      "SMP-024"
+    ],
+    "violation_type": "primary_org_status='identified' but primary_org='unknown'",
+    "codebook_reference": "Codebook v1.1 Mục 3 & 4 (Khi đã xác định thương hiệu claim/victim, primary_org bắt buộc phải là chuỗi định danh cụ thể, không được để unknown)",
+    "policy": "Giữ nguyên bản ghi Pass 1 của A; không công bố Kappa tổ chức như kết luận chính thức; chuyển toàn bộ 12 ca vào hồ sơ phân xử riêng"
+  },
+  "adjudication_agenda_policy": {
+    "disagreement_class_label_cases": 3,
+    "organization_qc_cases": 12,
+    "neutrality_principles": [
+      "Chỉ sử dụng Blind View, Codebook v1.1 và evidence_note đã khóa của hai bên",
+      "Tuyệt đối không đưa nhãn nguồn, ground truth, parquet locators, matcher rules hay điểm số mô hình vào phiên phân xử",
+      "Lưu trữ hồ sơ chi tiết ngoài Git (data/restricted/); chỉ đưa báo cáo tổng hợp không lộ mẫu lên Git"
+    ]
+  }
+}
