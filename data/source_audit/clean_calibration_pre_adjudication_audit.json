@@ -15,7 +15,7 @@
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
     "manifest_sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b",
     "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
-    "restricted_adjudication_dossier_sha256": "ad3720e141a794dda3c87df513fb27ff435d9fda565df69fce114587634215a7"
+    "restricted_adjudication_dossier_sha256": "0306526f9c4aef3b869825741891e04633301180e762daac44bcaa8d3f10c7e2"
   },
   "data_boundary_audit": {
     "incident_reference_commit": "e7a450c",
@@ -37,8 +37,8 @@
         "lead_d_approval": "approved_as_operational_lag_fix",
         "official_locked_sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1",
         "prefix_draft_sha256": "pending_handoff_from_annotator_a",
-        "field_diff_audit": "File A chính thức đã được tiếp nhận an toàn. Chờ Đánh giá viên A bàn giao bản gốc tiền sửa lỗi; Thành viên C không tự suy đoán diff trường dữ liệu nhằm bảo đảm tính trung thực khoa học tuyệt đối (Zero Hallucination). Ngay khi nhận bản gốc, C sẽ tính SHA-256 và lập bảng so sánh JSON diff chi tiết từng trường.",
-        "audit_policy": "Tệp khóa 1c60d10a... là bản Pass 1 chính thức duy nhất; không tính Kappa trên bản lỗi; không yêu cầu A gán lại; không mở sửa tiếp tệp đã khóa."
+        "field_diff_audit": "Mục kiểm toán còn mở: File A chính thức đã được tiếp nhận an toàn và giữ nguyên byte. Bản nháp tiền sửa lỗi đang chờ Đánh giá viên A bàn giao; sau khi nhận mới tính SHA-256, lập diff và lưu vào audit hạn chế; Thành viên C không tự suy đoán diff khi chưa nhận bàn giao bản gốc.",
+        "audit_policy": "Tệp khóa 1c60d10a... là bản Pass 1 chính thức duy nhất; không tính Kappa trên bản lỗi; không yêu cầu A gán lại; không mở sửa tiếp tệp đã khóa; việc thiếu bản trước sửa là mục kiểm toán còn mở, tuyệt đối không suy đoán nội dung."
       },
       "intake_status": "received_and_verified_locally",
       "raw_intake_vault_copy": "data/restricted/intake_pass1_A_1c60d10a.jsonl"

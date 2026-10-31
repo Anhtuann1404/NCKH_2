@@ -6,7 +6,7 @@
 > **Chỉ đạo thực hiện**: Lead D (Anh Tuấn)  
 > **Đơn vị lập hồ sơ**: Thành viên C (Data Pipeline & Blind View)  
 > **Cơ chế phối hợp**: Duo Mode (Antigravity & DeepSeek Bridge)  
-> **Phiên bản hồ sơ**: 1.3.0  
+> **Phiên bản hồ sơ**: 1.4.0  
 > **Ngày cập nhật**: 31/10/2026  
 > **Trạng thái quản trị**: Chờ Lead D nghiệm thu nghị trình (`pending_lead_d_review`)
 
@@ -28,7 +28,7 @@ Thực hiện chỉ đạo đối soát của Lead D (Anh Tuấn) đối với d
 | **File gán nhãn B** | `data/annotations/B/clean_calibration_pass1.jsonl` | 24 mẫu | `6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0` | Chính thức Pass 1 |
 
 *Ghi chú định lượng thời gian*:
-- **Đánh giá viên A (Trần Hồng Khải)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **9.123,72 giây** (trung bình ~380,16 giây/mẫu). File đã tiếp nhận đầy đủ tại `data/annotations/A/clean_calibration_pass1.jsonl`.
+- **Đánh giá viên A (Trần Hồng Khải)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **9.123,72 giây** (trung bình ~380,16 giây/mẫu). File lưu trữ an toàn tại `data/annotations/A/clean_calibration_pass1.jsonl`.
 - **Đánh giá viên B (Phùng Tấn Minh)**: 24/24 ID hoàn thành, tổng thời gian thao tác ghi nhận: **6.008,72 giây** (trung bình ~250,36 giây/mẫu). File lưu trữ an toàn tại `data/annotations/B/clean_calibration_pass1.jsonl`.
 
 ---
@@ -42,11 +42,11 @@ Thành viên C đã tiến hành tính toán độc lập từ hai tệp nhãn g
 - **Tổng số mẫu hiệu chuẩn**: $N = 24$.
 - **Số mẫu đồng thuận tuyệt đối**: $21 / 24$.
 - **Tỷ lệ đồng thuận quan sát ($P_o$)**:
-  $$P_o = rac{21}{24} = 0{,}875 \quad (87{,}50\%)$$
+  $$P_o = \frac{21}{24} = 0{,}875 \quad (87{,}50\%)$$
 - **Tỷ lệ đồng thuận kỳ vọng ngẫu nhiên ($P_e$)**:
-  $$P_e = rac{14 	imes 11 + 10 	imes 11 + 0 	imes 2}{24 	imes 24} = rac{154 + 110 + 0}{576} = rac{264}{576} = rac{11}{24} pprox 0{,}458333$$
+  $$P_e = \frac{14 \times 11 + 10 \times 11 + 0 \times 2}{24 \times 24} = \frac{154 + 110 + 0}{576} = \frac{264}{576} = \frac{11}{24} \approx 0{,}458333$$
 - **Hệ số Cohen’s Kappa nhãn lớp ($\kappa$)**:
-  $$\kappa = rac{P_o - P_e}{1 - P_e} = rac{rac{21}{24} - rac{11}{24}}{1 - rac{11}{24}} = rac{rac{10}{24}}{rac{13}{24}} = rac{10}{13} pprox 0{,}769230769... pprox 0{,}769231$$
+  $$\kappa = \frac{P_o - P_e}{1 - P_e} = \frac{\frac{21}{24} - \frac{11}{24}}{1 - \frac{11}{24}} = \frac{\frac{10}{24}}{\frac{13}{24}} = \frac{10}{13} \approx 0{,}769230769... \approx 0{,}769231$$
 
 > [!NOTE]
 > Theo thang phân loại chuẩn của Landis & Koch (1977), hệ số $\kappa = 0{,}769231$ nằm trong khoảng $[0{,}61 - 0{,}80]$, tương ứng mức **Substantial Agreement** (Thỏa thuận rất cao). Đây là mức độ tin cậy vượt trội trong gán nhãn độc lập song song trước khi bước vào phiên phân xử.
@@ -76,7 +76,7 @@ Lead D xác nhận:
 
 ### 3.2. Chính sách quản trị dữ liệu áp dụng
 - **Tệp chính thức**: Tệp gán nhãn Pass 1 chính thức của Đánh giá viên A có mã băm SHA-256 là `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1` (đã được tiếp nhận đầy đủ tại `data/annotations/A/clean_calibration_pass1.jsonl` và lưu trữ bản sao tại phân vùng hạn chế). Toàn bộ các phép tính thống kê và nghị trình phân xử sử dụng tệp này.
-- **Lưu trữ kiểm toán**: Toàn bộ mã định danh mẫu, bản nháp tiền sửa lỗi và chi tiết diff được lưu trữ độc lập tại phân vùng kiểm toán hạn chế ngoài Git (`data/restricted/`) nhằm bảo đảm tính bảo mật cấp mẫu của báo cáo công khai.
+- **Lưu trữ kiểm toán**: Mã định danh mẫu cụ thể, tệp nháp tiền sửa lỗi và chi tiết diff là mục kiểm toán còn mở, đang chờ Đánh giá viên A bàn giao; sau khi nhận mới tính SHA-256, lập diff chi tiết và lưu vào audit hạn chế ngoài Git (`data/restricted/`). Tuyệt đối không suy đoán nội dung khi chưa nhận bàn giao.
 - **Quy tắc bất biến**:
   - Không tính Kappa trên bản lỗi.
   - Không yêu cầu Đánh giá viên A gán lại toàn bộ tập dữ liệu.
@@ -138,10 +138,10 @@ Qua rà soát đối chiếu trường dữ liệu, hồ sơ ghi nhận:
 - **Cô lập tập kiểm thử chính thức**: `official_test_used = false`. Toàn bộ dữ liệu Official Test được bảo vệ biệt lập 100%.
 - **Trạng thái sẵn sàng**: `ready_for_adjudication_pass2 = false` (chờ Lead D nghiệm thu nghị trình).
 - **Mã băm các artifact hạn chế và công khai**:
-  - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `ad3720e141a794dda3c87df513fb27ff435d9fda565df69fce114587634215a7`
+  - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `0306526f9c4aef3b869825741891e04633301180e762daac44bcaa8d3f10c7e2`
   - `data/restricted/intake_pass1_B_6069f61c.jsonl`: `6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0`
   - `data/restricted/intake_pass1_A_1c60d10a.jsonl`: `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1`
-  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `d6af208ba1ddeb89466971f802f84d63ff6458bfee528af73eaf13995de387a1`
+  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `a63462a544060ec05cfddb416c47005c5ff5995f639680bd88d907c26e9c0d40`
 
 ---
 *Báo cáo được lập bởi Thành viên C. Đang chờ nghiệm thu nghị trình của Lead D trước khi mở phiên phân xử Pass 2.*
