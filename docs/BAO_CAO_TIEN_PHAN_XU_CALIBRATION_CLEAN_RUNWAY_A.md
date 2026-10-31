@@ -3,12 +3,12 @@
 
 > **Dự án**: Nghiên cứu phát hiện website phishing kết hợp URL và nội dung trang (NCKH_2)  
 > **Giai đoạn**: Tiền phân xử (Pre-adjudication) — Pass 1 Calibration Runway A  
-> **Chỉ đạo thực hiện**: Lead D (Anh Tuấn)  
+> **Chỉ đạo thực hiện & Chủ trì phân xử**: Lead D (Anh Tuấn)  
 > **Đơn vị lập hồ sơ**: Thành viên C (Data Pipeline & Blind View)  
 > **Cơ chế phối hợp**: Duo Mode (Antigravity & DeepSeek Bridge)  
-> **Phiên bản hồ sơ**: 1.4.0  
+> **Phiên bản hồ sơ**: 1.5.0  
 > **Ngày cập nhật**: 31/10/2026  
-> **Trạng thái quản trị**: Chờ Lead D nghiệm thu nghị trình (`pending_lead_d_review`)
+> **Trạng thái quản trị**: Lead D đã chính thức DUYỆT NGHỊ TRÌNH; sẵn sàng mở phiên phân xử Pass 2 (`ready_for_adjudication_pass2 = true`)
 
 ---
 
@@ -101,20 +101,21 @@ Qua rà soát đối chiếu trường dữ liệu, hồ sơ ghi nhận:
 
 ---
 
-## 5. NGHỊ TRÌNH TRUNG LẬP PHÂN XỬ PASS 2 & BẢO MẬT DỮ LIỆU
+## 5. NGHỊ TRÌNH TRUNG LẬP PHÂN XỬ PASS 2 & QUYẾT ĐỊNH DUYỆT CỦA LEAD D
 
-### 5.1. Nguyên tắc trung lập cốt lõi
-1. **Zero External Metadata**: Tuyệt đối không đưa nhãn nguồn (ground truth), bộ định vị parquet (file, offset), bộ so khớp thương hiệu tự động (rule matchers), hay điểm số mô hình máy học (model scores) vào phòng họp phân xử.
-2. **Tính khách quan của câu hỏi nghị trình**: Mọi câu hỏi thảo luận được xây dựng thuần túy dựa trên các dấu hiệu quan sát được trên view (tiêu đề, văn bản, cấu trúc form, quan hệ tên miền), tuyệt đối không gán ghép kết luận hay phán đoán vào tiền đề thảo luận (đặc biệt không dùng các từ ngữ phán đoán tính chính chủ hay mục đích lừa đảo trước khi hội đồng xem xét).
-3. **Bộ tài liệu duy nhất được cấp phép trong phiên**:
-   - `clean_calibration_blind_view_24.json` (SHA-256: `0164b2a5...`)
-   - `docs/CODEBOOK_V1_1.md` (SHA-256: `e30871b8...`)
-   - Bằng chứng và ghi chú quan sát (`evidence_note`) nguyên văn đã khóa của A và B.
+### 5.1. Quyết định duyệt và Chủ trì phiên
+Lead D (Anh Tuấn) đã kiểm tra toàn diện và **chính thức DUYỆT NGHỊ TRÌNH** cho phép mở phiên phân xử Pass 2. Lead D trực tiếp chủ trì phiên phân xử.
 
-### 5.2. Phân tách ranh giới dữ liệu và Lưu trữ hạn chế
-- Nhằm tuân thủ kỷ luật chống rò rỉ dữ liệu, toàn bộ danh mục mã mẫu, bằng chứng nguyên văn, chi tiết phân loại và câu hỏi nghị trình từng ca được cô lập hoàn toàn tại tệp hồ sơ hạn chế ngoài Git:
-  `data/restricted/clean_calibration_adjudication_dossier_restricted.json`
-- Bản báo cáo công khai trên Git tuyệt đối không lưu trữ dữ liệu cấp mẫu (sample-level data).
+### 5.2. Thứ tự tiến hành phiên phân xử Pass 2
+1. **Phần 1: Phân xử nhãn lớp (3 ca bất đồng)**: Đánh giá viên A và B lần lượt trình bày bằng chứng quan sát từ Blind View và quy tắc Codebook v1.1; Lead D ghi nhận quyết định cùng lý do.
+2. **Phần 2: QC tổ chức (14 ca)**: Rà soát 12 ca A ghi `identified/unknown` và 2 ca bất đồng ngoài danh mục. Ghi nhận rõ 3 ca alias `facebook` → `meta` đã giải quyết theo từ điển khóa là chuẩn hóa alias, không sửa Pass 1.
+3. **Phần 3: Xử lý ca thiếu chứng cứ**: Với các ca chưa đủ dữ liệu quan sát hành vi, ghi trạng thái QC phù hợp; tuyệt đối không ép chọn nhãn nhị phân hoặc gán mã tổ chức khi chưa đủ cơ sở.
+
+### 5.3. Nguyên tắc trung lập và Bảo mật ranh giới
+1. **Chỉ sử dụng hồ sơ hạn chế đã duyệt**: Cung cấp cùng một bản hồ sơ hạn chế đã duyệt cho A và B trong phiên.
+2. **Zero External Metadata**: Tuyệt đối không đưa nhãn nguồn, locator Parquet, matcher hoặc kết quả mô hình vào tài liệu thảo luận.
+3. **Bảo toàn nguyên bản Pass 1**: Giữ nguyên từng byte hai file Pass 1 gốc và kết quả thống kê trước phân xử ($N=24, P_o=21/24, P_e=11/24, \kappa=10/13$).
+4. **Khóa xuất nhãn**: Chưa xuất `labels_final` hoặc chốt `PLAN-01` trước khi Lead D duyệt biên bản quyết định đầy đủ.
 
 ---
 
@@ -136,12 +137,12 @@ Qua rà soát đối chiếu trường dữ liệu, hồ sơ ghi nhận:
 
 - **Khóa huấn luyện**: `training_blocked = true`. Tuyệt đối không đưa tập hiệu chuẩn hay dữ liệu phân xử vào bất kỳ quá trình huấn luyện mô hình nào.
 - **Cô lập tập kiểm thử chính thức**: `official_test_used = false`. Toàn bộ dữ liệu Official Test được bảo vệ biệt lập 100%.
-- **Trạng thái sẵn sàng**: `ready_for_adjudication_pass2 = false` (chờ Lead D nghiệm thu nghị trình).
+- **Trạng thái sẵn sàng**: `ready_for_adjudication_pass2 = true` (Đã được Lead D chính thức duyệt mở phiên phân xử).
 - **Mã băm các artifact hạn chế và công khai**:
-  - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `0306526f9c4aef3b869825741891e04633301180e762daac44bcaa8d3f10c7e2`
+  - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `658ea07a846c2adc79609f34bab833145a61d62fe026e0c928e7d7b40e16a92f`
   - `data/restricted/intake_pass1_B_6069f61c.jsonl`: `6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0`
   - `data/restricted/intake_pass1_A_1c60d10a.jsonl`: `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1`
-  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `a63462a544060ec05cfddb416c47005c5ff5995f639680bd88d907c26e9c0d40`
+  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `33f41531344b700a0407da908c0832c39a9a6e0c0ec9111ceaf6cd82d5a676eb`
 
 ---
-*Báo cáo được lập bởi Thành viên C. Đang chờ nghiệm thu nghị trình của Lead D trước khi mở phiên phân xử Pass 2.*
+*Báo cáo được lập bởi Thành viên C. Đã được Lead D chính thức duyệt mở phiên phân xử Pass 2.*

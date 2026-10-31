@@ -8,14 +8,30 @@
   "governance": {
     "training_blocked": true,
     "official_test_used": false,
-    "ready_for_adjudication_pass2": false,
-    "adjudication_readiness_status": "pending_lead_d_review",
-    "lead_d_review_status": "pending_agenda_acceptance",
+    "ready_for_adjudication_pass2": true,
+    "adjudication_readiness_status": "approved_ready_for_adjudication",
+    "lead_d_review_status": "officially_approved",
     "blind_view_sha256": "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
     "codebook_sha256": "e30871b87911992110e77ad0dcca8bbf64b916086f496555599e43730af0adbd",
     "manifest_sha256": "9d94dd3e33134131047600d9297f3058b3049a946863cac24fe34b7fd110a32b",
     "dictionary_sha256": "7aa83b68fdb4bb288460c00523e38e0779e8cbeb81ae879e7a5d27e771fcd3b3",
-    "restricted_adjudication_dossier_sha256": "0306526f9c4aef3b869825741891e04633301180e762daac44bcaa8d3f10c7e2"
+    "restricted_adjudication_dossier_sha256": "658ea07a846c2adc79609f34bab833145a61d62fe026e0c928e7d7b40e16a92f",
+    "lead_d_approval_reference": "Chính thức duyệt nghị trình và cho phép mở phiên phân xử Pass 2 Calibration Clean Runway A Đợt C của Lead D (Anh Tuấn)",
+    "adjudication_session_protocol": {
+      "session_chair": "Lead D (Anh Tuấn)",
+      "agenda_order": [
+        "1. Phân xử nhãn lớp SMP-012, SMP-014, SMP-024 (A và B lần lượt trình bày bằng chứng quan sát từ Blind View và quy tắc Codebook v1.1; D ghi quyết định cùng lý do)",
+        "2. QC tổ chức cho 12 ca A ghi identified/unknown và hai bất đồng còn lại SMP-012, SMP-013 (ghi rõ 3 ca alias facebook -> meta đã giải quyết theo từ điển khóa là chuẩn hóa alias, không sửa Pass 1)",
+        "3. Với ca chưa đủ chứng cứ, ghi trạng thái QC phù hợp; không ép chọn nhãn nhị phân hoặc mã tổ chức"
+      ],
+      "governance_invariants": [
+        "Giữ nguyên từng byte hai file Pass 1 của A/B và kết quả trước phân xử N=24, P_o=21/24, P_e=11/24, Kappa lớp=10/13≈0,769231",
+        "Chưa xuất labels_final hoặc chốt PLAN-01 trước khi D duyệt biên bản quyết định đầy đủ",
+        "Tiếp tục duy trì training_blocked=true và official_test_used=false",
+        "Chỉ cung cấp cùng một hồ sơ hạn chế đã duyệt cho A và B trong phiên; không đưa nhãn nguồn, locator Parquet, matcher hoặc kết quả mô hình vào tài liệu thảo luận",
+        "Bản A trước sửa SMP-001 vẫn là mục audit còn mở: C lấy file gốc từ A, tính SHA-256 và diff chính xác, lưu ngoài Git trước khi đóng mốc Calibration"
+      ]
+    }
   },
   "data_boundary_audit": {
     "incident_reference_commit": "e7a450c",
