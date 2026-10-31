@@ -210,3 +210,40 @@ class TestCleanCalibrationZeroGitLeakRegression:
             for pattern, desc in forbidden_regexes:
                 matches = re.findall(pattern, text)
                 assert len(matches) == 0, f"Phát hiện rò rỉ {desc} trong {path.name}: {matches[:3]}"
+
+    def test_public_adjudication_artifacts_zero_sample_id_and_zero_locator_leak(self):
+        """Quét cả tệp audit JSON và báo cáo Markdown công khai phục vụ tiền phân xử,
+        bảo đảm không còn ID mẫu (gồm cả dạng SMP-001 và smp_001), không còn nhãn A/B theo từng mẫu,
+        không chứa URL và không chứa nội dung snapshot."""
+        adjudication_public_artifacts = [
+            ROOT / "data/source_audit/clean_calibration_pre_adjudication_audit.json",
+            ROOT / "docs/BAO_CAO_TIEN_PHAN_XU_CALIBRATION_CLEAN_RUNWAY_A.md",
+        ]
+
+        for path in adjudication_public_artifacts:
+            assert path.exists(), f"Thiếu tệp công khai {path}"
+            text = path.read_text(encoding="utf-8")
+
+            # 1. Quét kiểm tra dạng SMP-xxx và smp_xxx (bao gồm SMP-001, smp_001, SMP-012, ...)
+            sample_id_matches = re.findall(r"(?i)smp[-_]\d+", text)
+            assert len(sample_id_matches) == 0, (
+                f"Phát hiện rò rỉ ID mẫu cấp mẫu trong {path.name}: {set(sample_id_matches)}"
+            )
+
+            # 2. Quét kiểm tra không chứa raw URL
+            url_matches = re.findall(r"https?://\S+", text)
+            assert len(url_matches) == 0, (
+                f"Phát hiện rò rỉ URL trong {path.name}: {url_matches[:3]}"
+            )
+
+            # 3. Quét kiểm tra không rò rỉ nhãn phân loại theo từng mẫu cụ thể
+            sample_level_label_matches = re.findall(r'"class_label"\s*:\s*"(?:phishing|benign|insufficient_evidence)"', text)
+            assert len(sample_level_label_matches) == 0, (
+                f"Phát hiện rò rỉ nhãn cấp mẫu trong {path.name}: {sample_level_label_matches[:3]}"
+            )
+
+            # 4. Kiểm tra byte LaTeX công thức không chứa ký tự điều khiển (formfeed \x0c, bell \x07)
+            raw_bytes = path.read_bytes()
+            assert b"\x0c" not in raw_bytes, f"Phát hiện ký tự điều khiển FormFeed (0x0c) trong {path.name}!"
+            assert b"\x07" not in raw_bytes, f"Phát hiện ký tự điều khiển Bell (0x07) trong {path.name}!"
+

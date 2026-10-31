@@ -6,7 +6,7 @@
 > **Chỉ đạo thực hiện & Chủ trì phân xử**: Lead D (Anh Tuấn)  
 > **Đơn vị lập hồ sơ**: Thành viên C (Data Pipeline & Blind View)  
 > **Cơ chế phối hợp**: Duo Mode (Antigravity & DeepSeek Bridge)  
-> **Phiên bản hồ sơ**: 1.5.0  
+> **Phiên bản hồ sơ**: 1.6.0  
 > **Ngày cập nhật**: 31/10/2026  
 > **Trạng thái quản trị**: Lead D đã chính thức DUYỆT NGHỊ TRÌNH; sẵn sàng mở phiên phân xử Pass 2 (`ready_for_adjudication_pass2 = true`)
 
@@ -119,16 +119,17 @@ Lead D (Anh Tuấn) đã kiểm tra toàn diện và **chính thức DUYỆT NGH
 
 ---
 
-## 6. KIỂM TOÁN RANH GIỚI DỮ LIỆU & GHI NHẬN SỰ CỐ COMMIT e7a450c
+## 6. KIỂM TOÁN RANH GIỚI DỮ LIỆU & GHI NHẬN SỰ CỐ COMMIT e7a450c VÀ c57478e
 
-1. **Ghi nhận sự cố cam kết e7a450c**:
-   Tại commit `e7a450c` trên nhánh nghiên cứu `feat/c-calibration-v1-1-4-adjudication`, tệp báo cáo công khai từng xuất hiện thông tin chi tiết nhãn A/B và mô tả nội dung theo từng mã mẫu.
+1. **Ghi nhận sự cố cam kết e7a450c và c57478e**:
+   Tại các commit `e7a450c` và `c57478e` trên nhánh nghiên cứu `feat/c-calibration-v1-1-4-adjudication`, tệp báo cáo công khai và tệp audit từng xuất hiện một số thông tin chi tiết hoặc mã định danh mẫu (dạng SMP-xxx / smp_xxx) trong nghị trình và khóa JSON.
 2. **Phạm vi có thể xác minh**:
    - Nhánh nghiên cứu nội bộ của nhóm (`feat/c-calibration-v1-1-4-adjudication`);
    - Kho lưu trữ không lưu nhật ký truy cập mạng độc lập (access logs) nên không đưa ra khẳng định tuyệt đối về số lượt truy cập từ bên ngoài;
-   - Ghi nhận trung thực rằng nội dung cấp mẫu tại commit `e7a450c` vẫn còn lưu lại trong lịch sử Git trừ khi có quy trình thanh lọc lịch sử độc lập được phê duyệt.
+   - Ghi nhận trung thực rằng các chi tiết cấp mẫu tại các commit trên vẫn còn lưu lại trong lịch sử Git trừ khi có quy trình thanh lọc lịch sử độc lập được phê duyệt.
 3. **Quy trình khắc phục**:
-   - Khắc phục triệt để bằng việc chuyển toàn bộ danh sách ca, bằng chứng và câu hỏi nghị trình chi tiết sang phân vùng hạn chế ngoài Git (`data/restricted/`); bản công khai trên Git chỉ giữ số liệu tổng hợp, phương pháp luận và bảng mã băm.
+   - Khắc phục triệt để bằng việc chuẩn hóa hoàn toàn các tệp công khai trên Git (loại bỏ 100% dạng mã SMP-xxx, smp_xxx, nhãn từng mẫu, URL và nội dung snapshot); bản công khai trên Git chỉ giữ số liệu tổng hợp, phương pháp luận và bảng mã băm.
+   - Bổ sung bộ regression test tự động để ngăn chặn lỗi tái diễn.
    - Giữ nguyên lịch sử commit (không force-push, không viết lại lịch sử) nhằm duy trì tính bất biến và trung thực của audit trail.
 
 ---
@@ -142,7 +143,7 @@ Lead D (Anh Tuấn) đã kiểm tra toàn diện và **chính thức DUYỆT NGH
   - `data/restricted/clean_calibration_adjudication_dossier_restricted.json`: `658ea07a846c2adc79609f34bab833145a61d62fe026e0c928e7d7b40e16a92f`
   - `data/restricted/intake_pass1_B_6069f61c.jsonl`: `6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0`
   - `data/restricted/intake_pass1_A_1c60d10a.jsonl`: `1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1`
-  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `33f41531344b700a0407da908c0832c39a9a6e0c0ec9111ceaf6cd82d5a676eb`
+  - `data/source_audit/clean_calibration_pre_adjudication_audit.json`: `5d3d2e0cd09fa0f6a12df33a51853eec75fdf25c07458b66ab9376289e809ac2`
 
 ---
 *Báo cáo được lập bởi Thành viên C. Đã được Lead D chính thức duyệt mở phiên phân xử Pass 2.*

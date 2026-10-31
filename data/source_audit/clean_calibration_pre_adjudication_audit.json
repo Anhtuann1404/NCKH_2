@@ -20,8 +20,8 @@
     "adjudication_session_protocol": {
       "session_chair": "Lead D (Anh Tuấn)",
       "agenda_order": [
-        "1. Phân xử nhãn lớp SMP-012, SMP-014, SMP-024 (A và B lần lượt trình bày bằng chứng quan sát từ Blind View và quy tắc Codebook v1.1; D ghi quyết định cùng lý do)",
-        "2. QC tổ chức cho 12 ca A ghi identified/unknown và hai bất đồng còn lại SMP-012, SMP-013 (ghi rõ 3 ca alias facebook -> meta đã giải quyết theo từ điển khóa là chuẩn hóa alias, không sửa Pass 1)",
+        "1. Phân xử nhãn lớp cho 03 ca bất đồng (A và B lần lượt trình bày bằng chứng quan sát từ Blind View và quy tắc Codebook v1.1; D ghi quyết định cùng lý do; chi tiết danh mục mã ca lưu trữ bảo mật tại hồ sơ hạn chế SHA-256 658ea07a...)",
+        "2. QC tổ chức cho 12 ca A ghi identified/unknown và 02 ca bất đồng ngoài danh mục (ghi rõ 03 ca alias thương hiệu đã giải quyết theo từ điển khóa là chuẩn hóa alias, không sửa Pass 1; chi tiết danh mục mã ca lưu trữ tại hồ sơ hạn chế SHA-256 658ea07a...)",
         "3. Với ca chưa đủ chứng cứ, ghi trạng thái QC phù hợp; không ép chọn nhãn nhị phân hoặc mã tổ chức"
       ],
       "governance_invariants": [
@@ -29,15 +29,18 @@
         "Chưa xuất labels_final hoặc chốt PLAN-01 trước khi D duyệt biên bản quyết định đầy đủ",
         "Tiếp tục duy trì training_blocked=true và official_test_used=false",
         "Chỉ cung cấp cùng một hồ sơ hạn chế đã duyệt cho A và B trong phiên; không đưa nhãn nguồn, locator Parquet, matcher hoặc kết quả mô hình vào tài liệu thảo luận",
-        "Bản A trước sửa SMP-001 vẫn là mục audit còn mở: C lấy file gốc từ A, tính SHA-256 và diff chính xác, lưu ngoài Git trước khi đóng mốc Calibration"
+        "Bản nháp của A trước khi sửa lỗi thao tác giao diện trên 01 mẫu khảo sát vẫn là mục audit còn mở: C lấy file gốc từ A, tính SHA-256 và diff chính xác, lưu ngoài Git trước khi đóng mốc Calibration"
       ]
     }
   },
   "data_boundary_audit": {
-    "incident_reference_commit": "e7a450c",
-    "incident_description": "Tại commit e7a450c trên nhánh feat/c-calibration-v1-1-4-adjudication, tệp báo cáo công khai từng xuất hiện thông tin chi tiết nhãn A/B và mô tả nội dung theo từng mã mẫu.",
-    "verified_exposure_scope": "Phạm vi có thể xác minh: Nhánh nghiên cứu nội bộ của nhóm (feat/c-calibration-v1-1-4-adjudication); kho lưu trữ không lưu nhật ký truy cập mạng độc lập (access logs) nên không khẳng định tuyệt đối về số lượt truy cập ngoài; ghi nhận trung thực nội dung cấp mẫu tại commit e7a450c vẫn còn lưu lại trong lịch sử Git trừ khi có quy trình thanh lọc lịch sử độc lập.",
-    "remediation_protocol": "Khắc phục triệt để bằng việc chuyển toàn bộ danh sách ca, bằng chứng và câu hỏi nghị trình chi tiết sang phân vùng hạn chế ngoài Git (data/restricted/); bản công khai trên Git chỉ giữ số liệu tổng hợp, phương pháp luận và bảng mã băm. Tuyệt đối không force-push hay viết lại lịch sử commit nhằm duy trì tính bất biến của audit trail."
+    "incident_reference_commits": [
+      "e7a450c",
+      "c57478e"
+    ],
+    "incident_description": "Tại các commit e7a450c và c57478e trên nhánh feat/c-calibration-v1-1-4-adjudication, tệp audit và báo cáo công khai từng xuất hiện một số mã định danh mẫu (dạng SMP-xxx / smp_xxx) trong nghị trình và tên khóa JSON.",
+    "verified_exposure_scope": "Phạm vi tiếp xúc được giới hạn trên nhánh nghiên cứu nội bộ của nhóm (feat/c-calibration-v1-1-4-adjudication); kho lưu trữ không lưu nhật ký truy cập mạng độc lập (access logs) nên không khẳng định tuyệt đối về số lượt truy cập ngoài; ghi nhận trung thực rằng các chi tiết cấp mẫu vẫn còn lưu lại trong lịch sử commit e7a450c và c57478e của Git trừ khi có quy trình thanh lọc lịch sử độc lập được phê duyệt.",
+    "remediation_protocol": "Khắc phục triệt để bằng việc chuẩn hóa hoàn toàn các tệp công khai trên Git (loại bỏ 100% dạng mã SMP-xxx, smp_xxx, nhãn từng mẫu, URL và nội dung snapshot); thiết lập bộ regression test tự động để ngăn chặn lỗi tái diễn; giữ nguyên lịch sử Git (không force-push). Toàn bộ danh sách ID mẫu và chi tiết phân xử được bảo mật tuyệt đối tại hồ sơ hạn chế data/restricted/clean_calibration_adjudication_dossier_restricted.json (SHA-256 658ea07a846c2adc79609f34bab833145a61d62fe026e0c928e7d7b40e16a92f)."
   },
   "annotator_packages": {
     "rater_a": {
@@ -48,16 +51,17 @@
       "total_samples": 24,
       "total_seconds_spent": 9123.72,
       "average_seconds_spent": 380.16,
-      "smp_001_operational_lag_remediation": {
+      "intake_status": "received_and_verified_locally",
+      "raw_intake_vault_copy": "data/restricted/intake_pass1_A_1c60d10a.jsonl",
+      "operational_lag_remediation": {
         "status": "remediated_prior_to_viewing_b_labels",
         "lead_d_approval": "approved_as_operational_lag_fix",
         "official_locked_sha256": "1c60d10ac4056679d8aafe2b13dcf4f00ffc0f332d34f5413f4b922164eac7f1",
         "prefix_draft_sha256": "pending_handoff_from_annotator_a",
         "field_diff_audit": "Mục kiểm toán còn mở: File A chính thức đã được tiếp nhận an toàn và giữ nguyên byte. Bản nháp tiền sửa lỗi đang chờ Đánh giá viên A bàn giao; sau khi nhận mới tính SHA-256, lập diff và lưu vào audit hạn chế; Thành viên C không tự suy đoán diff khi chưa nhận bàn giao bản gốc.",
-        "audit_policy": "Tệp khóa 1c60d10a... là bản Pass 1 chính thức duy nhất; không tính Kappa trên bản lỗi; không yêu cầu A gán lại; không mở sửa tiếp tệp đã khóa; việc thiếu bản trước sửa là mục kiểm toán còn mở, tuyệt đối không suy đoán nội dung."
-      },
-      "intake_status": "received_and_verified_locally",
-      "raw_intake_vault_copy": "data/restricted/intake_pass1_A_1c60d10a.jsonl"
+        "audit_policy": "Tệp khóa 1c60d10a... là bản Pass 1 chính thức duy nhất; không tính Kappa trên bản lỗi; không yêu cầu A gán lại; không mở sửa tiếp tệp đã khóa; việc thiếu bản trước sửa là mục kiểm toán còn mở, tuyệt đối không suy đoán nội dung; chi tiết mã mẫu và diff được bảo mật hoàn toàn trong hồ sơ hạn chế data/restricted/.",
+        "incident_scope": "01 mẫu khảo sát gặp lỗi thao tác do lag giao diện CLI"
+      }
     },
     "rater_b": {
       "annotator_id": "B",
