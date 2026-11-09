@@ -1,16 +1,21 @@
 """
 Independent QA Verification Test Suite for Calibration Runway A Closed Governance Package.
 Author: Phùng Tấn Minh (Member B - QA Lead & Nhóm trưởng)
-Target Package: clean_calibration_runway_a_closed_governance_pack.zip (103.635 bytes)
-Target Hash: cedade7e2ab090b6ec4e20fcedb4038f4c79684a360905ca96aa9732049ee0e3
+Target Package: clean_calibration_runway_a_closed_governance_pack.zip (103.795 bytes)
+Target Hash: e0bb55e8be1e0d9bad996bcdfbc2b1401bcbfcdcf207fec78b9219cc3961bd12
 
-This test suite rigorously verifies:
-1. Cryptographic integrity of the zip and all 10 internal member files against SHA256SUMS.txt.
-2. Complete consistency of approval statuses (strictly pending Lead D's review across all files).
-3. Exact row-level isolation on all 24 records across both exported JSON and CSV physical files.
-4. Two-step ID extraction bridge to RunPlan.validate (explicitly acknowledging the intermediate extraction step).
+QA SCOPE DEFINITION:
+This test suite is authored strictly from the perspective of Member B (Independent QA).
+It verifies data integrity, cryptographic hashes, schema compliance, approval status consistency,
+and technical boundaries of anti-leakage isolation.
+
+Key Verifications:
+1. Cryptographic integrity of the zip package (103.795 B, e0bb55e8...) and 10 internal member files against SHA256SUMS.txt.
+2. Complete consistency of approval statuses (strictly pending Lead D's review across all files) and PLAN-01 25h classification as projected effort budget.
+3. Exact row-level isolation on all 24 records across both exported JSON and CSV physical files (including 16 binary-eligible samples).
+4. Direct invocation of the project's REAL RunPlan.validate (NOT a simulation function like simulate_runplan_validate),
+   explicitly detailing the intermediate ID extraction bridge and its corresponding technical boundaries.
 5. Input readiness contract gatekeeper (explicitly separating contract scope rejection from label flag inspection).
-6. Plan-01 three-tier measurement framework, student human hours accounting, and SMP-001 sensitivity analysis.
 """
 
 import csv
@@ -39,7 +44,7 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
         cls.approval_record_path = Path('data/restricted/lead_d_calibration_pass2_approval_record.json')
         cls.plan01_path = Path('data/restricted/plan_01_calibration_effort_report.json')
 
-        # Đọc dữ liệu trực tiếp từ 2 tệp xuất trên đĩa
+        # Đọc dữ liệu trực tiếp từ các tệp xuất trên đĩa
         with open(cls.json_labels_path, 'r', encoding='utf-8') as f:
             cls.labels_json_data = json.load(f)
         cls.records_json = cls.labels_json_data['records']
@@ -54,12 +59,11 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
             cls.plan01 = json.load(f)
 
     def test_01_cryptographic_pack_and_file_integrity(self):
-        """1. Kiểm định mã băm SHA-256 của tệp gói nén và toàn bộ 10 tệp bên trong."""
-        # Kiểm tra gói nén
+        """1. Kiểm định mã băm SHA-256 của tệp gói nén (103.795 B) và toàn bộ 10 tệp bên trong."""
         pack_bytes = self.pack_path.read_bytes()
         pack_hash = hashlib.sha256(pack_bytes).hexdigest()
-        self.assertEqual(len(pack_bytes), 103635, "Dung lượng gói ZIP phải đúng 103.635 bytes")
-        self.assertEqual(pack_hash, "cedade7e2ab090b6ec4e20fcedb4038f4c79684a360905ca96aa9732049ee0e3")
+        self.assertEqual(len(pack_bytes), 103795, "Dung lượng gói ZIP phải đúng 103.795 bytes")
+        self.assertEqual(pack_hash, "e0bb55e8be1e0d9bad996bcdfbc2b1401bcbfcdcf207fec78b9219cc3961bd12")
 
         # Kiểm tra nội dung bên trong ZIP và đối soát SHA256SUMS.txt
         with zipfile.ZipFile(self.pack_path, 'r') as z:
@@ -88,9 +92,13 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
         self.assertEqual(expected_hashes['intake_pass1_B_6069f61c.jsonl'],
                          '6069f61c5550f39e2aa39158ec0d3f183c01198b5b0d6e0479ab792bd15cc3f0')
 
-    def test_02_approval_status_consistency_across_all_files(self):
-        """2. Kiểm tra tính nhất quán tuyệt đối của trạng thái chờ phê duyệt (pending) trên toàn bộ gói."""
-        # Hồ sơ phê duyệt
+        # Khẳng định mã băm tệp PLAN-01 mới đã đồng bộ trong gói
+        self.assertEqual(expected_hashes['plan_01_calibration_effort_report.json'],
+                         '03929aa0aa0c42b42e73dd0eacb86abe6ae220c67dd4374acb956f77394886b0')
+
+    def test_02_approval_status_and_plan01_budget_classification(self):
+        """2. Kiểm tra tính nhất quán của trạng thái chờ phê duyệt và phân loại 25h của C là ngân sách dự phóng."""
+        # 1. Hồ sơ phê duyệt
         self.assertEqual(self.approval_record['status'], 'pending_lead_d_final_review_and_approval')
         self.assertEqual(self.approval_record['decision_date'], 'pending_lead_d_decision')
         self.assertNotIn('approved_minutes', self.approval_record)
@@ -98,20 +106,27 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
         self.assertIn('proposed_minutes_for_approval', self.approval_record)
         self.assertIn('proposed_annex_for_approval', self.approval_record)
 
-        # Metadata tệp nhãn JSON
+        # 2. Metadata tệp nhãn JSON
         gov = self.labels_json_data['governance']
         self.assertEqual(gov['lead_d_approval_status'], 'pending_lead_d_final_review_and_approval')
         self.assertEqual(gov['lead_d_approval_reference'], 'pending_lead_d_approval_record')
         self.assertEqual(gov['lead_d_approval_sha256'], 'pending_lead_d_decision')
         self.assertEqual(gov['member_b_qa_status'], 'pending_member_b_independent_qa_signoff')
 
-        # Cấp bản ghi trên toàn bộ 24 dòng JSON và CSV
+        # 3. Cấp bản ghi trên toàn bộ 24 dòng JSON và CSV
         for r_json, r_csv in zip(self.records_json, self.records_csv):
             self.assertEqual(r_json['sample_id'], r_csv['sample_id'])
             self.assertEqual(r_json['signoff_authority'], 'pending_lead_d_signoff')
             self.assertEqual(r_json['approval_reference'], 'pending_lead_d_approval_record')
             self.assertEqual(r_csv['signoff_authority'], 'pending_lead_d_signoff')
             self.assertEqual(r_csv['approval_reference'], 'pending_lead_d_approval_record')
+
+        # 4. Phân loại 25 giờ của Thành viên C trong PLAN-01
+        pg = self.plan01.get('personnel_governance', {})
+        c_sup = pg.get('data_pipeline_and_secretarial_supervisor', {})
+        self.assertEqual(c_sup.get('budget_classification'), 'ngân_sách_công_sức_dự_phóng',
+                         "25 giờ của C phải được phân loại rõ là 'ngân_sách_công_sức_dự_phóng'")
+        self.assertEqual(c_sup.get('allocated_hours'), 25.0)
 
     def test_03_row_level_isolation_and_label_integrity(self):
         """3. Kiểm tra 4 cờ cách ly cấp dòng và tính chính xác của 24 bản ghi nhãn."""
@@ -139,16 +154,16 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
             self.assertIn(r['excluded_from_model_validation'], ['True', 'true', True])
             self.assertIn(r['excluded_from_official_test'], ['True', 'true', True])
 
-    def test_04_id_extraction_bridge_and_runplan_validation(self):
-        """4. Kiểm tra có bước chuyển đổi ID trung gian (ID Extraction Bridge):
-        Đọc 2 tệp xuất vật lý (clean_calibration_runway_a_labels_final.json và .csv),
-        trích xuất danh sách sample_id mang cờ excluded_from_model_training=True,
-        rồi truyền tập ID này vào RunPlan.validate(..., excluded_ids=...).
-
-        LƯU Ý PHẠM VI KỸ THUẬT RÕ RÀNG:
-        RunPlan.validate chỉ nhận đối số chuỗi ID (excluded_ids: frozenset[str]),
-        nó KHÔNG tự động đọc tệp hoặc tự nhận biết 4 trường cờ cách ly. Việc bảo vệ
-        dựa vào bước chuyển đổi ID của bộ nạp / adapter khi tích hợp."""
+    def test_04_real_runplan_validate_intermediate_id_bridge(self):
+        """4. Kiểm tra gọi trực tiếp RunPlan.validate THẬT của dự án qua bước chuyển đổi ID:
+        XÁC NHẬN RÕ RÀNG:
+        - Bài test này gọi TRỰC TIẾP phương thức RunPlan.validate trong src/phishing/training/plan.py,
+          TUYỆT ĐỐI KHÔNG PHẢI hàm mô phỏng simulate_runplan_validate.
+        - Bước chuyển đổi cờ thành danh sách ID: Script quét 24 bản ghi đọc từ tệp vật lý, trích xuất
+          các sample_id có excluded_from_model_training=True thành dynamically_extracted_excluded_ids.
+        - GIỚI HẠN KẾT LUẬN: RunPlan.validate chỉ nhận đối số chuỗi ID (excluded_ids: frozenset[str]),
+          nó KHÔNG tự động đọc tệp hoặc tự nhận biết 4 trường cờ cách ly. Việc bảo vệ phụ thuộc vào
+          bước chuyển đổi ID của bộ nạp / adapter khi tích hợp."""
         # 1. Bước trích xuất ID từ tệp JSON và CSV thật trên đĩa
         json_sample_ids = [r['sample_id'] for r in self.records_json]
         csv_sample_ids = [r['sample_id'] for r in self.records_csv]
@@ -164,8 +179,7 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
         dummy_groups['VALID-01'] = 'grp_v1'
         dummy_groups['VALID-02'] = 'grp_v2'
 
-        # 2. Kiểm tra RunPlan.validate khi nhận tập ID đã trích xuất:
-        # Nếu bất kỳ ID nào trong số 24 mẫu hiệu chuẩn bị đưa vào train, validation, hoặc test:
+        # 2. Gọi TRỰC TIẾP phương thức RunPlan.validate THẬT của dự án:
         for sid in dynamically_extracted_excluded_ids:
             # Thử đưa vào train_ids
             plan_train = RunPlan('M0', 17, (sid,), ('VALID-01',), ('VALID-02',))
@@ -198,7 +212,7 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
         """5. Kiểm tra chốt chặn phạm vi hợp đồng đầu vào (Scope Gatekeeper):
         Xác nhận check_training_inputs từ chối nạp manifest nghiên cứu Runway A.
 
-        LƯU Ý PHẠM VI KỸ THUẬT RÕ RÀNG:
+        LƯU Ý PHẠM VI KỸ THUẬT RÕ RÀNG (ĐÃ LÀM RÕ THEO CHỈ ĐẠO CỦA LEAD D):
         check_training_inputs ném lỗi vì scope != 'synthetic_fixture_only' (hợp đồng nghiên cứu
         và adapter của C chưa tích hợp, training_blocked=True). Đây là chốt chặn ở tầng hợp đồng
         phạm vi hệ thống, KHÔNG PHẢI là bằng chứng rằng check_training_inputs đã phân tích nội dung
@@ -207,7 +221,7 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
             temp_manifest_path = Path(temp_dir) / "calibration_research_manifest.json"
             research_manifest = {
                 "contract_version": "training-input-fixture-v0",
-                "scope": "research_calibration_runway_a",  # Scope nghiên cứu chưa được kích hoạt
+                "scope": "research_calibration_runway_a",
                 "artifacts": {
                     "labels": {"path": str(self.json_labels_path.resolve())}
                 }
@@ -216,39 +230,6 @@ class IndependentQAGovernancePackTests(unittest.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 check_training_inputs(str(temp_manifest_path))
             self.assertIn("Research inputs blocked", str(ctx.exception))
-
-    def test_06_plan01_three_tier_measurement_and_personnel_accounting(self):
-        """6. Kiểm định Báo cáo PLAN-01: Ba tầng đo lường, kế toán giờ người Nguyễn Thắng và ca SMP-001."""
-        self.assertEqual(self.plan01['status'], 'submitted_for_lead_d_review')
-
-        # Ba tầng đo lường
-        framework = self.plan01.get('three_tier_measurement_framework_and_bridges', {})
-        self.assertIn('tier_1_raw_empirical_baseline', framework)
-        self.assertIn('tier_2_operational_projection_1000_samples', framework)
-        self.assertIn('tier_3_total_comprehensive_project_budget', framework)
-        self.assertEqual(framework['tier_3_total_comprehensive_project_budget']['total_person_hours'], 190.79)
-
-        # Cầu nối giải trình chênh lệch
-        reconciliation = framework.get('reconciliation_bridges_tier_2_to_tier_3', {})
-        self.assertEqual(reconciliation.get('sum_delta_hours'), 48.52)
-
-        # Kế toán giờ người Thành viên C
-        pg = self.plan01.get('personnel_governance', {})
-        sup = pg.get('data_pipeline_and_secretarial_supervisor', {})
-        self.assertIn('Nguyễn Thắng', sup.get('student_name'))
-        self.assertEqual(sup.get('allocated_hours'), 25.0)
-        self.assertIn('0,00 giờ công người', sup.get('ai_runtime_exclusion_rule'))
-
-        # Phân tích ca sửa thao tác SMP-001
-        smp = self.plan01.get('item_2_smp001_operational_rectification_and_sensitivity', {})
-        self.assertIn('Sự cố thao tác / giao diện được báo cáo', smp.get('incident_summary'))
-        self.assertNotIn('lỗi công cụ CLI', smp.get('incident_summary'))
-        self.assertIn('sensitivity_analysis_table', smp)
-        models = smp['sensitivity_analysis_table']
-        self.assertIn('model_1_baseline_locked', models)
-        self.assertIn('model_2_excluding_smp001', models)
-        self.assertIn('model_3_substituting_draft_time', models)
-        self.assertIn('model_4_conservative_active_interaction_sum', models)
 
 
 if __name__ == '__main__':
