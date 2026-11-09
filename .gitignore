@@ -23,6 +23,7 @@ data/processed/
 data/labels/
 data/features/
 data/annotations/
+data/restricted/
 artifacts/models/
 artifacts/runs/
 data/source_audit/*.zip
