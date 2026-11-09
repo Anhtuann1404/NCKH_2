@@ -1,8 +1,21 @@
 # Bộ tài liệu khởi động dự án
 
-Cập nhật: 03/10/2026. Hướng nghiên cứu đã được giảng viên duyệt theo xác nhận của nhóm. Đây là tài liệu triển khai, không thay thế hoặc sửa phạm vi đề cương.
+Cập nhật: 04/10/2026. Hướng nghiên cứu đã được giảng viên duyệt theo xác nhận của nhóm. Đây là tài liệu triển khai, không thay thế hoặc sửa phạm vi đề cương.
 
 **Đề tài:** Phát hiện website phishing mạo danh tổ chức bằng học máy kết hợp URL và nội dung trang.
+
+## Bắt đầu cho thành viên nhóm
+
+Clone nhánh `main` của repo:
+
+```sh
+git clone --branch main https://github.com/Anhtuann1404/NCKH_2.git
+cd NCKH_2
+```
+
+Đọc `docs/TEAM.md` để xác định vai trò, sau đó đọc `docs/CURRENT_TASKS.md` và `docs/DEVELOPMENT.md` để nhận việc và thống nhất cách bàn giao. Điền họ tên và thời gian có thể dành mỗi tuần trước khi chốt người nhận nhiệm vụ. Tài liệu hiện là khung triển khai; mô hình, API và extension chưa được xây dựng.
+
+Khi bắt đầu viết mã, tạo nhánh riêng từ `main` đã cập nhật và gửi pull request để nhóm rà soát trước khi gộp. Không commit khóa API, dữ liệu bị hạn chế chia sẻ hoặc HTML thu thập vào repo.
 
 ## Đọc theo thứ tự
 
