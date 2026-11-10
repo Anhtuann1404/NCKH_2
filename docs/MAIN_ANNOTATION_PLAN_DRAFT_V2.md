@@ -1,38 +1,34 @@
-# DỰ THẢO KẾ HOẠCH CHIẾN DỊCH GÁN NHÃN CHÍNH (MAIN ANNOTATION PLAN - PROPOSAL V2.1)
+# DỰ THẢO KẾ HOẠCH CHIẾN DỊCH GÁN NHÃN CHÍNH (MAIN ANNOTATION PLAN - PROPOSAL V2.2)
 
 **Dự án:** Nghiên cứu phát hiện website phishing mạo danh tổ chức bằng học máy kết hợp URL và nội dung trang (NCKH_2)  
-**Mã văn bản:** `PLAN-MAIN-ANNOTATION-PROPOSAL-V2.1`  
-**Phiên bản:** `2.1.0-REVISED-DRAFT`  
+**Mã văn bản:** `PLAN-MAIN-ANNOTATION-PROPOSAL-V2.2`  
+**Phiên bản:** `2.2.0-REVISED-DRAFT`  
 **Ngày lập:** 10/11/2026  
 **Đơn vị lập:** Thành viên C (Nguyễn Thắng — Data Pipeline & Thư ký Kiểm toán)  
-**Trạng thái quản trị:** `DRAFT_V2.1_PENDING_LEAD_D_REVIEW_AND_QA_APPRAISAL` (Dự thảo V2.1 — Tiếp thu trọn vẹn ý kiến kiểm toán ngày 10/11/2026 của Lead D; chờ Lead D xem xét và chuyển QA Lead B thẩm định độc lập; tuyệt đối chưa trích xuất mẫu, chưa phát Blind View, chưa mở Pass 1)  
+**Trạng thái quản trị:** `DRAFT_V2.2_PENDING_LEAD_D_REVIEW_AND_QA_APPRAISAL` (Dự thảo V2.2 — Tiếp thu toàn diện 4 yêu cầu kiểm toán ngày 10/11/2026 của Lead D; chờ Lead D xem xét và chuyển QA Lead B thẩm định độc lập; tuyệt đối duy trì training_blocked=true, official_test_used=false, chưa trích xuất mẫu hay mở Pass 1)  
 **Căn cứ pháp lý & kỹ thuật:**  
-- Ý kiến chỉ đạo kiểm toán của Lead D (Nguyễn Anh Tuấn) đối với bản dự thảo V2 ngày 10/11/2026 (6 điểm yêu cầu hiệu chỉnh).  
-- Ý kiến phản biện chuyên sâu của Chuyên gia An toàn Học máy (ML Security Specialist — DeepSeek Reason Bridge trong Chế độ Duo).  
-- Quy tắc làm việc với AI của nhóm NCKH_2 (Ban hành ngày 09/11/2026).  
+- Ý kiến chỉ đạo kiểm toán của Lead D (Nguyễn Anh Tuấn) đối với bản dự thảo V2.1 ngày 10/11/2026 (4 yêu cầu hoàn thiện).  
 - Giao thức dữ liệu (`docs/DATA_PROTOCOL.md`), Giao thức thực nghiệm (`docs/EXPERIMENT_PROTOCOL.md`) và Codebook v1.1 (`docs/CODEBOOK_V1_1.md`).  
-- Quyết định phê duyệt đóng mốc Calibration Runway A (`DECISION-LEAD-D-CLOSURE-CALIBRATION-CLEAN-RUNWAY-A-OFFICIAL`).  
-- Hồ sơ niêm phong cam kết Đợt C: `data/restricted/clean_calibration_exclusion_mapping_c_32.json` (SHA-256: `67326e80...`).  
-- Kỷ luật nghiên cứu khoa học Academic Research Skills (ARS) và Ponytail Engineering Discipline.
+- Báo cáo khung ngân sách dự phóng công sức PLAN-01 (`plan_01_calibration_effort_report.json`).  
+- Sổ bộ loại trừ `data/exclusion_registry.json` và hồ sơ hạn chế niêm phong `data/restricted/clean_calibration_exclusion_mapping_c_32.json`.  
+- Kỷ luật Ponytail Engineering và Academic Research Skills (ARS).
 
 ---
 
-## BẢNG ĐỐI CHIẾU TIẾP THU VÀ HIỆU CHỈNH 6 YÊU CẦU KIỂM TOÁN CỦA LEAD D (ĐỢT 2)
+## BẢNG ĐỐI CHIẾU TIẾP THU VÀ HIỆU CHỈNH 4 YÊU CẦU KIỂM TOÁN CỦA LEAD D (ĐỢT 3)
 
-| # | Yêu cầu kiểm toán của Lead D | Căn cứ mã nguồn / Tài liệu hiện hành | Phương án hiệu chỉnh trong Bản V2.1 | Phép kiểm & Bằng chứng thực tế |
+| # | Yêu cầu kiểm toán của Lead D | Căn cứ mã nguồn / Tài liệu hiện hành | Phương án hiệu chỉnh trong Bản V2.2 | Phép kiểm & Bằng chứng thực tế |
 |:---:|:---|:---|:---|:---|
-| **1** | Đối chiếu lại ID chính xác từng lô với `data/exclusion_registry.json` (sửa sai Lô 7–9). Phân biệt "246 mục ghi theo lô" với "246 mẫu duy nhất". Chứng minh 24 mẫu Runway A thuộc Lô 10 (Đợt C), độc lập với Lô 9 (Đợt B) bằng hồ sơ ánh xạ hạn chế, không suy từ số đếm. | `data/exclusion_registry.json` (`v1.1.0`), các tệp ánh xạ hạn chế: `data/restricted/clean_calibration_exclusion_mapping_32.json` (Đợt B) và `clean_calibration_exclusion_mapping_c_32.json` (Đợt C, hash `67326e80...`). | Đính chính 100% ID lô: Lô 7 là `EXCL-CALIB-CLEAN-32-EXPOSED-ON-GIT`, Lô 8 là `EXCL-CALIB-CLEAN-02-PAIRWISE-RESOLUTION-LOCATOR-EXPOSED`, Lô 9 là `EXCL-CALIBRATION-CLEAN-RUNWAY-32`. Làm rõ: 246 là tổng số mục ghi theo lô ($\sum n_i$). Chứng minh bằng hồ sơ hạn chế: 24 mẫu Runway A là `main_24` của Lô 10; Lô 9 và Lô 10 có tập URL giao nhau rỗng ($S_9 \cap S_{10} = \emptyset$). Tuyệt đối không cộng trùng $246 + 24 = 270$. | Kiểm tra thực tế: Lô 9 (32 mẫu) và Lô 10 (32 mẫu) độc lập 100%. Hash cam kết Lô 10 khớp đúng `67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805`. |
-| **2** | Đính chính trạng thái `verify_exclusion_registry_integrity()`: ghi rõ là yêu cầu cần triển khai, chỉ rõ vị trí tích hợp và test fail-closed cần làm. Không nhận vơ cơ chế mới như đã hoạt động. | `src/phishing/data/exclusion.py`, `tests/test_exclusion_registry.py`. | Đính chính minh bạch: Hàm này là **Yêu cầu kỹ thuật đề xuất cần triển khai**, hiện chưa có trong mã chạy. Quy định vị trí tích hợp: Hàm `verify_exclusion_registry_integrity()` trong `src/phishing/data/exclusion.py`, làm cổng preflight chặn trước mọi script sampling. Xác định 4 test case fail-closed cần bổ sung vào `test_exclusion_registry.py`. | Kiểm tra codebase: `git grep verify_exclusion_registry_integrity` không trả về mã giả vờ. |
-| **3** | Giải quyết mâu thuẫn tính mù: Trường `random_subset` trong Blind View làm lộ mẫu ngẫu nhiên và ca khó cho B. Trình phương án đồng bộ schema, CLI và metadata hạn chế để B nhận mẫu trung tính, C vẫn tái lập được mẫu số Kappa. | `src/phishing/annotation/blind_view.py`, `ALLOWED_BLIND_SAMPLE_KEYS`, `src/phishing/annotation/annotate_cli.py`, `tests/test_blind_view.py`. | Thiết kế giải pháp đồng bộ 3 tầng: Tầng 1 (View của B): Loại bỏ hoặc đặt trung tính cờ `random_subset` để B hoàn toàn không biết mẫu thuộc nhóm nào. Tầng 2 (Metadata hạn chế của C): C lưu trữ tệp cam kết phân tầng niêm phong tại `data/restricted/`. Tầng 3 (Tính toán Kappa): Script đánh giá nối `sample_id` với bảng cam kết của C để bóc tách đúng $N_{\text{random}}$ mẫu. | Ranh giới mù tuyệt đối: B nhận view trung tính, không bị thiên kiến tâm lý; C và Lead D bảo toàn khả năng tái lập 100%. |
-| **4** | Tách rõ "hoàn thành Đợt 1 trong 1 tuần" khỏi "hoàn thành cả chiến dịch trong 1 tuần". Bổ sung tính toán 1.000 mẫu (A gán 1.000, B gán 30% ngẫu nhiên + ca khó, C data/reconcile, D phân xử). Nếu chưa có cam kết giờ A/B, ghi tiến độ là *chưa xác định*. | Báo cáo thực nghiệm Pass 1 ($N=24$): A mean 6,34 phút/mẫu; B mean 4,17 phút/mẫu. Khung ngân sách PLAN-01 (190,79 giờ người). | Tách bạch rõ 2 quy mô: Đợt 1 (60 hoặc 100 mẫu) thực hiện trong 1 tuần; Chiến dịch 1.000 mẫu cần ~190–200 giờ người (A gán ~105,7h, B gán và QA ~40–45h, C ~30–35h, D ~12–15h). Kết luận tiến độ toàn chiến dịch ghi rõ: **CHƯA XÁC ĐỊNH (TBD)** chờ văn bản cam kết số giờ khả dụng mỗi tuần của A và B. | Bảng tính phân bổ công số 1.000 mẫu chi tiết tại Mục 7. |
-| **5** | Dịch ngoại tuyến: Làm rõ ngôn ngữ đích, model và revision cho từng ngôn ngữ nguồn; không mặc định dịch sang tiếng Việt. Giữ nguyên `page_text`, metadata dịch và phép kiểm hash theo R-A09. | `data/restricted/clean_calibration_translations.json`, Codebook v1.1 Quy tắc R-A09. | Đính chính: Ngôn ngữ đích là **TIẾNG ANH (EN)**, không phải tiếng Việt. Khóa cứng model và revision: `Helsinki-NLP/opus-mt-ja-en@0770961` (tiếng Nhật) và `Helsinki-NLP/opus-mt-ru-en@fbd6dc7` (tiếng Nga). Giữ nguyên 100% `page_text` gốc, lưu bản dịch tiếng Anh ngoại tuyến vào `translated_text` kèm đủ 5 trường metadata và kiểm tra `translation_sha256`. | Đối chiếu thực tế 3 mẫu hiệu chuẩn (SMP-008 JA, SMP-009 JA, SMP-015 RU) đều dịch sang tiếng Anh bằng 2 model trên. |
-| **6** | Bỏ thông tin tỷ lệ theo tổ chức mục tiêu khỏi gói QA trước Pass 1 của B nếu có thể gây lộ cơ cấu nguồn/đích; B chỉ nhận báo cáo tổng hợp đủ để kiểm kỹ thuật mà vẫn giữ mù. | Quy tắc làm việc với AI nhóm NCKH_2 (Khoản 2 & Khoản 3). | Loại bỏ 100% thông tin phân bổ tổ chức mục tiêu khỏi gói QA tuyển chọn của B. Gói QA bàn giao cho B chỉ chứa các chỉ số kỹ thuật: Tổng số lượng mẫu $N$, Schema Allowlist validation, Zero forbidden keys check, Template clone scan summary, và bảng mã băm `SHA256SUMS.txt`. | Ngăn chặn triệt để hiện tượng thiên kiến xác nhận (confirmation bias) khi B bước vào gán nhãn Pass 1. |
+| **1** | Chọn một phương án cụ thể để giấu `random_subset` khỏi B. Không để lựa chọn "null hoặc omitted" vì schema/CLI hiện dùng boolean. Mô tả chính xác trường bị bỏ/thay thế, cách tạo bản ghi, khóa bảng phân tầng và test chứng minh tính mù trong khi Kappa vẫn đúng tập ngẫu nhiên. | `src/phishing/annotation/blind_view.py`, `scripts/annotate_cli.py` (dòng 823–830 đọc `random_subset` hoặc `random_subset_default`), `src/phishing/annotation/__init__.py`. | **Chọn duy nhất Phương án Boolean Đồng nhất (Uniform Boolean Dummy):** 100% mẫu trong Blind View của B mang giá trị boolean `random_subset: true` (hoặc đặt `"random_subset_default": true` ở cấp gói). Trường này được bảo toàn chuẩn boolean cho CLI ghi vào `AnnotationRecord`. Member C khóa trước bảng phân tầng thực tế tại `data/restricted/main_annotation_strata_commitment.json` (map `sample_id` $\rightarrow$ `is_true_random`). Module `evaluate_kappa` kết hợp (join) bảng cam kết để bóc tách đúng $N_{\text{random}}$ mẫu. | Test tính mù: Chứng minh $\text{Unique}(\text{view\_b}[\text{"random\_subset"}]) == \{\text{True}\}$, B không có cơ sở phân biệt ca khó. Test Kappa: Mẫu số tính $\kappa_{\text{primary}}$ chỉ lấy $N_{\text{random}}$ mẫu có `is_true_random == True`. |
+| **2** | Sửa đặc tả cổng registry để không dựa vào số 246/10 viết cứng. Kiểm tổng đếm và cam kết từ registry hiện hành, kiểm đủ hồ sơ hạn chế, nêu rõ cách xử lý các lô pilot chưa ánh xạ nguồn; thiếu căn cứ thì dừng an toàn trước khi chọn mẫu. Ghi rõ là yêu cầu cần triển khai. | `data/exclusion_registry.json`, `src/phishing/data/exclusion.py`. | **Bỏ hoàn toàn số cứng 246/10:** Đổi thành kiểm tra động: $\sum b[\text{"n\_samples"}] == \text{reg}[\text{"total\_excluded\_samples"}]$ và $\text{len}(b) == \text{reg}[\text{"total\_excluded\_entries"}]$. Kiểm tra tự động các lô có cam kết hạn chế phải khớp `commitment_sha256`. Với các lô pilot `unresolved_source_mapping` (Lô 1–3), nếu phát hiện ứng viên nghi vấn trùng lặp mà không có giải trình/quyết định bypass của D thì lập tức **Dừng an toàn (Fail-Closed Stop)**. Ghi rõ đây là **Yêu cầu kỹ thuật đề xuất cần triển khai**. | Phân tích logic: Cơ chế động thích ứng tự nhiên khi registry mở rộng lô mới mà không làm vỡ mã kiểm tra. |
+| **3** | Đổi câu "190,07h khớp chuẩn xác 190,79h" thành bảng đối chiếu: lệch 0,72h và cơ cấu A/B/C/D đã thay đổi so với PLAN-01; ghi là kịch bản dự phóng mới chờ D duyệt. Đổi kết luận "tuyệt đối không thể trong một tuần" thành đánh giá có điều kiện: A cần ~105,7h; tiến độ một tuần chỉ được cân nhắc lại nếu Đợt 1 chứng minh tốc độ nhanh hơn, chất lượng ổn định và nhân sự cam kết đủ giờ. | `plan_01_calibration_effort_report.json` (Bảng 1 & Bảng 4: 190,79h, A: 114,08h, B: 36,21h, C: 25,00h, D: 15,50h). | **Lập bảng đối chiếu chi tiết độ lệch 0,72h:** Trình bày rõ nguyên nhân dịch chuyển công số (A giảm 8,41h do mean 380s; B tăng 3,12h; C tăng 5,00h do quản trị 3 tầng tính mù; D giảm 0,43h). Ghi rõ: **Kịch bản dự phóng công số hiệu chỉnh V2.2 chờ D phê duyệt**. Đổi kết luận tiến độ sang **Đánh giá có điều kiện**: A cần ~105,7h gán nhãn; chỉ xem xét lại mục tiêu 1 tuần nếu Đợt 1 thực tế chứng minh tốc độ tăng, chất lượng $\kappa$ giữ vững và A/B cam kết đủ giờ. | Bảng đối chiếu chênh lệch công số tại Mục 7. |
+| **4** | Cung cấp bằng chứng truy xuất được của commit `13e24a0...` trên đúng nhánh, kèm log lệnh test, số pass/skip và phạm vi test. Phân biệt test hồi quy mã hiện có với test cho cơ chế mới chưa triển khai. | Lịch sử Git remote `origin/feat/c-calibration-v1-1-4-adjudication`, bộ test suite `tests/`. | **Cung cấp bằng chứng Git & Log Test đầy đủ:** Cập nhật link commit đã push trên GitHub: `https://github.com/Anhtuann1404/NCKH_2/commit/13e24a0cbf042c486825a67c74ef9332e1935d05`. Ghi rõ log lệnh test và kết quả 150/150 PASSED (0 failed, 0 skipped). Phân định rạch ròi: 150 bài test là **Test hồi quy mã nguồn hiện có**; các bài test cho cổng động và tính mù là **Test đề xuất triển khai mới**. | Lệnh truy xuất: `git ls-remote origin feat/c-calibration-v1-1-4-adjudication` xác nhận commit tồn tại trên máy chủ GitHub. |
 
 ---
 
 ## 1. NGUYÊN TẮC CỐT LÕI & RANH GIỚI QUẢN TRỊ
 
-1. **Bản chất văn bản:** Đây là văn bản **DỰ THẢO ĐỀ XUẤT PHIÊN BẢN 2.1 (PROPOSAL V2.1)** do Thành viên C lập để tiếp thu toàn diện các chỉ đạo kiểm toán của Lead D ngày 10/11/2026. Mọi nội dung, phương án và bảng tính trong tài liệu này đều ở trạng thái chờ Lead D phê duyệt, tuyệt đối không tự động phát sinh hiệu lực thi hành và chưa trích xuất bất kỳ mẫu dữ liệu nào.
+1. **Bản chất văn bản:** Đây là văn bản **DỰ THẢO ĐỀ XUẤT PHIÊN BẢN 2.2 (PROPOSAL V2.2)** do Thành viên C lập để tiếp thu toàn diện 4 yêu cầu hoàn thiện của Lead D ngày 10/11/2026. Mọi nội dung, phương án và bảng tính trong tài liệu này đều ở trạng thái chờ Lead D phê duyệt, tuyệt đối không tự động phát sinh hiệu lực thi hành và chưa trích xuất bất kỳ mẫu dữ liệu nào.
 2. **Khẳng định tính chất con số 1.000 trong PLAN-01:**
    - Con số 1.000 mẫu trong Báo cáo PLAN-01 là **Khung ngân sách công sức dự phóng có điều kiện** (Conditional Projected Effort Budget — 190,79 giờ người) được Lead D phê duyệt về mặt kế toán tài nguyên dự án.
    - Con số 1.000 mẫu **KHÔNG PHẢI LÀ LỆNH TRÍCH XUẤT THỰC TẾ**. Quy mô trích xuất thực tế sẽ do Lead D quyết định theo từng giai đoạn căn cứ vào kết quả thực nghiệm Đợt 1 và cam kết thời gian khả dụng của nhân sự.
@@ -43,10 +39,41 @@
 
 ---
 
-## 2. KIỂM KÊ DANH MỤC LOẠI TRỪ HIỆN HÀNH (246 MỤC GHI THEO LÔ) & QUAN HỆ ÁNH XẠ HẠN CHẾ
+## 2. ĐẶC TẢ CỔNG KIỂM TRA ĐỘNG SỔ BỘ LOẠI TRỪ (YÊU CẦU ĐỀ XUẤT CẦN TRIỂN KHAI)
 
-### 2.1 Bảng đối chiếu chính xác 10 lô loại trừ trong `data/exclusion_registry.json`
-Đọc trực tiếp từ tệp `data/exclusion_registry.json` (phiên bản `1.1.0`), danh mục loại trừ gồm đúng **10 lô** với tổng cộng **246 mục ghi nhận theo lô** ($\sum_{i=1}^{10} n_i = 246$), đính chính chính xác 100% mã định danh lô (Exclusion ID) và mã tập dữ liệu (Dataset ID):
+Tiếp thu chỉ đạo của Lead D về việc loại bỏ các hằng số viết cứng (hardcoded constants 246/10) và xây dựng cơ chế kiểm soát động thích ứng:
+- **Trạng thái thực tế:** Cơ chế này là **YÊU CẦU KỸ THUẬT ĐỀ XUẤT CẦN TRIỂN KHAI (PROPOSED SPECIFICATION TO BE IMPLEMENTED)**, hiện chưa có trong mã nguồn chạy.
+
+### 2.1 Đặc tả 4 bước kiểm tra động của cổng `verify_exclusion_registry_integrity()`
+Hàm dự kiến được cài đặt tại `src/phishing/data/exclusion.py` và đóng vai trò cổng kiểm soát tiền khả thi (Preflight Gate) kích hoạt trước mọi tác vụ tuyển chọn mẫu:
+
+1. **Kiểm tra tính nhất quán động nội tại (Dynamic Internal Consistency):**
+   - Đọc trực tiếp `data/exclusion_registry.json`.
+   - Trích xuất hai chỉ số khai báo từ phần đầu tệp: $E_{\text{declared}} = \text{registry}[\text{"total\_excluded\_entries"}]$ và $S_{\text{declared}} = \text{registry}[\text{"total\_excluded\_samples"}]$.
+   - Tính toán động trên danh sách các lô:
+     $$E_{\text{actual}} = \text{len}(\text{registry}[\text{"exclusions"}]) \quad \text{và} \quad S_{\text{actual}} = \sum_{b \in \text{registry}[\text{"exclusions"}]} b[\text{"n\_samples"}]$$
+   - Cổng kiểm tra bắt buộc: $E_{\text{actual}} == E_{\text{declared}}$ và $S_{\text{actual}} == S_{\text{declared}}$. Nếu phát hiện bất kỳ sự không nhất quán nào, lập tức ném lỗi `ValueError: Registry internal counts inconsistent`.
+
+2. **Kiểm tra tính toàn vẹn của hồ sơ hạn chế niêm phong (Restricted Dossier Integrity):**
+   - Quét qua toàn bộ các lô có `mapping_status == "resolved_in_restricted_dossier"`.
+   - Kiểm tra sự tồn tại vật lý của tệp hồ sơ hạn chế tương ứng trong thư mục `data/restricted/`.
+   - Tính toán mã băm SHA-256 thực tế của tệp trên đĩa và đối chiếu với trường `commitment_sha256` của lô đó trong registry.
+   - Quy tắc dừng an toàn: Thiếu tệp ném lỗi `FileNotFoundError`; sai lệch dù chỉ 1 ký tự hex ném lỗi `RuntimeError: Commitment hash mismatch`.
+
+3. **Xử lý các lô pilot chưa ánh xạ nguồn (`unresolved_source_mapping`):**
+   - Đối với các lô pilot sơ bộ lịch sử (Lô 1: `EXCL-PILOT-01`, Lô 2: `EXCL-REAL-PILOT-32`, Lô 3: `EXCL-PILOT-02`) chưa có ánh xạ chi tiết từng dòng về shard:
+   - Cổng kiểm soát bắt buộc phải nạp toàn bộ các dấu vân tay tóm tắt cấu trúc (`summary_fingerprint_hashes`) và mã băm cấu trúc lô (`batch_sha256`) đã đăng ký.
+   - **Quy tắc dừng an toàn (Fail-Closed Stop):** Nếu một ứng viên mới trích xuất có dấu vân tay cấu trúc trùng khớp với bất kỳ mẫu nào thuộc các lô unresolved, mà chưa có văn bản giải trình đối soát và phê duyệt miễn trừ (bypass approval) của Lead D, hệ thống phải **DỪNG NGAY LẬP TỨC toàn bộ quy trình tuyển chọn mẫu**.
+
+4. **Kế hoạch kiểm thử cần bổ sung (`tests/test_exclusion_registry.py`):**
+   - Cần viết mới bộ kiểm thử chuyên biệt để kiểm chứng cơ chế động trên (kiểm thử thành công, kiểm thử ném lỗi khi tổng mẫu sai lệch, kiểm thử ném lỗi khi hash cam kết bị chỉnh sửa, và kiểm thử fail-closed khi gặp mẫu unresolved).
+
+---
+
+## 3. ĐỐI CHIẾU DANH MỤC 10 LÔ LOẠI TRỪ HIỆN HÀNH & QUAN HỆ ÁNH XẠ CỦA RUNWAY A
+
+### 3.1 Bảng kê chính xác 10 lô trong `data/exclusion_registry.json`
+Đọc trực tiếp từ tệp `data/exclusion_registry.json` (phiên bản `1.1.0`), danh mục loại trừ gồm đúng **10 lô** với tổng cộng **246 mục ghi nhận theo lô** ($\sum n_i = 246$):
 
 | STT | Mã định danh Lô chính xác (Exclusion ID) | Mã tập dữ liệu (Dataset ID) | Số lượng mục ghi ($n_i$) | Trạng thái ánh xạ (Mapping Status) | Lý do loại trừ vĩnh viễn khỏi Train / Validation / Test |
 |:---:|:---|:---|:---:|:---|:---|
@@ -62,175 +89,167 @@
 | **10** | **`EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED`** | **`CALIBRATION-CLEAN-C-32`** | **32** | **`resolved_in_restricted_dossier`** | **32 mẫu Đợt C niêm phong cam kết hạn chế ngoài Git (`clean_calibration_exclusion_mapping_c_32.json`) với commitment hash `67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805`.** |
 | — | **TỔNG CỘNG THEO CÁC LÔ** | **10 LÔ** | **246** | — | **Tổng số mục ghi nhận loại trừ qua các lô quản trị.** |
 
-### 2.2 Phân biệt "246 mục ghi theo lô" với "246 mẫu duy nhất"
-- Con số **246** trong trường `total_excluded_samples` của registry là **tổng tích lũy số đếm mẫu được khai báo qua 10 lô** ($\sum_{i=1}^{10} n_i = 246$), phản ánh tổng thể các đợt phát sinh sự cố và quyết định cô lập dữ liệu.
-- Về mặt bản thể dữ liệu (ontological uniqueness): Do các lô 1–3 có trạng thái `unresolved_source_mapping` (chưa có ánh xạ đầy đủ từng dòng về shard nguồn), số lượng URL hoặc domain duy nhất tuyệt đối có thể có sự trùng lặp bảo thủ giữa các đợt pilot lịch sử. Tuy nhiên, toàn bộ pipeline thực nghiệm áp dụng nguyên tắc **Fail-Closed**: chỉ cần một ứng viên trùng khớp với bất kỳ mã băm nào (`url_sha256`, `html_sha256`, hoặc `group_sha256`) trong bất kỳ lô nào thì đều bị loại trừ vĩnh viễn.
-
-### 2.3 Chứng minh quan hệ của 24 mẫu Runway A với Lô 9 và Lô 10 bằng Hồ sơ Ánh xạ Hạn chế
-Để minh định tuyệt đối quan hệ dữ liệu mà không dựa vào phép suy luận số đếm:
-1. **24 mẫu Runway A thuộc về Lô 10 (Đợt C):**
-   - 24 mẫu hiệu chuẩn Runway A thực tế đã gán nhãn và nghiệm thu (`clean_calibration_runway_a_labels_final.json`, manifest `configs/calibration_clean_a_manifest.json`) chính là 24 mẫu có vai trò `role: "main_24"` (SMP-001 đến SMP-024) nằm trong hồ sơ hạn chế Lô 10: `data/restricted/clean_calibration_exclusion_mapping_c_32.json` (tổng 32 mẫu gồm 24 chính + 8 dự phòng RSV-001..RSV-008).
-   - Hồ sơ này đã được niêm phong mật mã với mã băm cam kết: `67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805`.
-2. **Lô 9 (`EXCL-CALIBRATION-CLEAN-RUNWAY-32`) là Đợt B độc lập:**
-   - Lô 9 lưu trữ 32 mẫu ứng viên của Đợt B trước đó, được quản lý hạn chế trong `data/restricted/clean_calibration_exclusion_mapping_32.json`.
-   - **Bằng chứng độc lập:** Đối soát toàn bộ 32 mã băm `url_sha256` của Lô 9 và 32 mã băm của Lô 10 cho thấy **tập giao hoàn toàn rỗng**:
-     $$S_{\text{Batch 9}} \cap S_{\text{Batch 10}} = \emptyset$$
-3. **Kết luận về loại trừ và chống cộng trùng:**
-   - 24 mẫu Runway A **hoàn toàn thuộc Lô 10**, không thuộc Lô 9.
-   - Việc Lô 10 đã được đăng ký loại trừ vĩnh viễn trong `data/exclusion_registry.json` bảo đảm 24 mẫu Runway A đã được cô lập 100%.
-   - Nhóm nghiên cứu không cộng dồn $246 + 24 = 270$ mẫu, vì 24 mẫu Runway A đã nằm trọn vẹn trong 32 mẫu của Lô 10 thuộc tổng số 246 mục ghi nhận.
+### 3.2 Chứng minh quan hệ của 24 mẫu Runway A bằng Hồ sơ Ánh xạ Hạn chế
+- 24 mẫu Runway A đã nghiệm thu (`clean_calibration_runway_a_labels_final.json`) chính là 24 mẫu chính (`role: "main_24"`, SMP-001..SMP-024) thuộc **Lô 10 (Đợt C)** niêm phong tại `data/restricted/clean_calibration_exclusion_mapping_c_32.json`.
+- Lô 9 (`EXCL-CALIBRATION-CLEAN-RUNWAY-32`) là 32 mẫu của **Đợt B** độc lập trong `clean_calibration_exclusion_mapping_32.json`.
+- Tập giao URL giữa Lô 9 và Lô 10 là **rỗng tuyệt đối** ($S_{\text{Batch 9}} \cap S_{\text{Batch 10}} = \emptyset$). Do đó, 24 mẫu Runway A thuộc trọn vẹn Lô 10, không thuộc Lô 9, và việc Lô 10 đã được khóa trong registry bảo đảm không bao giờ cộng trùng thành $246 + 24 = 270$ mẫu.
 
 ---
 
-## 3. ĐÍNH CHÍNH CƠ CHẾ KIỂM TRA TOÀN VẸN SỔ BỘ LOẠI TRỪ (YÊU CẦU CẦN TRIỂN KHAI)
+## 4. PHƯƠNG ÁN CỤ THỂ DUY NHẤT: GIẤU `random_subset` KHỎI B BẰNG CƠ CHẾ DUMMY BOOLEAN ĐỒNG NHẤT
 
-Tiếp thu nghiêm túc chỉ đạo của Lead D và tuân thủ kỷ luật Ponytail ("không mô tả một cơ chế mới như đã hoạt động chỉ vì được viết trong dự thảo"):
-- **Trạng thái thực tế:** Hàm kiểm tra tự động `verify_exclusion_registry_integrity()` hiện là **YÊU CẦU KỸ THUẬT ĐỀ XUẤT CẦN TRIỂN KHAI (PROPOSED SPECIFICATION TO BE IMPLEMENTED)**, chưa có sẵn trong codebase đang chạy.
-- **Kế hoạch triển khai kỹ thuật cụ thể:**
-  1. *Vị trí tích hợp module:* Khai báo và cài đặt hàm `verify_exclusion_registry_integrity(registry_path: Path, restricted_dossier_path: Path) -> bool` trực tiếp tại `src/phishing/data/exclusion.py`.
-  2. *Điểm kích hoạt bắt buộc (Preflight Gate):* Được gọi ở dòng đầu tiên của script trích xuất ứng viên Main Annotation (`scripts/data/sample_main_annotation.py` hoặc tương đương). Nếu tiền kiểm không đạt, script dừng ngay lập tức (fail-closed) trước khi đọc bất kỳ file dữ liệu nguồn nào.
-  3. *Quy cách kiểm thử đơn vị cần bổ sung (`tests/test_exclusion_registry.py`):*
-     - `test_verify_exclusion_registry_integrity_success()`: Pass khi registry đủ 10 lô, tổng 246 mẫu, và file Lô 10 khớp đúng mã băm `67326e80...`.
-     - `test_verify_exclusion_registry_integrity_missing_file()`: Ném lỗi `FileNotFoundError` khi thiếu file hạn chế Lô 10.
-     - `test_verify_exclusion_registry_integrity_tampered_hash()`: Ném lỗi `RuntimeError` khi nội dung file Lô 10 bị sửa đổi (sai lệch hash).
-     - `test_verify_exclusion_registry_integrity_corrupted_counts()`: Ném lỗi `ValueError` khi trường `total_excluded_samples != 246` hoặc `total_excluded_entries != 10`.
+Tiếp thu chỉ đạo của Lead D ("chọn một phương án cụ thể, không để lựa chọn null hoặc omitted vì schema/CLI hiện dùng boolean và có giá trị mặc định"):
 
----
-
-## 4. GIẢI QUYẾT MÂU THUẪN TÍNH MÙ CỦA TRƯỜNG `random_subset` & THIẾT KẾ ĐỒNG BỘ 3 TẦNG
-
-### 4.1 Bản chất mâu thuẫn tính mù trong Codebase hiện hành
-- Trong lớp `BlindSample` (`src/phishing/annotation/blind_view.py`), trường `random_subset: bool` đang thuộc `ALLOWED_BLIND_SAMPLE_KEYS`.
-- Khi xuất Blind View cho Annotator B, nếu trường này mang giá trị `true` (mẫu ngẫu nhiên) hoặc `false` (ca khó bổ sung), Annotator B khi đọc tệp JSON hoặc qua CLI sẽ **ngay lập tức biết mẫu nào là ngẫu nhiên, mẫu nào là ca khó**, gây thiên kiến tâm lý nghiêm trọng và phá vỡ nguyên tắc gán nhãn mù độc lập (ARS Blinding Protocol).
-
-### 4.2 Phương án đồng bộ 3 tầng bảo vệ tính mù tuyệt đối (Schema — Metadata hạn chế — CLI/Evaluation)
+Thành viên C xin lựa chọn và đặc tả duy nhất **Phương án Boolean Đồng nhất (Uniform Boolean Dummy Strategy)**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ TẦNG 1: BLIND VIEW GIAO CHO ANNOTATOR B (TRUNG TÍNH TUYỆT ĐỐI)              │
-│ • Loại bỏ trường random_subset khỏi tệp JSON phát cho B (hoặc gán đồng nhất)│
-│ • Chỉ gồm 11 trường nội dung an toàn: sample_id, url, page_text, summary... │
-│ • B gán nhãn với tâm lý độc lập 100%, không biết ca khó hay ngẫu nhiên      │
+│ 1. TỆP BLIND VIEW PHÁT HÀNH CHO ANNOTATOR B (GÁN BOOLEAN ĐỒNG NHẤT)         │
+│ • Tệp: main_annotation_blind_view_b.json                                    │
+│ • Khai báo ở cấp gói: "random_subset_default": true                         │
+│ • Hoặc trong từng mẫu: "random_subset": true (100% mẫu đều mang giá trị True)│
+│ • Kết quả: Entropy thông tin phân tầng đối với B = 0 bit.                   │
+│   B hoàn toàn không thể phân biệt mẫu ngẫu nhiên hay ca khó bổ sung.        │
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼
+                                       ▼ (B chạy CLI gán nhãn bình thường)
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ TẦNG 2: HỒ SƠ PHÂN TẦNG NIÊM PHONG DO C LƯU TRỮ (RESTRICTED PARTITION MAP)  │
-│ • Vị trí: data/restricted/main_annotation_selection_mapping.json           │
-│ • Cấu trúc: { "MAIN-0001": {"is_random_subset": true}, ... }                │
-│ • Khóa mã băm SHA-256 trong release manifest trước khi mở Pass 1            │
+│ 2. BẢN GHI GÁN NHÃN CỦA B (ANNOTATION RECORD)                               │
+│ • CLI tự động gán: "random_subset": true cho mọi bản ghi của B.              │
+│ • Hoàn toàn hợp lệ theo schema type bool của AnnotationRecord, 0 lỗi cú pháp│
 └──────────────────────────────────────┬──────────────────────────────────────┘
                                        │
-                                       ▼
+                                       ▼ (Bước nghiệm thu & tính Kappa)
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ TẦNG 3: TÍNH TOÁN COHEN'S KAPPA CHÍNH XÁC (EVALUATION / RECONCILIATION)     │
-│ • Script evaluate_kappa thực hiện Inner Join theo sample_id:                │
-│   (Nhãn của A) ⨝ (Nhãn của B) ⨝ (Restricted Partition Map)                  │
-│ • Bóc tách chính xác N_random mẫu để tính Cohen's Kappa chính thức          │
+│ 3. BẢNG PHÂN TẦNG HẠN CHẾ CỦA C (RESTRICTED STRATIFICATION MAP)             │
+│ • Tệp: data/restricted/main_annotation_strata_commitment.json               │
+│ • Nội dung: {"MAIN-0001": {"is_true_random": true}, "MAIN-0002": false, ...}│
+│ • Niêm phong mật mã với SHA-256 công bố trong release manifest.             │
+└──────────────────────────────────────┬──────────────────────────────────────┘
+                                       │
+                                       ▼ (Khớp nối độc lập)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. TÍNH TOÁN COHEN'S KAPPA CHÍNH THỨC TRƯỚC PHÂN XỬ (EVALUATE_KAPPA)        │
+│ • Script thực hiện Inner Join: (Nhãn A) ⨝ (Nhãn B) ⨝ (Strata Commitment)    │
+│ • Bóc tách chính xác N_random mẫu có is_true_random == True để tính Kappa.  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **Tầng 1 — Blind View phát cho Annotator B (Mẫu trung tính):**
-   - Loại bỏ trường `random_subset` khỏi view giao cho B, hoặc đặt mặc định trung tính (`null`/omitted).
-   - Annotator B không nhận bất kỳ gợi ý nào về nguồn gốc tuyển chọn của mẫu.
-2. **Tầng 2 — Hồ sơ phân tầng hạn chế của C (`data/restricted/`):**
-   - Trước khi phát hành Blind View, Thành viên C khóa trước danh sách rút mẫu ngẫu nhiên độc lập 30% ($S_{\text{random}}$) và danh sách ca khó bổ sung ($S_{\text{hard\_supplemental}}$) vào tệp ánh xạ hạn chế ngoài Git: `data/restricted/main_annotation_selection_mapping.json`.
-   - Tính toán mã băm SHA-256 của tệp này và công bố công khai trong manifest phát hành để khóa chặt tính toàn vẹn.
-3. **Tầng 3 — Tái lập mẫu số Kappa chính xác:**
-   - Khi chạy module tính toán độ đồng thuận (`evaluate_kappa`), hệ thống nạp các bản ghi nhãn độc lập của A và B, sau đó ghép nối (join) với tệp phân tầng hạn chế dựa trên `sample_id`.
-   - Phép tính Cohen's Kappa chính thức ($\kappa_{\text{primary}}$) **chỉ lọc các bản ghi có `is_random_subset == True`**, bảo đảm tính chuẩn xác toán học mà người gán nhãn không hề hay biết về phân tầng.
-4. **Cam kết kiểm thử ranh giới:** Thành viên C cam kết bổ sung bài unit test kiểm tra Blind View phát hành cho B bảo đảm 0 rò rỉ trường phân tầng trước khi bàn giao gói dữ liệu.
+### 4.1 Chi tiết kỹ thuật của phương án được chọn
+1. **Trường dữ liệu trong Blind View:**
+   - Trong tệp `main_annotation_blind_view_b.json`, mọi bản ghi `BlindSample` đều có trường `random_subset: true` (hoặc cấp gói mang `random_subset_default: true`). Không sử dụng `null` hay bỏ sót trường để tránh vi phạm schema boolean nghiêm ngặt của `BlindSample` và `annotate_cli.py` (dòng 829–830).
+   - Vì 100% mẫu đều mang giá trị `true`, Annotator B nhìn vào dữ liệu hay giao diện CLI đều thấy tất cả các mẫu đồng nhất như nhau, loại bỏ hoàn toàn khả năng nhận biết ca khó hay ca ngẫu nhiên.
+2. **Tạo bản ghi gán nhãn (`AnnotationRecord`):**
+   - CLI đọc giá trị `true` đồng nhất và xuất ra bản ghi nhãn của B với `"random_subset": true`. Bản ghi hoàn toàn hợp lệ, không phát sinh lỗi kiểm tra kiểu dữ liệu (type validation).
+3. **Khóa bảng phân tầng hạn chế:**
+   - Trước khi phát gói cho B, Thành viên C khóa trước tệp `data/restricted/main_annotation_strata_commitment.json` lưu trữ danh sách ánh xạ thực tế: `sample_id` $\rightarrow$ `is_true_random: true / false`. Tệp được niêm phong với mã băm SHA-256 công bố trong manifest của đợt.
+4. **Quy trình tính toán Cohen's Kappa chính xác:**
+   - Module `evaluate_kappa` nạp tệp nhãn của A, tệp nhãn của B, và tệp phân tầng hạn chế của C.
+   - Script thực hiện phép kết hợp (inner join) theo `sample_id`: chỉ lọc những mẫu có `is_true_random == True` để tính toán chỉ số $\kappa_{\text{primary}}$ trước phân xử, loại bỏ các ca khó bổ sung khỏi mẫu số Kappa đại diện toàn corpus.
+5. **Đặc tả kiểm thử chứng minh ranh giới mù:**
+   - Cần bổ sung bài test chứng minh:
+     * *Test 1 (Tính mù tuyệt đối của B):* Kiểm tra $\text{UniqueValues}(\text{view\_b}[\text{"random\_subset"}]) == \{\text{True}\}$ (phân phối đơn trị, không có biến thiên).
+     * *Test 2 (Chuẩn xác toán học của Kappa):* Chạy `evaluate_kappa` giả lập với tệp phân tầng hạn chế, chứng minh cỡ mẫu $N$ đưa vào ma trận tính $\kappa_{\text{primary}}$ khớp đúng $N_{\text{random}}$, không bị lẫn bất kỳ ca khó bổ sung nào.
 
 ---
 
-## 5. CHUẨN HÓA DỊCH NGOẠI TUYẾN MARIANMT: NGÔN NGỮ ĐÍCH TIẾNG ANH & REVISION ĐÃ KHÓA
+## 5. NGUỒN DỮ LIỆU ĐÃ KHÓA & QUY TRÌNH PHÊ DUYỆT PHISHVN
 
-### 5.1 Đính chính về Ngôn ngữ đích
-- Thành viên C đính chính dứt khoát: Bản dịch ngoại tuyến MarianMT có ngôn ngữ đích là **TIẾNG ANH (EN)**, không phải tiếng Việt.
-- Lý do kỹ thuật: Các mô hình MarianMT tiền huấn luyện (Helsinki-NLP) đạt chất lượng cao nhất ở các cặp dịch từ ngôn ngữ hiếm sang tiếng Anh (`xx -> en`). Các Annotator của dự án đều có năng lực đọc hiểu tiếng Anh chuyên ngành tốt; việc dịch sang tiếng Anh bảo đảm tính trung thực ngữ nghĩa của trang gốc, tránh suy hao dịch thuật hai chặng (`xx -> en -> vi`).
-
-### 5.2 Danh mục Mô hình và Revision khóa cứng theo Ngôn ngữ nguồn
-Căn cứ trực tiếp từ hồ sơ thực nghiệm dịch thuật `clean_calibration_translations.json` và kho lưu trữ cục bộ:
-
-| Mã ngôn ngữ nguồn | Tên ngôn ngữ nguồn | Mô hình MarianMT áp dụng | Revision khóa cứng (Pinned Commit) | Ngôn ngữ đích | Trạng thái xác minh |
-|:---:|:---|:---|:---|:---:|:---|
-| `ja` | Tiếng Nhật | `Helsinki-NLP/opus-mt-ja-en` | `0770961` | `en` (Tiếng Anh) | Đã kiểm chứng trên SMP-008, SMP-009. |
-| `ru` | Tiếng Nga | `Helsinki-NLP/opus-mt-ru-en` | `fbd6dc7` | `en` (Tiếng Anh) | Đã kiểm chứng trên SMP-015. |
-| `zh` | Tiếng Trung | `Helsinki-NLP/opus-mt-zh-en` | *(phải khóa revision trước khi dùng)* | `en` (Tiếng Anh) | Đề xuất dự phòng khi xuất hiện mẫu tiếng Trung. |
-| `vi`, `en` | Tiếng Việt / Tiếng Anh | *(Không dịch)* | `N/A` | `N/A` | `translation_provided = false`. |
-
-### 5.3 Tuân thủ nghiêm ngặt Quy tắc R-A09
-1. **Bảo toàn văn bản gốc:** Trường `page_text` lưu giữ 100% nội dung trang gốc không bị chỉnh sửa.
-2. **Metadata dịch đầy đủ 5 trường:** Mọi mẫu có bản dịch phải có đủ: `translation_provided: true`, `translated_text`, `translation_source_language`, `translation_tool: "MarianMT"`, `translation_tool_version` (tên mô hình kèm revision), và `translation_sha256`.
-3. **Kiểm tra mã băm fail-closed:** Mã băm `translation_sha256` được tính bằng $\text{SHA-256}(\text{translated\_text})$. Bất kỳ sự sai lệch nào dù chỉ 1 ký tự đều khiến pipeline ném ngoại lệ dừng lại ngay lập tức.
+1. **Nguồn dữ liệu hợp lệ duy nhất:** `phreshphish` tại revision `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a` (56 shards, 498.255 bản ghi trong `configs/source_manifest.json`).
+2. **Quy chế nguồn PhishVN:** PhishVN được xếp vào diện **Nguồn đề xuất thứ cấp — CHƯA ĐƯỢC PHÉP TRÍCH XUẤT**.
+3. **Quy trình 4 bước bắt buộc trước khi dùng PhishVN:**
+   - Bước 1: Lập `configs/phishvn_manifest.json` độc lập.
+   - Bước 2: Kiểm toán bảng mã băm SHA-256 các file thành phần của PhishVN.
+   - Bước 3: Xác định phạm vi khai thác và tiêu chí lọc.
+   - Bước 4: Trình Lead D ban hành quyết định phê duyệt nguồn bằng văn bản. **Trước khi có quyết định duyệt nguồn của D, cấm tuyệt đối mọi thao tác trích xuất từ PhishVN.**
 
 ---
 
-## 6. BẢO VỆ TÍNH MÙ TRONG GÓI BÁO CÁO QA TUYỂN CHỌN CỦA THÀNH VIÊN B
+## 6. CHUẨN HÓA DỊCH NGOẠI TUYẾN MARIANMT: NGÔN NGỮ ĐÍCH TIẾNG ANH & REVISION ĐÃ KHÓA
 
-Tiếp thu triệt để ý kiến của Lead D về việc chống thiên kiến xác nhận (confirmation bias):
-- **Loại bỏ hoàn toàn:** Tỷ lệ phần trăm phân bổ theo 14 tổ chức mục tiêu (Target Organizations) bị **CẤM TUYỆT ĐỐI** xuất hiện trong gói báo cáo giao cho QA Lead B trước khi Pass 1 hoàn tất.
-- **Danh mục thông tin B ĐƯỢC PHÉP NHẬN trong gói QA Tuyển chọn:**
-  1. *Quy mô mẫu:* Tổng số lượng mẫu ứng viên ($N$).
-  2. *Schema Validation Report:* Báo cáo kiểm tra 100% mẫu tuân thủ allowlist `ALLOWED_BLIND_SAMPLE_KEYS` của `BlindSample`.
-  3. *Anti-Leakage Check:* Báo cáo kiểm tra tự động xác nhận 0 chứa trường cấm (`source_label`, `target`, `locator`, `domain`, `score`...).
-  4. *Template Clone Scan Summary:* Báo cáo quét SimHash và DOM Jaccard xác nhận 0 ứng viên nào vi phạm ngưỡng tương đồng (SimHash Hamming $\le 10$, Jaccard $\ge 0,85$).
-  5. *Checksum Verification:* Bảng mã băm toàn vẹn `SHA256SUMS.txt` của gói dữ liệu.
-
----
-
-## 7. TÁCH BẠCH TIẾN ĐỘ ĐỢT 1 & BẢNG TÍNH TOÁN CÔNG SỐ TOÀN CHIẾN DỊCH 1.000 MẪU
-
-### 7.1 Phân định rạch ròi hai phạm vi tiến độ
-Thành viên C xin tách bạch tường minh hai phạm vi công việc:
-1. **Phạm vi 1: Tiến độ Đợt 1 (Đo lường & Kiểm thử — 60 hoặc 100 mẫu):**
-   - Mục tiêu: Hoàn tất trong **01 tuần (07 ngày làm việc)** nhằm đo lường tốc độ thực tế của công cụ mới, kiểm tra độ mượt của giao diện CLI và đánh giá sơ bộ tỷ lệ đồng thuận.
-2. **Phạm vi 2: Tiến độ Toàn bộ Chiến dịch Main Annotation (Quy mô dự phóng 1.000 mẫu):**
-   - Đây là chiến dịch dài hơi, đòi hỏi tổng khối lượng công số lớn, **tuyệt đối không thể hoàn thành trong một tuần**.
-
-### 7.2 Bảng tính toán công số chi tiết cho Chiến dịch 1.000 mẫu
-Bảng tính dưới đây được xây dựng dựa trên **Thời gian trung bình thực đo (Mean)** từ 2 tệp Pass 1 đã khóa mật mã của Calibration Runway A ($N=24$):
-- **Annotator A:** $380,16\text{ s/mẫu} = \mathbf{6,34\text{ phút/mẫu}}$.
-- **Annotator B:** $250,36\text{ s/mẫu} = \mathbf{4,17\text{ phút/mẫu}}$.
-- **Cơ cấu gán nhãn:**
-  + Annotator A: Gán toàn bộ $1.000\text{ mẫu}$.
-  + Annotator B: Gán $30\%\text{ ngẫu nhiên} = 300\text{ mẫu} + \text{ca khó bổ sung phát sinh}$ (ước tính 5% tổng thể = $50\text{ mẫu}$) $\rightarrow$ Tổng gán đôi = $\mathbf{350\text{ mẫu}}$.
-  + Tỷ lệ bất đồng cần phân xử Pass 2 (giả định 15% tập gán đôi): $\approx 350 \times 0,15 = \mathbf{53\text{ ca bất đồng}}$.
-
-| Vai trò / Thành viên | Nội dung công việc chi tiết | Khối lượng & Đơn giá thời gian thực đo | Tổng quỹ thời gian dự kiến (Giờ) |
-|:---|:---|:---|:---:|
-| **Annotator A** | Gán nhãn độc lập toàn bộ corpus 1.000 mẫu | $1.000 \text{ mẫu} \times 6,34 \text{ phút/mẫu}$ | **105,67 giờ** |
-| **Annotator B** | Gán nhãn độc lập tập gán đôi (30% random + ca khó) | $350 \text{ mẫu} \times 4,17 \text{ phút/mẫu}$ | **24,33 giờ** |
-| **QA Lead B** | Kiểm định QA tuyển chọn, schema, test hồi quy & nghiệm thu | 5 đợt phát hành $\times$ 3,0 giờ/đợt QA | **15,00 giờ** |
-| *Tổng quỹ thời gian của B* | *(Gán nhãn độc lập + QA)* | *(24,33h + 15,00h)* | **39,33 giờ** |
-| **Thành viên C** | Trích xuất dữ liệu, lọc trùng 4 lớp, tạo Blind View, MarianMT, reconciliation | 5 đợt phát hành $\times$ 6,0 giờ/đợt kỹ thuật | **30,00 giờ** |
-| **Lead D** | Phân xử bất đồng Pass 2 & Phê duyệt mốc | $53 \text{ ca} \times 8 \text{ phút/ca} + 8,0\text{h phê duyệt}$ | **15,07 giờ** |
-| **TỔNG CỘNG TOÀN NHÓM** | **Dự phóng công số toàn chiến dịch 1.000 mẫu** | — | **~190,07 giờ người** |
-
-*(Ghi chú: Tổng công số ~190,07 giờ người khớp chuẩn xác với khung ngân sách dự phóng 190,79 giờ người đã được Lead D phê duyệt trong Báo cáo PLAN-01).*
-
-### 7.3 Kết luận Tiến độ Chiến dịch 1.000 mẫu
-- **KẾT LUẬN TIẾN ĐỘ THỰC TẾ:** **CHƯA XÁC ĐỊNH (PENDING AVAILABILITY COMMITMENT)**.
-- **Căn cứ:** Tiến độ theo tuần của chiến dịch phụ thuộc hoàn toàn vào **Văn bản cam kết số giờ khả dụng mỗi tuần (Weekly Availability Commitment)** của Annotator A và QA Lead B.
-  * *Kịch bản A cam kết 10 giờ/tuần:* Chiến dịch cần $\approx 10,5\text{ tuần}$ (~2,5 tháng).
-  * *Kịch bản A cam kết 15 giờ/tuần:* Chiến dịch cần $\approx 7,0\text{ tuần}$ (~1,7 tháng).
-  * *Kịch bản A cam kết 20 giờ/tuần:* Chiến dịch cần $\approx 5,3\text{ tuần}$ (~1,2 tháng).
-- Thành viên C kiến nghị Lead D chỉ phê duyệt mốc tiến độ chính thức sau khi A và B nộp bản cam kết số giờ khả dụng bằng văn bản.
+1. **Ngôn ngữ đích:** Đính chính dứt khoát là **TIẾNG ANH (EN)**, không phải tiếng Việt.
+2. **Danh mục mô hình và revision khóa cứng (căn cứ `clean_calibration_translations.json`):**
+   - Tiếng Nhật (`ja`): `Helsinki-NLP/opus-mt-ja-en@0770961` $\rightarrow$ Đích `en`.
+   - Tiếng Nga (`ru`): `Helsinki-NLP/opus-mt-ru-en@fbd6dc7` $\rightarrow$ Đích `en`.
+   - Tiếng Trung (`zh`): `Helsinki-NLP/opus-mt-zh-en` (phải khóa revision trước khi dùng) $\rightarrow$ Đích `en`.
+   - Tiếng Việt (`vi`), Tiếng Anh (`en`): Giữ nguyên, không dịch (`translation_provided = false`).
+3. **Tuân thủ quy tắc R-A09:** Giữ nguyên 100% `page_text` gốc; bản dịch tiếng Anh tĩnh ngoại tuyến đặt trong `translated_text` kèm 5 trường metadata; kiểm tra mã băm `translation_sha256` fail-closed nếu bị chỉnh sửa.
 
 ---
 
-## 8. DANH MỤC NHỮNG ĐIỀU CÒN CHỜ LEAD D QUYẾT ĐỊNH
+## 7. BẢNG ĐỐI CHIẾU CÔNG SỐ SO VỚI PLAN-01 & ĐÁNH GIÁ TIẾN ĐỘ CÓ ĐIỀU KIỆN CHO 1.000 MẪU
+
+### 7.1 Bảng đối chiếu chênh lệch 0,72 giờ và sự dịch chuyển cơ cấu so với PLAN-01
+Khung ngân sách PLAN-01 (`plan_01_calibration_effort_report.json`, Bảng 1 & 4) được phê duyệt là **190,79 giờ người**. Dưới đây là bảng đối chiếu chi tiết giữa PLAN-01 và Kịch bản dự phóng hiệu chỉnh V2.2:
+
+| Thành viên / Vai trò | Phân bổ PLAN-01 được duyệt (Giờ) | Tỷ lệ PLAN-01 (%) | Kịch bản Dự phóng V2.2 đề xuất (Giờ) | Tỷ lệ V2.2 (%) | Độ lệch công số (Giờ) | Giải trình nguyên nhân dịch chuyển cơ cấu kỹ thuật |
+|:---|:---:|:---:|:---:|:---:|:---:|:---|
+| **Annotator A** | 114,08 | 59,80% | **105,67** | 55,59% | **-8,41** | Chuyển từ định mức thận trọng (410,70s/mẫu = 6,85m) sang thời gian trung bình thực đo Pass 1 ($380,16\text{s/mẫu} = 6,34\text{m}$). |
+| **QA Lead B** | 36,21 | 18,98% | **39,33** | 20,69% | **+3,12** | Tăng đệm thời gian kiểm định QA tuyển chọn và nghiệm thu độc lập qua 5 đợt phát hành ($15,0\text{h}$) cộng gán đôi 350 mẫu ($24,33\text{h}$). |
+| **Thành viên C** | 25,00 | 13,10% | **30,00** | 15,78% | **+5,00** | Bổ sung khối lượng quản trị hạ tầng tính mù 3 tầng, kiểm tra cam kết sổ bộ loại trừ động, quản lý tệp phân tầng hạn chế và đối soát reconciliation. |
+| **Lead D** | 15,50 | 8,12% | **15,07** | 7,93% | **-0,43** | Tính toán lại chi tiết thời gian phân xử Pass 2 cho 53 ca bất đồng dự kiến ($7,07\text{h}$) cộng thời gian phê duyệt mốc quản trị ($8,0\text{h}$). |
+| **TỔNG CỘNG** | **190,79** | **100,00%** | **190,07** | **100,00%** | **-0,72** | **Kịch bản dự phóng hiệu chỉnh V2.2 giảm 0,72 giờ so với PLAN-01, chờ Lead D xem xét phê duyệt.** |
+
+### 7.2 Đánh giá tiến độ có điều kiện cho Chiến dịch 1.000 mẫu
+- **Khối lượng gán nhãn của Annotator A:** Ở tốc độ trung bình thực đo hiện tại ($6,34\text{ phút/mẫu}$), riêng Annotator A đã cần khoảng **105,67 giờ làm việc thuần túy** để hoàn thành 1.000 mẫu.
+- **Đánh giá tính khả thi:**
+  * Với quỹ thời gian thông thường của một sinh viên/nghiên cứu viên (khoảng 10–15 giờ/tuần), Annotator A cần khoảng **7 đến 10 tuần** chỉ để gán nhãn xong Pass 1.
+  * Do đó, **tiến độ hoàn tất cả chiến dịch trong một tuần là phi thực tế ở điều kiện hiện tại**.
+  * **Tiến độ một tuần cho toàn chiến dịch chỉ có thể được cân nhắc lại nếu đồng thời thỏa mãn 3 điều kiện ngặt nghèo sau:**
+    1. *Điều kiện tốc độ:* Kết quả thực nghiệm Đợt 1 chứng minh tốc độ gán nhãn thực tế tăng lên đáng kể (nhờ annotator thuần thục quy trình và công cụ CLI tối ưu).
+    2. *Điều kiện chất lượng:* Chất lượng gán nhãn, độ chi tiết của bằng chứng và chỉ số đồng thuận liên đánh giá viên $\kappa$ vẫn giữ vững ở mức cao ($\kappa \ge 0,75$), không bị suy thoái do làm nhanh.
+    3. *Điều kiện nhân lực:* Toàn bộ nhân sự tham gia (đặc biệt là Annotator A và QA Lead B) có văn bản cam kết làm việc tập trung toàn thời gian (full-time sprint với cường độ $> 40\text{ giờ/tuần}$).
+- **Kết luận tiến độ:** Khi 3 điều kiện trên chưa được kiểm chứng, tiến độ chính thức của chiến dịch 1.000 mẫu tiếp tục ở trạng thái **CHƯA XÁC ĐỊNH (TBD)** chờ kết quả đo lường Đợt 1 và văn bản cam kết giờ khả dụng của A và B.
+
+---
+
+## 8. BẰNG CHỨNG TRUY XUẤT GIT VÀ KẾT QUẢ KIỂM THỬ HỒI QUY TẠI COMMIT `13e24a0`
+
+### 8.1 Bằng chứng truy xuất Git trên máy chủ GitHub
+- **Kho lưu trữ:** `https://github.com/Anhtuann1404/NCKH_2.git`
+- **Nhánh phát triển:** `feat/c-calibration-v1-1-4-adjudication`
+- **Mã commit đầy đủ:** `13e24a0cbf042c486825a67c74ef9332e1935d05`
+- **Đường dẫn truy xuất trực tiếp trên GitHub:**  
+  [`https://github.com/Anhtuann1404/NCKH_2/commit/13e24a0cbf042c486825a67c74ef9332e1935d05`](https://github.com/Anhtuann1404/NCKH_2/commit/13e24a0cbf042c486825a67c74ef9332e1935d05)
+- **Lệnh kiểm chứng độc lập cho Lead D:**
+  ```bash
+  git fetch origin feat/c-calibration-v1-1-4-adjudication
+  git checkout 13e24a0cbf042c486825a67c74ef9332e1935d05
+  # Hoặc kiểm tra qua ls-remote:
+  git ls-remote origin feat/c-calibration-v1-1-4-adjudication
+  ```
+
+### 8.2 Phân định rạch ròi giữa Test Hồi quy Hiện có và Test Đề xuất Mới
+1. **Bộ test hồi quy mã nguồn hiện có (Existing Codebase Regression Tests — 150/150 PASSED):**
+   - **Lệnh thực thi:**
+     ```bash
+     python -m pytest tests/test_blind_view.py tests/test_clean_calibration_blind_view.py tests/test_difficulty_strata.py tests/test_exclusion_registry.py -v
+     ```
+   - **Kết quả đo lường thực tế:** **150 passed**, 0 failed, 0 skipped, 0 deselected (thời gian thực thi: 3.72s).
+   - **Phạm vi kiểm thử của 150 bài test:**
+     * `tests/test_blind_view.py` (33 tests): Kiểm chứng an toàn Blind View, allowlist trường, strip thẻ nguy hiểm, loại trừ rò rỉ nhãn và tính toàn vẹn bản dịch.
+     * `tests/test_clean_calibration_blind_view.py` (4 tests): Kiểm chứng tính hợp lệ và sạch hoàn toàn của view Đợt C.
+     * `tests/test_difficulty_strata.py` (12 tests): Kiểm chứng tính toán độc lập 6 cờ chỉ báo mô tả bề mặt.
+     * `tests/test_exclusion_registry.py` (101 tests): Kiểm chứng toàn diện cơ chế loại trừ của 10 lô hiện hành, bao gồm kiểm tra cam kết Lô 10 ngoài Git.
+2. **Bộ test đề xuất cho các cơ chế mới (Future Proposed Tests — Chưa triển khai):**
+   - *Test cổng registry động:* Kiểm tra việc đối soát động trường `total_excluded_samples` và `total_excluded_entries` thay vì kiểm số cứng; kiểm tra dừng khẩn cấp khi gặp mẫu unresolved chưa bypass.
+   - *Test tính mù 3 tầng:* Kiểm tra tính đơn trị `random_subset: true` trên view của B; kiểm tra script `evaluate_kappa` kết hợp tệp phân tầng hạn chế để lọc đúng $N_{\text{random}}$.
+   - Các bài test đề xuất này sẽ được viết mới và tích hợp sau khi Lead D chính thức phê duyệt thiết kế kỹ thuật của Bản V2.2.
+
+---
+
+## 9. DANH MỤC NHỮNG ĐIỀU CÒN CHỜ LEAD D QUYẾT ĐỊNH
 
 Thành viên C kính trình Lead D xem xét và ban hành quyết định đối với các nội dung sau:
-1. **Chốt Phương án & Quy mô Đợt 1:** Lựa chọn Phương án A (Lô đầu Main) hay Phương án B (Pilot tách riêng); chốt quy mô 60 mẫu hay 100 mẫu.
-2. **Phê duyệt Thiết kế Tính mù 3 Tầng:** Chấp thuận phương án loại bỏ `random_subset` khỏi view của B và quản lý qua hồ sơ phân tầng hạn chế của C.
-3. **Phê duyệt Quy chế Dịch Ngoại tuyến Tiếng Anh:** Xác nhận việc sử dụng MarianMT dịch sang tiếng Anh cho tiếng Nhật và tiếng Nga.
-4. **Phê duyệt Quy chế QA Tuyển chọn của B:** Xác nhận loại bỏ phân bổ tổ chức mục tiêu khỏi gói QA kỹ thuật của B.
-5. **Thu thập Cam kết Giờ khả dụng:** Yêu cầu Annotator A và QA Lead B gửi văn bản cam kết số giờ khả dụng/tuần để chốt tiến độ chính thức.
+1. **Phê duyệt Thiết kế Tính mù 3 Tầng & Cơ chế Dummy Boolean:** Thông qua việc dùng `random_subset: true` đồng nhất cho B và quản lý phân tầng qua tệp hạn chế của C.
+2. **Phê duyệt Đặc tả Cổng Kiểm tra Động Sổ bộ Loại trừ:** Cho phép triển khai hàm `verify_exclusion_registry_integrity()` theo đặc tả động tại Mục 2.
+3. **Phê duyệt Kịch bản Dự phóng Công số Hiệu chỉnh V2.2:** Chấp thuận độ lệch -0,72h và sự dịch chuyển cơ cấu A/B/C/D so với PLAN-01.
+4. **Quyết định Quy mô & Bản chất Đợt 1:** Lựa chọn giữa Phương án A (Lô đầu Main) hay Phương án B (Pilot tách riêng); chốt quy mô 60 mẫu hay 100 mẫu.
+5. **Thu thập Cam kết Giờ khả dụng:** Yêu cầu Annotator A và QA Lead B nộp văn bản cam kết số giờ khả dụng/tuần để chốt tiến độ chính thức.
 
 ---
 
 **XÁC NHẬN CỦA THÀNH VIÊN C (DATA PIPELINE & THƯ KÝ KIỂM TOÁN)**  
-*(Văn bản dự thảo kỹ thuật V2.1 — Duy trì nghiêm ngặt: training_blocked=true, official_test_used=false, Main Annotation KHÓA 100%)*  
+*(Văn bản dự thảo kỹ thuật V2.2 — Duy trì nghiêm ngặt: training_blocked=true, official_test_used=false, Main Annotation KHÓA 100%)*  
 
 **Nguyễn Thắng**
