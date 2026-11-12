@@ -1,14 +1,14 @@
-# KẾ HOẠCH VẬN HÀNH HỢP NHẤT CHIẾN DỊCH GÁN NHÃN CHÍNH (MASTER OPERATIONAL ANNOTATION PLAN - PROPOSAL V3.3)
+# KẾ HOẠCH VẬN HÀNH HỢP NHẤT CHIẾN DỊCH GÁN NHÃN CHÍNH (MASTER OPERATIONAL ANNOTATION PLAN - PROPOSAL V3.4)
 
 **Dự án:** Nghiên cứu phát hiện website phishing mạo danh tổ chức bằng học máy kết hợp URL và nội dung trang (NCKH_2)  
-**Mã văn bản:** `PLAN-MAIN-ANNOTATION-MASTER-V3.3`  
-**Phiên bản:** `3.3.0-CONSOLIDATED-PROPOSAL`  
+**Mã văn bản:** `PLAN-MAIN-ANNOTATION-MASTER-V3.4`  
+**Phiên bản:** `3.4.0-CONSOLIDATED-PROPOSAL`  
 **Ngày lập:** 12/11/2026  
 **Đơn vị lập:** Thành viên C (Nguyễn Thắng — Data Pipeline & Thư ký Kiểm toán)  
 **Cộng sự suy luận chuyên sâu (Duo Mode):** DeepSeek Bridge Reasoning Engine (`deepseek-v4-pro`)  
 **Người thẩm định phương pháp độc lập:** Thành viên B (Phùng Tấn Minh — QA Lead & Nhóm trưởng)  
 **Thẩm quyền phê duyệt tối hậu:** Lead D (Nguyễn Anh Tuấn)  
-**Trạng thái quản trị:** `DRAFT_V3.3_PENDING_B_APPRAISAL_AND_LEAD_D_FINAL_DECISION` (Bản kế hoạch vận hành hợp nhất hoàn thiện — Tiếp thu đầy đủ 6 chỉ đạo vòng cuối của Lead D ngày 12/11/2026 và kết quả tham vấn mô hình Duo để chuyển B thẩm định độc lập; duy trì nghiêm ngặt `training_blocked=true`, `official_test_used=false`, chưa trích xuất mẫu hay mở Pass 1)  
+**Trạng thái quản trị:** `DRAFT_V3.4_PENDING_B_APPRAISAL_AND_LEAD_D_FINAL_DECISION` (Bản kế hoạch vận hành hợp nhất hoàn thiện — Tiếp thu đầy đủ 4 chỉ đạo vòng 7 của Lead D ngày 12/11/2026 và kết quả tham vấn mô hình Duo để chuyển B thẩm định độc lập; duy trì nghiêm ngặt `training_blocked=true`, `official_test_used=false`, chưa trích xuất mẫu hay mở Pass 1)  
 
 ---
 
@@ -16,11 +16,11 @@
 
 | # | Yêu cầu của Lead D & QA Lead B | Mục tài liệu đáp ứng | Bằng chứng & Kiểm thử hiện có | Phần còn phải triển khai | Người chịu trách nhiệm |
 |:---:|:---|:---|:---|:---|:---:|
-| **1** | Khôi phục thiết kế Đợt 1 (100 mẫu; pre-locked seeds, tiêu chí chọn, dedupe 4 lớp, SimHash $\le 10$, Jaccard $\ge 0,85$; đăng ký tuần tự `TemplateSimilarityEngine`; ma trận nhãn $3 \times 3$ Codebook v1.1; xử lý vùng ranh giới $0,60 \le \kappa < 0,75$; bỏ khẳng định CLT). | **Mục 2** (Thiết kế chi tiết Đợt 1) | Mã nguồn `TemplateSimilarityEngine` tại `src/phishing/data/template_similarity.py` (dòng 96–97) đã có sẵn ngưỡng Hamming $\le 10$, Jaccard $\ge 0,85$. | Viết script tuyển chọn `scripts/data/sample_batch1.py` đăng ký tuần tự từng mẫu vào engine; nạp seed đã khóa; quét trùng lặp và xuất manifest. | Thành viên C (lập trình) & QA Lead B (kiểm định) |
-| **2** | Chốt duy nhất tên trường `blind_contract_version = "1.2.0"`; giữ `codebook_version = "1.1.0"`; Main thiếu/sai version phải fail-closed; Calibration cũ chỉ nhận qua mã băm thực đo đã khóa (`LOCKED_LEGACY_CALIBRATION_HASHES`) và đường nạp legacy tự tính hash trên raw bytes; cấm `random_subset` trong view/record của B; chuẩn hóa đúng đủ các trường của `AnnotationRecord`. | **Mục 3** (Hợp đồng dữ liệu Blind View v1.2) | Bộ test hồi quy v1.1.0 hiện có (`tests/test_blind_view.py`) xác nhận schema v1.1.0 an toàn và không rò rỉ nhãn. Mã băm thực tế của các tệp Calibration cũ đã đo đạc vật lý trên đĩa. | Cập nhật validator và parser trong `blind_view.py` và `annotate_cli.py` phân nhánh theo `blind_contract_version`, đường nạp legacy tự băm raw bytes đối chiếu allowlist hash; cập nhật `AnnotationRecord`. | Thành viên C (triển khai) & QA Lead B (thẩm định) |
-| **3** | Khóa 30% ngẫu nhiên trước Pass 1, niêm phong seed trong hồ sơ hạn chế ngoài Git; dùng Blind ID trung tính không mã hóa lô (`BLIND-xxxxxxxx`); phép kiểm giới hạn (bounded check) chống suy đoán; công thức hợp mẫu Blended Delivery $|S_{\text{random}} \cup S_{\text{hard}}|$ trừ phần giao (70 mẫu là dự phóng giả định); chốt 15 Mẫu che trộn (Masking Decoy Samples) cuối kỳ do B gán, loại trừ vĩnh viễn và hạch toán ngân sách; không tự nhận 'mù hoàn toàn'. | **Mục 4** (Bảo vệ tính mù & Trộn đệm ngẫu nhiên) | Phép tính Cohen's Kappa trong `src/phishing/annotation/__init__.py` đã hỗ trợ lọc theo mảng boolean độc lập. | Lập trình module `blended_delivery.py` thực hiện sinh Blind ID ngẫu nhiên, Hash Shuffle và cập nhật `evaluate_kappa.py` thực hiện phép Join độc lập sau khi khóa Pass 1. | Thành viên C (thực hiện) & QA Lead B (kiểm tra mù) |
+| **1** | Khôi phục thiết kế Đợt 1 (100 mẫu; pre-locked seeds, tiêu chí chọn, dedupe 4 lớp, SimHash $\le 10$, Jaccard $\ge 0,85$; đăng ký tuần tự `TemplateSimilarityEngine`; ma trận nhãn $3 \times 3$ Codebook v1.1; CI 95% bằng Paired Bootstrap chặt chẽ kèm ví dụ đối chiếu, bỏ công thức Fleiss nhị phân; xử lý vùng ranh giới $0,60 \le \kappa < 0,75$; ghi rõ giới hạn khi $N=30$). | **Mục 2** (Thiết kế chi tiết Đợt 1) | Mã nguồn `TemplateSimilarityEngine` tại `src/phishing/data/template_similarity.py` (dòng 96–97) đã có sẵn ngưỡng Hamming $\le 10$, Jaccard $\ge 0,85$. | Viết script tuyển chọn `scripts/data/sample_batch1.py` đăng ký tuần tự từng mẫu vào engine; nạp seed đã khóa; quét trùng lặp và xuất manifest. | Thành viên C (lập trình) & QA Lead B (kiểm định) |
+| **2** | Chốt duy nhất tên trường `blind_contract_version = "1.2.0"`; giữ `codebook_version = "1.1.0"`; Main thiếu/sai version phải fail-closed; Tách allowlist theo LOẠI ARTIFACT (`LOCKED_LEGACY_BLIND_VIEW_ALLOWLIST`, `MANIFEST`, `MAPPING`), hash manifest/mapping không được làm vé nạp BlindSample; hash chưa đo ghi `CHƯA XÁC MINH`; đường nạp legacy tự tính hash trên raw bytes; cấm `random_subset` trong view/record của B. | **Mục 3** (Hợp đồng dữ liệu Blind View v1.2) | Bộ test hồi quy v1.1.0 hiện có (`tests/test_blind_view.py`) xác nhận schema v1.1.0 an toàn và không rò rỉ nhãn. Mã băm thực tế của các tệp Calibration cũ đã đo đạc vật lý trên đĩa. | Cập nhật validator và parser trong `blind_view.py` và `annotate_cli.py` phân nhánh theo `blind_contract_version`, đường nạp legacy tự băm raw bytes đối chiếu allowlist hash; cập nhật `AnnotationRecord`. | Thành viên C (triển khai) & QA Lead B (thẩm định) |
+| **3** | Khóa 30% ngẫu nhiên trước Pass 1, niêm phong seed trong hồ sơ hạn chế ngoài Git; dùng Blind ID trung tính không mã hóa lô (`BLIND-xxxxxxxx`); phép kiểm giới hạn (bounded check) chống suy đoán; công thức hợp mẫu Blended Delivery $|S_{\text{random}} \cup S_{\text{hard}}|$ trừ phần giao (70 mẫu là dự phóng giả định); 15 Mẫu mồi Decoy niêm phong loại trừ TRƯỚC KHI phát cho B; mã lô TBD; phân tích hệ quả PA hấp thụ (QA B giảm 15h xuống 13,96h) vs PA tăng ngân sách. | **Mục 4** (Bảo vệ tính mù & Trộn đệm ngẫu nhiên) | Phép tính Cohen's Kappa trong `src/phishing/annotation/__init__.py` đã hỗ trợ lọc theo mảng boolean độc lập. | Lập trình module `blended_delivery.py` thực hiện sinh Blind ID ngẫu nhiên, Hash Shuffle và cập nhật `evaluate_kappa.py` thực hiện phép Join độc lập sau khi khóa Pass 1. | Thành viên C (thực hiện) & QA Lead B (kiểm tra mù) |
 | **4** | Sửa Bảng 5.1 theo từng lô thực tế: Lô 1 (20 mẫu, thiếu hash trên registry), Lô 2 (32 mẫu), Lô 3+4 (64 mẫu), Lô 5–10 (130 mẫu, tổng 246 mẫu); đối chiếu trạng thái mapping và khả năng chặn từng lô; cách ly 2 shard đã biết `train-000`, `train-055`; lập phương án rủi ro tồn dư xin Lead D phê duyệt riêng. PhishVN là nguồn đề xuất thứ cấp. | **Mục 5** (Hiện trạng Lô loại trừ & Quản trị Shard) | Sổ bộ `data/exclusion_registry.json` xác nhận chi tiết từng lô; `recovery_status.json` ghi nhận trạng thái `pending_independent_review` cho Lô 1 và Lô 2. | Tổ chức phiên nghiệm thu độc lập mapping Lô 1; nếu chưa xong, trình Lead D ký duyệt văn bản chấp nhận rủi ro tồn dư trước khi trích xuất. | Thành viên C (hồ sơ) & Lead D (phê duyệt) |
-| **5** | Quy trình vận hành khép kín (View $\rightarrow$ MarianMT `zh/ja/ru` $\rightarrow$ SHA256SUMS $\rightarrow$ QA B $\rightarrow$ Duyệt D); ghi rõ revision `ja-en` và `ru-en` đã kiểm trong codebase, đánh dấu `zh-en` cần khóa revision trước khi chạy; bổ sung kiểm dịch và xử lý thiếu model (fail-closed); công bố log thực tế 150 passed của C (giải thích chênh lệch thời gian do cache I/O) và tách biệt với kết quả cũ của B (`137 passed, 13 skipped` trên commit `bc295820`). | **Mục 6** (Quy trình vận hành & Dịch ngoại tuyến) & **Mục 8** (Ranh giới kiểm thử) | Revision `ja-en` (`0770961...`) và `ru-en` (`fbd6dc7...`) đã có trong codebase; chạy kiểm thử độc lập của B trên commit cũ V3.0 (`bc295820`) đạt 137 passed / 13 skipped; máy C có đủ tệp đạt 150 passed. | Tải và khóa revision commit SHA cho `zh-en`; viết module translation sanity check và xử lý fail-closed; viết mới bộ test cho Main v1.2 sau khi Lead D duyệt kế hoạch (hiện ở trạng thái CHƯA KIỂM CHỨNG). | Thành viên C (viết test) & QA Lead B (chạy kiểm chứng) |
+| **5** | Quy trình vận hành khép kín (View $\rightarrow$ MarianMT `zh/ja/ru` $\rightarrow$ SHA256SUMS $\rightarrow$ QA B $\rightarrow$ Duyệt D); ghi rõ revision `ja-en` và `ru-en` đã kiểm trong codebase, đánh dấu `zh-en` cần khóa revision trước khi chạy; bổ sung kiểm dịch và xử lý thiếu model (fail-closed); tách bạch khả năng kỹ thuật (cold/warm cache) vs kết quả thực chứng log; xác nhận kết quả 137 passed / 13 skipped của B là ở commit cũ `bc295820` (V3.0), không phải V3.3/V3.4. | **Mục 6** (Quy trình vận hành & Dịch ngoại tuyến) & **Mục 8** (Ranh giới kiểm thử) | Revision `ja-en` (`0770961...`) và `ru-en` (`fbd6dc7...`) đã có trong codebase; chạy kiểm thử độc lập của B trên commit cũ V3.0 (`bc295820`) đạt 137 passed / 13 skipped; máy C có đủ tệp đạt 150 passed. | Tải và khóa revision commit SHA cho `zh-en`; viết module translation sanity check và xử lý fail-closed; viết mới bộ test cho Main v1.2 sau khi Lead D duyệt kế hoạch (hiện ở trạng thái CHƯA KIỂM CHỨNG). | Thành viên C (viết test) & QA Lead B (chạy kiểm chứng) |
 | **6** | Không đưa tỷ lệ nhãn nguồn 50/50 hoặc phân bổ tổ chức theo nhãn vào tài liệu/gói B xem trước Pass 1; phân định rạch ròi số giả định vs số thực đo; tính lại giờ Đợt 1 (20,66h, không tính ca khó chuyển Đợt 2), Đợt 2 và toàn chiến dịch (hạch toán 1,04h mẫu che trộn decoy); giữ 192,32h hoặc 193,36h là đề xuất mới chờ D duyệt, chưa thay PLAN-01 đã duyệt (190,79h); giữ tiến độ toàn chiến dịch TBD. | **Mục 7** (Dự phóng định lượng & Bảng đối chiếu giờ công) | Dữ liệu đo đạc thực nghiệm Pass 1 của A (`intake_pass1_A_1c60d10a.jsonl`, mean 380,16s, median 335,62s) và B (mean 250,36s). | Trình Lead D xem xét phê duyệt bảng giờ Đợt 1 và điều chỉnh biên độ ngân sách trong một lượt quyết định. | Thành viên C (tính toán) & Lead D (phê duyệt) |
 
 ---
@@ -163,30 +163,46 @@ Trước khi đưa vào danh sách ứng viên chính thức, mọi mẫu trích
 ### 3.3 Quy tắc Phiên bản Nhất quán, Mã băm Thực đo & Preflight Tự tính Hash (Fail-Closed Rejection)
 
 Nhằm đảm bảo tính an toàn nghiêm ngặt và không suy diễn tùy tiện:
-1. **Danh mục mã băm thực tế của các tệp Calibration cũ đã đo đạc vật lý trên đĩa (`LOCKED_LEGACY_CALIBRATION_HASHES`):**
-   Toàn bộ mã băm dưới đây được đo đạc trực tiếp từ tệp thật trên đĩa, không sử dụng mã minh họa hay placeholder:
-   - `0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b`: Tệp Blind View sạch Đợt C (`data/annotations/clean_calibration_blind_view_24.json`, 154.350 bytes, `dataset_id = CALIBRATION-CLEAN-24`).
-   - `9f3772b1583c39ca4646483dbeeecc7591813dd2a8ea063fd2c6c13bd5a7b1f3`: Tệp phát hành chính thức Calibration v1.1.4 (`configs/calibration_manifest_v1_1_4_release.json`, 1.965 bytes).
-   - `67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805`: Tệp cam kết niêm phong Lô 10 ngoài Git (`data/restricted/clean_calibration_exclusion_mapping_c_32.json`, 21.488 bytes).
-   - `c7244a9e7a282198fdcfb14fd4485a41ce16e4a1b5744c0ecac1d4ee3b88c901`: Calibration v1.1.3 release manifest (`configs/calibration_manifest_v1_1_3_release.json`).
-   - `f3f497e6300ab0c307d57a7040cca75cc80eef43478e8f386e647104ebc52546`: Calibration v1.1.2 release manifest (`configs/calibration_manifest_v1_1_2_release.json`).
-   - `00295b7d160ee10fb3eccec7775bc77465309f18338ffc790a39bc15650ff052`: Calibration v1.1.1 release manifest (`configs/calibration_manifest_v1_1_1_release.json`).
-   - `4c2407158913e5c6dff2ffcf76821efde40260669777a9fe78fae09615752f08`: Calibration v1.1.0 release manifest (`configs/calibration_manifest_v1_1_release.json`).
-2. **Cơ chế Preflight tự tính hash trên raw bytes của tệp đầu vào:**
-   Bộ nạp và kiểm tra tính hợp lệ (`Validator` và `annotate_cli.py`) **TỰ ĐỘNG TÍNH TOÁN SHA-256 TRỰC TIẾP TRÊN TOÀN BỘ BYTE VẬT LÝ CỦA TỆP ĐẦU VÀO**, tuyệt đối không phụ thuộc vào tham số `dataset_hash` do bên ngoài truyền vào:
+1. **Tách Allowlist Theo Từng Loại Artifact & Loại Trừ Các Mã Chưa Xác Minh:**
+   Tiếp thu chỉ đạo kiểm soát rủi ro của Lead D, **tuyệt đối không dùng chung một danh sách hash hỗn hợp**. Mã băm của manifest hoặc hồ sơ ánh xạ hạn chế không bao giờ được dùng làm 'giấy phép' để nạp chúng thành BlindSample. Hệ thống phân tách thành các allowlist chuyên biệt:
+
+   - **A. `LOCKED_LEGACY_BLIND_VIEW_ALLOWLIST` (Chỉ dùng cho đường nạp Blind View chạy thật):**
+     * `0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b`: Gói Blind View sạch Đợt C (`data/annotations/clean_calibration_blind_view_24.json`, dung lượng $154.350\text{ bytes}$, $24\text{ mẫu}$).
+     * *Ràng buộc kiểm toán:* Bắt buộc xác minh $100\%$ cấu trúc JSON có mảng `samples` đúng schema `BlindSample`, trường `dataset_id == "CALIBRATION-CLEAN-24"` và tệp liên kết với manifest release `v1.1.4`. Chỉ các tệp khớp allowlist này mới được giải mã thành mẫu gán nhãn cho annotator.
+
+   - **B. `LOCKED_LEGACY_MANIFEST_ALLOWLIST` (Chỉ dùng kiểm tra tính toàn vẹn của Manifest phát hành):**
+     * `9f3772b1583c39ca4646483dbeeecc7591813dd2a8ea063fd2c6c13bd5a7b1f3`: Tệp phát hành chính thức Calibration v1.1.4 (`configs/calibration_manifest_v1_1_4_release.json`, dung lượng $1.965\text{ bytes}$, `manifest_id = CALIBRATION-V1.1.4-RELEASE-RUNWAY-20261012`).
+     * *Cấm tuyệt đối:* Hash này **KHÔNG BAO GIỜ** được chấp nhận trong đường nạp mẫu gán nhãn `BlindSample`.
+
+   - **C. `LOCKED_LEGACY_RESTRICTED_MAPPING_ALLOWLIST` (Chỉ dùng kiểm toán niêm phong ngoài Git):**
+     * `67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805`: Hồ sơ niêm phong hạn chế 32 mẫu sạch (`data/restricted/clean_calibration_exclusion_mapping_c_32.json`, dung lượng $21.488\text{ bytes}$).
+     * *Cấm tuyệt đối:* Tệp này chứa locator và nhãn thật, **NGHIÊM CẤM** nạp vào bất kỳ giao diện Blind View nào.
+
+   - **D. Danh mục Hash Manifest Lịch sử Chưa Đo Đạc Trực tiếp (`CHƯA XÁC MINH`):**
+     * `c7244a9e7a28...`: Calibration v1.1.3 release manifest (`CHƯA XÁC MINH TRÊN ĐĨA KIỂM TOÁN`)
+     * `f3f497e6300a...`: Calibration v1.1.2 release manifest (`CHƯA XÁC MINH TRÊN ĐĨA KIỂM TOÁN`)
+     * `00295b7d160e...`: Calibration v1.1.1 release manifest (`CHƯA XÁC MINH TRÊN ĐĨA KIỂM TOÁN`)
+     * `4c2407158913...`: Calibration v1.1.0 release manifest (`CHƯA XÁC MINH TRÊN ĐĨA KIỂM TOÁN`)
+     * *Chính sách loại trừ:* Toàn bộ các hash chưa có tệp vật lý đo đạc đối chiếu trực tiếp đều bị **LOẠI BỎ HOÀN TOÀN KHỎI ALLOWLIST RUNTIME THẬT**. Bộ nạp ở runtime tuyệt đối từ chối các hash này.
+
+2. **Cơ chế Preflight tự tính hash trên raw bytes và phân loại Artifact:**
+   Bộ nạp và kiểm tra tính hợp lệ (`Validator` và `annotate_cli.py`) **TỰ ĐỘNG TÍNH TOÁN SHA-256 TRỰC TIẾP TRÊN TOÀN BỘ BYTE VẬT LÝ CỦA TỆP ĐẦU VÀO**, đối soát nghiêm ngặt theo đúng loại artifact:
 
 ```python
 import hashlib, json
 from pathlib import Path
 
-LOCKED_LEGACY_CALIBRATION_HASHES = {
-    "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b", # clean_calibration_blind_view_24.json
-    "9f3772b1583c39ca4646483dbeeecc7591813dd2a8ea063fd2c6c13bd5a7b1f3", # calibration_manifest_v1_1_4_release.json
-    "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805", # clean_calibration_exclusion_mapping_c_32.json
-    "c7244a9e7a282198fdcfb14fd4485a41ce16e4a1b5744c0ecac1d4ee3b88c901", # calibration_manifest_v1_1_3_release.json
-    "f3f497e6300ab0c307d57a7040cca75cc80eef43478e8f386e647104ebc52546", # calibration_manifest_v1_1_2_release.json
-    "00295b7d160ee10fb3eccec7775bc77465309f18338ffc790a39bc15650ff052", # calibration_manifest_v1_1_1_release.json
-    "4c2407158913e5c6dff2ffcf76821efde40260669777a9fe78fae09615752f08", # calibration_manifest_v1_1_release.json
+# Allowlist phân loại theo đúng loại artifact đã đo đạc vật lý trên đĩa
+LOCKED_LEGACY_BLIND_VIEW_ALLOWLIST = {
+    # clean_calibration_blind_view_24.json (154.350 bytes, dataset_id = "CALIBRATION-CLEAN-24")
+    "0164b2a5499c10c824f7e559c9a351c958adcfe627648ac537179dfe4dbf2b6b",
+}
+
+LOCKED_LEGACY_NON_SAMPLE_HASHES = {
+    # calibration_manifest_v1_1_4_release.json (manifest, CẤM nạp thành sample)
+    "9f3772b1583c39ca4646483dbeeecc7591813dd2a8ea063fd2c6c13bd5a7b1f3",
+    # clean_calibration_exclusion_mapping_c_32.json (mapping hạn chế, CẤM nạp thành sample)
+    "67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805",
 }
 
 def preflight_validate_and_load_package(package_path: Path) -> dict:
@@ -207,16 +223,26 @@ def preflight_validate_and_load_package(package_path: Path) -> dict:
             raise ValueError("LỖI BẢO MẬT HỢP ĐỒNG V1.2: Cấm đưa trường random_subset vào Blind View của Main!")
         if package_dict.get("codebook_version") != "1.1.0":
             raise ValueError("LỖI CODEBOOK: Main Annotation bắt buộc dùng codebook_version='1.1.0' đã khóa!")
+        if "samples" not in package_dict or not isinstance(package_dict["samples"], list):
+            raise ValueError("LỖI CẤU TRÚC: Gói Blind View Main v1.2 thiếu mảng 'samples' hợp lệ!")
         return {"mode": "MAIN_V12", "data": package_dict, "file_sha256": computed_file_sha256}
         
-    # 2. ĐỊNH TUYẾN CALIBRATION CŨ (ĐƯỜNG NẠP LEGACY TỰ BĂM RAW BYTES ĐỐI SOÁT ALLOWLIST)
+    # 2. ĐỊNH TUYẾN CALIBRATION CŨ (CHỈ CHẤP NHẬN GÓI BLIND VIEW ĐÃ XÁC MINH TRONG ALLOWLIST RIÊNG)
     elif contract_ver is None or contract_ver == "1.1.0":
-        if computed_file_sha256 not in LOCKED_LEGACY_CALIBRATION_HASHES:
+        if computed_file_sha256 in LOCKED_LEGACY_NON_SAMPLE_HASHES:
+            raise ValueError(
+                f"TỪ CHỐI AN TOÀN (FAIL-CLOSED): Tệp có mã băm '{computed_file_sha256}' là artifact loại "
+                "MANIFEST hoặc MAPPING hạn chế, CẤM TUYỆT ĐỐI không được nạp thành Blind View mẫu gán nhãn!"
+            )
+        if computed_file_sha256 not in LOCKED_LEGACY_BLIND_VIEW_ALLOWLIST:
             raise ValueError(
                 f"TỪ CHỐI AN TOÀN (FAIL-CLOSED): Tệp thiếu blind_contract_version và có mã băm thực đo "
-                f"'{computed_file_sha256}' không thuộc danh mục Calibration cũ đã được phê duyệt! "
+                f"'{computed_file_sha256}' không thuộc LOCKED_LEGACY_BLIND_VIEW_ALLOWLIST đã được phê duyệt! "
                 "Nghiêm cấm mặc định mọi tệp thiếu trường là Calibration."
             )
+        # Xác minh cấu trúc schema BlindSample của Calibration
+        if "samples" not in package_dict or package_dict.get("dataset_id") != "CALIBRATION-CLEAN-24":
+            raise ValueError("LỖI CẤU TRÚC: Tệp không đúng định dạng Blind View Calibration đã phê duyệt!")
         return {"mode": "LEGACY_CALIBRATION_V11", "data": package_dict, "file_sha256": computed_file_sha256}
         
     # 3. MỌI TRƯỜNG HỢP SAI PHIÊN BẢN HOẶC THIẾU CĂN CỨ: TỪ CHỐI AN TOÀN
@@ -287,14 +313,22 @@ def preflight_validate_and_load_package(package_path: Path) -> dict:
 2. **Thuật toán Xáo trộn Băm Đồng nhất (Uniform Hash Shuffle):**
    - Toàn bộ các mẫu trong gói Đợt 2 được gán mã `blind_id` trung tính và xáo trộn ngẫu nhiên dựa trên mã băm mật mã học kết hợp hạt giống niêm phong:
      $$\text{sort\_key}(s) = \text{SHA-256}(\text{blind\_id} \parallel \text{seed\_shuffle})$$
-3. **Chốt Tư cách và Quy trình Loại trừ 15 Mẫu che trộn cuối kỳ (Masking Decoy Samples):**
-   - Nhằm giải quyết tình huống ở đợt cuối cùng khi A hoàn tất 1.000 mẫu mà vẫn còn ca khó tồn đọng, nhóm nghiên cứu chốt duy nhất một phương án vận hành:
+3. **Chốt Tư cách, Niêm phong Loại trừ Trước Phát hành và Quản trị Mã lô 15 Mẫu Mồi (Decoy Samples):**
+   - Nhằm giải quyết tình huống ở đợt cuối cùng khi A hoàn tất 1.000 mẫu mà vẫn còn ca khó tồn đọng, nhóm nghiên cứu chốt cơ chế vận hành chuẩn mực:
      * **Tên gọi chuẩn hóa:** **Mẫu che trộn / Mẫu mồi (Masking Decoy Samples)**.
      * **Chuyên viên thực hiện:** **CHỈ Annotator B gán**. Tuyệt đối **KHÔNG gọi đây là kiểm tra độ ổn định liên đánh giá viên** (vì Annotator A không tham gia gán tập này).
      * **Mục đích:** Đóng vai trò lớp vỏ bọc ngẫu nhiên xáo trộn cùng các ca khó cuối kỳ, ngăn ngừa B suy đoán rằng toàn bộ các mẫu trong gói cuối đều là ca khó.
-     * **Nguồn và quy mô:** Đúng $N_{\text{decoy}} = 15\text{ mẫu}$ ngẫu nhiên rút từ shard nguồn hợp lệ của chiến dịch, qua kiểm tra trùng 4 lớp và template engine.
-     * **Quy trình loại trừ vĩnh viễn:** Ngay sau khi Pass 1 của đợt cuối kết thúc, Thành viên C lập tức đăng ký toàn bộ 15 mẫu này vào `data/exclusion_registry.json` (Lô 11: `EXCL-MAIN-DECOY-BUFFER-15`, gán `split_role = "excluded_decoy"`, `exclusion_scope = "permanent_train_val_test"`). Toàn bộ 15 mẫu này **BỊ LOẠI TRỪ VĨNH VIỄN KHỎI TRAIN, VALIDATION VÀ OFFICIAL TEST**, và không tính vào mốc 1.000 mẫu chính thức.
-     * **Hạch toán công số của B ($1,04\text{ giờ}$):** Được trình bày chi tiết tại Mục 7.2.
+     * **Nguồn và quy mô:** Đúng $N_{\text{decoy}} = 15\text{ mẫu}$ ngẫu nhiên rút từ shard nguồn hợp lệ của chiến dịch, vượt qua kiểm tra trùng 4 lớp và `TemplateSimilarityEngine`.
+     * **Quy trình Niêm phong Loại trừ TRƯỚC KHI PHÁT CHO B (Pre-issuance Sealed Exclusion):**
+       Tiếp thu chỉ đạo an toàn của Lead D, **Thành viên C bắt buộc khóa danh sách và đăng ký trạng thái loại trừ TRƯỚC KHI phát gói cho B**, tuyệt đối không đợi đến sau Pass 1 mới đăng ký:
+       1. C đo đạc mã băm mật mã học (URL SHA-256, Clean HTML SHA-256, Domain Group SHA-256) của 15 mẫu đệm.
+       2. Trước khi bàn giao gói Đợt 9 cho B, C cập nhật 15 mã băm này vào `data/exclusion_registry.json` dưới trạng thái `PENDING_DECOY_EXCLUSION` (`split_role = "excluded_decoy"`, `exclusion_scope = "permanent_train_val_test"`). Cơ chế này bảo đảm 15 mẫu này bị chặn đứng hoàn toàn khỏi tập train, validation và official test ngay từ trước khi Pass 1 diễn ra!
+       3. Để bảo vệ tính mù tuyệt đối cho B, danh sách `sample_id` và URL gốc được niêm phong riêng trong hồ sơ kiểm toán hạn chế ngoài Git (`data/restricted/decoy_buffer_manifest.json`), B không thể truy cập để biết đâu là mẫu đệm.
+     * **Quản trị Mã Lô Loại trừ (Tránh Xung đột với Lô Pilot B1/B2):**
+       Vì bảng so sánh tại Mục 2.1 vẫn duy trì Phương án Pilot tách riêng (B1/B2), nếu Lead D chọn Phương án B1/B2 thì lô Pilot đó sẽ chiếm định danh `Lô 11` (`EXCL-PILOT-ISOLATED-60/100`). Do đó, mã lô cho 15 mẫu đệm được quy định ở trạng thái **TBD (Chờ quyết định phê duyệt phương án của Lead D)**:
+       - *Nhánh 1 (Nếu Lead D phê duyệt Phương án A2 - Lô đầu Main):* 15 mẫu đệm được đánh mã chính thức là **Lô 11** (`EXCL-MAIN-DECOY-BUFFER-15`).
+       - *Nhánh 2 (Nếu Lead D phê duyệt Phương án B1/B2 - Pilot tách riêng):* Lô Pilot tách riêng sẽ là **Lô 11**, và 15 mẫu đệm cuối kỳ sẽ được đánh mã là **Lô 12** (`EXCL-MAIN-DECOY-BUFFER-15`).
+     * **Hạch toán Minh bạch Công số của B ($1,04\text{ giờ}$) và Hệ quả Quản trị:** Được phân tích chi tiết tại Mục 7.2.
 
 ### 4.3 Phép Join độc lập tính Cohen's Kappa chính thức trước phân xử
 Sau khi A và B nộp và khóa mã băm Pass 1, module `evaluate_kappa.py` thực hiện phép kết (Join) độc lập:
@@ -424,12 +458,14 @@ Nhằm phản ánh chuẩn xác thời điểm nhân sự thực sự gán nhãn
 
 3. **Bảng đối chiếu ngân sách toàn chiến dịch: PLAN-01 (190,79h) vs Kịch bản V3.3 Đề xuất (Hạch toán 15 Mẫu che trộn Decoy):**
 
-Thành viên C kính trình 2 phương án hạch toán cụ thể đối với $1,04\text{ giờ}$ của 15 mẫu che trộn decoy cuối kỳ ($15 \times 4,17\text{m} = 1,04\text{h}$):
+Thành viên C kính trình Lead D phân tích định lượng và hệ quả vận hành của 2 phương án hạch toán đối với $1,04\text{ giờ}$ gán 15 mẫu che trộn decoy cuối kỳ của B ($15 \times 4,17\text{m} = 1,04\text{h}$):
 
-- **Phương án 1 (Hấp thụ vào quỹ dự phòng QA của B — Giữ tổng dự phóng 192,32 giờ):**
-  Hạch toán $1,04\text{h}$ mẫu decoy bằng cách giảm định mức đệm kiểm định QA của B từ $15,00\text{h}$ xuống $\mathbf{13,96\text{h}}$. Tổng giờ của B giữ nguyên $\mathbf{43,15\text{ giờ}}$ ($28,15\text{h gán chính} + 1,04\text{h decoy} + 13,96\text{h QA}$). Tổng công số toàn chiến dịch giữ nguyên **$192,32\text{ giờ}$** (chênh $+1,53\text{h}$ so với PLAN-01).
+- **Phương án 1 (Hấp thụ vào quỹ dự phòng QA của B — Giữ nguyên tổng dự phóng 192,32 giờ):**
+  * *Cách tính:* Hạch toán $1,04\text{h}$ gán mẫu decoy bằng cách cắt giảm định mức đệm kiểm định QA của B từ $15,00\text{h}$ xuống $\mathbf{13,96\text{h}}$ (giảm $6,9\%$ quỹ thời gian QA). Tổng giờ của B giữ nguyên $\mathbf{43,15\text{ giờ}}$ ($28,15\text{h gán chính} + 1,04\text{h decoy} + 13,96\text{h QA}$). Tổng công số toàn chiến dịch giữ nguyên **$192,32\text{ giờ}$** (chênh $+1,53\text{h}$ so với PLAN-01 đã duyệt).
+  * *Hệ quả cụ thể đối với công việc QA đã liệt kê:* B buộc phải rút ngắn thời gian phân bổ cho các khâu kiểm định định kỳ giữa 10 đợt (từ 1,5h/đợt xuống ~1,39h/đợt). Cụ thể: B phải giảm bớt thời gian rà soát snapshot HTML và thẩm duyệt tệp Blind View, chấp nhận biên độ an toàn QA hẹp hơn để bảo toàn trần ngân sách danh nghĩa.
 - **Phương án 2 (Bổ sung dòng tăng riêng — Tổng dự phóng điều chỉnh 193,36 giờ):**
-  Tách riêng $1,04\text{h}$ gán mẫu decoy thành một dòng độc lập, giữ nguyên $15,00\text{h}$ đệm kiểm định QA của B $\rightarrow$ Tổng giờ của B tăng lên $\mathbf{44,19\text{ giờ}}$. Tổng công số toàn chiến dịch điều chỉnh thành **$193,36\text{ giờ}$** (chênh $+2,57\text{h} = +1,35\%$ so với PLAN-01).
+  * *Cách tính:* Tách riêng $1,04\text{h}$ gán mẫu decoy thành một dòng ngân sách mới độc lập, **giữ nguyên vẹn toàn bộ $15,00\text{h}$ đệm kiểm định QA của B** $\rightarrow$ Tổng giờ của B điều chỉnh thành $\mathbf{44,19\text{ giờ}}$. Tổng công số toàn chiến dịch là **$193,36\text{ giờ}$** (chênh $+2,57\text{h} = +1,35\%$ so với PLAN-01).
+  * *Ưu điểm học thuật:* Bảo toàn toàn diện năng lực kiểm soát chất lượng độc lập của B (đầy đủ 15,00h cho kiểm tra schema, audit tính mù, rà soát bất đồng Pass 2), bảo đảm tiêu chuẩn ARS cao nhất cho công bố khoa học. Đây là đề xuất kỹ thuật riêng biệt kính trình Lead D xem xét lựa chọn.
 
 Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2):
 
@@ -458,36 +494,42 @@ Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2)
   * Commit V3.0: [`bc29582092c70b5d6c5793971fe7fa7482a8fbe5`](https://github.com/Anhtuann1404/NCKH_2/commit/bc29582092c70b5d6c5793971fe7fa7482a8fbe5)
   * Commit V3.1: [`173582b91151e0434f5842b87c218373d309a9d5`](https://github.com/Anhtuann1404/NCKH_2/commit/173582b91151e0434f5842b87c218373d309a9d5)
   * Commit V3.2: [`86381236d63ac7c0ac7a098e3a5ab2e4eb3c8ff4`](https://github.com/Anhtuann1404/NCKH_2/commit/86381236d63ac7c0ac7a098e3a5ab2e4eb3c8ff4)
-  * Commit V3.3 (Bản Master Hoàn thiện Hiện hành): Được cập nhật và đẩy trực tiếp lên nhánh cùng văn bản này.
+  * Commit V3.3: [`accdb2c0794db1b91e1d7b4e37ac8b293ac2b7a3`](https://github.com/Anhtuann1404/NCKH_2/commit/accdb2c0794db1b91e1d7b4e37ac8b293ac2b7a3)
+   * Commit V3.4 (Bản Master Hoàn thiện Hiện hành): Được cập nhật và đẩy trực tiếp lên nhánh cùng văn bản này.
 
-### 8.2 Báo cáo Trung thực Kết quả Kiểm thử, Log Chi tiết & Giải trình Thời gian
+### 8.2 Báo cáo Trung thực Kết quả Kiểm thử, Log Chi tiết & Tách bạch Thực chứng vs Khả năng Kỹ thuật
 
-1. **Kết quả kiểm thử độc lập của QA Lead B trên clean checkout commit cũ `bc295820` (V3.0):**
+1. **Xác nhận Kết quả Kiểm thử Lịch sử của QA Lead B trên clean checkout commit cũ `bc295820` (V3.0):**
    - **Lệnh thực thi:**
      ```bash
      PYTHONPATH=src python -m pytest tests/test_blind_view.py tests/test_clean_calibration_blind_view.py tests/test_difficulty_strata.py tests/test_exclusion_registry.py -v -rs
      ```
    - **Môi trường của B:** Clean checkout commit `bc295820` (V3.0), Python 3.14.2, pytest-9.1.1.
-   - **Kết quả quan sát được của B:** **`137 passed, 13 skipped in 2.22s`** (`0 failed, 0 deselected`):
+   - **Kết quả quan sát thực chứng từ log của B:** **`137 passed, 13 skipped in 2.22s`** (`0 failed, 0 deselected`):
      * `tests/test_blind_view.py`: **87 passed** (an toàn Blind View v1.1, allowlist trường, strip thẻ script/event, loại trừ rò rỉ nhãn).
      * `tests/test_difficulty_strata.py`: **9 passed** (tính toán độc lập 6 cờ chỉ báo mô tả bề mặt).
      * `tests/test_exclusion_registry.py`: **41 passed, 1 skipped** (`test_restricted_commitment_round_c_loaded_and_verified` bỏ qua do clean checkout không có tệp `data/restricted/clean_calibration_exclusion_mapping_c_32.json`).
      * `tests/test_clean_calibration_blind_view.py`: **0 passed, 12 skipped** (bỏ qua do clean checkout không có tệp `data/annotations/clean_calibration_blind_view_24.json`).
-   - *(Lưu ý đính chính học thuật: Kết quả 137 passed / 13 skipped này thuộc về phiên thẩm định của B trên commit cũ `bc295820`, CHƯA PHẢI kết quả thẩm định của B cho V3.2 hay V3.3. QA Lead B sẽ thực hiện thẩm định độc lập mới trên đúng commit V3.3).*
-2. **Bằng chứng kiểm thử của Thành viên C trên môi trường có tệp hạn chế ngoài Git (150 Passed):**
+   - **Xác nhận dứt khoát ranh giới commit:** Kết quả `137 passed / 13 skipped` nêu trên là **kết quả thực chứng của commit cũ `bc295820` (Phiên bản V3.0)**, TUYỆT ĐỐI KHÔNG PHẢI là kết quả thẩm định của B đối với phiên bản V3.3 hay V3.4. QA Lead B sẽ thực hiện thẩm định độc lập trên đúng commit V3.4 mới.
+
+2. **Bằng chứng kiểm thử thực tế của Thành viên C trên môi trường có tệp hạn chế ngoài Git (161 Passed):**
    - **Lệnh thực thi:**
      ```powershell
-     python -m pytest tests/test_blind_view.py tests/test_clean_calibration_blind_view.py tests/test_difficulty_strata.py tests/test_exclusion_registry.py -v
+     python -m pytest tests/test_blind_view.py tests/test_clean_calibration_blind_view.py tests/test_difficulty_strata.py tests/test_exclusion_registry.py tests/test_kappa_3x3.py -v
      ```
    - **Môi trường của C:** Windows 11 Home (x64), Python 3.13.14, pytest-7.4.0, pluggy-1.6.0, anyio-4.14.2. Môi trường có sẵn 2 tệp restricted ngoài Git: `data/restricted/clean_calibration_exclusion_mapping_c_32.json` (1 test) và `data/annotations/clean_calibration_blind_view_24.json` (12 test).
-   - **Kết quả thực thi:** **`150 passed / 0 failed / 0 skipped / 0 deselected`** trên toàn bộ 4 file test suite.
-   - **Giải trình kỹ thuật về chênh lệch thời gian thực thi giữa các lần chạy (`5.58s` vs `12.98s`):**
-     * Lần chạy tại V3.1 ghi nhận **`12.98s`**: Đây là **lần chạy lạnh (Cold Run)** diễn ra ngay sau khi khởi động lại tiến trình Python, pytest phải nạp toàn bộ thư viện phụ thuộc (`pytest`, `pluggy`, `anyio`), biên dịch bytecode `.pyc` cho toàn bộ test files và đọc tệp dữ liệu lần đầu từ đĩa vật lý (Disk I/O).
-     * Lần chạy tại V3.2 ghi nhận **`5.58s`**: Đây là **lần chạy ấm (Warm Run)**, toàn bộ bytecode đã được lưu trong `.pytest_cache` và bộ đệm bộ nhớ của hệ điều hành (OS File System Cache), giúp thời gian nạp và thực thi giảm hơn một nửa mà số lượng bài test thực tế không đổi ($150\text{ tests}$).
-3. **Khẳng định ranh giới kiểm thử học thuật:**
-   - Toàn bộ 150 hàm test nêu trên là **test hồi quy của mã v1.1.0 hiện hữu**.
-   - Các cơ chế mới của Main Annotation (`sample_batch1.py`, Blended Delivery Uniform Hash Shuffle, MarianMT `zh/ja/ru`, validator phân nhánh Hợp đồng v1.2, phép Join độc lập tính Kappa) hiện **CHƯA ĐƯỢC LẬP TRÌNH VÀ CHƯA KIỂM CHỨNG**.
-   - Các mã nguồn và bộ test mới này chỉ được phép lập trình sau khi Lead D chính thức ký duyệt kế hoạch vận hành.
+   - **Kết quả thực chứng đo đạc từ log:** **`161 passed / 0 failed / 0 skipped / 0 deselected in 4.26s`** trên toàn bộ 5 tệp kiểm thử (bao gồm 150 bài test hồi quy mã hiện hữu + 11 bài test độc lập cho module Cohen's Kappa $3 \times 3$ Paired Bootstrap mới).
+
+3. **Tách bạch Khả năng Kỹ thuật vs Kết quả Thực chứng Về Thời gian Thực thi:**
+   - Tiếp thu phê bình phương pháp của Lead D, **dự án KHÔNG đưa ra khẳng định tuyệt đối về nguyên nhân** (như khẳng định chắc chắn do `.pytest_cache` hay bộ đệm OS) khi chưa thực hiện profiling vi mô đo đạc thời gian từng pha I/O và import.
+   - **Tách bạch chuẩn mực ARS:**
+     * *Khả năng kỹ thuật (Technical Hypothesis):* Sự chênh lệch thời gian thực thi giữa các phiên chạy ($12,98\text{s}$ ở V3.1 vs $5,58\text{s}$ ở V3.2, $7,08\text{s}$ ở V3.3 và $4,26\text{s}$ ở V3.4) có khả năng bắt nguồn từ cơ chế lưu trữ bytecode biên dịch sẵn `.pyc` của `.pytest_cache` kết hợp bộ nhớ đệm trang tệp tin của hệ điều hành (OS File System Page Cache) giúp giảm thiểu thời gian nạp module ở các lượt chạy sau.
+     * *Kết quả thực chứng duy nhất được xác nhận (Empirical Ground Truth):* Toàn bộ các test suite đều chạy thành công $100\%$ không phát sinh bất kỳ lỗi nào (`0 failed`); số lượng bài test thực thi là nhất quán và đầy đủ ($150\text{ tests}$ ở V3.1–V3.3 và $161\text{ tests}$ ở V3.4).
+
+4. **Khẳng định Ranh giới Kiểm thử Học thuật:**
+   - 150 hàm test đầu tiên là **test hồi quy của mã v1.1.0 hiện hữu**.
+   - 11 hàm test mới (`tests/test_kappa_3x3.py`) kiểm chứng thuật toán toán học độc lập của module **Paired Bootstrap Cohen's Kappa $3 \times 3$**.
+   - Các cơ chế vận hành mới khác của Main Annotation (`sample_batch1.py`, Blended Delivery Uniform Hash Shuffle, MarianMT `zh/ja/ru`, validator phân nhánh Hợp đồng v1.2 trên pipeline chính) hiện **CHƯA ĐƯỢC LẬP TRÌNH VÀO PIPELINE CHÍNH VÀ CHƯA KIỂM CHỨNG TẬP TRUNG**. Các mã nguồn này chỉ được phép lập trình sau khi Lead D chính thức ký duyệt kế hoạch vận hành.
 
 ---
 
@@ -495,11 +537,11 @@ Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2)
 
 Thành viên C kính trình QA Lead B thẩm định độc lập và Lead D xem xét ban hành quyết định đối với 6 nội dung trọng tâm sau:
 
-1. **Phê duyệt Phương án & Quy mô Đợt 1:** Lựa chọn Phương án A2 (Lô đầu Main — 100 mẫu, tổng công số hoàn tất Đợt 1 là 20,66 giờ); chốt tiêu chí Đạt/Dừng, ma trận nhãn $3 \times 3$ Codebook v1.1 và quy chế xử lý vùng ranh giới $0,60 \le \kappa < 0,75$ của Đợt 1.
-2. **Phê duyệt Hợp đồng Dữ liệu Blind View v1.2 & Preflight:** Chấp thuận việc chốt duy nhất tên trường `blind_contract_version = "1.2.0"`, giữ nguyên `codebook_version = "1.1.0"`, cấm trường `random_subset` trong Blind View và bản ghi Pass 1 của Main; phê duyệt cơ chế preflight tự băm raw bytes đối chiếu allowlist hash thực đo cho Calibration cũ và fail-closed cho Main.
-3. **Phê duyệt Cơ chế Trộn đệm Ngẫu nhiên (Blended Delivery), Blind ID & Mẫu che trộn Decoy:** Thông qua kiến trúc Blind ID trung tính (`BLIND-xxxxxxxx`), công thức hợp mẫu khử trùng lặp $N_B^{(2)} = 60 + |S_{\text{hard}}^{(1)} \setminus S_B^{(1)}|$ (với 70 mẫu là số dự phóng giả định), phép kiểm giới hạn bounded check, và chốt phương án 15 Mẫu che trộn Decoy cuối chiến dịch kèm quy trình loại trừ vĩnh viễn khỏi train/val/test.
+1. **Phê duyệt Phương án & Quy mô Đợt 1:** Lựa chọn Phương án A2 (Lô đầu Main — 100 mẫu, tổng công số hoàn tất Đợt 1 là 20,66 giờ); chốt tiêu chí Đạt/Dừng, ma trận nhãn $3 \times 3$ Codebook v1.1, phương pháp Paired Bootstrap CI 95% (bỏ công thức Fleiss nhị phân) và quy chế xử lý vùng ranh giới $0,60 \le \kappa < 0,75$ của Đợt 1.
+2. **Phê duyệt Hợp đồng Dữ liệu Blind View v1.2 & Tách Allowlist Theo Loại Artifact:** Chấp thuận việc chốt duy nhất tên trường `blind_contract_version = "1.2.0"`, giữ nguyên `codebook_version = "1.1.0"`, cấm trường `random_subset` trong Blind View và bản ghi Pass 1 của Main; phê duyệt cơ chế preflight tự băm raw bytes đối soát theo từng loại artifact riêng biệt (`LOCKED_LEGACY_BLIND_VIEW_ALLOWLIST`, `MANIFEST`, `MAPPING`), loại trừ các hash chưa xác minh khỏi runtime và fail-closed cho Main.
+3. **Phê duyệt Cơ chế Blended Delivery, Blind ID & Quy trình Niêm phong 15 Mẫu Mồi Decoy TRƯỚC PHÁT HÀNH:** Thông qua kiến trúc Blind ID trung tính (`BLIND-xxxxxxxx`), công thức hợp mẫu khử trùng lặp $N_B^{(2)} = 60 + |S_{\text{hard}}^{(1)} \setminus S_B^{(1)}|$ (với 70 mẫu là số dự phóng giả định), phép kiểm giới hạn bounded check; phê duyệt quy trình niêm phong loại trừ 15 Mẫu mồi Decoy vào `exclusion_registry.json` TRƯỚC KHI phát gói cho B (mã lô TBD) và niêm phong mapping trong hồ sơ hạn chế ngoài Git để bảo vệ tính mù.
 4. **Phê duyệt Quyết định Phạm vi Nguồn và Chấp nhận Rủi ro Tồn dư Lô 1:** Ban hành văn bản phê duyệt danh mục cách ly 2 shard đã biết (`train-000`, `train-055`) và quyết định phương án chấp nhận rủi ro tồn dư của Lô 1 (20 mẫu thiếu hash) trước khi rút mẫu.
-5. **Phê duyệt Ngân sách Toàn chiến dịch V3.3:** Xem xét phê duyệt Kịch bản V3.3 với tổng công số **$192,32\text{ giờ}$** (Phương án 1 - hấp thụ $1,04\text{h}$ decoy vào dự phòng QA của B) hoặc **$193,36\text{ giờ}$** (Phương án 2 - bổ sung dòng tăng riêng $1,04\text{h}$ decoy).
+5. **Phê duyệt Ngân sách Toàn chiến dịch V3.4 & Quyết định Phương án QA B:** Xem xét phê duyệt Kịch bản V3.4 với tổng công số **$192,32\text{ giờ}$** (Phương án 1 — hấp thụ $1,04\text{h}$ decoy vào QA của B, giảm QA từ 15h xuống 13,96h) hoặc **$193,36\text{ giờ}$** (Phương án 2 — bổ sung dòng tăng riêng $1,04\text{h}$ decoy, giữ nguyên vẹn 15,00h QA cho B).
 6. **Xác nhận Tiến độ Toàn chiến dịch là TBD:** Ghi nhận tiến độ chính thức theo tuần của toàn chiến dịch là TBD chờ kết quả thực nghiệm Đợt 1 và cam kết giờ làm việc của A và B.
 
 ---
