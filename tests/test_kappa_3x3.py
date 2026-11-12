@@ -233,6 +233,25 @@ class TestRecordsPairingAndBoundaryĐot1:
         with pytest.raises(ValueError, match="LỖI GHÉP CẶP PHÂN TẦNG"):
             compute_kappa_3x3_from_records(recs_a, recs_b, target_sample_ids=["BLIND-001", "BLIND-999"])
 
+    def test_records_target_sample_ids_with_duplicates_raises_error(self):
+        """Từ chối target_sample_ids có ID trùng lặp (ví dụ 30 phần tử nhưng chỉ có 29 ID khác nhau)."""
+        labels_pattern = ["phishing"] * 15 + ["benign"] * 10 + ["insufficient_evidence"] * 5
+        recs_a = [
+            {"sample_id": f"BLIND-{i:03d}", "class_label": labels_pattern[(i - 1) % len(labels_pattern)]}
+            for i in range(1, 101)
+        ]
+        recs_b = [
+            {"sample_id": f"BLIND-{i:03d}", "class_label": labels_pattern[(i - 1) % len(labels_pattern)]}
+            for i in range(1, 31)
+        ]
+        # 30 phần tử nhưng ID "BLIND-001" bị lặp 2 lần -> chỉ có 29 ID duy nhất
+        duplicate_30_ids = [f"BLIND-{i:03d}" for i in range(1, 30)] + ["BLIND-001"]
+        assert len(duplicate_30_ids) == 30
+        assert len(set(duplicate_30_ids)) == 29
+
+        with pytest.raises(ValueError, match="chứa ID trùng lặp"):
+            compute_kappa_3x3_from_records(recs_a, recs_b, target_sample_ids=duplicate_30_ids)
+
 
 class TestFormatKappa3x3Report:
     """Kiểm thử định dạng báo cáo Markdown chuẩn ARS (không chứa Fleiss)."""
@@ -250,3 +269,42 @@ class TestFormatKappa3x3Report:
         assert "VÙNG ĐẠT CHUẨN" in report
         assert "Khoảng tin cậy 95% Paired Bootstrap" in report
         assert "fleiss" not in report.lower(), "Báo cáo tuyệt đối không được chứa thuật ngữ Fleiss!"
+
+    def test_format_report_ci_suppressed_degenerate_ratio(self):
+        """Báo cáo nêu đúng lý do khi tỷ lệ suy biến vượt 5%."""
+        a = ["phishing"] * 29 + ["benign"] * 1
+        b = ["phishing"] * 29 + ["benign"] * 1
+
+        res = compute_kappa_3x3(a, b, bootstrap_iterations=500, random_seed=2026, max_degenerate_ratio=0.05)
+        assert res.ci95_bootstrap is None
+        assert res.bootstrap_degenerate_ratio > 0.05
+
+        report = format_kappa_3x3_report(res)
+        assert "KHÔNG CÔNG BỐ" in report
+        assert "vượt ngưỡng an toàn 5%" in report
+
+    def test_format_report_ci_suppressed_insufficient_valid_replicates(self):
+        """Báo cáo nêu đúng lý do khi số lượt bootstrap hợp lệ < 50 lượt."""
+        a = ["phishing"] * 15 + ["benign"] * 10 + ["insufficient_evidence"] * 5
+        b = list(a)
+        b[0] = "benign"
+
+        res = compute_kappa_3x3(a, b, bootstrap_iterations=40, random_seed=2026)
+        assert res.ci95_bootstrap is None
+        assert res.bootstrap_warning is not None
+
+        report = format_kappa_3x3_report(res)
+        assert "KHÔNG CÔNG BỐ" in report
+        assert "dưới 50 lượt" in report
+
+    def test_format_report_ci_suppressed_bootstrap_not_run(self):
+        """Báo cáo nêu đúng lý do khi không chạy bootstrap (bootstrap_iterations = 0)."""
+        a = ["phishing"] * 15 + ["benign"] * 10 + ["insufficient_evidence"] * 5
+        b = list(a)
+
+        res = compute_kappa_3x3(a, b, bootstrap_iterations=0, random_seed=2026)
+        assert res.ci95_bootstrap is None
+
+        report = format_kappa_3x3_report(res)
+        assert "KHÔNG CÔNG BỐ" in report
+        assert "Không chạy bootstrap" in report

@@ -492,7 +492,7 @@ Nhằm phản ánh chuẩn xác thời điểm nhân sự thực sự gán nhãn
    - Lead D (phân xử Pass 2 Đợt 2): $\mathbf{2,50\text{ giờ}}$ *(Định mức)*.
    - **TỔNG CÔNG SỐ DỰ TOÁN ĐỢT 2:** $21,13 + 4,86 + 3,00 + 4,00 + 2,50 = \mathbf{35,49\text{ giờ}}$ *(Số dự toán giả định)*.
 
-3. **Bảng đối chiếu ngân sách toàn chiến dịch: PLAN-01 (190,79h) vs Kịch bản V3.3 Đề xuất (Hạch toán 15 Mẫu che trộn Decoy):**
+3. **Bảng đối chiếu ngân sách toàn chiến dịch: PLAN-01 (190,79h) vs Kịch bản V3.5 Đề xuất (Hạch toán 15 Mẫu che trộn Decoy):**
 
 Thành viên C kính trình Lead D phân tích định lượng và hệ quả vận hành của 2 phương án hạch toán đối với $1,04\text{ giờ}$ gán 15 mẫu che trộn decoy cuối kỳ của B ($15 \times 4,17\text{m} = 1,04\text{h}$):
 
@@ -505,15 +505,15 @@ Thành viên C kính trình Lead D phân tích định lượng và hệ quả v
 
 Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2):
 
-| Thành viên / Vai trò | Phân bổ PLAN-01 được duyệt (Giờ) | Tỷ lệ PLAN-01 (%) | Kịch bản Dự phóng V3.3 đề xuất (Giờ) | Tỷ lệ V3.3 (%) | Độ lệch công số (Giờ) | Bản chất số liệu & Giải trình kỹ thuật |
+| Thành viên / Vai trò | Phân bổ PLAN-01 được duyệt (Giờ) | Tỷ lệ PLAN-01 (%) | Kịch bản Dự phóng V3.5 đề xuất (Giờ) | Tỷ lệ V3.5 (%) | Độ lệch công số (Giờ) | Bản chất số liệu & Giải trình kỹ thuật |
 |:---|:---:|:---:|:---:|:---:|:---:|:---|
-| **Annotator A** | 114,08 | 59,80% | **105,67** | 54,95% | **-8,41** | **Số thực đo:** Tính theo tốc độ thực đo $6,34\text{ phút/mẫu}$ ($105,67\text{h}$; nếu tính theo trung bình thô 380,155s là $105,60\text{h}$). V3.3 chủ động không áp dụng biên dự phòng Model 4 (+8% buffer = 114,08h của PLAN-01). |
+| **Annotator A** | 114,08 | 59,80% | **105,67** | 54,95% | **-8,41** | **Số thực đo:** Tính theo tốc độ thực đo $6,34\text{ phút/mẫu}$ ($105,67\text{h}$; nếu tính theo trung bình thô 380,155s là $105,60\text{h}$). V3.5 chủ động không áp dụng biên dự phòng Model 4 (+8% buffer = 114,08h của PLAN-01). |
 | **QA Lead B** | 36,21 | 18,98% | **43,15** | 22,44% | **+6,94** | **Phân tách thực tế:** Gán nhãn kép 405 mẫu chính thức ($28,15\text{h}$) + Gán 15 mẫu che trộn decoy cuối kỳ ($1,04\text{h}$) + Đệm kiểm định QA độc lập qua 5 đợt ($13,96\text{h}$). *(Nếu giữ nguyên 15,00h QA, tổng B là 44,19h, chênh +7,98h).* |
 | **Thành viên C** | 25,00 | 13,10% | **28,00** | 14,56% | **+3,00** | **Định mức kỹ thuật:** Vận hành 5 đợt pipeline dữ liệu, dedupe 4 lớp, Template engine, MarianMT translation, khóa tệp phân tầng, độc lập join và tính Kappa ($5 \times 4,00\text{h} = 20,00\text{h}$); cộng 8,00h thiết lập Hợp đồng v1.2, quản trị registry và reconciliation. |
 | **Lead D** | 15,50 | 8,12% | **15,50** | 8,06% | **0,00** | **Định mức chủ trì:** Phân xử bất đồng Pass 2 cho các ca bất đồng phát sinh cộng thời gian thẩm duyệt mốc tối hậu (khớp chuẩn ngân sách PLAN-01). |
-| **TỔNG CỘNG** | **190,79** | **100,00%** | **192,32** *(hoặc 193,36)* | **100,00%** | **+1,53** *(hoặc +2,57)* | **Kịch bản V3.3 có tổng công số 192,32 giờ (Phương án 1) hoặc 193,36 giờ (Phương án 2). Đây là kịch bản dự phóng mới chờ Lead D xem xét quyết định, CHƯA THAY THẾ ngân sách PLAN-01 đã được phê duyệt.** |
+| **TỔNG CỘNG** | **190,79** | **100,00%** | **192,32** *(hoặc 193,36)* | **100,00%** | **+1,53** *(hoặc +2,57)* | **Kịch bản V3.5 có tổng công số 192,32 giờ (Phương án 1) hoặc 193,36 giờ (Phương án 2). Đây là kịch bản dự phóng mới chờ Lead D xem xét quyết định, CHƯA THAY THẾ ngân sách PLAN-01 đã được phê duyệt.** |
 
-*(Ghi chú số học: Tổng các tỷ lệ thành phần của V3.3 là $54,95\% + 22,44\% + 14,56\% + 8,06\% = 100,01\%$ do làm tròn số thập phân 2 chữ số; tổng giá trị chính xác là 100,00%).*
+*(Ghi chú số học: Tổng các tỷ lệ thành phần của V3.5 là $54,95\% + 22,44\% + 14,56\% + 8,06\% = 100,01\%$ do làm tròn số thập phân 2 chữ số; tổng giá trị chính xác là 100,00%).*
 
 ---
 
@@ -554,13 +554,13 @@ Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2)
      * Log kiểm thử thực tế gửi kèm tại commit `d912f88` ghi nhận chính xác: **`161 passed in 3.67s`**.
      * Các con số $4,26\text{s}$ hoặc $5,16\text{s}$ được nêu trong các bản nháp trước đây là kết quả của các lần chạy profiling thử nghiệm khác nhau trên máy của C (chạy đơn lẻ hoặc kèm đo I/O). Việc gộp các con số khác nhau này thành một bằng chứng là thiếu chuẩn xác. Kế hoạch đính chính: **Mỗi con số thời gian chỉ có giá trị khi đi kèm một tệp log thực chứng duy nhất tương ứng**.
 
-3. **Bằng chứng Kiểm thử Mới Nhất của Bản V3.5 trên Môi trường Đầy đủ (165 Passed in 14.98s):**
+3. **Bằng chứng Kiểm thử Mới Nhất của Bản V3.5 trên 5 Tệp Kiểm thử Được Chọn (169 Passed):**
    - **Lệnh thực thi:**
      ```powershell
      python -m pytest tests/test_blind_view.py tests/test_clean_calibration_blind_view.py tests/test_difficulty_strata.py tests/test_exclusion_registry.py tests/test_kappa_3x3.py -v
      ```
    - **Môi trường của C:** Windows 11 Home (x64), Python 3.13.14, pytest-7.4.0, pluggy-1.6.0, anyio-4.14.2. Môi trường có sẵn 2 tệp restricted ngoài Git: `data/restricted/clean_calibration_exclusion_mapping_c_32.json` (1 test) và `data/annotations/clean_calibration_blind_view_24.json` (12 test).
-   - **Kết quả thực chứng đo đạc từ log đính kèm:** **`165 passed / 0 failed / 0 skipped / 0 deselected in 11.86s`** trên toàn bộ 5 tệp kiểm thử (bao gồm 150 bài test hồi quy mã hiện hữu + 15 bài test độc lập cho module Paired Bootstrap Cohen's Kappa $3 \times 3$, tính ngưỡng suy biến và ranh giới ghép cặp Đợt 1).
+   - **Khẳng định phạm vi kiểm thử (ARS Precision):** Kết quả thực chứng đo đạc là **`169 passed / 0 failed / 0 skipped / 0 deselected`** trên đúng **5 tệp kiểm thử được chọn lọc chuyên biệt** cho dữ liệu và quy trình gán nhãn (`tests/test_blind_view.py`, `tests/test_clean_calibration_blind_view.py`, `tests/test_difficulty_strata.py`, `tests/test_exclusion_registry.py`, `tests/test_kappa_3x3.py`). **Đây KHÔNG PHẢI là toàn bộ test suite của toàn bộ kho lưu trữ (repository)**, mà là phạm vi kiểm soát dữ liệu của Thành viên C (bao gồm 150 bài test hồi quy v1.1.0 hiện hữu + 19 bài test độc lập cho module Paired Bootstrap Cohen's Kappa $3 \times 3$, kiểm tra tính duy nhất của target ID và các nhánh lý do khi CI không công bố).
 
 4. **Minh bạch hóa Phép đo Mã băm: Tệp Bàn giao Windows (CRLF) vs Git Blob (LF):**
    - **Bản chất kỹ thuật của hai phép đo:**
@@ -572,11 +572,11 @@ Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2)
    - Tiếp thu phê bình phương pháp của Lead D, **dự án KHÔNG đưa ra khẳng định tuyệt đối về nguyên nhân** (như khẳng định chắc chắn do `.pytest_cache` hay bộ đệm OS) khi chưa thực hiện profiling vi mô đo đạc thời gian từng pha I/O và import.
    - **Tách bạch chuẩn mực ARS:**
      * *Khả năng kỹ thuật (Technical Hypothesis):* Sự chênh lệch thời gian thực thi giữa các phiên chạy có khả năng bắt nguồn từ cơ chế lưu trữ bytecode biên dịch sẵn `.pyc` của `.pytest_cache` kết hợp bộ nhớ đệm trang tệp tin của hệ điều hành (OS File System Page Cache) giúp giảm thiểu thời gian nạp module ở các lượt chạy sau.
-     * *Kết quả thực chứng duy nhất được xác nhận (Empirical Ground Truth):* Toàn bộ các test suite đều chạy thành công $100\%$ không phát sinh bất kỳ lỗi nào (`0 failed`); số lượng bài test thực thi là nhất quán và đầy đủ ($150\text{ tests}$ ở V3.1–V3.3, $161\text{ tests}$ ở V3.4, và $165\text{ tests}$ ở V3.5).
+     * *Kết quả thực chứng duy nhất được xác nhận (Empirical Ground Truth):* Toàn bộ các test suite đều chạy thành công $100\%$ không phát sinh bất kỳ lỗi nào (`0 failed`); số lượng bài test thực thi là nhất quán và đầy đủ ($150\text{ tests}$ ở V3.1–V3.3, $161\text{ tests}$ ở V3.4, và $169\text{ tests}$ (trên 5 tệp kiểm thử được chọn) ở V3.5).
 
 6. **Khẳng định Ranh giới Kiểm thử Học thuật:**
    - 150 hàm test đầu tiên là **test hồi quy của mã v1.1.0 hiện hữu**.
-   - 15 hàm test mới (`tests/test_kappa_3x3.py`) kiểm chứng thuật toán toán học độc lập của module **Paired Bootstrap Cohen's Kappa $3 \times 3$**, ngưỡng suy biến và ranh giới ghép cặp bản ghi.
+   - 19 hàm test mới (`tests/test_kappa_3x3.py`) kiểm chứng thuật toán toán học độc lập của module **Paired Bootstrap Cohen's Kappa $3 \times 3$**, ngưỡng suy biến và ranh giới ghép cặp bản ghi.
    - Các cơ chế vận hành mới khác của Main Annotation (`sample_batch1.py`, Blended Delivery Uniform Hash Shuffle, MarianMT `zh/ja/ru`, validator phân nhánh Hợp đồng v1.2 trên pipeline chính) hiện **CHƯA ĐƯỢC LẬP TRÌNH VÀO PIPELINE CHÍNH VÀ CHƯA KIỂM CHỨNG TẬP TRUNG**. Các mã nguồn này chỉ được phép lập trình sau khi Lead D chính thức ký duyệt kế hoạch vận hành.
 
 ---

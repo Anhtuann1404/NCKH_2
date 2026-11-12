@@ -181,6 +181,10 @@ def compute_kappa_3x3(
             bootstrap_warning = None
     else:
         deg_ratio = 0.0
+        if bootstrap_iterations <= 0:
+            bootstrap_warning = "Không chạy bootstrap (bootstrap_iterations = 0)."
+        elif n <= 1:
+            bootstrap_warning = "Cỡ mẫu quá nhỏ (N <= 1), không thể thực hiện lấy mẫu lại bootstrap."
 
     # Phân vùng quyết định theo Tiêu chí Đợt 1
     zone: Literal["pass", "conditional_review", "stop", "undefined"]
@@ -266,7 +270,19 @@ def compute_kappa_3x3_from_records(
 
     if target_sample_ids is not None:
         # Trường hợp ghép cặp có chọn lọc qua danh sách ID phân tầng (ví dụ 30 ID ngẫu nhiên Đợt 1)
-        target_set = set(str(sid) for sid in target_sample_ids)
+        target_list = [str(sid) for sid in target_sample_ids]
+        target_set = set(target_list)
+        if len(target_list) != len(target_set):
+            seen = set()
+            duplicates = []
+            for sid in target_list:
+                if sid in seen and sid not in duplicates:
+                    duplicates.append(sid)
+                seen.add(sid)
+            raise ValueError(
+                f"LỖI DANH SÁCH MỤC TIÊU: 'target_sample_ids' chứa ID trùng lặp ({len(target_list)} phần tử nhưng chỉ có {len(target_set)} ID duy nhất). "
+                f"Các ID bị lặp: {duplicates}. Cấm tính lặp mẫu số Cohen's Kappa!"
+            )
         missing_in_a = target_set - set(map_a.keys())
         missing_in_b = target_set - set(map_b.keys())
         if missing_in_a or missing_in_b:
@@ -275,7 +291,7 @@ def compute_kappa_3x3_from_records(
                 f"Thiếu ở A ({len(missing_in_a)} mẫu): {list(missing_in_a)[:5]}; "
                 f"Thiếu ở B ({len(missing_in_b)} mẫu): {list(missing_in_b)[:5]}."
             )
-        paired_sids = [str(sid) for sid in target_sample_ids]
+        paired_sids = target_list
     else:
         # Trường hợp hai tập bản ghi phải khớp mẫu số 100%
         keys_a = set(map_a.keys())
@@ -353,7 +369,18 @@ def format_kappa_3x3_report(
                 f"`[{result.ci95_bootstrap[0]:.4f}, {result.ci95_bootstrap[1]:.4f}]`"
             )
         else:
-            report_lines.append("- **Khoảng tin cậy 95% Paired Bootstrap:** `KHÔNG CÔNG BỐ` (Do tỷ lệ suy biến vượt ngưỡng an toàn 5%)")
+            if result.bootstrap_iterations <= 0:
+                reason = "Không chạy bootstrap (bootstrap_iterations = 0)"
+            elif result.bootstrap_degenerate_ratio > 0.05:
+                reason = f"Do tỷ lệ mẫu suy biến B_deg/B = {result.bootstrap_degenerate_ratio:.2%} vượt ngưỡng an toàn 5%"
+            elif result.bootstrap_warning and ("< 50" in result.bootstrap_warning or "quá ít" in result.bootstrap_warning):
+                reason = "Do số lượt bootstrap hợp lệ dưới 50 lượt"
+            elif result.bootstrap_warning:
+                reason = result.bootstrap_warning
+            else:
+                reason = "Không đủ điều kiện tính bootstrap"
+
+            report_lines.append(f"- **Khoảng tin cậy 95% Paired Bootstrap:** `KHÔNG CÔNG BỐ` ({reason})")
 
         if result.bootstrap_warning:
             report_lines.append(f"- **Cảnh báo bất định Bootstrap:** ⚠️ *{result.bootstrap_warning}*")
