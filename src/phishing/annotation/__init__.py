@@ -14,6 +14,13 @@ from .blind_view import (
     extract_safe_view_content,
     validate_annotation_record,
 )
+from .kappa_3x3 import (
+    CODEBOOK_V1_1_LABELS,
+    Kappa3x3Result,
+    compute_kappa_3x3,
+    compute_kappa_3x3_from_records,
+    format_kappa_3x3_report,
+)
 from .timer import PausableTimer
 
 
@@ -359,6 +366,11 @@ __all__ = [
     "compute_cohens_kappa",
     "compute_cohens_kappa_from_labels",
     "KappaResult",
+    "compute_kappa_3x3",
+    "compute_kappa_3x3_from_records",
+    "format_kappa_3x3_report",
+    "Kappa3x3Result",
+    "CODEBOOK_V1_1_LABELS",
     "filter_research_annotations",
     "AnnotationRecord",
     "BlindSample",
