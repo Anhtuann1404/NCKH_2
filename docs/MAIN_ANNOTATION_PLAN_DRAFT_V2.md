@@ -126,9 +126,10 @@ Trước khi đưa vào danh sách ứng viên chính thức, mọi mẫu trích
      * **Phương pháp lấy mẫu lại theo cặp (Paired Resampling):** Thực hiện lấy mẫu lại có hoàn lại theo **cặp nhãn $(y_A^{(k)}, y_B^{(k)})$ của cùng một mẫu thứ $k$** ($k = 1, \dots, N$), bảo toàn trọn vẹn cấu trúc phụ thuộc liên đánh giá viên.
      * **Thông số quy chuẩn:** Số lượt lấy mẫu lại $B = 1.000$; hạt giống ngẫu nhiên mặc định quy chuẩn `random_seed = 2026` để bảo đảm tính tái lập tất định ($100\%$ reproducible).
      * **Quy chuẩn xử lý suy biến (Degenerate Replicates Handling):** Trong quá trình bootstrap, nếu một lượt resample rút ra toàn bộ mẫu có cùng một nhãn (dẫn tới $p_e = 1,0$ và mẫu số $1 - p_e = 0$), lượt đó được xác định là suy biến ($B_{\text{deg}}$). Hệ thống đếm chính xác số lượt suy biến và tính tỷ lệ suy biến $r_{\text{deg}} = B_{\text{deg}} / B$.
-     * **Ngưỡng kiểm soát 5% (Degenerate Threshold Enforcement):**
-       - Nếu $r_{\text{deg}} > \mathbf{5\%}$ (quá 50 lượt suy biến trên 1.000 lượt), hệ thống **TUYỆT ĐỐI KHÔNG CÔNG BỐ CI** (`ci95_bootstrap = None`), phát cảnh báo chi tiết nêu rõ dữ liệu phân bố tập trung cao và giữ nguyên giá trị $\kappa$ điểm ước lượng.
-       - Nếu $r_{\text{deg}} \le \mathbf{5\%}$, tính toán $\text{CI}_{95\%}$ bằng phương pháp phân vị thực nghiệm (Percentile Method: lấy phân vị thứ $2,5\%$ và $97,5\%$) trên tập các lượt hợp lệ $B_{\text{valid}} = B - B_{\text{deg}}$.
+     * **Ngưỡng kiểm soát suy biến cấu hình động (Degenerate Threshold Enforcement):**
+       - Ngưỡng suy biến tối đa $r_{\text{max}}$ được cấu hình thông qua tham số `max_degenerate_ratio` (mặc định quy chuẩn là $5\%$, tương đương tối đa 50 lượt suy biến trên $1.000$ lượt, và có thể cấu hình linh hoạt theo yêu cầu nghiên cứu).
+       - Nếu $r_{\text{deg}} > r_{\text{max}}$, hệ thống **TUYỆT ĐỐI KHÔNG CÔNG BỐ CI** (`ci95_bootstrap = None`), phát cảnh báo chi tiết và báo cáo nêu chính xác lý do kèm ngưỡng cấu hình động thực tế (không ghi cứng mặc định $5\%$).
+       - Nếu $r_{\text{deg}} \le r_{\text{max}}$, tính toán $\text{CI}_{95\%}$ bằng phương pháp phân vị thực nghiệm (Percentile Method: lấy phân vị thứ $2,5\%$ và $97,5\%$) trên tập các lượt hợp lệ $B_{\text{valid}} = B - B_{\text{deg}}$ (yêu cầu tối thiểu $B_{\text{valid}} \ge 50$).
      * **Bộ số liệu đối chiếu độc lập chuẩn mực ($N=30$, Seed 2026, $B=1.000$):**
        Bảng liên hợp ma trận thực nghiệm chuẩn hóa:
        | Nhãn gán (A \ B) | Phishing | Benign | Insufficient Evidence | Tổng A ($n_{i\cdot}$) |
@@ -532,7 +533,9 @@ Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2)
   * Commit V3.2: [`86381236d63ac7c0ac7a098e3a5ab2e4eb3c8ff4`](https://github.com/Anhtuann1404/NCKH_2/commit/86381236d63ac7c0ac7a098e3a5ab2e4eb3c8ff4)
   * Commit V3.3: [`accdb2c0794db1b91e1d7b4e37ac8b293ac2b7a3`](https://github.com/Anhtuann1404/NCKH_2/commit/accdb2c0794db1b91e1d7b4e37ac8b293ac2b7a3)
   * Commit V3.4: [`d912f887e91117ce3ac10301195d53ba11241132`](https://github.com/Anhtuann1404/NCKH_2/commit/d912f887e91117ce3ac10301195d53ba11241132)
-  * Commit V3.5 (Bản Master Hoàn thiện Hiện hành): Được cập nhật và đẩy trực tiếp lên nhánh cùng văn bản này.
+  * Commit V3.5 (Vòng 8): [`fceea13cbc24164b52ab2e27548a67c4a6964f52`](https://github.com/Anhtuann1404/NCKH_2/commit/fceea13cbc24164b52ab2e27548a67c4a6964f52)
+  * Commit V3.5 (Vòng 9 - Đính chính SHA-1 40 ký tự): [`f72e35b52c0a1456c8b6330495ed757414245ac2`](https://github.com/Anhtuann1404/NCKH_2/commit/f72e35b52c0a1456c8b6330495ed757414245ac2)
+  * Commit V3.5 (Vòng 10 Master Hoàn thiện Duy nhất): Được cập nhật và đẩy trực tiếp lên nhánh cùng văn bản này.
 
 ### 8.2 Báo cáo Trung thực Kết quả Kiểm thử, Log Chi tiết, Đính chính Thời gian & Minh bạch Mã băm CRLF/LF
 
@@ -554,13 +557,13 @@ Bảng số liệu chi tiết theo Phương án 1 (kèm ghi chú Phương án 2)
      * Log kiểm thử thực tế gửi kèm tại commit `d912f88` ghi nhận chính xác: **`161 passed in 3.67s`**.
      * Các con số $4,26\text{s}$ hoặc $5,16\text{s}$ được nêu trong các bản nháp trước đây là kết quả của các lần chạy profiling thử nghiệm khác nhau trên máy của C (chạy đơn lẻ hoặc kèm đo I/O). Việc gộp các con số khác nhau này thành một bằng chứng là thiếu chuẩn xác. Kế hoạch đính chính: **Mỗi con số thời gian chỉ có giá trị khi đi kèm một tệp log thực chứng duy nhất tương ứng**.
 
-3. **Bằng chứng Kiểm thử Mới Nhất của Bản V3.5 trên 5 Tệp Kiểm thử Được Chọn (169 Passed):**
+3. **Bằng chứng Kiểm thử Mới Nhất của Bản V3.5 trên 5 Tệp Kiểm thử Được Chọn (170 Passed):**
    - **Lệnh thực thi:**
      ```powershell
      python -m pytest tests/test_blind_view.py tests/test_clean_calibration_blind_view.py tests/test_difficulty_strata.py tests/test_exclusion_registry.py tests/test_kappa_3x3.py -v
      ```
    - **Môi trường của C:** Windows 11 Home (x64), Python 3.13.14, pytest-7.4.0, pluggy-1.6.0, anyio-4.14.2. Môi trường có sẵn 2 tệp restricted ngoài Git: `data/restricted/clean_calibration_exclusion_mapping_c_32.json` (1 test) và `data/annotations/clean_calibration_blind_view_24.json` (12 test).
-   - **Khẳng định phạm vi kiểm thử (ARS Precision):** Kết quả thực chứng đo đạc là **`169 passed / 0 failed / 0 skipped / 0 deselected`** trên đúng **5 tệp kiểm thử được chọn lọc chuyên biệt** cho dữ liệu và quy trình gán nhãn (`tests/test_blind_view.py`, `tests/test_clean_calibration_blind_view.py`, `tests/test_difficulty_strata.py`, `tests/test_exclusion_registry.py`, `tests/test_kappa_3x3.py`). **Đây KHÔNG PHẢI là toàn bộ test suite của toàn bộ kho lưu trữ (repository)**, mà là phạm vi kiểm soát dữ liệu của Thành viên C (bao gồm 150 bài test hồi quy v1.1.0 hiện hữu + 19 bài test độc lập cho module Paired Bootstrap Cohen's Kappa $3 \times 3$, kiểm tra tính duy nhất của target ID và các nhánh lý do khi CI không công bố).
+   - **Khẳng định phạm vi kiểm thử (ARS Precision):** Kết quả thực chứng đo đạc là **`170 passed / 0 failed / 0 skipped / 0 deselected`** trên đúng **5 tệp kiểm thử được chọn lọc chuyên biệt** cho dữ liệu và quy trình gán nhãn (`tests/test_blind_view.py`, `tests/test_clean_calibration_blind_view.py`, `tests/test_difficulty_strata.py`, `tests/test_exclusion_registry.py`, `tests/test_kappa_3x3.py`). **Đây KHÔNG PHẢI là toàn bộ test suite của toàn bộ kho lưu trữ (repository)**, mà là phạm vi kiểm soát dữ liệu của Thành viên C (bao gồm 150 bài test hồi quy v1.1.0 hiện hữu + 20 bài test độc lập cho module Paired Bootstrap Cohen's Kappa $3 \times 3$, kiểm tra tính duy nhất của target ID, các nhánh lý do khi CI không công bố và kiểm thử động ngưỡng suy biến khác 5%).
 
 4. **Minh bạch hóa Phép đo Mã băm: Tệp Bàn giao Windows (CRLF) vs Git Blob (LF):**
    - **Bản chất kỹ thuật của hai phép đo:**

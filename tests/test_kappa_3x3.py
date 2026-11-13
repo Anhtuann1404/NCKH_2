@@ -277,11 +277,46 @@ class TestFormatKappa3x3Report:
 
         res = compute_kappa_3x3(a, b, bootstrap_iterations=500, random_seed=2026, max_degenerate_ratio=0.05)
         assert res.ci95_bootstrap is None
+        assert res.max_degenerate_ratio == 0.05
         assert res.bootstrap_degenerate_ratio > 0.05
 
         report = format_kappa_3x3_report(res)
         assert "KHÔNG CÔNG BỐ" in report
         assert "vượt ngưỡng an toàn 5%" in report
+
+    def test_format_report_ci_suppressed_custom_degenerate_thresholds(self):
+        """Báo cáo xuất động đúng ngưỡng suy biến khi max_degenerate_ratio khác 5% (ARS & Lead D vòng 10)."""
+        a = ["phishing"] * 29 + ["benign"] * 1
+        b = ["phishing"] * 29 + ["benign"] * 1
+
+        # Nhánh 1: Ngưỡng 2% (0.02) -> suy biến ~38.6% vượt ngưỡng 2%
+        res_2pct = compute_kappa_3x3(a, b, bootstrap_iterations=500, random_seed=2026, max_degenerate_ratio=0.02)
+        assert res_2pct.ci95_bootstrap is None
+        assert res_2pct.max_degenerate_ratio == 0.02
+        assert res_2pct.bootstrap_degenerate_ratio > 0.02
+        report_2pct = format_kappa_3x3_report(res_2pct)
+        assert "KHÔNG CÔNG BỐ" in report_2pct
+        assert "vượt ngưỡng an toàn 2%" in report_2pct
+        assert "vượt ngưỡng an toàn 5%" not in report_2pct
+
+        # Nhánh 2: Ngưỡng 10% (0.10) -> suy biến ~38.6% vượt ngưỡng 10%
+        res_10pct = compute_kappa_3x3(a, b, bootstrap_iterations=500, random_seed=2026, max_degenerate_ratio=0.10)
+        assert res_10pct.ci95_bootstrap is None
+        assert res_10pct.max_degenerate_ratio == 0.10
+        assert res_10pct.bootstrap_degenerate_ratio > 0.10
+        report_10pct = format_kappa_3x3_report(res_10pct)
+        assert "KHÔNG CÔNG BỐ" in report_10pct
+        assert "vượt ngưỡng an toàn 10%" in report_10pct
+        assert "vượt ngưỡng an toàn 5%" not in report_10pct
+
+        # Nhánh 3: Ngưỡng 50% (0.50) -> suy biến ~38.6% <= 50% -> CI được công bố bình thường
+        res_50pct = compute_kappa_3x3(a, b, bootstrap_iterations=500, random_seed=2026, max_degenerate_ratio=0.50)
+        assert res_50pct.ci95_bootstrap is not None
+        assert res_50pct.max_degenerate_ratio == 0.50
+        assert res_50pct.bootstrap_degenerate_ratio <= 0.50
+        report_50pct = format_kappa_3x3_report(res_50pct)
+        assert "KHÔNG CÔNG BỐ" not in report_50pct
+        assert "Khoảng tin cậy 95% Paired Bootstrap" in report_50pct
 
     def test_format_report_ci_suppressed_insufficient_valid_replicates(self):
         """Báo cáo nêu đúng lý do khi số lượt bootstrap hợp lệ < 50 lượt."""

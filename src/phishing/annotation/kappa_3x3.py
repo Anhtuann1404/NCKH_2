@@ -43,6 +43,7 @@ class Kappa3x3Result:
     marginal_rater_a: dict[str, int]
     marginal_rater_b: dict[str, int]
     per_class_agreement: dict[str, int]
+    max_degenerate_ratio: float = 0.05
 
 
 def _validate_label(lbl: Any, idx: int, rater_name: str) -> str:
@@ -120,6 +121,7 @@ def compute_kappa_3x3(
             bootstrap_seed=random_seed,
             bootstrap_degenerate_count=0,
             bootstrap_degenerate_ratio=0.0,
+            max_degenerate_ratio=max_degenerate_ratio,
             bootstrap_warning="Dữ liệu đơn lớp duy nhất (Pe = 1.0); hệ số Kappa không xác định.",
             status="undefined_single_class",
             zone="undefined",
@@ -163,9 +165,10 @@ def compute_kappa_3x3(
 
         if deg_ratio > max_degenerate_ratio:
             ci95_bootstrap = None
+            thresh_pct = f"{max_degenerate_ratio * 100:g}%"
             bootstrap_warning = (
                 f"Tỷ lệ mẫu suy biến B_deg/B = {deg_ratio:.2%} ({b_deg_count}/{bootstrap_iterations}) "
-                f"vượt ngưỡng tối đa cho phép ({max_degenerate_ratio:.2%}). "
+                f"vượt ngưỡng tối đa cho phép ({thresh_pct}). "
                 "Dữ liệu thiếu biến thiên đa lớp; KHÔNG công bố khoảng tin cậy Bootstrap."
             )
         elif len(boot_kappas) < 50:
@@ -207,6 +210,7 @@ def compute_kappa_3x3(
         bootstrap_seed=random_seed,
         bootstrap_degenerate_count=b_deg_count,
         bootstrap_degenerate_ratio=round(deg_ratio, 4),
+        max_degenerate_ratio=max_degenerate_ratio,
         bootstrap_warning=bootstrap_warning,
         status="valid",
         zone=zone,
@@ -371,8 +375,12 @@ def format_kappa_3x3_report(
         else:
             if result.bootstrap_iterations <= 0:
                 reason = "Không chạy bootstrap (bootstrap_iterations = 0)"
-            elif result.bootstrap_degenerate_ratio > 0.05:
-                reason = f"Do tỷ lệ mẫu suy biến B_deg/B = {result.bootstrap_degenerate_ratio:.2%} vượt ngưỡng an toàn 5%"
+            elif result.bootstrap_degenerate_ratio > result.max_degenerate_ratio:
+                thresh_pct = f"{result.max_degenerate_ratio * 100:g}%"
+                reason = (
+                    f"Do tỷ lệ mẫu suy biến B_deg/B = {result.bootstrap_degenerate_ratio:.2%} "
+                    f"vượt ngưỡng an toàn {thresh_pct}"
+                )
             elif result.bootstrap_warning and ("< 50" in result.bootstrap_warning or "quá ít" in result.bootstrap_warning):
                 reason = "Do số lượt bootstrap hợp lệ dưới 50 lượt"
             elif result.bootstrap_warning:
