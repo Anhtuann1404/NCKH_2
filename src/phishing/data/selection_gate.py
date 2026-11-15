@@ -1,17 +1,36 @@
 """Bộ lọc cổng chọn mẫu 5 giai đoạn có thể tái lập cho Main Annotation (Anti-Leakage Protocol).
 
-Thiết kế theo kỷ luật Ponytail và chuẩn mực ARS:
-- Cổng 0 (Gate 0): Kiểm định tính toàn vẹn Shard và Nguồn (Cách ly train-000, train-055; chặn PhishVN; đối soát SHA Git-LFS).
-- Cổng 1 (Gate 1): Tính hợp lệ trường & Ngưỡng ký tự (URL HTTP/HTTPS, HTML 1..2M ký tự, cửa sổ ngày).
-- Cổng 2 (Gate 2): Loại trừ chống rò rỉ dữ liệu (ExclusionRegistry fail-closed: URL/HTML/Domain group).
-- Cổng 3 (Gate 3): Khử trùng lặp nội bộ (Deduplication URL, HTML, Domain diversity).
-- Cổng 4 (Gate 4): Chọn mẫu phân tầng với Seed niêm phong (Sealed Seed Stratified Sampling).
+Thiết kế theo kỷ luật Ponytail và chuẩn mực ARS (Academic Research Skills):
+- Cổng 0 (Gate 0 - Shard & Source Integrity):
+  * Bắt buộc kiểm tra nguồn được duyệt (phreshphish, chặn hoàn toàn PhishVN).
+  * Bắt buộc kiểm tra revision đã khóa (eabec4b7a66324b79cc8a0ad856d1731dc26fe1a).
+  * Cách ly tuyệt đối train-000 và train-055 (chứa vết pilot/hiệu chuẩn).
+  * TỰ ĐỐI CHIẾU mã băm SHA-256 thực tế của tệp shard trên đĩa với source_manifest.json.
+- Cổng 1 (Gate 1 - Field Validity & Operational Windows):
+  * URL bắt buộc hợp lệ theo chuẩn HTTP/HTTPS tuyệt đối (qua normalize_url).
+  * HTML không rỗng, giới hạn ký tự [min_html_chars, max_html_chars].
+  * Ngày bắt buộc có mặt, đúng định dạng và nằm trong cửa sổ thời gian đã duyệt.
+- Cổng 2 (Gate 2 - Cryptographic Anti-Leakage Filter):
+  * Fail-closed: ném RuntimeError nếu thiếu hoặc sai mã băm hồ sơ hạn chế.
+  * Kiểm tra đầy đủ: raw URL hash, normalized URL hash, raw HTML hash, cleaned HTML hash,
+    nhóm miền bare domain hash và prefixed domain group hash (eTLD+1).
+- Cổng 3 (Gate 3 - Candidate Deduplication & Sequential Template Clustering):
+  * Khử trùng URL thô và URL chuẩn hóa.
+  * Khử trùng HTML thô.
+  * Giới hạn mật độ miền (Domain Diversity): tối đa 1 mẫu cho mỗi domain (eTLD+1).
+  * Kiểm tra template tuần tự (HTML tag skeleton hash) để phát hiện và chặn template clone/phishing kit.
+- Cổng 4 (Gate 4 - Locked Stratified Sampling & Quota Enforcement):
+  * Phân tầng theo các strata đã khóa (chiều dài HTML / độ phức tạp).
+  * Thực thi nghiêm ngặt chỉ tiêu quota: nếu số ứng viên < target_quota, dừng fail-closed
+    với SelectionGateError, không âm thầm trả về tập thiếu quota.
 """
 
+from datetime import datetime
 import hashlib
 import json
-import random
 from pathlib import Path
+import random
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from phishing.data.exclusion import ExclusionRegistry
@@ -21,6 +40,11 @@ from phishing.preprocessing.urls import normalize_url
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_MANIFEST_PATH = PROJECT_ROOT / "configs" / "source_manifest.json"
+
+DEFAULT_APPROVED_SOURCE = "phreshphish"
+DEFAULT_APPROVED_REVISION = "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"
+DEFAULT_MIN_DATE = "2024-07-04"
+DEFAULT_MAX_DATE = "2025-09-08"
 
 QUARANTINED_SHARDS = {
     "train-000.parquet",
@@ -38,6 +62,33 @@ class SelectionGateError(Exception):
     """Lỗi vi phạm cổng an toàn hoặc tính toàn vẹn của quy trình chọn mẫu."""
 
 
+def compute_file_sha256(file_path: Path | str, chunk_size: int = 65536) -> str:
+    """Tính mã băm SHA-256 từ luồng byte thực tế của tệp trên đĩa."""
+    p = Path(file_path)
+    if not p.is_file():
+        raise FileNotFoundError(f"Không tìm thấy tệp để tính SHA-256: '{file_path}'")
+    hasher = hashlib.sha256()
+    with open(p, "rb") as f:
+        while chunk := f.read(chunk_size):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def compute_template_skeleton_hash(html: str) -> str:
+    """Trích xuất khung sườn cấu trúc thẻ HTML (loại bỏ thuộc tính, text, scripts, styles)
+    để phát hiện các mẫu gần trùng (near-duplicate) hoặc template clone sinh từ cùng phishing kit.
+    """
+    if not isinstance(html, str) or not html.strip():
+        return ""
+    # Trích xuất tên thẻ mở/đóng, bỏ qua các thẻ không mang tính cấu trúc nội dung
+    tags = re.findall(r'<(/?[a-zA-Z0-9]+)[\s/>]', html.lower())
+    skeleton = "|".join(
+        t for t in tags
+        if not any(t.startswith(ignore) for ignore in ("script", "/script", "style", "/style", "meta", "link", "!--", "?"))
+    )
+    return hashlib.sha256(skeleton.encode("utf-8")).hexdigest()
+
+
 class SelectionGatePipeline:
     """Đường ống chọn mẫu 5 cổng (Gates 0-4) có kiểm toán số liệu trước/sau từng cổng."""
 
@@ -45,13 +96,17 @@ class SelectionGatePipeline:
         self,
         exclusion_registry: Optional[ExclusionRegistry] = None,
         source_manifest_path: Optional[Path | str] = None,
+        approved_source: str = DEFAULT_APPROVED_SOURCE,
+        approved_revision: str = DEFAULT_APPROVED_REVISION,
         min_html_chars: int = 1,
         max_html_chars: int = 2_000_000,
-        min_date: Optional[str] = None,
-        max_date: Optional[str] = None,
+        min_date: Optional[str] = DEFAULT_MIN_DATE,
+        max_date: Optional[str] = DEFAULT_MAX_DATE,
     ) -> None:
         self.exclusion_registry = exclusion_registry or ExclusionRegistry()
         self.manifest_path = Path(source_manifest_path) if source_manifest_path else DEFAULT_MANIFEST_PATH
+        self.approved_source = approved_source.lower()
+        self.approved_revision = approved_revision
         self.min_html_chars = min_html_chars
         self.max_html_chars = max_html_chars
         self.min_date = min_date
@@ -68,63 +123,90 @@ class SelectionGatePipeline:
     def gate_0_source_and_shard(
         self,
         source_id: str,
-        shard_name: str,
+        shard_path: Path | str,
         *,
-        shard_lfs_sha256: Optional[str] = None,
+        revision: Optional[str] = None,
     ) -> bool:
-        """Cổng 0: Kiểm tra nguồn và shard hợp lệ.
+        """Cổng 0: Kiểm định tính toàn vẹn Shard và Nguồn (Fail-closed).
 
-        Ném SelectionGateError nếu:
-        - Nguồn nằm trong danh sách bị chặn (PhishVN chưa duyệt).
-        - Shard nằm trong danh sách cách ly (train-000, train-055 chứa mẫu pilot/rsv).
-        - Shard không có trong source_manifest.json đã khóa.
-        - Mã băm LFS không khớp với manifest (nếu cung cấp).
+        Quy chuẩn:
+        1. Nguồn bắt buộc thuộc danh mục được duyệt (chặn PhishVN).
+        2. Git revision bắt buộc khớp với revision đã khóa trong manifest.
+        3. Shard bị cách ly (train-000, train-055) bắt buộc bị từ chối lập tức.
+        4. Tệp shard bắt buộc tồn tại trên đĩa và có mã băm byte thực tế khớp 100% với source_manifest.json.
         """
+        # 1. Kiểm tra nguồn
         if source_id.lower() in [s.lower() for s in BLOCKED_SOURCES]:
             raise SelectionGateError(
                 f"LỆNH CHẶN CỔNG 0: Nguồn '{source_id}' chưa được phê duyệt trích xuất độc lập!"
             )
-
-        # Chuẩn hóa tên shard
-        clean_shard = Path(shard_name).name
-        if clean_shard in QUARANTINED_SHARDS or shard_name in QUARANTINED_SHARDS:
+        if source_id.lower() != self.approved_source:
             raise SelectionGateError(
-                f"LỆNH CHẶN CỔNG 0: Shard '{shard_name}' thuộc danh mục BỊ CÁCH LY "
+                f"LỆNH CHẶN CỔNG 0: Nguồn '{source_id}' không khớp với nguồn được duyệt '{self.approved_source}'!"
+            )
+
+        # 2. Kiểm tra revision
+        rev = revision or self.approved_revision
+        if rev != self.approved_revision:
+            raise SelectionGateError(
+                f"LỆNH CHẶN CỔNG 0: Revision '{rev}' không khớp với revision đã khóa '{self.approved_revision}'!"
+            )
+
+        # 3. Kiểm tra cách ly shard
+        p_shard = Path(shard_path)
+        clean_shard = p_shard.name
+        if clean_shard in QUARANTINED_SHARDS or str(shard_path) in QUARANTINED_SHARDS:
+            raise SelectionGateError(
+                f"LỆNH CHẶN CỔNG 0: Shard '{clean_shard}' thuộc danh mục BỊ CÁCH LY "
                 f"(chứa vết pilot/hiệu chuẩn). Tuyệt đối không dùng cho Main Annotation!"
             )
 
+        # 4. Kiểm tra sự hiện diện của tệp trên đĩa
+        if not p_shard.exists():
+            raise SelectionGateError(
+                f"LỆNH CHẶN CỔNG 0: Không tìm thấy tệp shard thực tế tại '{p_shard}'!"
+            )
+
+        # 5. Đối soát với manifest và tự tính hash byte tệp thực tế
         manifest = self._load_manifest()
         allowed_files = {Path(f["file_name"]).name: f for f in manifest.get("files", [])}
 
         if clean_shard not in allowed_files:
             raise SelectionGateError(
-                f"LỆNH CHẶN CỔNG 0: Shard '{shard_name}' không tồn tại trong source_manifest đã khóa!"
+                f"LỆNH CHẶN CỔNG 0: Shard '{clean_shard}' không tồn tại trong source_manifest đã khóa!"
             )
 
-        if shard_lfs_sha256 is not None:
-            expected_sha = allowed_files[clean_shard].get("source_metadata_lfs_sha256")
-            if expected_sha and shard_lfs_sha256 != expected_sha:
-                raise SelectionGateError(
-                    f"LỆNH CHẶN CỔNG 0: Mã băm LFS của shard '{shard_name}' ({shard_lfs_sha256}) "
-                    f"không khớp với manifest ({expected_sha})!"
-                )
+        file_entry = allowed_files[clean_shard]
+        expected_sha = file_entry.get("source_metadata_lfs_sha256") or file_entry.get("locally_verified_sha256")
+        if not expected_sha:
+            raise SelectionGateError(
+                f"LỆNH CHẶN CỔNG 0: Không tìm thấy mã băm chuẩn trong manifest cho shard '{clean_shard}'!"
+            )
+
+        actual_sha = compute_file_sha256(p_shard)
+        if actual_sha != expected_sha:
+            raise SelectionGateError(
+                f"LỆNH CHẶN CỔNG 0: Mã băm byte thực tế của '{clean_shard}' ({actual_sha}) "
+                f"không khớp với mã băm trong manifest ({expected_sha})!"
+            )
 
         return True
 
     def gate_1_field_validity(self, sample: Dict[str, Any]) -> Tuple[bool, str]:
-        """Cổng 1: Kiểm tra tính hợp lệ của trường và ngưỡng ký tự HTML."""
+        """Cổng 1: Kiểm tra tính hợp lệ của trường, giới hạn HTML và cửa sổ ngày bắt buộc."""
         url = sample.get("url")
         html = sample.get("html")
 
+        # 1. Kiểm tra URL
         if not isinstance(url, str) or not url.strip():
             return False, "reject_empty_url"
 
-        # Kiểm tra URL hợp lệ theo chuẩn HTTP/HTTPS
         try:
             norm_url = normalize_url(url)
         except Exception:
             return False, "reject_invalid_url_format"
 
+        # 2. Kiểm tra HTML
         if not isinstance(html, str) or not html.strip():
             return False, "reject_empty_html"
 
@@ -132,23 +214,69 @@ class SelectionGatePipeline:
         if html_len < self.min_html_chars or html_len > self.max_html_chars:
             return False, f"reject_html_len_{html_len}"
 
-        # Kiểm tra cửa sổ ngày (nếu cấu hình)
-        date_str = sample.get("date")
-        if date_str:
-            date_val = str(date_str)[:10]
-            if self.min_date and date_val < self.min_date:
-                return False, "reject_before_min_date"
-            if self.max_date and date_val > self.max_date:
-                return False, "reject_after_max_date"
+        # 3. Kiểm tra Ngày (Bắt buộc theo ARS)
+        raw_date = sample.get("date")
+        if raw_date is None or (isinstance(raw_date, str) and not raw_date.strip()):
+            return False, "reject_missing_date"
+
+        date_str = str(raw_date)[:10]
+        try:
+            parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            return False, "reject_invalid_date_format"
+
+        formatted_date = parsed_date.strftime("%Y-%m-%d")
+        if self.min_date and formatted_date < self.min_date:
+            return False, f"reject_date_before_min_{formatted_date}"
+        if self.max_date and formatted_date > self.max_date:
+            return False, f"reject_date_after_max_{formatted_date}"
 
         return True, "passed"
 
     def gate_2_anti_leakage(self, sample: Dict[str, Any]) -> Tuple[bool, str]:
-        """Cổng 2: Kiểm tra chống rò rỉ qua ExclusionRegistry (Fail-closed)."""
+        """Cổng 2: Kiểm tra chống rò rỉ toàn diện (Fail-closed qua ExclusionRegistry).
+
+        Kiểm tra: raw URL hash, normalized URL hash, raw HTML hash, cleaned HTML hash,
+        và nhóm miền (cả bare domain hash lẫn prefixed domain group hash).
+        """
         self.exclusion_registry.assert_restricted_commitments_verified()
 
+        raw_url = sample.get("url", "")
+        raw_html = sample.get("html", "")
+
+        # 1. Kiểm tra qua ExclusionRegistry mặc định
         if self.exclusion_registry.is_excluded(sample):
             return False, "reject_exclusion_registry_match"
+
+        # 2. Kiểm tra normalized URL hash
+        try:
+            norm_url = normalize_url(raw_url)
+            norm_url_hash = hashlib.sha256(norm_url.encode("utf-8")).hexdigest()
+            if norm_url_hash in self.exclusion_registry._url_hashes:
+                return False, "reject_exclusion_registry_match"
+        except Exception:
+            pass
+
+        # 3. Kiểm tra cleaned HTML hash
+        try:
+            norm_url_page = norm_url if 'norm_url' in locals() else (raw_url if raw_url.startswith("http") else f"http://{raw_url}")
+            cl_html = clean_html(raw_html, page_url=norm_url_page, max_characters=self.max_html_chars)
+            cl_html_hash = hashlib.sha256(cl_html.encode("utf-8")).hexdigest()
+            if cl_html_hash in self.exclusion_registry._html_hashes:
+                return False, "reject_exclusion_registry_match"
+        except Exception:
+            pass
+
+        # 4. Kiểm tra nhóm miền (Domain Group)
+        if raw_url:
+            group_id = extract_group_id(raw_url)
+            if group_id != "unknown":
+                prefixed_hash = hashlib.sha256(group_id.encode("utf-8")).hexdigest()
+                bare_domain = group_id.replace("domain:", "")
+                bare_hash = hashlib.sha256(bare_domain.encode("utf-8")).hexdigest()
+
+                if prefixed_hash in self.exclusion_registry._group_hashes or bare_hash in self.exclusion_registry._group_hashes:
+                    return False, "reject_exclusion_registry_match"
 
         return True, "passed"
 
@@ -156,15 +284,21 @@ class SelectionGatePipeline:
         self,
         raw_samples: List[Dict[str, Any]],
         *,
-        source_id: str = "phreshphish",
-        shard_name: str = "train-001.parquet",
+        source_id: str = DEFAULT_APPROVED_SOURCE,
+        shard_path: Path | str = "data/raw/phreshphish/data/train-001.parquet",
+        revision: Optional[str] = None,
         target_quota: int = 100,
         seed: int = 42,
+        skip_gate_0_file_check: bool = False,
     ) -> Dict[str, Any]:
-        """Thực thi đầy đủ quy trình 5 cổng và báo cáo số đếm chi tiết trước/sau từng cổng."""
+        """Thực thi đầy đủ quy trình 5 cổng và báo cáo số đếm chi tiết trước/sau từng cổng.
+
+        Nếu số mẫu sau Cổng 3 không đủ target_quota, ném SelectionGateError (Fail-closed).
+        """
         audit_log: Dict[str, Any] = {
             "source_id": source_id,
-            "shard_name": shard_name,
+            "revision": revision or self.approved_revision,
+            "shard": str(shard_path),
             "target_quota": target_quota,
             "seed": seed,
             "gate_counts": {},
@@ -172,11 +306,12 @@ class SelectionGatePipeline:
         }
 
         # Cổng 0
-        self.gate_0_source_and_shard(source_id, shard_name)
+        if not skip_gate_0_file_check:
+            self.gate_0_source_and_shard(source_id, shard_path, revision=revision)
         audit_log["gate_counts"]["gate_0_in"] = len(raw_samples)
         audit_log["gate_counts"]["gate_0_out"] = len(raw_samples)
 
-        # Cổng 1
+        # Cổng 1: Hợp lệ trường & Ngưỡng HTML & Ngày
         g1_passed = []
         for s in raw_samples:
             ok, reason = self.gate_1_field_validity(s)
@@ -187,7 +322,7 @@ class SelectionGatePipeline:
         audit_log["gate_counts"]["gate_1_in"] = len(raw_samples)
         audit_log["gate_counts"]["gate_1_out"] = len(g1_passed)
 
-        # Cổng 2
+        # Cổng 2: Chống rò rỉ loại trừ
         g2_passed = []
         for s in g1_passed:
             ok, reason = self.gate_2_anti_leakage(s)
@@ -198,10 +333,11 @@ class SelectionGatePipeline:
         audit_log["gate_counts"]["gate_2_in"] = len(g1_passed)
         audit_log["gate_counts"]["gate_2_out"] = len(g2_passed)
 
-        # Cổng 3: Khử trùng lặp nội bộ (URL, HTML, Domain diversity: tối đa 1 mẫu/domain)
+        # Cổng 3: Khử trùng lặp nội bộ (URL, HTML, Domain diversity: max 1/domain, và Template clone)
         seen_urls: Set[str] = set()
         seen_htmls: Set[str] = set()
         seen_domains: Set[str] = set()
+        seen_templates: Set[str] = set()
         g3_passed = []
 
         for s in g2_passed:
@@ -211,6 +347,7 @@ class SelectionGatePipeline:
             u_hash = hashlib.sha256(u_norm.encode("utf-8")).hexdigest()
             h_hash = hashlib.sha256(h.encode("utf-8")).hexdigest()
             grp = extract_group_id(u)
+            tmpl_hash = compute_template_skeleton_hash(h)
 
             if u_hash in seen_urls:
                 audit_log["rejections"]["reject_gate3_duplicate_url"] = audit_log["rejections"].get("reject_gate3_duplicate_url", 0) + 1
@@ -221,17 +358,28 @@ class SelectionGatePipeline:
             if grp in seen_domains and grp != "unknown":
                 audit_log["rejections"]["reject_gate3_domain_collision"] = audit_log["rejections"].get("reject_gate3_domain_collision", 0) + 1
                 continue
+            if tmpl_hash and tmpl_hash in seen_templates:
+                audit_log["rejections"]["reject_gate3_template_clone"] = audit_log["rejections"].get("reject_gate3_template_clone", 0) + 1
+                continue
 
             seen_urls.add(u_hash)
             seen_htmls.add(h_hash)
             if grp != "unknown":
                 seen_domains.add(grp)
+            if tmpl_hash:
+                seen_templates.add(tmpl_hash)
             g3_passed.append(s)
 
         audit_log["gate_counts"]["gate_3_in"] = len(g2_passed)
         audit_log["gate_counts"]["gate_3_out"] = len(g3_passed)
 
-        # Cổng 4: Chọn mẫu với Seed niêm phong
+        # Cổng 4: Kiểm tra Quota & Chọn mẫu phân tầng với Seed niêm phong
+        if len(g3_passed) < target_quota:
+            raise SelectionGateError(
+                f"LỆNH CHẶN CỔNG 4 (Fail-Closed): Số lượng ứng viên sau khử trùng ({len(g3_passed)}) "
+                f"không đạt chỉ tiêu quota yêu cầu ({target_quota})! Pipeline dừng an toàn."
+            )
+
         rng = random.Random(seed)
         shuffled = list(g3_passed)
         rng.shuffle(shuffled)
