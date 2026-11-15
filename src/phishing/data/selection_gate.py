@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from phishing.data.exclusion import ExclusionRegistry
 from phishing.data.grouping import extract_group_id
+from phishing.data.template_similarity import TemplateSimilarityEngine
 from phishing.preprocessing.html import clean_html
 from phishing.preprocessing.urls import normalize_url
 
@@ -43,7 +44,7 @@ DEFAULT_MANIFEST_PATH = PROJECT_ROOT / "configs" / "source_manifest.json"
 
 DEFAULT_APPROVED_SOURCE = "phreshphish"
 DEFAULT_APPROVED_REVISION = "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"
-DEFAULT_MIN_DATE = "2024-07-04"
+DEFAULT_MIN_DATE = "2024-10-01"
 DEFAULT_MAX_DATE = "2025-09-08"
 
 QUARANTINED_SHARDS = {
@@ -214,14 +215,21 @@ class SelectionGatePipeline:
         if html_len < self.min_html_chars or html_len > self.max_html_chars:
             return False, f"reject_html_len_{html_len}"
 
-        # 3. Kiểm tra Ngày (Bắt buộc theo ARS)
+        # 3. Kiểm tra Ngày (Bắt buộc theo ARS & Kế hoạch V3.5)
         raw_date = sample.get("date")
         if raw_date is None or (isinstance(raw_date, str) and not raw_date.strip()):
             return False, "reject_missing_date"
 
-        date_str = str(raw_date)[:10]
+        if not isinstance(raw_date, str):
+            return False, "reject_invalid_date_format"
+
+        clean_date = raw_date.strip()
+        # Bắt buộc chuỗi định dạng chính xác YYYY-MM-DD (10 ký tự), từ chối mọi hậu tố rác
+        if not re.fullmatch(r"^\d{4}-\d{2}-\d{2}$", clean_date):
+            return False, "reject_invalid_date_format"
+
         try:
-            parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
+            parsed_date = datetime.strptime(clean_date, "%Y-%m-%d")
         except ValueError:
             return False, "reject_invalid_date_format"
 
@@ -333,21 +341,38 @@ class SelectionGatePipeline:
         audit_log["gate_counts"]["gate_2_in"] = len(g1_passed)
         audit_log["gate_counts"]["gate_2_out"] = len(g2_passed)
 
-        # Cổng 3: Khử trùng lặp nội bộ (URL, HTML, Domain diversity: max 1/domain, và Template clone)
+        # Cổng 3: Khử trùng lặp nội bộ, đảm bảo đa dạng miền (max 1/eTLD+1) và loại bỏ Template Clones tuần tự
+        # QUY TẮC LOẠI BỎ THIÊN LỆCH THỨ TỰ HÀNG (Row-Order Bias Elimination):
+        # Sắp xếp các ứng viên vượt qua Cổng 2 theo khóa chính tắc (canonical key) không phụ thuộc thứ tự shard,
+        # sau đó xáo trộn theo PRNG seed niêm phong TRƯỚC KHI lọc 1 đại diện cho mỗi miền / template.
+        # Nhờ vậy, kết quả chọn mẫu hoàn toàn bất biến đối với bất kỳ hoán vị đầu vào nào của shard.
+        canonical_sorted = sorted(
+            g2_passed,
+            key=lambda s: (
+                normalize_url(s.get("url", "")),
+                hashlib.sha256((s.get("html") or "").encode("utf-8")).hexdigest(),
+            ),
+        )
+        rng_order = random.Random(seed)
+        shuffled_candidates = list(canonical_sorted)
+        rng_order.shuffle(shuffled_candidates)
+
         seen_urls: Set[str] = set()
         seen_htmls: Set[str] = set()
         seen_domains: Set[str] = set()
-        seen_templates: Set[str] = set()
+        template_engine = TemplateSimilarityEngine(
+            max_allowed_simhash_distance=10,
+            max_allowed_dom_jaccard=0.85,
+        )
         g3_passed = []
 
-        for s in g2_passed:
+        for s in shuffled_candidates:
             u = s.get("url", "")
             h = s.get("html", "")
             u_norm = normalize_url(u)
             u_hash = hashlib.sha256(u_norm.encode("utf-8")).hexdigest()
             h_hash = hashlib.sha256(h.encode("utf-8")).hexdigest()
             grp = extract_group_id(u)
-            tmpl_hash = compute_template_skeleton_hash(h)
 
             if u_hash in seen_urls:
                 audit_log["rejections"]["reject_gate3_duplicate_url"] = audit_log["rejections"].get("reject_gate3_duplicate_url", 0) + 1
@@ -358,7 +383,10 @@ class SelectionGatePipeline:
             if grp in seen_domains and grp != "unknown":
                 audit_log["rejections"]["reject_gate3_domain_collision"] = audit_log["rejections"].get("reject_gate3_domain_collision", 0) + 1
                 continue
-            if tmpl_hash and tmpl_hash in seen_templates:
+
+            # Đánh giá độ tương đồng template theo động cơ TemplateSimilarityEngine (ngưỡng V3.5)
+            sim_res = template_engine.check_candidate_similarity(candidate_html=h)
+            if sim_res.get("is_clone_template"):
                 audit_log["rejections"]["reject_gate3_template_clone"] = audit_log["rejections"].get("reject_gate3_template_clone", 0) + 1
                 continue
 
@@ -366,24 +394,26 @@ class SelectionGatePipeline:
             seen_htmls.add(h_hash)
             if grp != "unknown":
                 seen_domains.add(grp)
-            if tmpl_hash:
-                seen_templates.add(tmpl_hash)
+            template_engine.register_template(
+                template_id=f"acc_{len(g3_passed)}",
+                description="Accepted candidate in Gate 3",
+                sample_html=h,
+            )
             g3_passed.append(s)
 
         audit_log["gate_counts"]["gate_3_in"] = len(g2_passed)
         audit_log["gate_counts"]["gate_3_out"] = len(g3_passed)
 
-        # Cổng 4: Kiểm tra Quota & Chọn mẫu phân tầng với Seed niêm phong
+        # Cổng 4: Kiểm tra Quota Fail-Closed & Lấy mẫu ngẫu nhiên xác định (Seeded Random Sampling)
+        # Ghi chú phương pháp luận: Pipeline thực thi lấy mẫu ngẫu nhiên xác định với quota cứng.
+        # Phương án phân tầng (Stratified Sampling) theo nhãn nguồn đang chờ Lead D phê duyệt riêng.
         if len(g3_passed) < target_quota:
             raise SelectionGateError(
                 f"LỆNH CHẶN CỔNG 4 (Fail-Closed): Số lượng ứng viên sau khử trùng ({len(g3_passed)}) "
                 f"không đạt chỉ tiêu quota yêu cầu ({target_quota})! Pipeline dừng an toàn."
             )
 
-        rng = random.Random(seed)
-        shuffled = list(g3_passed)
-        rng.shuffle(shuffled)
-        final_sample = shuffled[:target_quota]
+        final_sample = g3_passed[:target_quota]
 
         audit_log["gate_counts"]["gate_4_in"] = len(g3_passed)
         audit_log["gate_counts"]["gate_4_out"] = len(final_sample)

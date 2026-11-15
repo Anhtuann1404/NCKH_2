@@ -110,14 +110,28 @@ class ExclusionRegistry:
                         )
                     dossier_data = json.loads(dossier_path.read_text(encoding="utf-8"))
                     for entry in dossier_data.get("mapping", []):
-                        if entry.get("url_sha256"):
-                            self._url_hashes.add(entry["url_sha256"])
-                        if entry.get("normalized_url_sha256"):
-                            self._url_hashes.add(entry["normalized_url_sha256"])
-                        if entry.get("html_sha256"):
-                            self._html_hashes.add(entry["html_sha256"])
-                        if entry.get("group_sha256"):
-                            self._group_hashes.add(entry["group_sha256"])
+                        for u_key in ("url_sha256", "raw_url_sha256", "normalized_url_sha256"):
+                            val = entry.get(u_key)
+                            if val:
+                                self._url_hashes.add(val)
+                        for h_key in ("html_sha256", "raw_html_sha256", "cleaned_html_sha256"):
+                            val = entry.get(h_key)
+                            if val:
+                                self._html_hashes.add(val)
+                        for g_key in ("group_sha256", "bare_group_sha256"):
+                            val = entry.get(g_key)
+                            if val:
+                                self._group_hashes.add(val)
+                        # Trích xuất và băm cả bare domain lẫn prefixed domain từ group_id
+                        gid = entry.get("group_id", "")
+                        if gid:
+                            if gid.startswith("domain:"):
+                                bare = gid.split(":", 1)[1]
+                                self._group_hashes.add(hashlib.sha256(bare.encode("utf-8")).hexdigest())
+                                self._group_hashes.add(hashlib.sha256(gid.encode("utf-8")).hexdigest())
+                            else:
+                                self._group_hashes.add(hashlib.sha256(gid.encode("utf-8")).hexdigest())
+                                self._group_hashes.add(hashlib.sha256(f"domain:{gid}".encode("utf-8")).hexdigest())
                     self._restricted_commitments_loaded[eid] = True
                     self._restricted_commitments_details[eid] = {
                         "reference": ref,
@@ -133,16 +147,32 @@ class ExclusionRegistry:
                         "verified": False,
                         "samples_count": excl.get("n_samples", 0),
                     }
-                continue
+                if not excl.get("samples"):
+                    continue
 
             # 2. Xử lý các lô công khai thông thường
             batch_sha = excl.get("batch_sha256")
             if batch_sha:
                 self._excluded_batches.add(batch_sha)
             for sample in excl.get("samples", []):
-                for key, destination in (("url_sha256", self._url_hashes), ("html_sha256", self._html_hashes), ("group_sha256", self._group_hashes)):
-                    if sample.get(key):
-                        destination.add(sample[key])
+                for u_key in ("url_sha256", "raw_url_sha256", "normalized_url_sha256"):
+                    if sample.get(u_key):
+                        self._url_hashes.add(sample[u_key])
+                for h_key in ("html_sha256", "raw_html_sha256", "cleaned_html_sha256"):
+                    if sample.get(h_key):
+                        self._html_hashes.add(sample[h_key])
+                for g_key in ("group_sha256", "bare_group_sha256"):
+                    if sample.get(g_key):
+                        self._group_hashes.add(sample[g_key])
+                gid = sample.get("group_id", "")
+                if gid:
+                    if gid.startswith("domain:"):
+                        bare = gid.split(":", 1)[1]
+                        self._group_hashes.add(hashlib.sha256(bare.encode("utf-8")).hexdigest())
+                        self._group_hashes.add(hashlib.sha256(gid.encode("utf-8")).hexdigest())
+                    else:
+                        self._group_hashes.add(hashlib.sha256(gid.encode("utf-8")).hexdigest())
+                        self._group_hashes.add(hashlib.sha256(f"domain:{gid}".encode("utf-8")).hexdigest())
                 # Lưu hash fingerprint cấu trúc tóm tắt
                 s_hash = sample.get("summary_fingerprint_hash") or sample.get("sample_content_hash")
                 if s_hash:
@@ -172,10 +202,31 @@ class ExclusionRegistry:
         """Kiểm tra xem mẫu có thuộc danh mục loại trừ hay không."""
         url = sample.get("url")
         html = sample.get("html")
-        url_hash = sample.get("url_sha256") or (hashlib.sha256(url.encode()).hexdigest() if isinstance(url, str) else None)
-        html_hash = sample.get("html_sha256") or (hashlib.sha256(html.encode()).hexdigest() if isinstance(html, str) else None)
+        url_hash = sample.get("url_sha256") or sample.get("raw_url_sha256") or (hashlib.sha256(url.encode()).hexdigest() if isinstance(url, str) else None)
+        html_hash = sample.get("html_sha256") or sample.get("raw_html_sha256") or (hashlib.sha256(html.encode()).hexdigest() if isinstance(html, str) else None)
         if url_hash in self._url_hashes or html_hash in self._html_hashes:
             return True
+
+        if sample.get("normalized_url_sha256") in self._url_hashes or sample.get("cleaned_html_sha256") in self._html_hashes:
+            return True
+
+        if isinstance(url, str) and url.strip():
+            try:
+                from phishing.url.canonicalization import normalize_url
+                norm_u = normalize_url(url)
+                if hashlib.sha256(norm_u.encode("utf-8")).hexdigest() in self._url_hashes:
+                    return True
+            except Exception:
+                pass
+
+        if isinstance(html, str) and html.strip():
+            try:
+                from phishing.preprocessing.html import clean_html
+                cl_h = clean_html(html)
+                if hashlib.sha256(cl_h.encode("utf-8")).hexdigest() in self._html_hashes:
+                    return True
+            except Exception:
+                pass
         if self._group_hashes and isinstance(url, str):
             try:
                 import tldextract  # Required PSL dependency; reuse the shared offline extractor below.

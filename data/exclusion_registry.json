@@ -242,7 +242,10 @@
           "summary_fingerprint_hash": "86dbcb5f1c0e131bffa01c44c7aa6201f1ba588c38b371b8efeb1ccb46167fcf"
         }
       ],
-      "raw_batch_checksum_recovered": true
+      "raw_batch_checksum_recovered": true,
+      "status": "sealed_restricted_commitment",
+      "restricted_dossier_reference": "data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json",
+      "commitment_sha256": "adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa"
     },
     {
       "exclusion_id": "EXCL-REAL-PILOT-32",

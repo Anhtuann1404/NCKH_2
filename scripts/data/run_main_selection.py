@@ -35,7 +35,7 @@ def run_main_selection_pipeline(
     revision: str = DEFAULT_APPROVED_REVISION,
     target_quota: int = 100,
     seed: int = 42,
-    min_date: str = "2024-07-04",
+    min_date: str = "2024-10-01",
     max_date: str = "2025-09-08",
 ) -> Dict[str, Any]:
     """Chạy toàn bộ pipeline chọn mẫu trên shard dữ liệu và lưu báo cáo kiểm toán."""
@@ -84,7 +84,7 @@ def main():
     parser.add_argument("--revision", type=str, default=DEFAULT_APPROVED_REVISION, help="Git revision của nguồn")
     parser.add_argument("--quota", type=int, default=100, help="Chỉ tiêu quota mẫu cần chọn")
     parser.add_argument("--seed", type=int, default=42, help="Seed ngẫu nhiên xác định")
-    parser.add_argument("--min-date", type=str, default="2024-07-04", help="Ngày bắt đầu cửa sổ")
+    parser.add_argument("--min-date", type=str, default="2024-10-01", help="Ngày bắt đầu cửa sổ")
     parser.add_argument("--max-date", type=str, default="2025-09-08", help="Ngày kết thúc cửa sổ")
 
     args = parser.parse_args()
