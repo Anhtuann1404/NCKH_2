@@ -204,7 +204,7 @@ class SelectionGatePipeline:
 
         try:
             norm_url = normalize_url(url)
-        except Exception:
+        except (ValueError, TypeError):
             return False, "reject_invalid_url_format"
 
         # 2. Kiểm tra HTML
@@ -252,30 +252,32 @@ class SelectionGatePipeline:
         raw_url = sample.get("url", "")
         raw_html = sample.get("html", "")
 
-        # 1. Kiểm tra qua ExclusionRegistry mặc định
-        if self.exclusion_registry.is_excluded(sample):
-            return False, "reject_exclusion_registry_match"
+        # 1. Kiểm tra tiền xử lý URL và normalized URL hash
+        if raw_url:
+            try:
+                norm_url = normalize_url(raw_url)
+                norm_url_hash = hashlib.sha256(norm_url.encode("utf-8")).hexdigest()
+                if norm_url_hash in self.exclusion_registry._url_hashes:
+                    return False, "reject_exclusion_registry_match"
+            except (ValueError, TypeError):
+                return False, "reject_gate2_preprocessing_error"
 
-        # 2. Kiểm tra normalized URL hash
-        try:
-            norm_url = normalize_url(raw_url)
-            norm_url_hash = hashlib.sha256(norm_url.encode("utf-8")).hexdigest()
-            if norm_url_hash in self.exclusion_registry._url_hashes:
-                return False, "reject_exclusion_registry_match"
-        except Exception:
-            pass
+        # 2. Kiểm tra tiền xử lý HTML và cleaned HTML hash
+        if raw_html:
+            try:
+                norm_url_page = (
+                    norm_url if "norm_url" in locals()
+                    else (raw_url if (isinstance(raw_url, str) and raw_url.startswith(("http://", "https://")))
+                          else (f"http://{raw_url}" if (isinstance(raw_url, str) and raw_url.strip()) else "http://placeholder.local"))
+                )
+                cl_html = clean_html(raw_html, page_url=norm_url_page, max_characters=self.max_html_chars)
+                cl_html_hash = hashlib.sha256(cl_html.encode("utf-8")).hexdigest()
+                if cl_html_hash in self.exclusion_registry._html_hashes:
+                    return False, "reject_exclusion_registry_match"
+            except (ValueError, TypeError):
+                return False, "reject_gate2_preprocessing_error"
 
-        # 3. Kiểm tra cleaned HTML hash
-        try:
-            norm_url_page = norm_url if 'norm_url' in locals() else (raw_url if raw_url.startswith("http") else f"http://{raw_url}")
-            cl_html = clean_html(raw_html, page_url=norm_url_page, max_characters=self.max_html_chars)
-            cl_html_hash = hashlib.sha256(cl_html.encode("utf-8")).hexdigest()
-            if cl_html_hash in self.exclusion_registry._html_hashes:
-                return False, "reject_exclusion_registry_match"
-        except Exception:
-            pass
-
-        # 4. Kiểm tra nhóm miền (Domain Group)
+        # 3. Kiểm tra nhóm miền (Domain Group)
         if raw_url:
             group_id = extract_group_id(raw_url)
             if group_id != "unknown":
@@ -285,6 +287,10 @@ class SelectionGatePipeline:
 
                 if prefixed_hash in self.exclusion_registry._group_hashes or bare_hash in self.exclusion_registry._group_hashes:
                     return False, "reject_exclusion_registry_match"
+
+        # 4. Kiểm tra toàn diện qua ExclusionRegistry (bao gồm raw hash, summary fingerprints)
+        if self.exclusion_registry.is_excluded(sample):
+            return False, "reject_exclusion_registry_match"
 
         return True, "passed"
 

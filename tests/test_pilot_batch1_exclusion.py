@@ -451,6 +451,206 @@ class TestGate2CryptographicAntiLeakage:
         assert ok is False
         assert reason == "reject_exclusion_registry_match"
 
+    def test_gate2_regression_raw_url_differs_but_normalized_url_matches(self, clean_pipeline, self_contained_registry):
+        """[REGRESSION] Raw URL khác biệt nhưng Normalized URL trùng khớp registry -> Bị loại trừ nhất quán."""
+        # MOCK_PILOT_NORM_URL trong fixture là "https://mock-pilot-site.org/login"
+        # Biến thể URL thô có uppercase hostname, explicit port 443 và fragment (không đổi normalized URL):
+        variant_raw_url = "https://MOCK-PILOT-SITE.ORG:443/login#fragment"
+        sample = {
+            "url": variant_raw_url,
+            "html": "<p>Body text completely distinct from any pilot</p>",
+            "date": "2025-01-15",
+        }
+        # Chứng minh: mã băm raw URL hoàn toàn không trùng khớp trong registry
+        raw_hash = hashlib.sha256(variant_raw_url.encode("utf-8")).hexdigest()
+        assert raw_hash not in self_contained_registry._url_hashes
+
+        # Kiểm tra 1: ExclusionRegistry.is_excluded() nhận diện qua normalize_url và loại trừ
+        assert self_contained_registry.is_excluded(sample) is True
+
+        # Kiểm tra 2: filter_split() đưa vào excluded, không đưa vào kept
+        kept, excluded = self_contained_registry.filter_split([sample], allow_unverified_commitments=True)
+        assert sample in excluded
+        assert len(kept) == 0
+
+        # Kiểm tra 3: Gate 2 từ chối với lý do reject_exclusion_registry_match
+        ok, reason = clean_pipeline.gate_2_anti_leakage(sample)
+        assert ok is False
+        assert reason == "reject_exclusion_registry_match"
+
+    def test_gate2_regression_raw_html_differs_but_cleaned_html_matches(self, tmp_path):
+        """[REGRESSION] Raw HTML khác biệt nhưng Cleaned HTML trùng khớp registry -> Bị loại trừ nhất quán."""
+        from phishing.preprocessing.html import clean_html
+
+        target_page_url = "https://unrelated-sample-domain.org/index.html"
+        raw_clean_target = "<p>Standard clean login form structure</p>"
+        cleaned_target = clean_html(raw_clean_target, page_url=target_page_url)
+        cleaned_hash = hashlib.sha256(cleaned_target.encode("utf-8")).hexdigest()
+
+        # Tạo registry độc lập chứa cleaned_html_sha256 này
+        dossier_path = tmp_path / "mock_html_dossier.json"
+        dossier_data = {
+            "mapping": [
+                {
+                    "entry_id": "EXCL-REG-HTML-01",
+                    "raw_url_sha256": "0" * 64,
+                    "raw_html_sha256": "0" * 64,
+                    "cleaned_html_sha256": cleaned_hash,
+                }
+            ]
+        }
+        dossier_path.write_bytes(json.dumps(dossier_data).encode("utf-8"))
+        commitment_sha = hashlib.sha256(dossier_path.read_bytes()).hexdigest()
+
+        reg_data = {
+            "metadata": {"version": "test"},
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-PILOT-01",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": str(dossier_path),
+                    "commitment_sha256": commitment_sha,
+                    "n_samples": 1,
+                }
+            ],
+            "training_blocked": True,
+        }
+        reg_file = tmp_path / "reg_html.json"
+        reg_file.write_text(json.dumps(reg_data), encoding="utf-8")
+        registry = ExclusionRegistry(registry_path=reg_file)
+        pipeline = SelectionGatePipeline(exclusion_registry=registry)
+
+        # Mẫu kiểm tra có thêm script và inline styles -> Raw HTML hash khác biệt hoàn toàn
+        injected_raw_html = "<p>Standard clean login form structure</p><script>alert('exploit');</script>"
+        injected_raw_hash = hashlib.sha256(injected_raw_html.encode("utf-8")).hexdigest()
+        assert injected_raw_hash not in registry._html_hashes
+
+        candidate = {
+            "url": target_page_url,
+            "html": injected_raw_html,
+            "date": "2025-01-15",
+        }
+
+        # Kiểm tra 1: ExclusionRegistry.is_excluded() nhận diện qua clean_html và loại trừ
+        assert registry.is_excluded(candidate) is True
+
+        # Kiểm tra 2: filter_split() đưa vào excluded, không đưa vào kept
+        kept, excluded = registry.filter_split([candidate], allow_unverified_commitments=True)
+        assert candidate in excluded
+        assert len(kept) == 0
+
+        # Kiểm tra 3: Gate 2 từ chối với lý do reject_exclusion_registry_match
+        ok, reason = pipeline.gate_2_anti_leakage(candidate)
+        assert ok is False
+        assert reason == "reject_exclusion_registry_match"
+
+    def test_gate2_regression_malformed_input_preprocessing_error_fails_closed(self, clean_pipeline, self_contained_registry):
+        """[REGRESSION FAIL-CLOSED] Lỗi định dạng/tiền xử lý trên dữ liệu thật không biến thành 'passed'."""
+        # URL có khoảng trắng và ký tự điều khiển bất hợp pháp -> normalize_url ném ValueError
+        malformed_sample = {
+            "url": "https://invalid domain with spaces.com/test\x00",
+            "html": "<html><body>Valid Body</body></html>",
+            "date": "2025-01-15",
+        }
+
+        # Gate 2 từ chối rõ ràng với lý do preprocessing error, TUYỆT ĐỐI không trả 'passed'
+        ok, reason = clean_pipeline.gate_2_anti_leakage(malformed_sample)
+        assert ok is False
+        assert reason == "reject_gate2_preprocessing_error"
+
+        # is_excluded() xử lý fail-closed (loại trừ vì không thể đối chiếu an toàn)
+        assert self_contained_registry.is_excluded(malformed_sample) is True
+
+        # filter_split() đưa vào excluded, không đưa vào kept
+        kept, excluded = self_contained_registry.filter_split([malformed_sample], allow_unverified_commitments=True)
+        assert malformed_sample in excluded
+        assert len(kept) == 0
+
+    def test_gate2_regression_system_runtime_error_propagates_unswallowed(self, clean_pipeline, self_contained_registry, monkeypatch):
+        """[REGRESSION FAIL-CLOSED] Ngoại lệ hệ thống nghiêm trọng (RuntimeError) không bị nuốt, dừng pipeline ngay lập tức."""
+        def mock_broken_normalize(url: str) -> str:
+            raise RuntimeError("LỖI HỆ THỐNG: Bộ chuẩn hóa URL gặp sự cố nghiêm trọng")
+
+        monkeypatch.setattr("phishing.data.selection_gate.normalize_url", mock_broken_normalize)
+        monkeypatch.setattr("phishing.data.exclusion.normalize_url", mock_broken_normalize)
+
+        sample = {
+            "url": "https://valid-normal-site.com/index",
+            "html": "<html><body>Content</body></html>",
+            "date": "2025-01-15",
+        }
+
+        # Cả Gate 2 và is_excluded đều ném RuntimeError, không âm thầm nuốt lỗi bằng except Exception: pass
+        with pytest.raises(RuntimeError, match="LỖI HỆ THỐNG"):
+            clean_pipeline.gate_2_anti_leakage(sample)
+
+        with pytest.raises(RuntimeError, match="LỖI HỆ THỐNG"):
+            self_contained_registry.is_excluded(sample)
+
+    def test_gate2_regression_missing_or_tampered_commitment_halts_before_export(self, tmp_path):
+        """[REGRESSION FAIL-CLOSED] Thiếu hoặc sai hash cam kết hồ sơ hạn chế -> dừng trước khi xuất danh sách hay artifact."""
+        # 1. Hồ sơ hạn chế có hash không khớp cam kết
+        bad_dossier = tmp_path / "bad_dossier.json"
+        bad_dossier.write_text(json.dumps({"mapping": []}), encoding="utf-8")
+
+        tampered_reg_data = {
+            "metadata": {"version": "test"},
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-PILOT-01",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": str(bad_dossier),
+                    "commitment_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "n_samples": 20,
+                }
+            ],
+            "training_blocked": True,
+        }
+        reg_file = tmp_path / "tampered_reg.json"
+        reg_file.write_text(json.dumps(tampered_reg_data), encoding="utf-8")
+
+        # Ném lỗi toàn vẹn ngay từ constructor
+        with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
+            ExclusionRegistry(registry_path=reg_file)
+
+        # 2. Hồ sơ hạn chế bị thiếu tệp
+        missing_reg_data = {
+            "metadata": {"version": "test"},
+            "exclusions": [
+                {
+                    "exclusion_id": "EXCL-PUBLIC-MOCK",
+                    "samples": [{"url_sha256": "1" * 64}],
+                },
+                {
+                    "exclusion_id": "EXCL-PILOT-01",
+                    "status": "sealed_restricted_commitment",
+                    "restricted_dossier_reference": "data/restricted/non_existent.json",
+                    "commitment_sha256": "0" * 64,
+                    "n_samples": 20,
+                }
+            ],
+            "training_blocked": True,
+        }
+        missing_reg_file = tmp_path / "missing_reg.json"
+        missing_reg_file.write_text(json.dumps(missing_reg_data), encoding="utf-8")
+        missing_reg = ExclusionRegistry(registry_path=missing_reg_file)
+
+        # assert_restricted_commitments_verified() ném RuntimeError
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            missing_reg.assert_restricted_commitments_verified()
+
+        # filter_split() ném RuntimeError trước khi trả kết quả
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            missing_reg.filter_split([{"url": "https://example.com", "html": "abc"}])
+
+        # pipeline.run_selection() ném RuntimeError trước khi chọn bất kỳ mẫu nào
+        pipe = SelectionGatePipeline(exclusion_registry=missing_reg)
+        with pytest.raises(RuntimeError, match="LỆNH CHẶN FAIL-CLOSED"):
+            pipe.run_selection(
+                [{"url": "https://example.com", "html": "abc", "date": "2025-01-15"}],
+                skip_gate_0_file_check=True,
+            )
+
 
 # ==============================================================================
 # GATE 3: DEDUPLICATION, ROW-ORDER BIAS ELIMINATION & TEMPLATE CLONES

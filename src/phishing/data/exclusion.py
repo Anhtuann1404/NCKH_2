@@ -10,6 +10,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 
+from phishing.preprocessing.html import clean_html
+from phishing.preprocessing.urls import normalize_url
+
 # parents[3] là thư mục gốc dự án NCKH_2:
 # exclusion.py -> data -> phishing -> src -> NCKH_2
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -212,21 +215,25 @@ class ExclusionRegistry:
 
         if isinstance(url, str) and url.strip():
             try:
-                from phishing.url.canonicalization import normalize_url
                 norm_u = normalize_url(url)
                 if hashlib.sha256(norm_u.encode("utf-8")).hexdigest() in self._url_hashes:
                     return True
-            except Exception:
-                pass
+            except (ValueError, TypeError):
+                # Không thể chuẩn hóa URL an toàn do định dạng/dữ liệu không hợp lệ -> loại trừ fail-closed
+                return True
 
         if isinstance(html, str) and html.strip():
             try:
-                from phishing.preprocessing.html import clean_html
-                cl_h = clean_html(html)
+                norm_url_page = (
+                    url if (isinstance(url, str) and url.startswith(("http://", "https://")))
+                    else (f"http://{url}" if (isinstance(url, str) and url.strip()) else "http://placeholder.local")
+                )
+                cl_h = clean_html(html, page_url=norm_url_page)
                 if hashlib.sha256(cl_h.encode("utf-8")).hexdigest() in self._html_hashes:
                     return True
-            except Exception:
-                pass
+            except (ValueError, TypeError):
+                # Không thể làm sạch HTML an toàn do định dạng/dữ liệu không hợp lệ -> loại trừ fail-closed
+                return True
         if self._group_hashes and isinstance(url, str):
             try:
                 import tldextract  # Required PSL dependency; reuse the shared offline extractor below.
