@@ -27,24 +27,39 @@ Biên bản sự cố chi tiết đã được lập và ban hành độc lập 
 
 ## 2. Chuỗi Bằng chứng 20 Mẫu Pilot Lô 1 & Định nghĩa Đếm Nhóm Miền
 
-### A. Giữ đúng giới hạn khoa học về chuỗi bằng chứng Pilot gốc:
-* C xác nhận trong kho lưu trữ không có tệp raw HTTP response body dump nguyên byte từ các cuộc gọi Rows API trước đây.
-* Do đó, C chính thức giữ nguyên kết luận đính chính trong mọi báo cáo: **Chưa chứng minh được "20/20 Pilot lịch sử khớp byte"**.
-  * Các mã băm tính từ `train-000.parquet` tại Git revision `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a` là bằng chứng xác thực về các bản ghi thuộc revision đã khóa đó.
-  * Các số liệu trong `pilot_summary.json` (5,344 bytes | SHA-256: `3889bf2f...`) chỉ là bằng chứng đối chiếu cấu trúc tóm tắt.
-  * Không chuyển trạng thái ánh xạ sang `verified` nếu chưa có chứng cứ mới; bảo lưu trạng thái `unresolved_source_mapping` và `rows_api_revision_pinned=false` trong `data/exclusion_registry.json`.
+### A. Kết quả Xác minh Chuỗi Bằng chứng Pilot Gốc (Lead D & C Đối soát Độc lập):
+* **Tìm lại bản phản hồi Rows API gốc:** Tệp Rows API gốc được lưu trữ tại `data/source_audit/phreshphish/pilot_20_rows.json` (bàn giao qua gói hạn chế `pilot20_provenance_handoff_for_C_RESTRICTED.zip`).
+  * *Dung lượng:* `7,186,229 bytes`
+  * *Mã băm SHA-256:* `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`
+  * *Đối soát lịch sử:* Khớp 100% với `pilot_summary.json` tại commit `bc674e9` và `batch_sha256` của `EXCL-PILOT-01` tại commit `a62105a`.
+  * *Kiểm tra dữ liệu:* Tệp có đủ 20 dòng, 20 cặp (URL hash, HTML hash) nguyên bản duy nhất, 0 dòng bị cắt (`partial: false`).
+* **Đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`:**
+  * Cả Lead D và C đã kiểm tra dung lượng và SHA-256 của hai tệp Parquet trước khi đọc, băm riêng URL và HTML trên chuỗi UTF-8 nguyên gốc rồi so theo cặp:
+    - `train-000.parquet` (49,639,686 bytes | SHA-256: `9a9c693a...`, 1,000 dòng): Khớp chính xác **20/20 cặp tại đúng 20 hàng đầu tiên (`row_offset: 0..19`)**, 0 đa vị trí (0 duplicates), 0 thiếu.
+    - `train-055.parquet` (20,213,199 bytes | SHA-256: `205a7e1c...`, 361 dòng): Khớp **0/20 cặp** (hoàn toàn cách ly với 20 mẫu Pilot).
+* **Đối chiếu hồ sơ cũ và V4.1:** Chỉ số Pilot, cặp hash URL/HTML và vị trí nguồn của cả 20 mẫu đều khớp `raw20_mapping_check.json` (SHA-256: `7c7ea17d...`), `pilot_mapping_reproducible.json` (SHA-256: `31aa501b...`) và Dossier V2 trong ZIP V4.1.
+* **Kết luận chuẩn xác theo chỉ đạo của Lead D:**
+  > **Bản phản hồi Rows API lưu từ lần thu thập đã được xác minh bằng hash lịch sử. Cả 20 cặp URL/HTML và locator đã được đối chiếu với Parquet ở revision khóa.**  
+  > * Giữ `rows_api_revision_pinned=false` vì đó là cách nhóm đã gọi API lúc thu thập ban đầu.  
+  > * Phạm vi kiểm vị trí duy nhất là **hai shard đã quét** (`train-000` và `train-055`). Shard `train-001` và các shard còn lại cần được kiểm theo phạm vi Lead D phê duyệt.
 
-### B. Bảo lưu Hồ sơ Hạn chế V2 (Lineage & Audit Trail):
-* **Tệp V2 hiện hành:** `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json`
-  * *Dung lượng:* `23,169 bytes`
-  * *Mã băm SHA-256:* `adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa`
-  * *Trạng thái định danh nội dung:* `"content_identity_verified": false`, `"content_identity_status": "reconstructed_at_pinned_revision_unverified_historical_byte"`.
-* **Tệp V1 cũ (Bảo lưu làm audit trail):** `data/restricted/pilot_batch1_recovery_dossier_restricted.json` (20,731 bytes | SHA-256: `2e14d95729a06c2315e8f7587d447a3983e497b0adb90eb50c11508c08a16977`).
+### B. Phát hành Dossier Hạn chế V3 & Bảo lưu Lineage Audit Trail:
+* **Hồ sơ hạn chế V3 hiện hành:** `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json`
+  * *Dung lượng:* `29,018 bytes`
+  * *Mã băm SHA-256:* `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3`
+  * *Trạng thái định danh:* `"content_identity_verified": true`, `"content_identity_status": "verified_from_historical_rows_api_and_pinned_parquet"`.
+  * *Trạng thái ánh xạ:* `"mapping_status": "verified_at_pinned_revision_2_shards_audited"`, `"rows_api_revision_pinned": false`.
+  * *Trạng thái phê duyệt:* `"approval_status": "pending_lead_d_signoff"`.
+* **Hồ sơ V2 cũ (Bảo lưu audit trail):** `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` (`23,169 bytes` | SHA-256: `adc0b90d...`).
+* **Hồ sơ V1 cũ (Bảo lưu audit trail):** `data/restricted/pilot_batch1_recovery_dossier_restricted.json` (`20,731 bytes` | SHA-256: `2e14d957...`).
 
-### C. Mối quan hệ giữa 20 mẫu Pilot Lô 1 với `EXCL-REAL-PILOT-32`:
-* **Số mục registry:** 10 lô loại trừ đã đăng ký trong `data/exclusion_registry.json`.
-* **Số URL/HTML duy nhất đã xác minh byte:** 214 mẫu công khai từ 9 lô sự cố/lịch sử + 32 mẫu `EXCL-CALIB-01` niêm phong hạn chế (Tổng: 246 mẫu được kiểm toán chặt chẽ ba bên).
-* **Quan hệ Pilot lịch sử còn suy luận:** Lô `EXCL-REAL-PILOT-32` (32 mẫu) được chọn dựa trên dấu vân tay cấu trúc từ `train-000` (20 mẫu) và `train-055` (12 mẫu). 20 mẫu của `EXCL-PILOT-01` tương ứng với 20 hàng đầu tiên (`0..19`) của `train-000`. Do thiếu bản lưu byte gốc từ Rows API, mối quan hệ đồng nhất giữa Pilot lịch sử và các bản ghi trong shard hiện tại chỉ dừng ở mức suy luận cấu trúc, **không khẳng định "96 mẫu Pilot lịch sử duy nhất"**.
+### C. Mối quan hệ giữa 20 mẫu Pilot Lô 1 với `EXCL-REAL-PILOT-32` & Giải trình Số đếm 246:
+* **Giao với Lô Pilot 32 (`EXCL-REAL-PILOT-32`):** Cả 20 cặp URL/HTML của Pilot 20 đều có trong `EXCL-REAL-PILOT-32` (Giao = 20).
+* **Số mẫu hợp (Union):** Khi báo cáo số mẫu duy nhất giữa hai lô, tính theo **hợp các cặp hash đã đối chiếu** thay vì cộng gộp 20 + 32; hợp của hai lô là **32 mẫu duy nhất**.
+* **Giải trình con số 246 trong Registry:**
+  - Con số **246** là **tổng mục khai báo theo lô (sum of declared batch items)** trên 10 lô loại trừ trong `data/exclusion_registry.json`.
+  - Tổng số mẫu duy nhất toàn registry sau khi khử giao (union of distinct hash pairs) là **226 mẫu** (do 20 mẫu của `EXCL-PILOT-01` nằm hoàn toàn trong `EXCL-REAL-PILOT-32`).
+  - Mọi thống kê mẫu duy nhất toàn registry đều được tính theo phép hợp các cặp hash đối chiếu, tránh hiểu nhầm về mặt định lượng khoa học.
 
 ### D. Giải trình toán học về số đếm Nhóm miền (19 vs 20):
 Báo cáo công khai và hồ sơ hạn chế có hai số đếm khác nhau xuất phát từ hai định nghĩa đo lường:
@@ -125,19 +140,23 @@ Căn cứ vào `configs/source_manifest.json` (nguồn `phreshphish` tại revis
 | Tên Shard | Shard Index | Mức 1: Metadata Nguồn (Git-LFS SHA-256 / Dung lượng / Audited Rows / Ngày) | Mức 2: Byte Parquet Trên Đĩa (`locally_verified_sha256`) | Mức 3: Quét Tuyến Gate 0–4 Trên Dữ Liệu Thật | Hiện Trạng Kiểm Toán & Phân Loại Đề Xuất |
 | :--- | :---: | :--- | :---: | :---: | :--- |
 | `train-000.parquet` | 0 | `9a9c693a95daeddb127c4446df4c5673b3f1a39e457ffe964b9849069bd739fe`<br>49,639,686 bytes \| 1,000 rows \| 2024-07-04 đến 2025-09-08 | Đã tải<br>(Khớp byte SHA-256 metadata) | Đã quét đối soát khi tái dựng Pilot Lô 1 | ⛔ **CÁCH LY TUYỆT ĐỐI (QUARANTINED)**.<br>Chứa vết tái dựng 20 mẫu Pilot Lô 1 và locator đã lộ trên commit `ad445a7`. Bị loại trừ vĩnh viễn khỏi mọi đợt chọn mẫu thực nghiệm. |
-| `train-055.parquet` | 55 | `94553229b0076a5996f0ba97b2fae38e68cfb99db27e5c6bb094d2df4680aa42`<br>418,914,846 bytes \| 7,842 rows \| 2024-07-03 đến 2025-09-08 | Đã tải<br>(Khớp byte SHA-256 metadata) | Đã quét chọn 12 mẫu PhreshPhish Hiệu chuẩn A/B | ⛔ **CÁCH LY TUYỆT ĐỐI (QUARANTINED)**.<br>Chứa vết 12 mẫu đã tiếp xúc trong đợt Hiệu chuẩn sạch. Bị cách ly khỏi Đợt 1 Main Annotation. |
+| `train-055.parquet` | 55 | `205a7e1cf4fb11032683e90fdbd1c13ddc9d9dd86109658d13e69929b53b31d0`<br>20,213,199 bytes \| 361 rows \| 2024-07-03 đến 2025-09-08 | Đã tải<br>(Khớp byte SHA-256 thực tế trên đĩa) | Đã quét đối soát Pilot: Khớp 0/20 cặp | ⛔ **CÁCH LY TUYỆT ĐỐI (QUARANTINED)**.<br>Chứa vết 12 mẫu đã tiếp xúc trong đợt Hiệu chuẩn sạch (Clean Calibration). Đã đối soát độc lập cách ly với Pilot 20: khớp 0/20 cặp. Bị cách ly khỏi Đợt 1 Main Annotation.<br>*(Đính chính: Số cũ 418,914,846 bytes / 94553229... là số ước tính nháp chưa kiểm)* |
 | `train-001.parquet` | 1 | `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`<br>322,018,201 bytes \| 5,780 rows \| 2024-07-02 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟢 **ĐỀ NGHỊ CHO PHÉP TẢI VÀ KIỂM NGUỒN `train-001.parquet`**.<br>Shard tiềm năng trong manifest, không có tiền sử tiếp xúc với Pilot hay Hiệu chuẩn trong metadata. Hiện có metadata và hash Git-LFS dự kiến (`260cb9c9...`, 322,018,201 bytes, 5,780 hàng audited, cửa sổ ngày được phép lấy mẫu: `2024-10-01` đến `2025-09-08`). Byte Parquet trên đĩa (`locally_verified_sha256: null`) và kết quả rà soát loại trừ Gate 0–4 vẫn chờ kiểm sau khi Lead D phê duyệt lệnh kiểm nguồn. |
 | `train-002.parquet` | 2 | `75d891908c1f921542ea9e4f94578f8442da05333621f1cb3ef386c9698935a7`<br>354,725,131 bytes \| 6,506 rows \| 2024-07-04 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 1 (BACKUP CANDIDATE 1)**.<br>Shard độc lập chưa tải. |
 | `train-003.parquet` | 3 | `0f6bd169f813a9446294597602d1b93457da62c753594d8d1ecb78d20d5dec40`<br>433,568,855 bytes \| 7,127 rows \| 2024-07-04 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 2 (BACKUP CANDIDATE 2)**.<br>Shard độc lập chưa tải. |
 | `train-004.parquet` | 4 | `82fa46160b9d7779994f7f7ec8cb612f942b8410a0a3325e26134bad72c708ab`<br>403,296,550 bytes \| 7,425 rows \| 2024-07-03 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 3 (BACKUP CANDIDATE 3)**.<br>Shard độc lập chưa tải. |
 | `train-005.parquet` | 5 | `d5dde3895c6a78daf59ef8c3ee3e67a72a30bc7a7e34782a9dfa503d998334fa`<br>463,326,261 bytes \| 7,870 rows \| 2024-07-03 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 4 (BACKUP CANDIDATE 4)**.<br>Shard độc lập chưa tải. |
 
-### Đánh giá Rủi ro Tồn dư (Residual Risk Assessment - Đã loại bỏ khẳng định tuyệt đối):
-1. **Bản chất rủi ro:** Do Hugging Face Rows API thời điểm pilot chưa khóa revision, chúng ta không có bản lưu nguyên byte của phản hồi API lịch sử. Vì vậy, lý thuyết tồn tại rủi ro là một mẫu pilot lịch sử có thể nằm ngoài `train-000`. C duy trì `content_identity_verified=false` và `mapping_status="unresolved_source_mapping"` trong `data/exclusion_registry.json`.
-2. **Cơ chế giảm thiểu rủi ro đối với những dấu vết đã biết:**
-   * Sáu lớp mã băm đối soát trong `ExclusionRegistry` đối chiếu với các bản ghi đã biết của Lô 1 (20 mẫu) và Lô 2 (32 mẫu) giúp phát hiện và loại bỏ các mẫu trùng URL thô, URL chuẩn hóa, HTML thô, HTML làm sạch hoặc chia sẻ nhóm miền / tenant (`eTLD+1`).
-   * Cổng 3 kiểm tra tương đồng template tuần tự (SimHash distance <= 10, DOM Tag Jaccard >= 0.85) và đa dạng miền (tối đa 1 mẫu/eTLD+1) giúp giảm thiểu các trang clone sinh từ cùng phishing kit.
-   * **Giới hạn khoa học thừa nhận:** Các biện pháp trên giúp **giảm thiểu đáng kể rủi ro đối với các dấu vết đã biết**, nhưng **chưa chứng minh được việc loại bỏ hoàn toàn rủi ro tồn dư** đối với các mẫu lịch sử chưa xác định được byte gốc hay vị trí phân phối thực tế của Rows API thời điểm trước khóa revision.
+### Đánh giá Rủi ro Tồn dư (Residual Risk Assessment - Cập nhật sau khi xác minh chuỗi bằng chứng Rows API & Parquet):
+1. **Kết quả xác minh chuỗi bằng chứng:**
+   * Tệp Rows API gốc `pilot_20_rows.json` (7,186,229 bytes | SHA-256: `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`) đã được Lead D tìm lại và C đối soát độc lập: khớp 100% với hash lịch sử công bố tại `bc674e9` và `a62105a`.
+   * Cả 20 cặp URL/HTML và locator đã được đối chiếu trực tiếp trên byte UTF-8 với Parquet ở revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: toàn bộ 20/20 khớp chính xác tại `train-000` (`row_offset: 0..19`), khớp 0/20 tại `train-055`.
+   * Phạm vi kiểm vị trí duy nhất đã hoàn thành trên **hai shard đã quét** (`train-000` và `train-055`).
+2. **Giới hạn khoa học và nguyên tắc quản trị rủi ro:**
+   * Giữ nguyên `rows_api_revision_pinned = false` vì thời điểm thu thập lịch sử API chưa khóa revision.
+   * Cập nhật Dossier V3 với `content_identity_verified = true`, `mapping_status = "verified_at_pinned_revision_2_shards_audited"` và `approval_status = "pending_lead_d_signoff"`.
+   * Trong `data/exclusion_registry.json`, `EXCL-PILOT-01` trỏ tới Dossier V3, cập nhật `commitment_sha256 = "0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3"`, tạm giữ `mapping_status = "unresolved_source_mapping"` để chờ Lead D ký nghiệm thu chính thức.
+   * Shard `train-001` và các shard khác sẽ tiếp tục được quét toàn diện qua 6 lớp mã băm của Cổng 2 và lọc tương đồng của Cổng 3 ngay khi Lead D phê duyệt lệnh kiểm nguồn.
 
 ---
 
@@ -184,15 +203,19 @@ Toàn bộ kích thước và mã băm SHA-256 được đo đạc trực tiếp
 
 | Tệp tin / Cấu phần | Vị trí / Tình trạng | Kích thước (bytes) | Mã băm SHA-256 |
 | :--- | :--- | :---: | :--- |
-| **Gói nén kiểm toán V4.1 gửi D** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_1.zip` | Ngoài Git (Niêm phong) | `f06fb890be501eb71e51c21b52d017dbce7bff66beb91fc884546c0817980b21` |
+| **Gói nén kiểm toán V4.2 gửi D (Hiện hành)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_2.zip` | 1,713,628 | `043be4b4dff9201dc7ee4de0bd5b0545bcdb6de7d434299a570a4b4d89b8d744` |
+| **Hồ sơ hạn chế V3 (Lineage V2)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json` | 29,018 | `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3` |
+| **Gói nén kiểm toán V4.1 cũ (Audit trail)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_1.zip` | 30,280 | `f06fb890be501eb71e51c21b52d017dbce7bff66beb91fc884546c0817980b21` |
+| **Hồ sơ hạn chế V2 (Lineage V1 - Audit trail)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` | 23,169 | `adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa` |
 | **Gói nén kiểm toán V4 cũ (Audit trail)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4.zip` | 24,196 | `782863009b86cf5c051a3c1d3389020e45664966f17d8c223737be89cac9e2ba` |
-| **Hồ sơ hạn chế V2 (Lineage V1)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` | 23,169 | `adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa` |
 | **Hồ sơ hạn chế V1 (Audit trail)** | `data/restricted/pilot_batch1_recovery_dossier_restricted.json` | 20,731 | `2e14d95729a06c2315e8f7587d447a3983e497b0adb90eb50c11508c08a16977` |
 | **Bảng chi tiết cấp mẫu (ngoài Git)** | `data/restricted/pilot_batch1_sample_level_audit_table.json` | 20,574 | `6395781aeada3b73c72ee7215bd29a167ea5ab639ce48fe3507bde515bbf128f` |
 | **Biên bản sự cố Git Exposure** | `docs/INCIDENT_REPORT_GIT_EXPOSURE_AD445A7.md` | 6,204 | `79505d4a503c87a762d0476d71e0360c940af86c654b37e41558991756d18f51` |
 | **Tài liệu đặc tả QA công khai (Giữ nguyên byte đã QA)** | `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` | 8,496 | `ca9a5af3d8e0abadf26eb4a19374b0d97820cf2dffb30ca2d80d457be9067d09` |
 | **Bản đính chính Errata V4.2 & Tờ trình Quyết định** | `docs/SELECTION_GATE_ERRATA_V4_2_LEAD_D.md` | Văn bản công khai | Tham chiếu commit V4.2 |
-| **Exclusion Registry V1.1.0** | `data/exclusion_registry.json` | 107,424 | `f00df7a63fb6659d78fe065ca4c87445ebe071fb448e1d1f337d740317dd57ea` |
+| **Exclusion Registry V1.1.0** | `data/exclusion_registry.json` | 107,484 | `71c8d8735cdfb63d146b30002789004c490090c1280f6731390ed9527457806d` |
+| **Báo cáo kiểm toán Exclusion Audit** | `data/source_audit/clean_calibration_exclusion_audit_report.json` | 7,652 | `a2f2d5bf157a2597cdd234c9d8162008e415615770a591b5034861277a343fe2` |
+| **Clean Calibration Manifest** | `configs/calibration_clean_a_manifest.json` | 7,365 | `e89863c1f39fd19254bf792eb9c0688c6e885cf1981c96ae9e5318ab885a2474` |
 | **Module loại trừ (Đã sửa import & fail-closed)** | `src/phishing/data/exclusion.py` | 19,448 | `5cc8a445b20bb251df523e258f957215134cb804859de3855dff49db856aa041` |
 | **Cổng chọn mẫu Selection Gate (Đã sửa)** | `src/phishing/data/selection_gate.py` | 20,308 | `eb3f36a9db9a5dbba62bd1643b68cf4c678d99e9a553132354e792de8753a6a1` |
 | **Runner chọn mẫu thực tế** | `scripts/data/run_main_selection.py` | 4,381 | `cc1d45d0801d846454347b877ba95907a1bb1537ba33954876b53ddd87c44fb2` |
@@ -242,20 +265,25 @@ Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đ�
 
 ---
 
-### DỰ THẢO QUYẾT ĐỊNH 2: XỬ LÝ SỰ CỐ GIT CỦA PILOT (COMMIT `ad445a7`)
+### DỰ THẢO QUYẾT ĐỊNH 2: XỬ LÝ SỰ CỐ GIT CỦA PILOT (COMMIT `ad445a7`) & NGHIỆM THU CHUỖI BẰNG CHỨNG PILOT 20
 
 1. **Phương án C khuyến nghị:** **Phương án A (Forward-Fix & Administrative Retirement)**.
 2. **Cơ sở lựa chọn:**
    * Giữ nguyên cây commit lịch sử để bảo toàn audit trail minh bạch, phục vụ đánh giá khoa học và kiểm toán độc lập.
    * Tuyệt đối không force-push hoặc viết lại lịch sử Git trên nhánh cộng tác khi chưa có lệnh điều phối khẩn cấp từ Lead D.
-3. **Cách thức ghi nhận và thực thi loại trừ các mẫu đã biết:**
-   * Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong `data/exclusion_registry.json` với mã cam kết `EXCL-PILOT-01` và mã băm hồ sơ hạn chế `commitment_sha256 = "adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa"`.
+3. **Nghiệm thu chuỗi bằng chứng xác minh Pilot 20:**
+   * Xác nhận bản phản hồi Rows API gốc tại `data/source_audit/phreshphish/pilot_20_rows.json` (7,186,229 bytes | SHA-256 `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`) khớp với hash lịch sử công bố tại `bc674e9` và `a62105a`.
+   * Xác nhận kết quả đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: 20/20 cặp URL/HTML khớp chính xác tại `train-000` (`row_offset: 0..19`), khớp 0/20 tại `train-055`.
+   * Xác nhận giữ nguyên `rows_api_revision_pinned = false` theo đúng phương thức thu thập lịch sử.
+   * Phê duyệt hồ sơ hạn chế V3 (`data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json` - SHA-256: `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3`).
+4. **Cách thức ghi nhận và thực thi loại trừ các mẫu đã biết:**
+   * Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong `data/exclusion_registry.json` với mã cam kết `EXCL-PILOT-01`, trỏ tới Dossier V3 với `commitment_sha256 = "0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3"`.
    * Toàn bộ 20 mẫu này bị loại trừ vĩnh viễn (retired) khỏi mọi tập dữ liệu huấn luyện, thẩm định và đánh giá (M0–M3).
-4. **Phạm vi Shard cách ly:** Cách ly vĩnh viễn shard `train-000.parquet` (`QUARANTINED`), cấm mọi hành vi trích xuất từ shard này.
-5. **Thừa nhận Rủi ro tồn dư (Residual Risk):**
-   * Do kho lưu trữ không có bản lưu byte gốc từ các cuộc gọi Rows API lịch sử, C duy trì trạng thái `mapping_status="unresolved_source_mapping"` và `content_identity_verified=false`.
-   * Thừa nhận trung thực giới hạn khoa học: 6 lớp mã băm và cơ chế chống trùng lặp template giúp giảm thiểu tối đa rủi ro đối với các dấu vết đã biết, nhưng không tuyên bố loại bỏ 100% rủi ro lý thuyết đối với các mẫu chưa rõ vị trí phân phối thực tế của Rows API thời điểm trước khóa revision.
-   * Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json`.
+   * Xác nhận giải trình số đếm: Con số 246 là tổng mục khai báo theo lô (declared batch items); tổng số mẫu duy nhất toàn registry theo phép hợp các cặp hash là **226 mẫu** (do 20 mẫu Pilot 20 nằm hoàn toàn trong Lô 32).
+5. **Phạm vi Shard cách ly:** Cách ly vĩnh viễn shard `train-000.parquet` (`QUARANTINED`), cấm mọi hành vi trích xuất từ shard này.
+6. **Thừa nhận Rủi ro tồn dư (Residual Risk) & Bảo mật dữ liệu:**
+   * Phạm vi kiểm vị trí duy nhất đã hoàn thành trên 2 shard (`train-000` và `train-055`). Cổng 2 (6 lớp mã băm) và Cổng 3 (lọc tương đồng template) sẽ tiếp tục rà soát trên mọi shard mới được cấp phép.
+   * Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json`.
 
 ---
 

@@ -6,7 +6,7 @@
     "training_blocked": true,
     "official_test_used": false,
     "registry_version": "1.1.0",
-    "registry_sha256": "f00df7a63fb6659d78fe065ca4c87445ebe071fb448e1d1f337d740317dd57ea",
+    "registry_sha256": "71c8d8735cdfb63d146b30002789004c490090c1280f6731390ed9527457806d",
     "total_excluded_entries_in_registry": 10,
     "total_excluded_samples_in_registry": 246
   },

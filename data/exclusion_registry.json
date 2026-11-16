@@ -15,7 +15,7 @@
       "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
       "rows_api_revision_pinned": false,
       "mapping_status": "unresolved_source_mapping",
-      "mapping_notes": "Do lượt thu thập pilot dùng Hugging Face Rows API với rows_api_revision_pinned=false, vị trí shard/row offset cụ thể trong git revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a chưa được ánh xạ 1-1 qua so khớp byte nội dung. C không tự tiện gán revision khi chưa đối chiếu. Trạng thái giữ unresolved_source_mapping. summary_fingerprint_hash là mã băm từ các thống kê cấu trúc tóm tắt của mẫu pilot (index, nhãn, độ dài html/text, số lượng form/input), chưa phải hash nội dung trang raw URL/HTML. Khi có bản pilot gốc, băm URL/HTML theo quy tắc cố định để đối chiếu.",
+      "mapping_notes": "Bản phản hồi Rows API gốc (pilot_20_rows.json, 7.186.229 bytes | SHA-256: 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f) đã được xác minh bằng hash lịch sử. Cả 20 cặp URL/HTML và locator đã được đối chiếu 1-1 với Parquet tại revision khóa eabec4b7a66324b79cc8a0ad856d1731dc26fe1a: khớp 20/20 tại train-000 (row_offset 0..19), train-055 khớp 0/20. Cả 20 cặp URL/HTML đều nằm trong EXCL-REAL-PILOT-32 (hợp = 32 mẫu duy nhất). Trạng thái nghiệm thu ánh xạ chính thức đang PENDING phê duyệt của Lead D.",
       "batch_sha256": "738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f",
       "n_samples": 20,
       "reference_summary": "data/source_audit/phreshphish/pilot_summary.json",
@@ -244,8 +244,8 @@
       ],
       "raw_batch_checksum_recovered": true,
       "status": "sealed_restricted_commitment",
-      "restricted_dossier_reference": "data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json",
-      "commitment_sha256": "adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa"
+      "restricted_dossier_reference": "data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json",
+      "commitment_sha256": "0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3"
     },
     {
       "exclusion_id": "EXCL-REAL-PILOT-32",
@@ -1865,5 +1865,5 @@
   ],
   "training_blocked": true,
   "training_block_reason": "Pilot mapping remains unresolved (rows_api_revision_pinned=false). Main model training is strictly blocked until 1-to-1 byte content matching to pinned revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a is resolved.",
-  "counting_note": "Tổng số mẫu được tính theo từng lô bao gồm 214 mẫu công khai từ 9 lô lịch sử/sự cố và 32 mẫu Đợt C niêm phong cam kết hạn chế ngoài Git (commitment hash 67326e80b2a6f9cb7356450a31fe15054a1193412a8ed0576ea2972f1801a805); các phép đối soát loại trừ thực nghiệm nạp đầy đủ 246 mẫu."
+  "counting_note": "Lưu ý kiểm toán về số đếm: Con số 246 là tổng mục khai báo theo lô (sum of declared batch items across 10 exclusion batches). Tổng số mẫu duy nhất toàn registry sau khi khử giao (union of distinct hash pairs) là 226 mẫu (trong đó 20 mẫu EXCL-PILOT-01 giao hoàn toàn với EXCL-REAL-PILOT-32; hợp của hai lô là 32 mẫu duy nhất). Mọi báo cáo mẫu duy nhất phải tính theo phép hợp các cặp hash đối chiếu."
 }
