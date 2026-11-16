@@ -15,7 +15,7 @@
       "source_metadata_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
       "rows_api_revision_pinned": false,
       "mapping_status": "unresolved_source_mapping",
-      "mapping_notes": "Bản phản hồi Rows API gốc (pilot_20_rows.json, 7.186.229 bytes | SHA-256: 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f) đã được xác minh bằng hash lịch sử. Cả 20 cặp URL/HTML và locator đã được đối chiếu 1-1 với Parquet tại revision khóa eabec4b7a66324b79cc8a0ad856d1731dc26fe1a: khớp 20/20 tại train-000 (row_offset 0..19), train-055 khớp 0/20. Cả 20 cặp URL/HTML đều nằm trong EXCL-REAL-PILOT-32 (hợp = 32 mẫu duy nhất). Trạng thái nghiệm thu ánh xạ chính thức đang PENDING phê duyệt của Lead D.",
+      "mapping_notes": "Bản phản hồi Rows API gốc (pilot_20_rows.json, 7.186.229 bytes | SHA-256: 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f) đã được xác minh bằng hash lịch sử. Cả 20 cặp URL/HTML và locator đã được đối chiếu 1-1 với Parquet tại revision khóa eabec4b7a66324b79cc8a0ad856d1731dc26fe1a: khớp 20/20 tại train-000, 0/20 khớp tại train-055 trong phạm vi hai shard đã kiểm. Cả 20 cặp URL/HTML đều nằm trong EXCL-REAL-PILOT-32. Hồ sơ hạn chế V4 (17f71f23...) giữ đúng metadata gốc lang=null (thay thế V3 có artifact lang=NaN). Trạng thái nghiệm thu ánh xạ chính thức đang PENDING phê duyệt của Lead D.",
       "batch_sha256": "738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f",
       "n_samples": 20,
       "reference_summary": "data/source_audit/phreshphish/pilot_summary.json",
@@ -244,8 +244,8 @@
       ],
       "raw_batch_checksum_recovered": true,
       "status": "sealed_restricted_commitment",
-      "restricted_dossier_reference": "data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json",
-      "commitment_sha256": "0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3"
+      "restricted_dossier_reference": "data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json",
+      "commitment_sha256": "17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171"
     },
     {
       "exclusion_id": "EXCL-REAL-PILOT-32",
@@ -1865,5 +1865,5 @@
   ],
   "training_blocked": true,
   "training_block_reason": "Pilot mapping remains unresolved (rows_api_revision_pinned=false). Main model training is strictly blocked until 1-to-1 byte content matching to pinned revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a is resolved.",
-  "counting_note": "Lưu ý kiểm toán về số đếm: Con số 246 là tổng mục khai báo theo lô (sum of declared batch items across 10 exclusion batches). Tổng số mẫu duy nhất toàn registry sau khi khử giao (union of distinct hash pairs) là 226 mẫu (trong đó 20 mẫu EXCL-PILOT-01 giao hoàn toàn với EXCL-REAL-PILOT-32; hợp của hai lô là 32 mẫu duy nhất). Mọi báo cáo mẫu duy nhất phải tính theo phép hợp các cặp hash đối chiếu."
+  "counting_note": "Lưu ý kiểm toán về số đếm: Con số 246 là tổng mục khai báo theo lô (sum of declared batch items across 10 exclusion batches). Tổng số mẫu duy nhất toàn registry sau khi khử giao là đúng 226 cặp duy nhất: 194 cặp duy nhất từ 9 lô đầu (trong đó 20 mẫu EXCL-PILOT-01 giao hoàn toàn với EXCL-REAL-PILOT-32) + 32 cặp hợp lệ từ Lô 10 (giao giữa Lô 10 và 9 lô đầu đúng bằng 0). Bảng đối soát chi tiết từng cặp được niêm phong an toàn tại data/restricted/registry_10_batches_pairwise_union_audit.json."
 }

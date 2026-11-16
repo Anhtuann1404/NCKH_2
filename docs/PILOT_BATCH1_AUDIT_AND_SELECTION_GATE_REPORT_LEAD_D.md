@@ -1,9 +1,9 @@
-# BÁO CÁO KIỂM TOÁN TỔNG HỢP 20 MẪU PILOT (EXCL-PILOT-01), CỔNG CHỌN MẪU MAIN ĐỢT 1 & HỒ SƠ NGUỒN TRÌNH DUYỆT (BẢN V4.2)
+# BÁO CÁO KIỂM TOÁN TỔNG HỢP 20 MẪU PILOT (EXCL-PILOT-01), CỔNG CHỌN MẪU MAIN ĐỢT 1 & HỒ SƠ NGUỒN TRÌNH DUYỆT (BẢN V4.3)
 
 **Kính gửi:** Lead D (Anh Tuấn)  
 **Người thực hiện:** Thành viên C (Data Pipeline & Thư ký Kiểm toán)  
-**Ngày cập nhật:** 17/11/2026 (Bản sửa đổi V4.2 đính chính bảng kê và hoàn thiện theo chỉ đạo của Lead D Vòng 17)  
-**Chế độ thực thi:** Duo Mode (Antigravity & DeepSeek Reason Architecture Review - Session R17)  
+**Ngày cập nhật:** 17/11/2026 (Bản sửa đổi V4.3: Dossier V4 phục hồi lang=null, kiến trúc vetting-only dừng trước Gate 4, kiểm toán hợp 10 lô loại trừ 226 mẫu duy nhất theo chỉ đạo của Lead D Vòng 18)  
+**Chế độ thực thi:** Duo Mode (Antigravity & DeepSeek Reason Architecture Review - Session R18)  
 **Trạng thái Quản trị:** `main_annotation_status="LOCKED"`, `training_blocked=true`, `official_test_used=false`
 
 ---
@@ -35,31 +35,36 @@ Biên bản sự cố chi tiết đã được lập và ban hành độc lập 
   * *Kiểm tra dữ liệu:* Tệp có đủ 20 dòng, 20 cặp (URL hash, HTML hash) nguyên bản duy nhất, 0 dòng bị cắt (`partial: false`).
 * **Đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`:**
   * Cả Lead D và C đã kiểm tra dung lượng và SHA-256 của hai tệp Parquet trước khi đọc, băm riêng URL và HTML trên chuỗi UTF-8 nguyên gốc rồi so theo cặp:
-    - `train-000.parquet` (49,639,686 bytes | SHA-256: `9a9c693a...`, 1,000 dòng): Khớp chính xác **20/20 cặp tại đúng 20 hàng đầu tiên (`row_offset: 0..19`)**, 0 đa vị trí (0 duplicates), 0 thiếu.
-    - `train-055.parquet` (20,213,199 bytes | SHA-256: `205a7e1c...`, 361 dòng): Khớp **0/20 cặp** (hoàn toàn cách ly với 20 mẫu Pilot).
+    - `train-000.parquet` (49,639,686 bytes | SHA-256: `9a9c693a...`, 1,000 dòng): Khớp chính xác **20/20 cặp**, 0 đa vị trí (0 duplicates), 0 thiếu (chi tiết vị trí hàng và bằng chứng cấp mẫu được lưu an toàn trong hồ sơ hạn chế).
+    - `train-055.parquet` (20,213,199 bytes | SHA-256: `205a7e1c...`, 361 dòng): Khớp **0/20 cặp** (hoàn toàn cách ly với 20 mẫu Pilot trong phạm vi hai shard đã kiểm).
 * **Đối chiếu hồ sơ cũ và V4.1:** Chỉ số Pilot, cặp hash URL/HTML và vị trí nguồn của cả 20 mẫu đều khớp `raw20_mapping_check.json` (SHA-256: `7c7ea17d...`), `pilot_mapping_reproducible.json` (SHA-256: `31aa501b...`) và Dossier V2 trong ZIP V4.1.
 * **Kết luận chuẩn xác theo chỉ đạo của Lead D:**
   > **Bản phản hồi Rows API lưu từ lần thu thập đã được xác minh bằng hash lịch sử. Cả 20 cặp URL/HTML và locator đã được đối chiếu với Parquet ở revision khóa.**  
   > * Giữ `rows_api_revision_pinned=false` vì đó là cách nhóm đã gọi API lúc thu thập ban đầu.  
   > * Phạm vi kiểm vị trí duy nhất là **hai shard đã quét** (`train-000` và `train-055`). Shard `train-001` và các shard còn lại cần được kiểm theo phạm vi Lead D phê duyệt.
 
-### B. Phát hành Dossier Hạn chế V3 & Bảo lưu Lineage Audit Trail:
-* **Hồ sơ hạn chế V3 hiện hành:** `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json`
-  * *Dung lượng:* `29,018 bytes`
-  * *Mã băm SHA-256:* `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3`
+### B. Phát hành Dossier Hạn chế V4 & Bảo lưu Lineage Audit Trail:
+* **Hồ sơ hạn chế V4 hiện hành:** `data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json`
+  * *Dung lượng:* `29,147 bytes`
+  * *Mã băm SHA-256:* `17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171`
+  * *Hiệu chỉnh metadata trường `lang`:* Giữ nguyên `lang = null` tại bản ghi index 14 theo đúng metadata gốc của Rows API lịch sử (`pilot_20_rows.json`), loại bỏ hoàn toàn artifact `NaN` do chuyển đổi kiểu dữ liệu bảng.
   * *Trạng thái định danh:* `"content_identity_verified": true`, `"content_identity_status": "verified_from_historical_rows_api_and_pinned_parquet"`.
   * *Trạng thái ánh xạ:* `"mapping_status": "verified_at_pinned_revision_2_shards_audited"`, `"rows_api_revision_pinned": false`.
   * *Trạng thái phê duyệt:* `"approval_status": "pending_lead_d_signoff"`.
+* **Hồ sơ V3 cũ (Bảo lưu audit trail):** `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json` (`29,018 bytes` | SHA-256: `0d817d0b...`).
 * **Hồ sơ V2 cũ (Bảo lưu audit trail):** `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` (`23,169 bytes` | SHA-256: `adc0b90d...`).
 * **Hồ sơ V1 cũ (Bảo lưu audit trail):** `data/restricted/pilot_batch1_recovery_dossier_restricted.json` (`20,731 bytes` | SHA-256: `2e14d957...`).
 
-### C. Mối quan hệ giữa 20 mẫu Pilot Lô 1 với `EXCL-REAL-PILOT-32` & Giải trình Số đếm 246:
-* **Giao với Lô Pilot 32 (`EXCL-REAL-PILOT-32`):** Cả 20 cặp URL/HTML của Pilot 20 đều có trong `EXCL-REAL-PILOT-32` (Giao = 20).
-* **Số mẫu hợp (Union):** Khi báo cáo số mẫu duy nhất giữa hai lô, tính theo **hợp các cặp hash đã đối chiếu** thay vì cộng gộp 20 + 32; hợp của hai lô là **32 mẫu duy nhất**.
-* **Giải trình con số 246 trong Registry:**
-  - Con số **246** là **tổng mục khai báo theo lô (sum of declared batch items)** trên 10 lô loại trừ trong `data/exclusion_registry.json`.
-  - Tổng số mẫu duy nhất toàn registry sau khi khử giao (union of distinct hash pairs) là **226 mẫu** (do 20 mẫu của `EXCL-PILOT-01` nằm hoàn toàn trong `EXCL-REAL-PILOT-32`).
-  - Mọi thống kê mẫu duy nhất toàn registry đều được tính theo phép hợp các cặp hash đối chiếu, tránh hiểu nhầm về mặt định lượng khoa học.
+### C. Mối quan hệ giữa 20 mẫu Pilot Lô 1 với `EXCL-REAL-PILOT-32` & Thống kê Hợp 10 Lô Chính xác:
+* **Giao với Lô Pilot 32 (`EXCL-REAL-PILOT-32`):** Cả 20 cặp URL/HTML của Pilot 20 đều có trong `EXCL-REAL-PILOT-32` (Giao = 20). Khi báo cáo số mẫu duy nhất giữa hai lô, tính theo **hợp các cặp hash đã đối chiếu** (hợp của hai lô là **32 mẫu duy nhất**, không cộng cơ học 20 + 32).
+* **Kết quả đối soát chính xác toàn bộ 10 Lô (Bảng kê chi tiết tại `data/restricted/registry_10_batches_pairwise_union_audit.json`):**
+  - **Tổng mục khai báo theo lô:** **246 mục** trên 10 lô loại trừ trong `data/exclusion_registry.json`.
+  - **Số cặp hợp lệ:** **246/246 cặp** (100% bản ghi đều có mã băm URL/HTML hợp lệ).
+  - **Số trùng nội bộ từng lô:** **0 cặp** (toàn bộ 10 lô đều không có trùng lặp nội bộ).
+  - **Số cặp duy nhất trong 9 lô đầu:** **194 cặp duy nhất** (do 20 mẫu Pilot 20 nằm hoàn toàn trong Lô 32).
+  - **Số cặp hợp lệ trong Lô 10 hạn chế (`EXCL-CALIBRATION-CLEAN-BATCH-C-RESTRICTED`):** **32 cặp duy nhất**.
+  - **Số giao giữa Lô 10 và 9 lô đầu:** **0 cặp** (Lô 10 đã được tuyển chọn và đối soát cách ly hoàn toàn với các lô trước).
+  - **Tổng số cặp `(url_sha256, html_sha256)` duy nhất toàn registry (10 lô):** **226 cặp duy nhất** (194 + 32 - 0 = 226). Số liệu 226 là kết quả thực tế đo đạc đầy đủ trên cả 10 lô, không còn là cận trên lý thuyết.
 
 ### D. Giải trình toán học về số đếm Nhóm miền (19 vs 20):
 Báo cáo công khai và hồ sơ hạn chế có hai số đếm khác nhau xuất phát từ hai định nghĩa đo lường:
@@ -150,61 +155,72 @@ Căn cứ vào `configs/source_manifest.json` (nguồn `phreshphish` tại revis
 ### Đánh giá Rủi ro Tồn dư (Residual Risk Assessment - Cập nhật sau khi xác minh chuỗi bằng chứng Rows API & Parquet):
 1. **Kết quả xác minh chuỗi bằng chứng:**
    * Tệp Rows API gốc `pilot_20_rows.json` (7,186,229 bytes | SHA-256: `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`) đã được Lead D tìm lại và C đối soát độc lập: khớp 100% với hash lịch sử công bố tại `bc674e9` và `a62105a`.
-   * Cả 20 cặp URL/HTML và locator đã được đối chiếu trực tiếp trên byte UTF-8 với Parquet ở revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: toàn bộ 20/20 khớp chính xác tại `train-000` (`row_offset: 0..19`), khớp 0/20 tại `train-055`.
+   * Cả 20 cặp URL/HTML và locator đã được đối chiếu trực tiếp trên byte UTF-8 với Parquet ở revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: toàn bộ **20/20 khớp tại `train-000`, 0/20 khớp tại `train-055` trong phạm vi hai shard đã kiểm**. Chi tiết vị trí hàng cụ thể và locator cấp mẫu được lưu an toàn tuyệt đối trong hồ sơ hạn chế ngoài Git, không đưa vào báo cáo Git công khai.
    * Phạm vi kiểm vị trí duy nhất đã hoàn thành trên **hai shard đã quét** (`train-000` và `train-055`).
 2. **Giới hạn khoa học và nguyên tắc quản trị rủi ro:**
    * Giữ nguyên `rows_api_revision_pinned = false` vì thời điểm thu thập lịch sử API chưa khóa revision.
-   * Cập nhật Dossier V3 với `content_identity_verified = true`, `mapping_status = "verified_at_pinned_revision_2_shards_audited"` và `approval_status = "pending_lead_d_signoff"`.
-   * Trong `data/exclusion_registry.json`, `EXCL-PILOT-01` trỏ tới Dossier V3, cập nhật `commitment_sha256 = "0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3"`, tạm giữ `mapping_status = "unresolved_source_mapping"` để chờ Lead D ký nghiệm thu chính thức.
+   * Phát hành Dossier V4 với `lang = null` nguyên gốc, cập nhật `content_identity_verified = true`, `mapping_status = "verified_at_pinned_revision_2_shards_audited"` và `approval_status = "pending_lead_d_signoff"`.
+   * Trong `data/exclusion_registry.json`, `EXCL-PILOT-01` trỏ tới Dossier V4, cập nhật `commitment_sha256 = "17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171"`, tạm giữ `mapping_status = "unresolved_source_mapping"` để chờ Lead D ký nghiệm thu chính thức.
    * Shard `train-001` và các shard khác sẽ tiếp tục được quét toàn diện qua 6 lớp mã băm của Cổng 2 và lọc tương đồng của Cổng 3 ngay khi Lead D phê duyệt lệnh kiểm nguồn.
 
 ---
 
-## 6. Kết quả Thực nghiệm & Đối Soát Log Kiểm thử Đúng Tệp Vật Lý
+## 6. Kết quả Thực nghiệm & Đối Soát Log Kiểm thử Đúng Tệp Vật Lý V4.3
 
 Đối soát chính xác từng số liệu với tệp log vật lý thực tế trên đĩa:
 
 ### A. Môi trường Cục bộ Đầy đủ Dữ liệu Hạn chế (Môi trường của C):
 * Lệnh chạy: `python -m pytest tests/test_pilot_batch1_exclusion.py -v`
-* **Kết quả:** **`40 passed in 2.44s`** (40/40 passed, 0 failed, 0 skipped).
-* **Tệp log vật lý kèm theo:** [`test_report_pilot_batch1_exclusion_v4_1.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_pilot_batch1_exclusion_v4_1.log)
-  * *Dung lượng:* `5,917 bytes`
-  * *Mã băm SHA-256:* `2db9f8eab72940d66c197a155595d71de9540d3ada3e297c1f546ade6cf54ed4`
-  * *Dòng kết thúc log:* `============================= 40 passed in 2.44s ==============================`
+* **Kết quả:** **`41 passed in 3.54s`** (41/41 passed, 0 failed, 0 skipped - đã bao gồm ca test kiểm tra chế độ `--vetting-only`).
+* **Tệp log vật lý kèm theo:** [`test_report_pilot_batch1_exclusion_v4_3.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_pilot_batch1_exclusion_v4_3.log)
+  * *Dung lượng:* `6,119 bytes`
+  * *Mã băm SHA-256:* `c85072ebe962e669d38e77e088a24d0d3cfa94e3da1bfff70591a934789ba9cc`
+  * *Dòng kết thúc log:* `============================= 41 passed in 3.54s ==============================`
 
 ### B. Phép Tự Kiểm thử Mô phỏng Clean Checkout do C Thực hiện (Self-test Simulation by C):
 * Mô phỏng môi trường không có shard `train-000` và tệp restricted ngoài Git để xác minh tính tự chứa của test suite.
-* **Kết quả:** **`38 passed, 2 skipped in 1.93s`** (38 passed, 0 failed, 2 skipped).
+* **Kết quả:** **`39 passed, 2 skipped in 3.15s`** (39 passed, 0 failed, 2 skipped).
 * **Chi tiết 2 ca test tự động skip có lý do kiểm toán minh bạch:**
   1. `test_gate0_rejects_quarantined_real_shard_path`: Skipped vì không có shard `train-000` thật trên clean checkout (lý do: *"Chưa có shard train-000 trên clean checkout"*).
   2. `test_gate2_integration_with_real_restricted_dossier_v2`: Skipped vì không có tệp restricted V2 thật trên clean checkout (lý do: *"Chưa có hồ sơ restricted V2 cục bộ trên clean checkout"*).
-* **Tệp log vật lý kèm theo:** [`test_report_clean_checkout_simulation_v4_1.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_clean_checkout_simulation_v4_1.log)
-  * *Dung lượng:* `5,919 bytes`
-  * *Mã băm SHA-256:* `ded94b99f1b1718eac6d9eaf01065db16b31ddbd3db87fd00185fa687622b022`
-  * *Dòng kết thúc log:* `======================== 38 passed, 2 skipped in 1.93s ========================`
-* **Ghi nhận QA độc lập của B:** QA Lead B đã hoàn thành thẩm định độc lập trên clean checkout tại commit `2eddf41` (văn bản `docs/QA_REPORT_SELECTION_GATE_2EDDF41_B.md`, SHA-256 `45dacb831c5f6ceb40570f3870bbe3245a3b2ef9d16c1e2b6c1af3a76f6fda4b`) với kết luận **`PASS`** đối với toàn bộ mã nguồn 5 Cổng, ExclusionRegistry, Runner, test suite 40 ca và tài liệu đặc tả công khai; ghi riêng **`PENDING`** đối với hồ sơ hạn chế V2 và quyết định mở cổng của Lead D.
+* **Tệp log vật lý kèm theo:** [`test_report_clean_checkout_simulation_v4_3.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_clean_checkout_simulation_v4_3.log)
+  * *Dung lượng:* `6,070 bytes`
+  * *Mã băm SHA-256:* `ac11f924de26477e23a1c8dd356c989914be25316ccd6a67c1c67a6a67ac3cb6`
+  * *Dòng kết thúc log:* `======================== 39 passed, 2 skipped in 3.15s ========================`
+* **Ghi nhận ranh giới QA độc lập của B:** Báo cáo QA độc lập của QA Lead B hiện tại (`docs/QA_REPORT_SELECTION_GATE_2EDDF41_B.md`, SHA-256 `45dacb83...`) được cấp cho commit `2eddf41` (V4.1, 40 ca). Đối với bản cập nhật V4.3 (41 ca), QA Lead B chưa phát hành QA report độc lập. Khi Lead D phê duyệt, C sẽ bàn giao phạm vi công khai cho B tái thẩm định độc lập.
 
 ### C. Kiểm thử 7 Bộ Test Liên Quan đến Tuyến Dữ Liệu và Chống Rò Rỉ:
 * Lệnh chạy:
   ```bash
   python -m pytest tests/test_clean_calibration_selection.py tests/test_clean_calibration_blind_view.py tests/test_calibration_release_guards.py tests/test_prepare_calibration_selection.py tests/test_clean_calibration_zero_git_leak_regression.py tests/test_exclusion_registry.py tests/test_pilot_batch1_exclusion.py -v
   ```
-* **Kết quả:** **`147 passed in 8.62s`** (Phạm vi 7 bộ test liên quan đến dữ liệu, phân tách và chống rò rỉ; không phải toàn bộ repo).
-* **Tệp log vật lý kèm theo:** [`test_report_7_suites_v4_1.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_7_suites_v4_1.log)
-  * *Dung lượng:* `21,476 bytes`
-  * *Mã băm SHA-256:* `81b62c32da70745b983e5bffad5fc36d8a5557f1c7939a06dbd49b13132c3382`
-  * *Dòng kết thúc log:* `============================= 147 passed in 8.62s =============================`
+* **Kết quả:** **`148 passed in 10.27s`** (Phạm vi 7 bộ test liên quan đến dữ liệu, phân tách và chống rò rỉ; không phải toàn bộ repo).
+* **Tệp log vật lý kèm theo:** [`test_report_7_suites_v4_3.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_7_suites_v4_3.log)
+  * *Dung lượng:* `21,785 bytes`
+  * *Mã băm SHA-256:* `1a33a6a3105b533956798764742519828a22f0276ac05c141e17557c45b0b014`
+  * *Dòng kết thúc log:* `============================= 148 passed in 10.27s =============================`
+
+### D. Kiểm thử Hồi quy Chống Rò Rỉ Tuyệt Đối Git (Zero Git Leak Regression):
+* Lệnh chạy: `python -m pytest tests/test_clean_calibration_zero_git_leak_regression.py -v`
+* **Kết quả:** **`7 passed in 0.39s`** (Xác nhận 100% không có tệp restricted, URL/HTML thô, hay thông tin nhạy cảm bị rò rỉ vào Git).
+* **Tệp log vật lý kèm theo:** [`test_report_git_leak_v4_3.log`](file:///d:/nguyen%20thang/NCKH/NCKH_2/test_report_git_leak_v4_3.log)
+  * *Dung lượng:* `1,741 bytes`
+  * *Mã băm SHA-256:* `6cf270d4d694022be927434ae6a9b0a90411d3970b3f196d0fff6d6d0e5fcf91`
+  * *Dòng kết thúc log:* `============================== 7 passed in 0.39s ===============================`
 
 ---
 
-## 7. Bảng Mã Băm Kiểm toán Toàn Diện V4.2 (Audited Hashes V4.2)
+## 7. Bảng Mã Băm Kiểm toán Toàn Diện V4.3 (Audited Hashes V4.3)
 
 Toàn bộ kích thước và mã băm SHA-256 được đo đạc trực tiếp trên byte vật lý thực tế của từng tệp:
 
 | Tệp tin / Cấu phần | Vị trí / Tình trạng | Kích thước (bytes) | Mã băm SHA-256 |
 | :--- | :--- | :---: | :--- |
-| **Gói nén kiểm toán V4.2 gửi D (Hiện hành)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_2.zip` | 1,713,628 | `043be4b4dff9201dc7ee4de0bd5b0545bcdb6de7d434299a570a4b4d89b8d744` |
-| **Hồ sơ hạn chế V3 (Lineage V2)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json` | 29,018 | `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3` |
+| **Gói nén kiểm toán V4.3 gửi D (Hiện hành)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_3.zip` | 1,728,514 | `f6c9823f4d86299918ad0af07fa7e78fb8c4ead72fc11b3d5abc91eb87a3cc33` |
+| **Hồ sơ hạn chế V4 (Lineage V3 - Hiện hành)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json` | 29,147 | `17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171` |
+| **Bảng đối soát hợp 10 lô loại trừ (ngoài Git)** | `data/restricted/registry_10_batches_pairwise_union_audit.json` | 3,052 | `057c5ea1433cfe4559db5c135e0a8f207459fa0fa77cec2073595d18d9ffa0b7` |
+| **Gói nén kiểm toán V4.2 cũ (Audit trail)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_2.zip` | 1,713,628 | `043be4b4dff9201dc7ee4de0bd5b0545bcdb6de7d434299a570a4b4d89b8d744` |
+| **Hồ sơ hạn chế V3 (Lineage V2 - Audit trail)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json` | 29,018 | `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3` |
 | **Gói nén kiểm toán V4.1 cũ (Audit trail)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_1.zip` | 30,280 | `f06fb890be501eb71e51c21b52d017dbce7bff66beb91fc884546c0817980b21` |
 | **Hồ sơ hạn chế V2 (Lineage V1 - Audit trail)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` | 23,169 | `adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa` |
 | **Gói nén kiểm toán V4 cũ (Audit trail)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4.zip` | 24,196 | `782863009b86cf5c051a3c1d3389020e45664966f17d8c223737be89cac9e2ba` |
@@ -212,25 +228,25 @@ Toàn bộ kích thước và mã băm SHA-256 được đo đạc trực tiếp
 | **Bảng chi tiết cấp mẫu (ngoài Git)** | `data/restricted/pilot_batch1_sample_level_audit_table.json` | 20,574 | `6395781aeada3b73c72ee7215bd29a167ea5ab639ce48fe3507bde515bbf128f` |
 | **Biên bản sự cố Git Exposure** | `docs/INCIDENT_REPORT_GIT_EXPOSURE_AD445A7.md` | 6,204 | `79505d4a503c87a762d0476d71e0360c940af86c654b37e41558991756d18f51` |
 | **Tài liệu đặc tả QA công khai (Giữ nguyên byte đã QA)** | `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` | 8,496 | `ca9a5af3d8e0abadf26eb4a19374b0d97820cf2dffb30ca2d80d457be9067d09` |
-| **Bản đính chính Errata V4.2 & Tờ trình Quyết định** | `docs/SELECTION_GATE_ERRATA_V4_2_LEAD_D.md` | Văn bản công khai | Tham chiếu commit V4.2 |
-| **Exclusion Registry V1.1.0** | `data/exclusion_registry.json` | 107,484 | `71c8d8735cdfb63d146b30002789004c490090c1280f6731390ed9527457806d` |
-| **Báo cáo kiểm toán Exclusion Audit** | `data/source_audit/clean_calibration_exclusion_audit_report.json` | 7,652 | `a2f2d5bf157a2597cdd234c9d8162008e415615770a591b5034861277a343fe2` |
-| **Clean Calibration Manifest** | `configs/calibration_clean_a_manifest.json` | 7,365 | `e89863c1f39fd19254bf792eb9c0688c6e885cf1981c96ae9e5318ab885a2474` |
+| **Exclusion Registry V1.1.0** | `data/exclusion_registry.json` | 107,712 | `aee8c4f398e5b74240501d67e373434e80cca2f1395c6dcab22ad8d3507ce9bc` |
+| **Báo cáo kiểm toán Exclusion Audit** | `data/source_audit/clean_calibration_exclusion_audit_report.json` | 7,652 | `3ea039ff3060ddc9218a041381de3946c7b575d3b82bed41b72ed14e346c4700` |
+| **Clean Calibration Manifest** | `configs/calibration_clean_a_manifest.json` | 7,365 | `6c7de2e6b55b1c872c53c4a9fb90c9491bdaabe70b50c382484e4cd397490e70` |
 | **Module loại trừ (Đã sửa import & fail-closed)** | `src/phishing/data/exclusion.py` | 19,448 | `5cc8a445b20bb251df523e258f957215134cb804859de3855dff49db856aa041` |
-| **Cổng chọn mẫu Selection Gate (Đã sửa)** | `src/phishing/data/selection_gate.py` | 20,308 | `eb3f36a9db9a5dbba62bd1643b68cf4c678d99e9a553132354e792de8753a6a1` |
-| **Runner chọn mẫu thực tế** | `scripts/data/run_main_selection.py` | 4,381 | `cc1d45d0801d846454347b877ba95907a1bb1537ba33954876b53ddd87c44fb2` |
-| **Bộ kiểm thử 40 ca** | `tests/test_pilot_batch1_exclusion.py` | 43,114 | `a0dab832654bf6ab76614f0098b3b0e7affc710d8e69695d167dfffcff9e75f5` |
-| **Log 40 tests (Môi trường Cục bộ C)** | `test_report_pilot_batch1_exclusion_v4_1.log` | 5,917 | `2db9f8eab72940d66c197a155595d71de9540d3ada3e297c1f546ade6cf54ed4` |
-| **Log 38 passed / 2 skipped (Tự kiểm mô phỏng)** | `test_report_clean_checkout_simulation_v4_1.log` | 5,919 | `ded94b99f1b1718eac6d9eaf01065db16b31ddbd3db87fd00185fa687622b022` |
-| **Log 147 tests (7 test suites)** | `test_report_7_suites_v4_1.log` | 21,476 | `81b62c32da70745b983e5bffad5fc36d8a5557f1c7939a06dbd49b13132c3382` |
+| **Cổng chọn mẫu Selection Gate (Hỗ trợ vetting-only)** | `src/phishing/data/selection_gate.py` | 20,966 | `efdfee043ed911e646fddea446c673ee131bc248aa72990150642579c470cd0c` |
+| **Runner chọn mẫu thực tế (Thêm --vetting-only)** | `scripts/data/run_main_selection.py` | 5,226 | `d6ed1639742c5cedb328d1b382f6382fff21880d36155088c1858727253498d3` |
+| **Bộ kiểm thử 41 ca (Bổ sung test vetting-only)** | `tests/test_pilot_batch1_exclusion.py` | 44,615 | `9be6dc954c76f386535a229446c4ee69cde2f9a4f74eb71b6a762893b52d4cea` |
+| **Log 41 tests (Môi trường Cục bộ C)** | `test_report_pilot_batch1_exclusion_v4_3.log` | 6,119 | `c85072ebe962e669d38e77e088a24d0d3cfa94e3da1bfff70591a934789ba9cc` |
+| **Log 39 passed / 2 skipped (Tự kiểm mô phỏng)** | `test_report_clean_checkout_simulation_v4_3.log` | 6,070 | `ac11f924de26477e23a1c8dd356c989914be25316ccd6a67c1c67a6a67ac3cb6` |
+| **Log 148 tests (7 test suites)** | `test_report_7_suites_v4_3.log` | 21,785 | `1a33a6a3105b533956798764742519828a22f0276ac05c141e17557c45b0b014` |
+| **Log 7 tests (Zero Git leak regression)** | `test_report_git_leak_v4_3.log` | 1,741 | `6cf270d4d694022be927434ae6a9b0a90411d3970b3f196d0fff6d6d0e5fcf91` |
 
-* **Ghi chú đính chính bảng kê:** Tại bảng kê thông báo bàn giao trước, C ghi nhầm `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` dài 8.432 byte / hash `3c59a3fe...` do đo đạc trên bản nháp trước khi commit bổ sung dòng ghi chú cuối. Tệp vật lý thực tế tại commit `2eddf41` là đúng **8.496 byte** với SHA-256 **`ca9a5af3d8e0abadf26eb4a19374b0d97820cf2dffb30ca2d80d457be9067d09`**, khớp hoàn toàn với bản QA Lead B đã kiểm định độc lập và ký `PASS`. Tệp đặc tả này được giữ nguyên byte và hash tại commit `2eddf41` để bảo toàn giá trị thẩm định của B.
+* **Ghi chú đính chính bảng kê:** Tệp vật lý thực tế của đặc tả QA `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` tại commit `2eddf41` là đúng **8.496 byte** với SHA-256 **`ca9a5af3d8e0abadf26eb4a19374b0d97820cf2dffb30ca2d80d457be9067d09`**, khớp hoàn toàn với bản QA Lead B đã kiểm định độc lập và ký `PASS`. Tệp đặc tả này được giữ nguyên byte và hash tại commit `2eddf41` để bảo toàn giá trị thẩm định của B.
 
 ---
 
 ## 8. Danh mục Các Vấn đề Còn Mở & Hai Dự thảo Quyết định Trình Lead D
 
-Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đối với việc rút mẫu và mở Main Annotation Đợt 1 ngay lúc này**. Hệ thống giữ nguyên trạng thái khóa an toàn (`main_annotation_status="LOCKED"`, `training_blocked=true`, `official_test_used=false`).
+Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đối với việc rút 100 mẫu và mở Main Annotation Đợt 1 ngay lúc này**. Hệ thống giữ nguyên trạng thái khóa an toàn (`main_annotation_status="LOCKED"`, `training_blocked=true`, `official_test_used=false`).
 
 Để từng bước tháo gỡ điểm nghẽn có kiểm soát, C kính trình Lead D xem xét và ban hành **hai quyết định riêng biệt**:
 
@@ -243,25 +259,26 @@ Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đ�
    * **Git Revision khóa:** `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`
    * **Tên tệp shard:** `train-001.parquet`
    * **Dung lượng tệp dự kiến:** `322,018,201 bytes`
-   * **Mã băm SHA-256 Git-LFS trong manifest:** `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`
+   * **Mã băm SHA-256 Git-LFS pointer trong manifest:** `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`
    * **Cửa sổ ngày được phép lấy mẫu (Temporal Split):** `2024-10-01` đến `2025-09-08` (áp dụng theo ngưỡng temporal split; loại bỏ các mẫu ngoài cửa sổ này).
 
 2. **Phạm vi kiểm tra kỹ thuật sau khi được Lead D cho phép:**
-   * **Bước 1.1:** Tải tệp vật lý về đĩa cục bộ, đo trực tiếp mã băm SHA-256 trên byte thật của tệp Parquet và đối chiếu với giá trị Git-LFS pointer dự kiến (`260cb9c9...`). Cập nhật `locally_verified_sha256` trong manifest.
-   * **Bước 1.2:** Chạy toàn bộ bản ghi của shard qua Cổng chọn mẫu Selection Gate (Gates 0–4):
+   * **Bước 1.1 (Đối soát tệp vật lý):** Tải tệp vật lý về đĩa cục bộ, đo trực tiếp mã băm SHA-256 trên byte thật của tệp Parquet và đối chiếu với giá trị Git-LFS pointer dự kiến (`260cb9c9...`). Cập nhật `locally_verified_sha256` trong manifest. Dừng ngay lập tức nếu mã băm không khớp.
+   * **Bước 1.2 (Chạy kiểm nguồn với chế độ `--vetting-only`):** Chạy toàn bộ bản ghi của shard qua Selection Gate ở chế độ chỉ kiểm định (`--vetting-only`):
      * *Gate 0 (Kiểm tra cách ly Shard):* Xác nhận shard không phải `train-000` hay `train-055`.
-     * *Gate 1 (Domain/Brand Regex Matcher):* Nhận diện ứng viên thuộc 14 tổ chức mục tiêu.
-     * *Gate 2 (ExclusionRegistry Anti-Leakage):* Đối soát 6 lớp mã băm đối với các cam kết `EXCL-PILOT-01` (20 mẫu) và `EXCL-CALIB-01` (32 mẫu).
+     * *Gate 1 (Tính hợp lệ trường dữ liệu):* Kiểm tra tính hợp lệ cơ bản của URL (`http`/`https`, hostname hợp lệ), độ dài HTML trong khoảng `[1, 2,000,000]` bytes, và ngày thu thập nằm trong cửa sổ `[2024-10-01, 2025-09-08]`. *(Lưu ý kiểm toán: Gate 1 hoàn toàn không chứa bộ nhận diện thương hiệu hay regex matcher 14 tổ chức)*.
+     * *Gate 2 (ExclusionRegistry Anti-Leakage):* Đối soát 6 lớp mã băm đối với toàn bộ các cam kết loại trừ trong registry (226 cặp duy nhất trên 10 lô).
      * *Gate 3 (Dedup & Template Diversity):* Lọc tương đồng SimHash / DOM Tag và đa dạng hóa tên miền (tối đa 1 mẫu/eTLD+1).
-     * *Gate 4 (Cân bằng phân loại phụ):* Kiểm soát hạn ngạch tổ chức.
+     * *Dừng trước Gate 4:* Chế độ `--vetting-only` dừng ngay sau Gate 3, **KHÔNG thực hiện quota sampling** hay phân tầng hạn ngạch của Gate 4.
+   * **Bước 1.3 (Báo cáo số ứng viên trước Gate 4):** Thống kê số lượng ứng viên vượt qua Gate 3 trước Gate 4 so với chỉ tiêu 100 mẫu.
 
 3. **Điều kiện dừng an toàn bắt buộc (Fail-Closed Halt Criteria):**
    * DỪNG NGAY LẬP TỨC nếu SHA-256 byte thực tế trên đĩa sai lệch so với giá trị Git-LFS pointer (`260cb9c9...`).
-   * DỪNG NGAY LẬP TỨC nếu phát sinh bất kỳ ngoại lệ dữ liệu định dạng (`ValueError`) hoặc ngoại lệ hệ thống (`RuntimeError`) trong quá trình chạy qua Gate 0–4.
-   * DỪNG NGAY LẬP TỨC nếu số lượng ứng viên hợp lệ sau Gate 0–4 không đạt chỉ tiêu tối thiểu 100 mẫu.
+   * DỪNG NGAY LẬP TỨC nếu phát sinh bất kỳ ngoại lệ dữ liệu định dạng (`ValueError`) hoặc ngoại lệ hệ thống (`RuntimeError`) trong quá trình chạy qua Gate 0–3.
+   * DỪNG NGAY LẬP TỨC nếu số lượng ứng viên hợp lệ sau Gate 3 không đạt chỉ tiêu tối thiểu 100 mẫu.
    * Khi dừng, C lập tức niêm phong tệp log, báo cáo Lead D, và không xuất bất kỳ danh sách rút mẫu nào.
 
-4. **Sản phẩm bàn giao sau bước kiểm nguồn:** Báo cáo số đếm tổng hợp (tổng số hàng, số mẫu qua từng cổng, số mẫu bị loại theo từng lý do, các sai lệch phát hiện và phần còn chưa xác minh).
+4. **Sản phẩm bàn giao sau bước kiểm nguồn:** Báo cáo kiểm nguồn tổng hợp (tổng số hàng, số mẫu qua từng cổng, số mẫu bị loại theo từng lý do, các sai lệch phát hiện và phần còn chưa xác minh). Quyết định này **CHỈ cho phép kiểm nguồn kỹ thuật, CHƯA cho phép rút 100 mẫu Main, CHƯA mở Main Annotation và CHƯA phát Blind View cho A và B**. Quyết định rút 100 mẫu và phát Blind View sẽ được trình riêng sau khi có báo cáo kiểm nguồn đạt yêu cầu.
 
 ---
 
@@ -273,17 +290,25 @@ Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đ�
    * Tuyệt đối không force-push hoặc viết lại lịch sử Git trên nhánh cộng tác khi chưa có lệnh điều phối khẩn cấp từ Lead D.
 3. **Nghiệm thu chuỗi bằng chứng xác minh Pilot 20:**
    * Xác nhận bản phản hồi Rows API gốc tại `data/source_audit/phreshphish/pilot_20_rows.json` (7,186,229 bytes | SHA-256 `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`) khớp với hash lịch sử công bố tại `bc674e9` và `a62105a`.
-   * Xác nhận kết quả đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: 20/20 cặp URL/HTML khớp chính xác tại `train-000` (`row_offset: 0..19`), khớp 0/20 tại `train-055`.
+   * Xác nhận kết quả đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: 20/20 cặp URL/HTML khớp tại `train-000`, khớp 0/20 tại `train-055` trong phạm vi hai shard đã kiểm.
    * Xác nhận giữ nguyên `rows_api_revision_pinned = false` theo đúng phương thức thu thập lịch sử.
-   * Phê duyệt hồ sơ hạn chế V3 (`data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json` - SHA-256: `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3`).
+   * Phê duyệt hồ sơ hạn chế V4 (`data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json` - SHA-256: `17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171`), giữ nguyên `lang = null` nguyên bản.
 4. **Cách thức ghi nhận và thực thi loại trừ các mẫu đã biết:**
-   * Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong `data/exclusion_registry.json` với mã cam kết `EXCL-PILOT-01`, trỏ tới Dossier V3 với `commitment_sha256 = "0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3"`.
+   * Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong `data/exclusion_registry.json` với mã cam kết `EXCL-PILOT-01`, trỏ tới Dossier V4 với `commitment_sha256 = "17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171"`.
    * Toàn bộ 20 mẫu này bị loại trừ vĩnh viễn (retired) khỏi mọi tập dữ liệu huấn luyện, thẩm định và đánh giá (M0–M3).
-   * Xác nhận giải trình số đếm: Con số 246 là tổng mục khai báo theo lô (declared batch items); tổng số mẫu duy nhất toàn registry theo phép hợp các cặp hash là **226 mẫu** (do 20 mẫu Pilot 20 nằm hoàn toàn trong Lô 32).
+   * Xác nhận giải trình số đếm: Con số 246 là tổng mục khai báo theo lô (declared batch items); tổng số cặp `(url_sha256, html_sha256)` duy nhất toàn registry (10 lô) theo phép hợp thực tế đã đối soát là **226 cặp duy nhất** (chi tiết tại bảng kê `data/restricted/registry_10_batches_pairwise_union_audit.json`).
 5. **Phạm vi Shard cách ly:** Cách ly vĩnh viễn shard `train-000.parquet` (`QUARANTINED`), cấm mọi hành vi trích xuất từ shard này.
 6. **Thừa nhận Rủi ro tồn dư (Residual Risk) & Bảo mật dữ liệu:**
    * Phạm vi kiểm vị trí duy nhất đã hoàn thành trên 2 shard (`train-000` và `train-055`). Cổng 2 (6 lớp mã băm) và Cổng 3 (lọc tương đồng template) sẽ tiếp tục rà soát trên mọi shard mới được cấp phép.
-   * Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v3.json`.
+   * Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json`.
+
+---
+
+### B. Cam kết Bất biến của Thành viên C:
+* `main_annotation_status = "LOCKED"`
+* `training_blocked = true`
+* `official_test_used = false`
+* **Tuyệt đối chưa tải Parquet để kiểm nguồn, chưa rút 100 mẫu Main, chưa tạo và chưa phát Blind View cho bất kỳ ai trước khi Lead D phê duyệt bằng văn bản.**
 
 ---
 

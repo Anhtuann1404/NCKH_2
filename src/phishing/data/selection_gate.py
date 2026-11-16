@@ -304,6 +304,7 @@ class SelectionGatePipeline:
         target_quota: int = 100,
         seed: int = 42,
         skip_gate_0_file_check: bool = False,
+        vetting_only: bool = False,
     ) -> Dict[str, Any]:
         """Thực thi đầy đủ quy trình 5 cổng và báo cáo số đếm chi tiết trước/sau từng cổng.
 
@@ -409,6 +410,19 @@ class SelectionGatePipeline:
 
         audit_log["gate_counts"]["gate_3_in"] = len(g2_passed)
         audit_log["gate_counts"]["gate_3_out"] = len(g3_passed)
+
+        # Chế độ kiểm nguồn độc lập (Source Vetting Only):
+        # Dừng an toàn ngay sau Cổng 3, không thực hiện Cổng 4 (Quota Sampling/Phân tầng mẫu)
+        if vetting_only:
+            audit_log["vetting_only"] = True
+            audit_log["candidates_before_gate_4"] = len(g3_passed)
+            audit_log["quota_target"] = target_quota
+            audit_log["meets_quota_target"] = len(g3_passed) >= target_quota
+            return {
+                "selected_samples": [],
+                "candidates_before_gate_4": g3_passed,
+                "audit_log": audit_log,
+            }
 
         # Cổng 4: Kiểm tra Quota Fail-Closed & Lấy mẫu ngẫu nhiên xác định (Seeded Random Sampling)
         # Ghi chú phương pháp luận: Pipeline thực thi lấy mẫu ngẫu nhiên xác định với quota cứng.

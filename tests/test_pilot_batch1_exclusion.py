@@ -814,3 +814,32 @@ class TestEndToEndPipelineAndRunner:
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace", env=env)
         assert proc.returncode == 1
         assert "CÁCH LY" in proc.stderr
+
+    def test_pipeline_vetting_only_mode_halts_before_gate_4_quota_sampling(self, clean_pipeline):
+        """[VETTING ONLY] Chế độ kiểm nguồn thuần túy dừng sau Cổng 3, không thực hiện Gate 4 quota sampling."""
+        candidate_pool = []
+        tags = ["div", "section", "article", "main", "aside", "nav", "header", "footer"]
+        for i in range(5):
+            t = tags[i]
+            candidate_pool.append({
+                "url": f"https://vetting-candidate-{i}.org/page",
+                "html": f"<html><body><{t}><p>Semantic content {i}</p></{t}></body></html>",
+                "date": "2025-01-15",
+            })
+        # Quota yêu cầu là 100, nhưng candidate_pool chỉ có 5 mẫu.
+        # Nếu chạy bình thường, Gate 4 sẽ ném SelectionGateError vì không đủ 100.
+        # Với vetting_only=True, pipeline dừng an toàn sau Gate 3, không ném lỗi và trả về selected_samples rỗng.
+        res = clean_pipeline.run_selection(
+            candidate_pool,
+            target_quota=100,
+            seed=42,
+            skip_gate_0_file_check=True,
+            vetting_only=True,
+        )
+        assert res["selected_samples"] == []
+        assert len(res["candidates_before_gate_4"]) == 5
+        assert res["audit_log"]["vetting_only"] is True
+        assert res["audit_log"]["candidates_before_gate_4"] == 5
+        assert res["audit_log"]["quota_target"] == 100
+        assert res["audit_log"]["meets_quota_target"] is False
+

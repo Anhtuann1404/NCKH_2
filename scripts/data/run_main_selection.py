@@ -37,6 +37,7 @@ def run_main_selection_pipeline(
     seed: int = 42,
     min_date: str = "2024-10-01",
     max_date: str = "2025-09-08",
+    vetting_only: bool = False,
 ) -> Dict[str, Any]:
     """Chạy toàn bộ pipeline chọn mẫu trên shard dữ liệu và lưu báo cáo kiểm toán."""
     p_shard = Path(shard_path)
@@ -58,7 +59,7 @@ def run_main_selection_pipeline(
     df = table.to_pandas()
     raw_records = df.to_dict(orient="records")
 
-    # 3. Chạy qua các cổng 1 đến 4
+    # 3. Chạy qua các cổng 1 đến 4 (hoặc 1 đến 3 nếu vetting_only=True)
     result = pipeline.run_selection(
         raw_records,
         source_id=source_id,
@@ -67,10 +68,12 @@ def run_main_selection_pipeline(
         target_quota=target_quota,
         seed=seed,
         skip_gate_0_file_check=True,  # Đã kiểm tra ở bước 1
+        vetting_only=vetting_only,
     )
 
     # 4. Ghi audit manifest
-    manifest_path = p_out / "selection_audit_manifest.json"
+    manifest_name = "source_vetting_audit_manifest.json" if vetting_only else "selection_audit_manifest.json"
+    manifest_path = p_out / manifest_name
     manifest_path.write_text(json.dumps(result["audit_log"], indent=2, ensure_ascii=False), encoding="utf-8")
 
     return result
@@ -86,6 +89,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42, help="Seed ngẫu nhiên xác định")
     parser.add_argument("--min-date", type=str, default="2024-10-01", help="Ngày bắt đầu cửa sổ")
     parser.add_argument("--max-date", type=str, default="2025-09-08", help="Ngày kết thúc cửa sổ")
+    parser.add_argument("--vetting-only", action="store_true", help="Chế độ chỉ kiểm nguồn Gates 0-3, dừng trước Gate 4 quota sampling")
 
     args = parser.parse_args()
 
@@ -99,9 +103,16 @@ def main():
             seed=args.seed,
             min_date=args.min_date,
             max_date=args.max_date,
+            vetting_only=args.vetting_only,
         )
-        print("✅ CHỌN MẪU THÀNH CÔNG!")
-        print(f"Số lượng mẫu trích xuất: {len(res['selected_samples'])}")
+        if args.vetting_only:
+            print("✅ KIỂM NGUỒN (VETTING ONLY) THÀNH CÔNG!")
+            print(f"Số lượng ứng viên hợp lệ trước Cổng 4: {res['audit_log']['candidates_before_gate_4']}")
+            print(f"Chỉ tiêu quota yêu cầu: {res['audit_log']['quota_target']}")
+            print(f"Đạt chỉ tiêu quota: {'CÓ' if res['audit_log']['meets_quota_target'] else 'KHÔNG'}")
+        else:
+            print("✅ CHỌN MẪU THÀNH CÔNG!")
+            print(f"Số lượng mẫu trích xuất: {len(res['selected_samples'])}")
         print("Chi tiết số đếm qua từng cổng:")
         for gate, count in res["audit_log"]["gate_counts"].items():
             print(f"  • {gate}: {count}")
