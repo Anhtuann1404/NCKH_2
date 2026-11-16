@@ -1,9 +1,9 @@
-# BÁO CÁO KIỂM TOÁN TỔNG HỢP 20 MẪU PILOT (EXCL-PILOT-01), CỔNG CHỌN MẪU MAIN ĐỢT 1 & HỒ SƠ NGUỒN TRÌNH DUYỆT (BẢN V4.1)
+# BÁO CÁO KIỂM TOÁN TỔNG HỢP 20 MẪU PILOT (EXCL-PILOT-01), CỔNG CHỌN MẪU MAIN ĐỢT 1 & HỒ SƠ NGUỒN TRÌNH DUYỆT (BẢN V4.2)
 
 **Kính gửi:** Lead D (Anh Tuấn)  
 **Người thực hiện:** Thành viên C (Data Pipeline & Thư ký Kiểm toán)  
-**Ngày cập nhật:** 16/11/2026 (Bản sửa đổi V4.1 đính chính và hoàn thiện theo chỉ đạo của Lead D Vòng 16)  
-**Chế độ thực thi:** Duo Mode (Antigravity & DeepSeek Reason / Code Architecture Review)  
+**Ngày cập nhật:** 17/11/2026 (Bản sửa đổi V4.2 đính chính bảng kê và hoàn thiện theo chỉ đạo của Lead D Vòng 17)  
+**Chế độ thực thi:** Duo Mode (Antigravity & DeepSeek Reason Architecture Review - Session R17)  
 **Trạng thái Quản trị:** `main_annotation_status="LOCKED"`, `training_blocked=true`, `official_test_used=false`
 
 ---
@@ -81,10 +81,13 @@ Hệ thống phân biệt rạch ròi 2 nhóm ngoại lệ theo nguyên tắc Fa
 2. **Ngoại lệ hệ thống nghiêm trọng (`RuntimeError`, `ImportError`, bugs nội bộ):**
    * *Hành vi:* **Không bắt bằng `except Exception: pass`**, để ngoại lệ propagate tự nhiên làm dừng pipeline ngay lập tức (Fail-Closed System Halt).
 
-### C. Đảm bảo Tính Nhất quán giữa `is_excluded()`, `filter_split()` và `gate_2_anti_leakage()`:
-* `gate_2_anti_leakage()` thực thi kiểm tra đa tầng, đồng thời gọi trực tiếp `self.exclusion_registry.is_excluded(sample)`.
-* Bất kỳ mẫu nào bị `is_excluded()` loại trừ (do khớp raw hash, normalized hash, clean HTML hash, domain group, summary fingerprint cấu trúc, hoặc do lỗi định dạng tiền xử lý) đều bị `filter_split()` đưa vào tập `excluded` (không lọt vào `kept`) và bị Cổng 2 từ chối.
-* Cùng một bản ghi dữ liệu sẽ luôn nhận cùng một quyết định bị loại ở cả ba tuyến kiểm tra.
+### C. Đối chiếu Mã nguồn & Kết quả Cụ thể trên Ba Tuyến `is_excluded()`, `filter_split()` và `gate_2_anti_leakage()`:
+* **Hiện trạng kiểm định:** Các thay đổi sửa lỗi import, hợp đồng `clean_html(page_url=...)` và loại bỏ `except Exception: pass` đã được đối chiếu trong mã nguồn; QA Lead B đã thực hiện thẩm định độc lập phần công khai tại commit `2eddf41b5fe9148f5b502cb82b101635f804d5b6` và ký `PASS`; hệ thống hiện đang chờ quyết định của Lead D về nguồn và các bước tiếp theo.
+* **Kết quả cụ thể của các ca hồi quy đã chạy trên ba tuyến xử lý:**
+  1. **Tuyến `is_excluded()`:** Cả 5 ca hồi quy chuyên biệt (`test_gate2_regression_*`) đều xử lý fail-closed. Mẫu có URL bất thường hoặc HTML chứa script được nhận diện qua hàm chuẩn hóa; mẫu có URL chứa ký tự null/lỗi tiền xử lý (`ValueError`) trả về `True` (loại trừ an toàn); ngoại lệ hệ thống (`RuntimeError`) không bị nuốt bởi `except Exception: pass` mà ném thẳng ra ngoài.
+  2. **Tuyến `filter_split()`:** Đưa toàn bộ các bản ghi khớp mã băm cam kết hoặc gặp lỗi định dạng vào phân vùng `excluded`; phân vùng `kept` rỗng (không giữ lại bất kỳ bản ghi lỗi nào).
+  3. **Tuyến `gate_2_anti_leakage()`:** Từ chối rõ ràng với lý do minh bạch `reject_gate2_preprocessing_error` hoặc `reject_exclusion_registry_match`; tuyệt đối không trả về `(True, "passed")` cho bất kỳ mẫu nào gặp lỗi hoặc khớp cam kết loại trừ.
+* **Quy tắc phối hợp:** `gate_2_anti_leakage()` gọi trực tiếp `self.exclusion_registry.is_excluded(sample)` để bảo đảm rằng một bản ghi khi bị từ chối ở `is_excluded()` cũng sẽ bị loại ở `filter_split()` và Cổng 2.
 
 ---
 
@@ -112,7 +115,7 @@ Trong [`tests/test_pilot_batch1_exclusion.py`](file:///d:/nguyen%20thang/NCKH/NC
 
 ---
 
-## 5. Bảng Shard Đề nghị Cho Phép Đợt 1 & Đính chính Ba Mức Bằng chứng (Trình Lead D Phê Duyệt)
+## 5. Bảng Shard Đề xuất Đợt 1 & Đính chính Ba Mức Bằng chứng (Trình Lead D Xem xét)
 
 Căn cứ vào `configs/source_manifest.json` (nguồn `phreshphish` tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`), Thành viên C đính chính bảng kiểm kê shard theo đúng 3 mức bằng chứng thực tế:
 - **Mức 1 (Metadata nguồn đã ghi nhận):** Mã băm Git-LFS pointer, dung lượng LFS, số dòng audited và cửa sổ ngày qua column projection.
@@ -123,7 +126,7 @@ Căn cứ vào `configs/source_manifest.json` (nguồn `phreshphish` tại revis
 | :--- | :---: | :--- | :---: | :---: | :--- |
 | `train-000.parquet` | 0 | `9a9c693a95daeddb127c4446df4c5673b3f1a39e457ffe964b9849069bd739fe`<br>49,639,686 bytes \| 1,000 rows \| 2024-07-04 đến 2025-09-08 | Đã tải<br>(Khớp byte SHA-256 metadata) | Đã quét đối soát khi tái dựng Pilot Lô 1 | ⛔ **CÁCH LY TUYỆT ĐỐI (QUARANTINED)**.<br>Chứa vết tái dựng 20 mẫu Pilot Lô 1 và locator đã lộ trên commit `ad445a7`. Bị loại trừ vĩnh viễn khỏi mọi đợt chọn mẫu thực nghiệm. |
 | `train-055.parquet` | 55 | `94553229b0076a5996f0ba97b2fae38e68cfb99db27e5c6bb094d2df4680aa42`<br>418,914,846 bytes \| 7,842 rows \| 2024-07-03 đến 2025-09-08 | Đã tải<br>(Khớp byte SHA-256 metadata) | Đã quét chọn 12 mẫu PhreshPhish Hiệu chuẩn A/B | ⛔ **CÁCH LY TUYỆT ĐỐI (QUARANTINED)**.<br>Chứa vết 12 mẫu đã tiếp xúc trong đợt Hiệu chuẩn sạch. Bị cách ly khỏi Đợt 1 Main Annotation. |
-| `train-001.parquet` | 1 | `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`<br>322,018,201 bytes \| 5,780 rows \| 2024-07-02 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟢 **ỨNG VIÊN ĐỀ NGHỊ SỬ DỤNG (PROPOSED CANDIDATE)**.<br>Shard tiềm năng, không có tiền sử tiếp xúc với Pilot hay Hiệu chuẩn trong metadata. Chưa phải shard đã xác minh byte hay đã chứng minh sạch. Chờ D phê duyệt lệnh tải để C đối soát byte hash thực tế. |
+| `train-001.parquet` | 1 | `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`<br>322,018,201 bytes \| 5,780 rows \| 2024-07-02 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟢 **ĐỀ NGHỊ CHO PHÉP TẢI VÀ KIỂM NGUỒN `train-001.parquet`**.<br>Shard tiềm năng trong manifest, không có tiền sử tiếp xúc với Pilot hay Hiệu chuẩn trong metadata. Hiện có metadata và hash Git-LFS dự kiến (`260cb9c9...`, 322,018,201 bytes, 5,780 hàng audited, cửa sổ ngày được phép lấy mẫu: `2024-10-01` đến `2025-09-08`). Byte Parquet trên đĩa (`locally_verified_sha256: null`) và kết quả rà soát loại trừ Gate 0–4 vẫn chờ kiểm sau khi Lead D phê duyệt lệnh kiểm nguồn. |
 | `train-002.parquet` | 2 | `75d891908c1f921542ea9e4f94578f8442da05333621f1cb3ef386c9698935a7`<br>354,725,131 bytes \| 6,506 rows \| 2024-07-04 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 1 (BACKUP CANDIDATE 1)**.<br>Shard độc lập chưa tải. |
 | `train-003.parquet` | 3 | `0f6bd169f813a9446294597602d1b93457da62c753594d8d1ecb78d20d5dec40`<br>433,568,855 bytes \| 7,127 rows \| 2024-07-04 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 2 (BACKUP CANDIDATE 2)**.<br>Shard độc lập chưa tải. |
 | `train-004.parquet` | 4 | `82fa46160b9d7779994f7f7ec8cb612f942b8410a0a3325e26134bad72c708ab`<br>403,296,550 bytes \| 7,425 rows \| 2024-07-03 đến 2025-09-08 | **Chưa tải (`null`)** | **Chưa quét (Chưa xác minh)** | 🟡 **ỨNG VIÊN DỰ PHÒNG 3 (BACKUP CANDIDATE 3)**.<br>Shard độc lập chưa tải. |
@@ -160,7 +163,7 @@ Căn cứ vào `configs/source_manifest.json` (nguồn `phreshphish` tại revis
   * *Dung lượng:* `5,919 bytes`
   * *Mã băm SHA-256:* `ded94b99f1b1718eac6d9eaf01065db16b31ddbd3db87fd00185fa687622b022`
   * *Dòng kết thúc log:* `======================== 38 passed, 2 skipped in 1.93s ========================`
-* **Lưu ý kiểm toán:** Đây là phép tự kiểm mô phỏng của C; **QA Lead B chưa phát hành báo cáo QA cho commit V4/V4.1**. B sẽ tự chạy kiểm định độc lập trên máy của B và phát hành báo cáo riêng.
+* **Ghi nhận QA độc lập của B:** QA Lead B đã hoàn thành thẩm định độc lập trên clean checkout tại commit `2eddf41` (văn bản `docs/QA_REPORT_SELECTION_GATE_2EDDF41_B.md`, SHA-256 `45dacb831c5f6ceb40570f3870bbe3245a3b2ef9d16c1e2b6c1af3a76f6fda4b`) với kết luận **`PASS`** đối với toàn bộ mã nguồn 5 Cổng, ExclusionRegistry, Runner, test suite 40 ca và tài liệu đặc tả công khai; ghi riêng **`PENDING`** đối với hồ sơ hạn chế V2 và quyết định mở cổng của Lead D.
 
 ### C. Kiểm thử 7 Bộ Test Liên Quan đến Tuyến Dữ Liệu và Chống Rò Rỉ:
 * Lệnh chạy:
@@ -175,18 +178,20 @@ Căn cứ vào `configs/source_manifest.json` (nguồn `phreshphish` tại revis
 
 ---
 
-## 7. Bảng Mã Băm Kiểm toán Toàn Diện V4.1 (Audited Hashes V4.1)
+## 7. Bảng Mã Băm Kiểm toán Toàn Diện V4.2 (Audited Hashes V4.2)
 
 Toàn bộ kích thước và mã băm SHA-256 được đo đạc trực tiếp trên byte vật lý thực tế của từng tệp:
 
 | Tệp tin / Cấu phần | Vị trí / Tình trạng | Kích thước (bytes) | Mã băm SHA-256 |
 | :--- | :--- | :---: | :--- |
-| **Gói nén kiểm toán V4.1 gửi D** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_1.zip` | Ngoài Git (Niêm phong) | Mã băm SHA-256 công bố tại biên bản bàn giao |
+| **Gói nén kiểm toán V4.1 gửi D** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4_1.zip` | Ngoài Git (Niêm phong) | `f06fb890be501eb71e51c21b52d017dbce7bff66beb91fc884546c0817980b21` |
 | **Gói nén kiểm toán V4 cũ (Audit trail)** | `data/restricted/pilot_batch1_remediation_pack_lead_d_v4.zip` | 24,196 | `782863009b86cf5c051a3c1d3389020e45664966f17d8c223737be89cac9e2ba` |
 | **Hồ sơ hạn chế V2 (Lineage V1)** | `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` | 23,169 | `adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa` |
 | **Hồ sơ hạn chế V1 (Audit trail)** | `data/restricted/pilot_batch1_recovery_dossier_restricted.json` | 20,731 | `2e14d95729a06c2315e8f7587d447a3983e497b0adb90eb50c11508c08a16977` |
 | **Bảng chi tiết cấp mẫu (ngoài Git)** | `data/restricted/pilot_batch1_sample_level_audit_table.json` | 20,574 | `6395781aeada3b73c72ee7215bd29a167ea5ab639ce48fe3507bde515bbf128f` |
 | **Biên bản sự cố Git Exposure** | `docs/INCIDENT_REPORT_GIT_EXPOSURE_AD445A7.md` | 6,204 | `79505d4a503c87a762d0476d71e0360c940af86c654b37e41558991756d18f51` |
+| **Tài liệu đặc tả QA công khai (Giữ nguyên byte đã QA)** | `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` | 8,496 | `ca9a5af3d8e0abadf26eb4a19374b0d97820cf2dffb30ca2d80d457be9067d09` |
+| **Bản đính chính Errata V4.2 & Tờ trình Quyết định** | `docs/SELECTION_GATE_ERRATA_V4_2_LEAD_D.md` | Văn bản công khai | Tham chiếu commit V4.2 |
 | **Exclusion Registry V1.1.0** | `data/exclusion_registry.json` | 107,424 | `f00df7a63fb6659d78fe065ca4c87445ebe071fb448e1d1f337d740317dd57ea` |
 | **Module loại trừ (Đã sửa import & fail-closed)** | `src/phishing/data/exclusion.py` | 19,448 | `5cc8a445b20bb251df523e258f957215134cb804859de3855dff49db856aa041` |
 | **Cổng chọn mẫu Selection Gate (Đã sửa)** | `src/phishing/data/selection_gate.py` | 20,308 | `eb3f36a9db9a5dbba62bd1643b68cf4c678d99e9a553132354e792de8753a6a1` |
@@ -196,20 +201,66 @@ Toàn bộ kích thước và mã băm SHA-256 được đo đạc trực tiếp
 | **Log 38 passed / 2 skipped (Tự kiểm mô phỏng)** | `test_report_clean_checkout_simulation_v4_1.log` | 5,919 | `ded94b99f1b1718eac6d9eaf01065db16b31ddbd3db87fd00185fa687622b022` |
 | **Log 147 tests (7 test suites)** | `test_report_7_suites_v4_1.log` | 21,476 | `81b62c32da70745b983e5bffad5fc36d8a5557f1c7939a06dbd49b13132c3382` |
 
+* **Ghi chú đính chính bảng kê:** Tại bảng kê thông báo bàn giao trước, C ghi nhầm `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` dài 8.432 byte / hash `3c59a3fe...` do đo đạc trên bản nháp trước khi commit bổ sung dòng ghi chú cuối. Tệp vật lý thực tế tại commit `2eddf41` là đúng **8.496 byte** với SHA-256 **`ca9a5af3d8e0abadf26eb4a19374b0d97820cf2dffb30ca2d80d457be9067d09`**, khớp hoàn toàn với bản QA Lead B đã kiểm định độc lập và ký `PASS`. Tệp đặc tả này được giữ nguyên byte và hash tại commit `2eddf41` để bảo toàn giá trị thẩm định của B.
+
 ---
 
-## 8. Danh mục Các Vấn đề Còn Mở & Yêu cầu Quyết định từ Lead D
+## 8. Danh mục Các Vấn đề Còn Mở & Hai Dự thảo Quyết định Trình Lead D
 
-Thành viên C tiếp tục duy trì khuyến nghị: **`NO-GO` đối với việc rút mẫu và mở Main Annotation Đợt 1 ngay lúc này**.
+Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đối với việc rút mẫu và mở Main Annotation Đợt 1 ngay lúc này**. Hệ thống giữ nguyên trạng thái khóa an toàn (`main_annotation_status="LOCKED"`, `training_blocked=true`, `official_test_used=false`).
 
-### A. Danh mục các điểm còn mở (Open Items):
-1. **QA Lead B tái thẩm định độc lập:** Chờ B thực hiện kiểm định độc lập trên clean checkout và ký báo cáo QA riêng cho commit V4.1 (chữ ký V3 không áp dụng tự động cho V4/V4.1).
-2. **Quyết định phương án xử lý lịch sử Git:** Chờ Lead D phê duyệt chính thức Phương án A (Forward-fix & retire vĩnh viễn 20 mẫu pilot cùng shard `train-000`) hay Phương án B.
-3. **Quyết định nguồn Shard được phép dùng cho Đợt 1:** Chờ Lead D xem xét bảng tại Mục 5 và phê duyệt shard sạch (C đề xuất `train-001.parquet`).
-4. **Đối soát byte Parquet thực tế sau khi được phê duyệt tải:** Khi Lead D ban hành lệnh tải `train-001.parquet`, C sẽ tải tệp, tự đối soát SHA-256 byte thực tế trên đĩa so với `source_manifest.json` (`locally_verified_sha256`) và báo cáo D trước khi nạp vào pipeline.
+Để từng bước tháo gỡ điểm nghẽn có kiểm soát, C kính trình Lead D xem xét và ban hành **hai quyết định riêng biệt**:
 
-### B. Cam kết Bất biến của C:
+---
+
+### DỰ THẢO QUYẾT ĐỊNH 1: CHO PHÉP TẢI VÀ KIỂM NGUỒN `train-001.parquet` (BƯỚC 1)
+
+1. **Thông số kỹ thuật nguồn xác lập từ manifest (`configs/source_manifest.json`):**
+   * **Nguồn dữ liệu:** `phreshphish`
+   * **Git Revision khóa:** `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`
+   * **Tên tệp shard:** `train-001.parquet`
+   * **Dung lượng tệp dự kiến:** `322,018,201 bytes`
+   * **Mã băm SHA-256 Git-LFS trong manifest:** `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`
+   * **Cửa sổ ngày được phép lấy mẫu (Temporal Split):** `2024-10-01` đến `2025-09-08` (áp dụng theo ngưỡng temporal split; loại bỏ các mẫu ngoài cửa sổ này).
+
+2. **Phạm vi kiểm tra kỹ thuật sau khi được Lead D cho phép:**
+   * **Bước 1.1:** Tải tệp vật lý về đĩa cục bộ, đo trực tiếp mã băm SHA-256 trên byte thật của tệp Parquet và đối chiếu với giá trị Git-LFS pointer dự kiến (`260cb9c9...`). Cập nhật `locally_verified_sha256` trong manifest.
+   * **Bước 1.2:** Chạy toàn bộ bản ghi của shard qua Cổng chọn mẫu Selection Gate (Gates 0–4):
+     * *Gate 0 (Kiểm tra cách ly Shard):* Xác nhận shard không phải `train-000` hay `train-055`.
+     * *Gate 1 (Domain/Brand Regex Matcher):* Nhận diện ứng viên thuộc 14 tổ chức mục tiêu.
+     * *Gate 2 (ExclusionRegistry Anti-Leakage):* Đối soát 6 lớp mã băm đối với các cam kết `EXCL-PILOT-01` (20 mẫu) và `EXCL-CALIB-01` (32 mẫu).
+     * *Gate 3 (Dedup & Template Diversity):* Lọc tương đồng SimHash / DOM Tag và đa dạng hóa tên miền (tối đa 1 mẫu/eTLD+1).
+     * *Gate 4 (Cân bằng phân loại phụ):* Kiểm soát hạn ngạch tổ chức.
+
+3. **Điều kiện dừng an toàn bắt buộc (Fail-Closed Halt Criteria):**
+   * DỪNG NGAY LẬP TỨC nếu SHA-256 byte thực tế trên đĩa sai lệch so với giá trị Git-LFS pointer (`260cb9c9...`).
+   * DỪNG NGAY LẬP TỨC nếu phát sinh bất kỳ ngoại lệ dữ liệu định dạng (`ValueError`) hoặc ngoại lệ hệ thống (`RuntimeError`) trong quá trình chạy qua Gate 0–4.
+   * DỪNG NGAY LẬP TỨC nếu số lượng ứng viên hợp lệ sau Gate 0–4 không đạt chỉ tiêu tối thiểu 100 mẫu.
+   * Khi dừng, C lập tức niêm phong tệp log, báo cáo Lead D, và không xuất bất kỳ danh sách rút mẫu nào.
+
+4. **Sản phẩm bàn giao sau bước kiểm nguồn:** Báo cáo số đếm tổng hợp (tổng số hàng, số mẫu qua từng cổng, số mẫu bị loại theo từng lý do, các sai lệch phát hiện và phần còn chưa xác minh).
+
+---
+
+### DỰ THẢO QUYẾT ĐỊNH 2: XỬ LÝ SỰ CỐ GIT CỦA PILOT (COMMIT `ad445a7`)
+
+1. **Phương án C khuyến nghị:** **Phương án A (Forward-Fix & Administrative Retirement)**.
+2. **Cơ sở lựa chọn:**
+   * Giữ nguyên cây commit lịch sử để bảo toàn audit trail minh bạch, phục vụ đánh giá khoa học và kiểm toán độc lập.
+   * Tuyệt đối không force-push hoặc viết lại lịch sử Git trên nhánh cộng tác khi chưa có lệnh điều phối khẩn cấp từ Lead D.
+3. **Cách thức ghi nhận và thực thi loại trừ các mẫu đã biết:**
+   * Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong `data/exclusion_registry.json` với mã cam kết `EXCL-PILOT-01` và mã băm hồ sơ hạn chế `commitment_sha256 = "adc0b90dddc0aea4c3347cc709fabe6dbc3ea391335965c0ba949503bfcdf1fa"`.
+   * Toàn bộ 20 mẫu này bị loại trừ vĩnh viễn (retired) khỏi mọi tập dữ liệu huấn luyện, thẩm định và đánh giá (M0–M3).
+4. **Phạm vi Shard cách ly:** Cách ly vĩnh viễn shard `train-000.parquet` (`QUARANTINED`), cấm mọi hành vi trích xuất từ shard này.
+5. **Thừa nhận Rủi ro tồn dư (Residual Risk):**
+   * Do kho lưu trữ không có bản lưu byte gốc từ các cuộc gọi Rows API lịch sử, C duy trì trạng thái `mapping_status="unresolved_source_mapping"` và `content_identity_verified=false`.
+   * Thừa nhận trung thực giới hạn khoa học: 6 lớp mã băm và cơ chế chống trùng lặp template giúp giảm thiểu tối đa rủi ro đối với các dấu vết đã biết, nhưng không tuyên bố loại bỏ 100% rủi ro lý thuyết đối với các mẫu chưa rõ vị trí phân phối thực tế của Rows API thời điểm trước khóa revision.
+   * Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json`.
+
+---
+
+### B. Cam kết Bất biến của Thành viên C:
 * `main_annotation_status = "LOCKED"`
 * `training_blocked = true`
 * `official_test_used = false`
-* **Tuyệt đối chưa rút 100 mẫu Main, chưa tạo và chưa phát Blind View cho bất kỳ ai.**
+* **Tuyệt đối chưa tải Parquet để kiểm nguồn, chưa rút 100 mẫu Main, chưa tạo và chưa phát Blind View cho bất kỳ ai trước khi Lead D phê duyệt bằng văn bản.**
