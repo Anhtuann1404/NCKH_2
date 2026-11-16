@@ -1,14 +1,14 @@
-# GÓI THÔNG SỐ KỸ THUẬT VÀ KIỂM ĐỊNH CỔNG CHỌN MẪU MAIN ĐỢT 1 (BÀN GIAO QA LEAD B - BẢN V4)
+# GÓI THÔNG SỐ KỸ THUẬT VÀ KIỂM ĐỊNH CỔNG CHỌN MẪU MAIN ĐỢT 1 (BÀN GIAO QA LEAD B - BẢN V4.1)
 
 **Kính gửi:** QA Lead B (Minh)  
 **Người lập:** Thành viên C (Data Pipeline & Thư ký Kiểm toán)  
-**Ngày cập nhật:** 16/11/2026 (Bản sửa đổi V4 sau khi tiếp thu Báo cáo Tái thẩm định QA của B và chỉ đạo của Lead D)  
+**Ngày cập nhật:** 16/11/2026 (Bản sửa đổi V4.1 sau khi tiếp thu chỉ đạo của Lead D Vòng 16)  
 **Mục đích:** Bàn giao thông số kỹ thuật, mã băm niêm phong, và bằng chứng kiểm thử tự động của Cổng chọn mẫu Main Đợt 1 phục vụ tái thẩm định QA độc lập trên Clean Checkout.  
-**Ranh giới bảo mật mù (ARS Double-Blind Protocol):** Tuyệt đối không tiết lộ danh sách ứng viên, locator shard/offset, URL/HTML, nhãn nguồn, cơ cấu nhãn, hoặc giá trị seed ngẫu nhiên.
+**Ranh giới bảo mật mù (ARS Double-Blind Protocol):** Tuyệt đối không tiết lộ danh sách ứng viên, locator shard/offset, URL/HTML, nhãn nguồn, cơ cấu nhãn, hoặc giá trị seed ngẫu nhiên. Chữ ký QA của B cho V3 không tự động áp dụng cho V4/V4.1; B cần thực hiện kiểm định độc lập trên commit mới.
 
 ---
 
-## 1. Thông số Kỹ thuật 5 Cổng Kiểm Soát (Selection Gate V4 Specifications)
+## 1. Thông số Kỹ thuật 5 Cổng Kiểm Soát (Selection Gate V4.1 Specifications)
 
 Quy trình chọn mẫu Main Đợt 1 được tích hợp tại [`src/phishing/data/selection_gate.py`](file:///d:/nguyen%20thang/NCKH/NCKH_2/src/phishing/data/selection_gate.py) và runner CLI tại [`scripts/data/run_main_selection.py`](file:///d:/nguyen%20thang/NCKH/NCKH_2/scripts/data/run_main_selection.py):
 
@@ -35,7 +35,7 @@ Quy trình chọn mẫu Main Đợt 1 được tích hợp tại [`src/phishing/
 * **Cổng 3 (Gate 3 - Deduplication, Row-Order Bias Elimination & Template Clones V3.5):**
   * **Triệt tiêu thiên lệch thứ tự hàng:** Sắp xếp ứng viên theo khóa chính tắc (URL chuẩn hóa + HTML hash), sau đó xáo trộn bằng seed niêm phong trước khi chọn đại diện cho mỗi miền/template. Kết quả chọn mẫu bất biến với bất kỳ thứ tự đầu vào nào của shard.
   * Giới hạn tối đa 1 mẫu trên mỗi tên miền (`eTLD+1`).
-  * **Động cơ Template Similarity Engine (V3.5):** Áp dụng thuật toán SimHash 64-bit (`hamming_distance <= 10`) và DOM Tag Jaccard (`similarity >= 0.85`), tuần tự kiểm tra và đăng ký ứng viên đã nhận để loại trừ các trang clone/near-duplicate sinh từ cùng phishing kit.
+  * **Động cơ Template Similarity Engine (V3.5):** Áp dụng thuật toán SimHash 64-bit (`hamming_distance <= 10`) và DOM Tag Jaccard (`similarity >= 0.85`), tuần tự kiểm tra và đăng ký ứng viên đã nhận để loại trừ các trang clone sinh từ cùng phishing kit.
 
 * **Cổng 4 (Gate 4 - Seeded Random Sampling & Quota Fail-Closed):**
   * Phân tầng mẫu / chọn mẫu ngẫu nhiên xác định theo seed niêm phong.
@@ -43,24 +43,24 @@ Quy trình chọn mẫu Main Đợt 1 được tích hợp tại [`src/phishing/
 
 ---
 
-## 2. Kết quả Kiểm thử Tự động (Môi trường Clean Checkout & Cục bộ)
+## 2. Kết quả Kiểm thử Tự động & Phân định Minh bạch
 
-Bộ kiểm thử [`tests/test_pilot_batch1_exclusion.py`](file:///d:/nguyen%20thang/NCKH/NCKH_2/tests/test_pilot_batch1_exclusion.py) đã được mở rộng lên 40 ca kiểm thử tự chứa (bổ sung 5 ca kiểm thử hồi quy):
+Bộ kiểm thử [`tests/test_pilot_batch1_exclusion.py`](file:///d:/nguyen%20thang/NCKH/NCKH_2/tests/test_pilot_batch1_exclusion.py) gồm 40 ca kiểm thử tự chứa (bao gồm 5 ca kiểm thử hồi quy mới):
 
-1. **Kết quả chạy trên Clean Git Checkout (Môi trường của QA Lead B - Không có tệp restricted):**
-   * Lệnh chạy: `python -m pytest tests/test_pilot_batch1_exclusion.py -v`
-   * **Kết quả:** **38 passed, 0 failed, 2 skipped** (100% pass trên các bài test tự chứa).
+1. **Phép tự kiểm thử mô phỏng Clean Checkout do C thực hiện (Self-test Simulation by C):**
+   * Kết quả tự kiểm: **38 passed, 0 failed, 2 skipped** (trong 1.93s).
    * **Chi tiết 2 ca kiểm thử tự động skip có lý do kiểm toán minh bạch (không gộp vào passed thực tế):**
      1. `test_gate0_rejects_quarantined_real_shard_path`: Skipped vì không có shard thực tế `data/raw/phreshphish/data/train-000.parquet` trên clean checkout (lý do: *"Chưa có shard train-000 trên clean checkout"*).
      2. `test_gate2_integration_with_real_restricted_dossier_v2`: Skipped vì không có tệp `data/restricted/pilot_batch1_recovery_dossier_restricted_v2.json` trên clean checkout (lý do: *"Chưa có hồ sơ restricted V2 cục bộ trên clean checkout"*).
+   * **Lưu ý kiểm toán:** B chưa phát hành báo cáo QA cho commit V4/V4.1; QA Lead B sẽ tự chạy kiểm định độc lập trên máy của B và phát hành báo cáo riêng.
 2. **Kết quả chạy trên Môi trường Đầy đủ Dữ liệu Hạn chế (Môi trường của C):**
-   * **Kết quả:** **40 passed, 0 failed, 0 skipped** (100% passed trong 3.47s).
-3. **Kiểm thử hồi quy 7 test suites toàn repo:**
-   * **Kết quả:** **147 passed, 0 failed** (100% passed trong 17.41s).
+   * **Kết quả:** **40 passed, 0 failed, 0 skipped** (trong 2.44s).
+3. **Kiểm thử 7 bộ test liên quan đến tuyến dữ liệu, phân tách và chống rò rỉ:**
+   * **Kết quả:** **147 passed, 0 failed** (trong 8.62s).
 
 ---
 
-## 3. Bảng Mã Băm Niêm Phong Phục vụ Thẩm định QA Độc lập (Bản V4)
+## 3. Bảng Mã Băm Niêm Phong Phục vụ Thẩm định QA Độc lập (Bản V4.1)
 
 | Tệp tin / Cấu phần | Kích thước (bytes) | Mã băm SHA-256 |
 | :--- | :---: | :--- |
@@ -82,9 +82,9 @@ Bộ kiểm thử [`tests/test_pilot_batch1_exclusion.py`](file:///d:/nguyen%20t
    python -m pytest tests/test_pilot_batch1_exclusion.py -v
    ```
    *Kỳ vọng:* **38 passed, 2 skipped, 0 failed**.
-4. Chạy toàn bộ 7 test suites:
+4. Chạy kiểm thử 7 bộ test liên quan đến dữ liệu:
    ```bash
-   python -m pytest tests/test_clean_calibration_selection.py tests/test_clean_calibration_blind_view.py tests/test_calibration_release_guards.py tests/test_prepare_calibration_selection.py tests/test_clean_calibration_zero_git_leak_regression.py tests/test_exclusion_registry.py tests/test_pilot_batch1_exclusion.py -q
+   python -m pytest tests/test_clean_calibration_selection.py tests/test_clean_calibration_blind_view.py tests/test_calibration_release_guards.py tests/test_prepare_calibration_selection.py tests/test_clean_calibration_zero_git_leak_regression.py tests/test_exclusion_registry.py tests/test_pilot_batch1_exclusion.py -v
    ```
    *Kỳ vọng:* **147 passed, 0 failed**.
 5. B phát hành báo cáo thẩm định độc lập theo ranh giới mù.
