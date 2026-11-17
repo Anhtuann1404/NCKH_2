@@ -15,7 +15,7 @@ Trong commit `ad445a7` (được đẩy lên remote repository GitHub), tài li�
 
 * **Các trường dữ liệu cụ thể từng xuất hiện công khai trên Git:**
   1. `entry_id`: Từ `EXCL-PLT-001` đến `EXCL-PLT-020`.
-  2. `locator`: Vị trí dòng cụ thể trong shard Parquet (`data/train-000.parquet:0..19`).
+  2. `locator`: Thông tin định vị hàng cụ thể trong shard Parquet `train-000`.
   3. `source_label`: Nhãn nguồn ban đầu (12 benign, 8 phishing).
   4. `source_date`: Ngày thu thập gốc trong shard (`YYYY-MM-DD`).
   5. `group_id`: Tên định danh nhóm miền (tiền tố `domain:...`).

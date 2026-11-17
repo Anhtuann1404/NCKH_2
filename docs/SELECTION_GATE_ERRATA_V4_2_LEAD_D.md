@@ -15,7 +15,7 @@
 Tiếp thu chỉ đạo trực tiếp của Lead D tại Vòng 17 và kết quả tham vấn kiến trúc chuyên sâu cùng DeepSeek Reason Mode (Phiên Duo R17), Thành viên C phát hành văn bản **Errata V4.2** độc lập này nhằm:
 1. **Đính chính số liệu bảng kê tài liệu đặc tả QA** `docs/SELECTION_GATE_QA_SPEC_PACK_B.md` tại thông báo trước, giữ nguyên nội dung tệp vật lý trên Git blob để bảo toàn giá trị thẩm định của QA Lead B.
 2. **Đính chính thông số kỹ thuật shard `train-055.parquet`**, sửa từ số liệu ước tính nháp sang số liệu đo đạc thực tế trên đĩa (20,213,199 bytes, SHA-256 `205a7e1c...`, 361 dòng, khớp 0/20 cặp Pilot 20).
-3. **Báo cáo kết quả xác minh chuỗi bằng chứng Pilot 20 gốc**, xác nhận tệp Rows API lịch sử `pilot_20_rows.json` (`738ea69b...`), đối chiếu Parquet tại revision khóa khớp 20/20 tại `train-000` (`row_offset: 0..19`), phát hành Dossier V3 (`0d817d0b...`) và đồng bộ `data/exclusion_registry.json` (`71c8d873...`).
+3. **Báo cáo kết quả xác minh chuỗi bằng chứng Pilot 20 gốc**, xác nhận tệp Rows API lịch sử `pilot_20_rows.json` (`738ea69b...`), đối chiếu Parquet tại revision khóa khớp 20/20 tại `train-000`, 0/20 tại `train-055`, trong phạm vi hai shard đã kiểm, phát hành Dossier V3 (`0d817d0b...`) và đồng bộ `data/exclusion_registry.json` (`71c8d873...`).
 4. **Làm rõ nguyên tắc đếm khoa học**: Con số 246 là tổng mục khai báo theo lô (declared batch items), tổng số mẫu duy nhất toàn registry sau khi khử giao là **226 mẫu**.
 5. **Chuẩn hóa cách mô tả trạng thái phê duyệt** và văn phong trung thực khoa học, loại bỏ các diễn đạt suy đoán hoặc tối ưu hóa quá sớm.
 6. **Kính trình Lead D hai dự thảo quyết định riêng biệt** để xem xét và chỉ đạo bước tiếp theo.
@@ -61,7 +61,7 @@ Tiếp thu chỉ đạo trực tiếp của Lead D tại Vòng 17 và kết qu�
    * *Tuyến `gate_2_anti_leakage()`:* Từ chối rõ ràng với lý do minh bạch `reject_gate2_preprocessing_error` hoặc `reject_exclusion_registry_match`; tuyệt đối không trả về `(True, "passed")` cho bất kỳ mẫu nào gặp lỗi hoặc khớp cam kết loại trừ.
 4. **Nghiệm thu Chuỗi Bằng chứng Pilot 20 & Hồ sơ Hạn chế V3:**
    * Tệp Rows API gốc `pilot_20_rows.json` (7,186,229 bytes | SHA-256: `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`) đã được Lead D tìm lại trong kho dự án và C đối soát độc lập: khớp 100% hash lịch sử công bố tại `bc674e9` và `a62105a`, có đủ 20 dòng, 20 cặp URL/HTML duy nhất, `partial: false`.
-   * Đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: toàn bộ 20/20 cặp khớp chính xác tại `train-000` (`row_offset: 0..19`), khớp 0/20 tại `train-055`.
+   * Đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: 20/20 khớp tại `train-000`, 0/20 khớp tại `train-055`, trong phạm vi hai shard đã kiểm.
    * Phát hành Dossier V3 (`pilot_batch1_recovery_dossier_restricted_v3.json` - SHA-256: `0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3`): cập nhật `content_identity_verified = true`, `mapping_status = "verified_at_pinned_revision_2_shards_audited"`, `approval_status = "pending_lead_d_signoff"`.
    * Giữ nguyên `rows_api_revision_pinned = false` theo đúng thực tế thu thập ban đầu; trong `data/exclusion_registry.json`, `EXCL-PILOT-01` trỏ sang Dossier V3 (`commitment_sha256 = "0d817d0b..."`), tạm giữ `mapping_status = "unresolved_source_mapping"` để chờ Lead D ký duyệt chính thức.
    * Làm rõ số đếm khoa học: Con số 246 là tổng mục khai báo theo lô (declared batch items), tổng số mẫu duy nhất toàn registry sau khi khử giao là **226 mẫu** (do 20 mẫu Pilot 20 nằm hoàn toàn trong `EXCL-REAL-PILOT-32`).
@@ -116,7 +116,7 @@ Căn cứ Biên bản Sự cố docs/INCIDENT_REPORT_GIT_EXPOSURE_AD445A7.md, G�
 
 Điều 2. Nghiệm thu chuỗi bằng chứng xác minh Pilot 20:
    - Nghiệm thu bản phản hồi Rows API gốc data/source_audit/phreshphish/pilot_20_rows.json (7,186,229 bytes | SHA-256 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f), khớp 100% hash lịch sử công bố tại bc674e9 và a62105a.
-   - Nghiệm thu kết quả đối chiếu Parquet tại revision khóa eabec4b7a66324b79cc8a0ad856d1731dc26fe1a: 20/20 cặp URL/HTML khớp chính xác tại train-000 (row_offset: 0..19), khớp 0/20 tại train-055.
+   - Nghiệm thu kết quả đối chiếu Parquet tại revision khóa eabec4b7a66324b79cc8a0ad856d1731dc26fe1a: 20/20 khớp tại train-000, 0/20 khớp tại train-055, trong phạm vi hai shard đã kiểm.
    - Xác nhận giữ rows_api_revision_pinned = false theo đúng phương thức thu thập lịch sử.
    - Phê duyệt hồ sơ hạn chế V3 (pilot_batch1_recovery_dossier_restricted_v3.json - SHA-256: 0d817d0b1eca177f22794f21c305db542194d6e7c9f9dc418bd26e5d8a64c5a3).
 

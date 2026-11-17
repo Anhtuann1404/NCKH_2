@@ -18,7 +18,7 @@ Không sửa hoặc ghi đè manifest/registry/gói cũ. Output mới nằm tron
 gồm view mù, source_mapping, blind_order, manifest pending và registry đề xuất.
 
 Selection JSON hạn chế: revision khớp source_manifest; records gồm đúng 32 object
-chỉ có relative_path (ví dụ data/train-000.parquet) và row_offset (int >= 0).
+chỉ có relative_path (ví dụ data/train-000.parquet) và chỉ số hàng (int >= 0).
 Nhãn nguồn chỉ để chọn 20 phishing/12 benign, không phải nhãn tham chiếu đã kiểm chứng.
 
 Prior evidence JSON hạn chế: packages gồm đúng bốn loại practice (20), v1 (32),

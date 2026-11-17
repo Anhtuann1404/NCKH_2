@@ -173,32 +173,39 @@ DỰ THẢO QUYẾT ĐỊNH 1: CHO PHÉP TẢI VÀ KIỂM NGUỒN SHARD TRAIN-00
 Căn cứ Source Manifest (configs/source_manifest.json) và Báo cáo Kiểm toán V4.4:
 
 Điều 1. Cho phép Thành viên C thực hiện bước kỹ thuật: Tải về và kiểm tra nguồn đối với shard `train-001.parquet`.
-   - Nguồn: phreshphish
+   - Nguồn dữ liệu: phreshphish
    - Git Revision khóa: eabec4b7a66324b79cc8a0ad856d1731dc26fe1a
-   - Tên tệp: train-001.parquet
-   - Dung lượng dự kiến: 322,018,201 bytes
+   - Tên tệp shard: train-001.parquet
+   - Dung lượng tệp dự kiến: 322,018,201 bytes
    - Mã băm SHA-256 Git-LFS pointer dự kiến: 260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74
-   - Cửa sổ ngày được phép lấy mẫu (Temporal Split): 2024-10-01 đến 2025-09-08 (điều kiện ngày ở bước kiểm nguồn).
+   - Cửa sổ ngày đủ điều kiện kiểm nguồn: Từ 2024-10-01 đến 2025-09-08, tính cả hai đầu (Gate 1 kiểm ngày hợp lệ và giới hạn ký tự HTML; việc chia tập theo thời gian thuộc bước khác).
 
 Điều 2. Quy trình kiểm tra kỹ thuật bắt buộc với chế độ `--vetting-only`:
    1. Đo trực tiếp mã băm SHA-256 trên byte thật của tệp Parquet sau khi tải về đĩa cục bộ, đối chiếu với mã băm Git-LFS pointer dự kiến. Cập nhật locally_verified_sha256 trong manifest. Dừng ngay nếu sai lệch.
    2. Chạy toàn bộ bản ghi qua Selection Gate ở chế độ chỉ kiểm định (--vetting-only):
       - Gate 0 (Kiểm tra cách ly Shard): Xác nhận shard không phải train-000 hay train-055.
-      - Gate 1 (Tính hợp lệ trường dữ liệu): Kiểm tra tính hợp lệ cơ bản của URL, giới hạn ký tự HTML trong khoảng [1, 2,000,000] ký tự, và ngày trong cửa sổ [2024-10-01, 2025-09-08] (điều kiện ngày ở bước kiểm nguồn). Tuyệt đối không có regex matcher 14 tổ chức trong Cổng 1.
-      - Gate 2 (ExclusionRegistry Anti-Leakage): Đối soát 6 lớp mã băm đối với toàn bộ các cam kết loại trừ trong registry (226 cặp duy nhất trên 10 lô).
+      - Gate 1 (Tính hợp lệ trường dữ liệu): Kiểm tra tính hợp lệ cơ bản của URL (giao thức http/https, hostname hợp lệ), giới hạn ký tự HTML trong khoảng [1, 2,000,000] ký tự, và ngày thu thập nằm trong cửa sổ ngày đủ điều kiện kiểm nguồn [2024-10-01, 2025-09-08] (tính cả hai đầu). Tuyệt đối không có regex matcher 14 tổ chức trong Cổng 1.
+      - Gate 2 (ExclusionRegistry Anti-Leakage): Gate 2 xác thực các cam kết hồ sơ hạn chế và kiểm từng bản ghi theo các lớp hash được triển khai trong exclusion registry. Quy mô registry là 246 mục khai báo theo 10 lô, tương ứng 226 cặp URL/HTML duy nhất đã được tái lập độc lập.
       - Gate 3 (Dedup & Template Diversity): Lọc tương đồng SimHash / DOM Tag và đa dạng hóa tên miền (tối đa 1 mẫu/eTLD+1).
       - Dừng trước Gate 4: Chế độ --vetting-only dừng ngay sau Gate 3, KHÔNG thực hiện quota sampling hay phân tầng hạn ngạch của Gate 4; đầu ra không có danh sách ứng viên hay nội dung bản ghi thô.
-   3. Báo cáo số ứng viên hợp lệ trước Gate 4 so với chỉ tiêu 100 mẫu. Trường hợp dưới 100 ứng viên vẫn ghi nhận số đếm, meets_quota_target=False và trạng thái 'vetted_insufficient_quota' (đã kiểm nguồn nhưng chưa đủ quota).
+   3. Báo cáo số ứng viên hợp lệ trước Gate 4 so với chỉ tiêu tham chiếu 100 mẫu. Nếu còn dưới 100 ứng viên, ghi nhận số đếm, meets_quota_target=False và trạng thái 'vetted_insufficient_quota' để Lead D xem xét.
 
-Điều 3. Tiêu chí dừng an toàn Fail-Closed (Halt Criteria):
-   - DỪNG NGAY LẬP TỨC nếu SHA-256 byte thực tế trên đĩa sai lệch so với Git-LFS pointer dự kiến (260cb9c9...).
-   - DỪNG NGAY LẬP TỨC nếu xuất hiện bất kỳ ngoại lệ dữ liệu định dạng (ValueError) hoặc ngoại lệ hệ thống (RuntimeError) trong quá trình chạy qua Gate 0–3.
-   - DỪNG NGAY LẬP TỨC nếu số lượng ứng viên hợp lệ sau Gate 3 không đạt chỉ tiêu tối thiểu 100 mẫu khi chạy ở chế độ tuyển chọn thực nghiệm.
-   - Khi dừng, lập tức niêm phong log, báo cáo Lead D, không xuất danh sách rút mẫu.
+Điều 3. Tiêu chí phân loại xử lý và Dừng an toàn Fail-Closed:
+   1. Trường hợp bản ghi không đạt điều kiện theo hành vi đã thiết kế của một cổng (chẳng hạn ngày sai ngoài cửa sổ hoặc lỗi tiền xử lý như URL bất thường, ký tự null đã được cổng bắt giữ):
+      - Cổng từ chối bản ghi và trả về lý do cụ thể (reject reasons: reject_gate1_date_out_of_range, reject_gate2_preprocessing_error, reject_exclusion_registry_match, v.v.).
+      - Pipeline ghi nhận số lượng theo từng lý do từ chối và TIẾP TỤC xử lý với các bản ghi còn lại của shard.
+   2. Trường hợp phép kiểm không thể hoàn tất (lỗi cấu hình, vi phạm toàn vẹn hoặc lỗi hệ thống nghiêm trọng):
+      - Sai mã băm SHA-256 byte thực tế của shard trên đĩa so với Git-LFS pointer dự kiến (260cb9c9...).
+      - Hồ sơ cam kết trong exclusion registry bị thiếu hoặc sai mã băm commitment_sha256.
+      - Xuất hiện ngoại lệ hệ thống (RuntimeError) thoát khỏi cổng không được xử lý an toàn.
+      - Pipeline DỪNG NGAY LẬP TỨC (Fail-Closed), niêm phong toàn bộ log, báo cáo Lead D và tuyệt đối không xuất danh sách rút mẫu.
 
-Điều 4. Sản phẩm báo cáo sau bước kiểm nguồn:
-   - Báo cáo kiểm nguồn tổng hợp (tổng số hàng, số mẫu qua từng cổng, số mẫu bị loại theo từng lý do, các sai lệch phát hiện và phần còn chưa xác minh).
-   - Quyết định này CHỈ cho phép kiểm nguồn kỹ thuật, CHƯA cho phép rút 100 mẫu Main, CHƯA mở Main Annotation và CHƯA phát Blind View cho A và B. Quyết định rút 100 mẫu và phát Blind View sẽ được trình riêng sau khi có báo cáo kiểm nguồn đạt yêu cầu.
+Điều 4. Phạm vi thực thi & Sản phẩm bàn giao sau bước kiểm nguồn:
+   - Lệnh thực thi kiểm nguồn:
+     `python scripts/data/run_main_selection.py --manifest configs/source_manifest.json --registry data/exclusion_registry.json --shard-name train-001.parquet --vetting-only --output-report data/source_audit/phreshphish/train_001_vetting_report.json`
+   - Vị trí lưu báo cáo: `data/source_audit/phreshphish/train_001_vetting_report.json`
+   - Đầu ra báo cáo là số liệu tổng hợp: Số đếm qua Gates 0–3, số lượng loại theo từng lý do từ chối, số ứng viên trước Gate 4, và trạng thái đủ quota (meets_quota_target: true/false, vetted_meets_quota / vetted_insufficient_quota).
+   - Quyết định này CHỈ cho phép kiểm nguồn kỹ thuật, CHƯA cho phép rút 100 mẫu Main, CHƯA mở Main Annotation và CHƯA phát Blind View cho A và B. Duy trì phạm vi chỉ kiểm nguồn, chờ lệnh riêng của Lead D cho việc rút mẫu và phát Blind View.
 ========================================================================================
 ```
 
@@ -214,7 +221,7 @@ Căn cứ Biên bản Sự cố docs/INCIDENT_REPORT_GIT_EXPOSURE_AD445A7.md, G�
    - Không thực hiện force-push hoặc viết lại lịch sử Git (git-filter-repo) trên nhánh cộng tác.
 
 Điều 2. Nghiệm thu chuỗi bằng chứng xác minh Pilot 20:
-   - Nghiệm thu bản phản hồi Rows API gốc data/source_audit/phreshphish/pilot_20_rows.json (7,186,229 bytes | SHA-256 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f), khớp 100% hash lịch sử công bố tại bc674e9 và a62105a.
+   - Nghiệm thu bản phản hồi Rows API gốc data/source_audit/phreshphish/pilot_20_rows.json (7,186,229 bytes | SHA-256: 738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f), khớp 100% hash lịch sử công bố tại bc674e9 và a62105a.
    - Nghiệm thu kết quả đối chiếu Parquet tại revision khóa eabec4b7a66324b79cc8a0ad856d1731dc26fe1a: 20/20 khớp tại train-000, 0/20 khớp tại train-055, trong phạm vi hai shard đã kiểm.
    - Xác nhận giữ rows_api_revision_pinned = false theo đúng phương thức thu thập lịch sử.
    - Phê duyệt hồ sơ hạn chế V4 (pilot_batch1_recovery_dossier_restricted_v4.json - SHA-256: 17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171), giữ nguyên lang = null nguyên bản.
@@ -222,13 +229,14 @@ Căn cứ Biên bản Sự cố docs/INCIDENT_REPORT_GIT_EXPOSURE_AD445A7.md, G�
 Điều 3. Thực thi loại trừ các mẫu đã biết:
    - Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong data/exclusion_registry.json với mã cam kết EXCL-PILOT-01 trỏ tới Dossier V4, mã băm commitment_sha256 = "17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171".
    - Toàn bộ 20 mẫu này bị loại trừ vĩnh viễn (retired) khỏi mọi tập dữ liệu huấn luyện, thẩm định và đánh giá (M0–M3).
-   - Xác nhận quy chuẩn công bố số đếm: 246 mục khai báo theo lô (declared batch items) và 226 cặp duy nhất theo kiểm toán của C (tương ứng đúng 226 cặp (url_sha256, html_sha256) duy nhất toàn registry sau khi khử giao cắt).
+   - Xác nhận quy chuẩn công bố số đếm: 246 mục khai báo theo lô, 226 cặp URL/HTML duy nhất đã được tái lập độc lập từ đủ 10 lô.
 
 Điều 4. Phạm vi Shard cách ly:
    - Cách ly vĩnh viễn shard `train-000.parquet` (QUARANTINED), cấm mọi hành vi trích xuất từ shard này cho Main Annotation.
 
 Điều 5. Thừa nhận giới hạn khoa học & Rủi ro tồn dư:
-   - Thừa nhận trung thực trong các báo cáo khoa học: Phạm vi kiểm vị trí duy nhất đã hoàn thành trên 2 shard đã quét (train-000 và train-055). 6 lớp mã băm của Cổng 2 và cơ chế lọc tương đồng của Cổng 3 sẽ tiếp tục bảo vệ các đợt trích xuất mới.
+   - Thừa nhận trung thực trong các báo cáo khoa học: Phạm vi kiểm vị trí duy nhất đã hoàn thành trên 2 shard đã quét (train-000 và train-055). Gate 2 xác thực các cam kết hồ sơ hạn chế và kiểm từng bản ghi theo các lớp hash được triển khai trong exclusion registry cùng Gate 3 sẽ tiếp tục bảo vệ các đợt trích xuất mới.
+   - Thừa nhận phạm vi tiếp xúc lịch sử Git của commit ad445a7 vẫn chưa được xác minh đầy đủ (do không có access/traffic log máy chủ GitHub; không tuyên bố "0 lượt tiếp xúc" hay "đã xóa sạch lịch sử Git").
    - Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại khu vực hạn chế ngoài Git (data/restricted/).
 ========================================================================================
 ```

@@ -16,7 +16,7 @@ Thực hiện nghiêm túc 4 chỉ đạo trọng tâm của Lead D đối với
 
 1. **Chốt chuẩn xác cách công bố số mẫu loại trừ toàn registry:** Giải trình phân tách rõ ràng giữa con số **246** (tổng mục khai báo theo 10 lô) và con số **226** (tổng số cặp mã băm `(raw_url_sha256, raw_html_sha256)` duy nhất toàn registry sau khi kiểm tra mã băm cam kết Lô 10).
 2. **Sửa đổi báo cáo Git công khai & Ghi nguồn trung thực trường `lang`:**
-   - Loại bỏ hoàn toàn chi tiết vị trí hàng (`row_offset: 0..19`) và locator cấp mẫu khỏi tài liệu Git công khai; chỉ ghi nhận chuẩn mực: *"20/20 khớp tại `train-000`, 0/20 khớp tại `train-055` trong phạm vi hai shard đã kiểm"*.
+   - Loại bỏ hoàn toàn thông tin định vị hàng cụ thể và locator cấp mẫu khỏi tài liệu Git công khai; chỉ ghi nhận chuẩn mực: *"20/20 khớp tại `train-000`, 0/20 khớp tại `train-055` trong phạm vi hai shard đã kiểm"*.
    - Phát hành **Dossier Hạn chế V4**, khôi phục trung thực giá trị `lang = null` nguyên bản từ Rows API gốc (`pilot_20_rows.json`), khắc phục triệt để artifact `NaN` do chuyển đổi kiểu dữ liệu bảng trong Dossier V3.
 3. **Viết lại Dự thảo Quyết định 1 (Cho phép tải và kiểm nguồn `train-001.parquet`):**
    - Mô tả chính xác hành vi của Gate 1: chỉ kiểm định tính hợp lệ URL/HTML/cửa sổ ngày, tuyệt đối không có regex matcher 14 tổ chức trong Cổng 1.
@@ -54,7 +54,7 @@ Thực hiện nghiêm túc 4 chỉ đạo trọng tâm của Lead D đối với
 ## III. HIỆU CHỈNH BÁO CÁO GIT & PHÁT HÀNH DOSSIER HẠN CHẾ V4
 
 ### 1. Khử hoàn toàn vị trí dòng trên tài liệu Git công khai:
-- Trong toàn bộ tài liệu Git (`docs/PILOT_BATCH1_AUDIT_AND_SELECTION_GATE_REPORT_LEAD_D.md`, `docs/SELECTION_GATE_ERRATA_V4_3_LEAD_D.md`, `data/exclusion_registry.json`), cụm từ `(row_offset: 0..19)` và locator cụ thể đã được gỡ bỏ hoàn toàn.
+- Trong toàn bộ tài liệu Git (`docs/PILOT_BATCH1_AUDIT_AND_SELECTION_GATE_REPORT_LEAD_D.md`, `docs/SELECTION_GATE_ERRATA_V4_3_LEAD_D.md`, `data/exclusion_registry.json`), thông tin định vị hàng cụ thể và locator đã được gỡ bỏ hoàn toàn.
 - Chỉ ghi nhận đúng chuẩn mực khoa học: **"20/20 khớp tại `train-000`, 0/20 khớp tại `train-055` trong phạm vi hai shard đã kiểm"**.
 - Chi tiết vị trí dòng, shard locator và ánh xạ cấp mẫu tiếp tục được lưu trữ an toàn trong kho hạn chế ngoài Git: `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json`.
 
