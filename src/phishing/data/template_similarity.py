@@ -10,6 +10,7 @@ Tuân thủ nghiêm ngặt chỉ đạo của Lead D (22/10/2026):
 
 from __future__ import annotations
 
+from collections import Counter
 import hashlib
 import re
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
@@ -36,15 +37,16 @@ def compute_token_simhash_64(text: str) -> int:
     for i in range(len(tokens) - 1):
         features.append(f"{tokens[i]} {tokens[i+1]}")
 
+    counts = Counter(features)
     vector = [0] * 64
-    for feat in features:
+    for feat, count in counts.items():
         # Băm token thành 64-bit integer bằng sha256
         h = int(hashlib.sha256(feat.encode("utf-8")).hexdigest()[:16], 16)
         for i in range(64):
             if (h >> i) & 1:
-                vector[i] += 1
+                vector[i] += count
             else:
-                vector[i] -= 1
+                vector[i] -= count
 
     simhash = 0
     for i in range(64):
@@ -71,9 +73,10 @@ def extract_dom_tag_multiset(html: str) -> List[str]:
     return [t.lower() for t in tags]
 
 
-def compute_dom_jaccard_similarity(tags1: Sequence[str], tags2: Sequence[str]) -> float:
+def compute_dom_jaccard_similarity(tags1: Sequence[str] | Set[str], tags2: Sequence[str] | Set[str]) -> float:
     """Tính chỉ số tương đồng Jaccard giữa hai tập thẻ DOM."""
-    set1, set2 = set(tags1), set(tags2)
+    set1 = tags1 if isinstance(tags1, (set, frozenset)) else set(tags1)
+    set2 = tags2 if isinstance(tags2, (set, frozenset)) else set(tags2)
     if not set1 and not set2:
         return 1.0
     if not set1 or not set2:
@@ -114,15 +117,18 @@ class TemplateSimilarityEngine:
         description: str,
         sample_text: str = "",
         sample_html: str = "",
+        sample_simhash: Optional[int] = None,
+        sample_dom_tags: Optional[List[str]] = None,
     ) -> None:
         """Đăng ký một template đã biết để làm căn cứ phát hiện clone."""
-        simhash = compute_token_simhash_64(sample_text or sample_html)
-        dom_tags = extract_dom_tag_multiset(sample_html) if sample_html else []
+        simhash = sample_simhash if sample_simhash is not None else compute_token_simhash_64(sample_text or sample_html)
+        dom_tags = sample_dom_tags if sample_dom_tags is not None else (extract_dom_tag_multiset(sample_html) if sample_html else [])
         self.registered_templates.append({
             "template_id": template_id,
             "description": description,
             "simhash": simhash,
             "dom_tags": dom_tags,
+            "dom_tags_set": set(dom_tags),
         })
 
     def check_candidate_similarity(
@@ -135,6 +141,7 @@ class TemplateSimilarityEngine:
         """Kiểm tra một ứng viên xem có bị trùng lặp template với các mẫu đã đăng ký hay không."""
         c_simhash = candidate_simhash if candidate_simhash is not None else compute_token_simhash_64(candidate_text or candidate_html)
         c_dom_tags = candidate_dom_tags if candidate_dom_tags is not None else (extract_dom_tag_multiset(candidate_html) if candidate_html else [])
+        c_dom_tags_set = set(c_dom_tags) if c_dom_tags else set()
 
         min_distance = 64
         max_jaccard = 0.0
@@ -157,8 +164,13 @@ class TemplateSimilarityEngine:
                 )
 
             # 2. Đo DOM Jaccard similarity (nếu có cấu trúc DOM)
-            if c_dom_tags and kt["dom_tags"]:
-                jaccard = compute_dom_jaccard_similarity(c_dom_tags, kt["dom_tags"])
+            kt_tags_set = kt.get("dom_tags_set")
+            if kt_tags_set is None and kt.get("dom_tags"):
+                kt_tags_set = set(kt["dom_tags"])
+                kt["dom_tags_set"] = kt_tags_set
+
+            if c_dom_tags_set and kt_tags_set:
+                jaccard = compute_dom_jaccard_similarity(c_dom_tags_set, kt_tags_set)
                 if jaccard > max_jaccard:
                     max_jaccard = jaccard
                 if jaccard >= self.max_allowed_dom_jaccard and dist <= 12:
@@ -174,5 +186,7 @@ class TemplateSimilarityEngine:
             "max_dom_jaccard": max_jaccard,
             "closest_template_id": closest_template_id,
             "candidate_simhash_hex": f"{c_simhash:016x}",
+            "candidate_simhash": c_simhash,
+            "candidate_dom_tags": c_dom_tags,
             "reasons": reasons,
         }

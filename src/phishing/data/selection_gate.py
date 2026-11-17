@@ -25,7 +25,7 @@ Thiết kế theo kỷ luật Ponytail và chuẩn mực ARS (Academic Research 
     với SelectionGateError, không âm thầm trả về tập thiếu quota.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 import hashlib
 import json
 from pathlib import Path
@@ -227,20 +227,23 @@ class SelectionGatePipeline:
         if raw_date is None or (isinstance(raw_date, str) and not raw_date.strip()):
             return False, "reject_missing_date"
 
-        if not isinstance(raw_date, str):
+        if type(raw_date) is date:
+            formatted_date = raw_date.strftime("%Y-%m-%d")
+        elif isinstance(raw_date, str):
+            clean_date = raw_date.strip()
+            # Bắt buộc chuỗi định dạng chính xác YYYY-MM-DD (10 ký tự), từ chối mọi hậu tố rác
+            if not re.fullmatch(r"^\d{4}-\d{2}-\d{2}$", clean_date):
+                return False, "reject_invalid_date_format"
+
+            try:
+                parsed_date = datetime.strptime(clean_date, "%Y-%m-%d")
+            except ValueError:
+                return False, "reject_invalid_date_format"
+
+            formatted_date = parsed_date.strftime("%Y-%m-%d")
+        else:
             return False, "reject_invalid_date_format"
 
-        clean_date = raw_date.strip()
-        # Bắt buộc chuỗi định dạng chính xác YYYY-MM-DD (10 ký tự), từ chối mọi hậu tố rác
-        if not re.fullmatch(r"^\d{4}-\d{2}-\d{2}$", clean_date):
-            return False, "reject_invalid_date_format"
-
-        try:
-            parsed_date = datetime.strptime(clean_date, "%Y-%m-%d")
-        except ValueError:
-            return False, "reject_invalid_date_format"
-
-        formatted_date = parsed_date.strftime("%Y-%m-%d")
         if self.min_date and formatted_date < self.min_date:
             return False, f"reject_date_before_min_{formatted_date}"
         if self.max_date and formatted_date > self.max_date:
@@ -380,7 +383,7 @@ class SelectionGatePipeline:
         )
         g3_passed = []
 
-        for s in shuffled_candidates:
+        for idx, s in enumerate(shuffled_candidates):
             u = s.get("url", "")
             h = s.get("html", "")
             u_norm = normalize_url(u)
@@ -412,8 +415,12 @@ class SelectionGatePipeline:
                 template_id=f"acc_{len(g3_passed)}",
                 description="Accepted candidate in Gate 3",
                 sample_html=h,
+                sample_simhash=sim_res.get("candidate_simhash"),
+                sample_dom_tags=sim_res.get("candidate_dom_tags"),
             )
             g3_passed.append(s)
+            if (idx + 1) % 200 == 0 or idx + 1 == len(shuffled_candidates):
+                print(f"  [Cổng 3] Tiến độ: {idx + 1}/{len(shuffled_candidates)} (Đã chọn: {len(g3_passed)})")
 
         audit_log["gate_counts"]["gate_3_in"] = len(g2_passed)
         audit_log["gate_counts"]["gate_3_out"] = len(g3_passed)
