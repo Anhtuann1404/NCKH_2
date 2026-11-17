@@ -163,25 +163,35 @@ Tổng cặp duy nhất toàn registry (10 lô):      226 cặp duy nhất
 
 ---
 
-## VII. HAI DỰ THẢO QUYẾT ĐỊNH TRÌNH LEAD D XEM XÉT VÀ KÝ BAN HÀNH
+## VII. TRẠNG THÁI PHÊ DUYỆT CỦA LEAD D VÀ BẢN TRÌNH DUYỆT QUYẾT ĐỊNH 1
+
+### 1. Quyết định 2 đã được Lead D phê duyệt và ban hành chính thức:
+- **Thời điểm phê duyệt thực tế:** `2026-11-17T13:26:46+07:00` (Lead D gửi thông báo phê duyệt chính thức).
+- **Văn bản lưu trữ chính thức:** [`docs/QUYET_DINH_2_NGHIEM_THU_PILOT_20_VA_XU_LY_GIT_LEAD_D.md`](file:///d:/nguyen%20thang/NCKH/NCKH_2/docs/QUYET_DINH_2_NGHIEM_THU_PILOT_20_VA_XU_LY_GIT_LEAD_D.md).
+- **Nội dung phê duyệt:** Nghiệm thu chuỗi bằng chứng Pilot 20, Dossier V4 (`17f71f23...`), xác nhận 246 mục khai báo / 226 cặp duy nhất toàn registry, áp dụng Phương án A giữ lịch sử Git, cách ly vĩnh viễn `train-000.parquet` và duy trì cách ly `train-055.parquet`.
+
+---
+
+### 2. Bản trình duyệt Quyết định 1 (Đã hiệu chỉnh lệnh thực thi và đầu ra kiểm nguồn):
 
 ```
 ========================================================================================
 DỰ THẢO QUYẾT ĐỊNH 1: CHO PHÉP TẢI VÀ KIỂM NGUỒN SHARD TRAIN-001.PARQUET (BƯỚC 1)
 ========================================================================================
 
-Căn cứ Source Manifest (configs/source_manifest.json) và Báo cáo Kiểm toán V4.4:
+Căn cứ Source Manifest (configs/source_manifest.json - SHA-256: 50fa39d58325e4645b76886e519dd5fbaca31db234d8c70eb95a4eeb608e8eb0) và Exclusion Registry (data/exclusion_registry.json - SHA-256: aee8c4f398e5b74240501d67e373434e80cca2f1395c6dcab22ad8d3507ce9bc):
 
 Điều 1. Cho phép Thành viên C thực hiện bước kỹ thuật: Tải về và kiểm tra nguồn đối với shard `train-001.parquet`.
    - Nguồn dữ liệu: phreshphish
    - Git Revision khóa: eabec4b7a66324b79cc8a0ad856d1731dc26fe1a
    - Tên tệp shard: train-001.parquet
+   - Đường dẫn lưu tệp dự kiến: data/raw/phreshphish/data/train-001.parquet
    - Dung lượng tệp dự kiến: 322,018,201 bytes
    - Mã băm SHA-256 Git-LFS pointer dự kiến: 260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74
    - Cửa sổ ngày đủ điều kiện kiểm nguồn: Từ 2024-10-01 đến 2025-09-08, tính cả hai đầu (Gate 1 kiểm ngày hợp lệ và giới hạn ký tự HTML; việc chia tập theo thời gian thuộc bước khác).
 
 Điều 2. Quy trình kiểm tra kỹ thuật bắt buộc với chế độ `--vetting-only`:
-   1. Đo trực tiếp mã băm SHA-256 trên byte thật của tệp Parquet sau khi tải về đĩa cục bộ, đối chiếu với mã băm Git-LFS pointer dự kiến. Cập nhật locally_verified_sha256 trong manifest. Dừng ngay nếu sai lệch.
+   1. Đo trực tiếp dung lượng và mã băm SHA-256 trên byte thật của tệp Parquet sau khi tải về đĩa cục bộ, đối chiếu với 322.018.201 byte và mã băm Git-LFS pointer dự kiến (260cb9c9...). Chỉ ghi locally_verified_sha256 vào manifest sau khi đo byte thực tế và xác nhận khớp 100%. Dừng ngay nếu sai lệch.
    2. Chạy toàn bộ bản ghi qua Selection Gate ở chế độ chỉ kiểm định (--vetting-only):
       - Gate 0 (Kiểm tra cách ly Shard): Xác nhận shard không phải train-000 hay train-055.
       - Gate 1 (Tính hợp lệ trường dữ liệu): Kiểm tra tính hợp lệ cơ bản của URL (giao thức http/https, hostname hợp lệ), giới hạn ký tự HTML trong khoảng [1, 2,000,000] ký tự, và ngày thu thập nằm trong cửa sổ ngày đủ điều kiện kiểm nguồn [2024-10-01, 2025-09-08] (tính cả hai đầu). Tuyệt đối không có regex matcher 14 tổ chức trong Cổng 1.
@@ -192,7 +202,7 @@ Căn cứ Source Manifest (configs/source_manifest.json) và Báo cáo Kiểm to
 
 Điều 3. Tiêu chí phân loại xử lý và Dừng an toàn Fail-Closed:
    1. Trường hợp bản ghi không đạt điều kiện theo hành vi đã thiết kế của một cổng (chẳng hạn ngày sai ngoài cửa sổ hoặc lỗi tiền xử lý như URL bất thường, ký tự null đã được cổng bắt giữ):
-      - Cổng từ chối bản ghi và trả về lý do cụ thể (reject reasons: reject_gate1_date_out_of_range, reject_gate2_preprocessing_error, reject_exclusion_registry_match, v.v.).
+      - Cổng từ chối bản ghi và trả về lý do cụ thể (mã từ chối thực tế: reject_date_before_min_2024-10-01, reject_date_after_max_2025-09-08, reject_gate2_preprocessing_error, reject_exclusion_registry_match, reject_empty_url, v.v.).
       - Pipeline ghi nhận số lượng theo từng lý do từ chối và TIẾP TỤC xử lý với các bản ghi còn lại của shard.
    2. Trường hợp phép kiểm không thể hoàn tất (lỗi cấu hình, vi phạm toàn vẹn hoặc lỗi hệ thống nghiêm trọng):
       - Sai mã băm SHA-256 byte thực tế của shard trên đĩa so với Git-LFS pointer dự kiến (260cb9c9...).
@@ -201,9 +211,22 @@ Căn cứ Source Manifest (configs/source_manifest.json) và Báo cáo Kiểm to
       - Pipeline DỪNG NGAY LẬP TỨC (Fail-Closed), niêm phong toàn bộ log, báo cáo Lead D và tuyệt đối không xuất danh sách rút mẫu.
 
 Điều 4. Phạm vi thực thi & Sản phẩm bàn giao sau bước kiểm nguồn:
-   - Lệnh thực thi kiểm nguồn:
-     `python scripts/data/run_main_selection.py --manifest configs/source_manifest.json --registry data/exclusion_registry.json --shard-name train-001.parquet --vetting-only --output-report data/source_audit/phreshphish/train_001_vetting_report.json`
-   - Vị trí lưu báo cáo: `data/source_audit/phreshphish/train_001_vetting_report.json`
+   - Lệnh thực thi kiểm nguồn (chạy từ thư mục gốc của repository):
+     ```bash
+     python scripts/data/run_main_selection.py \
+       --shard-path data/raw/phreshphish/data/train-001.parquet \
+       --source phreshphish \
+       --revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a \
+       --min-date 2024-10-01 \
+       --max-date 2025-09-08 \
+       --quota 100 \
+       --vetting-only \
+       --output-dir data/source_audit/phreshphish/train_001_vetting
+     ```
+   - Các tệp cấu hình mặc định được runner tự động nạp từ checkout:
+     * configs/source_manifest.json (34,671 bytes | SHA-256: 50fa39d58325e4645b76886e519dd5fbaca31db234d8c70eb95a4eeb608e8eb0)
+     * data/exclusion_registry.json (107,712 bytes | SHA-256: aee8c4f398e5b74240501d67e373434e80cca2f1395c6dcab22ad8d3507ce9bc)
+   - Tệp đầu ra thực tế: data/source_audit/phreshphish/train_001_vetting/source_vetting_audit_manifest.json
    - Đầu ra báo cáo là số liệu tổng hợp: Số đếm qua Gates 0–3, số lượng loại theo từng lý do từ chối, số ứng viên trước Gate 4, và trạng thái đủ quota (meets_quota_target: true/false, vetted_meets_quota / vetted_insufficient_quota).
    - Quyết định này CHỈ cho phép kiểm nguồn kỹ thuật, CHƯA cho phép rút 100 mẫu Main, CHƯA mở Main Annotation và CHƯA phát Blind View cho A và B. Duy trì phạm vi chỉ kiểm nguồn, chờ lệnh riêng của Lead D cho việc rút mẫu và phát Blind View.
 ========================================================================================

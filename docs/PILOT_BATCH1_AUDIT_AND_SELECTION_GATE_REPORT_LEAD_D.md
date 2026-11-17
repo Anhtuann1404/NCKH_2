@@ -256,16 +256,17 @@ Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đ�
 
 ### DỰ THẢO QUYẾT ĐỊNH 1: CHO PHÉP TẢI VÀ KIỂM NGUỒN `train-001.parquet` (BƯỚC 1)
 
-1. **Thông số kỹ thuật nguồn xác lập từ manifest (`configs/source_manifest.json`):**
+1. **Thông số kỹ thuật nguồn xác lập từ manifest (`configs/source_manifest.json` - SHA-256: `50fa39d58325e4645b76886e519dd5fbaca31db234d8c70eb95a4eeb608e8eb0`):**
    * **Nguồn dữ liệu:** `phreshphish`
    * **Git Revision khóa:** `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`
    * **Tên tệp shard:** `train-001.parquet`
+   * **Đường dẫn lưu tệp dự kiến:** `data/raw/phreshphish/data/train-001.parquet`
    * **Dung lượng tệp dự kiến:** `322,018,201 bytes`
    * **Mã băm SHA-256 Git-LFS pointer trong manifest:** `260cb9c93299f6b244d48321fe115523159770f4e73446b382473628c6e81d74`
    * **Cửa sổ ngày đủ điều kiện kiểm nguồn:** Từ `2024-10-01` đến `2025-09-08`, tính cả hai đầu (Gate 1 kiểm ngày hợp lệ và giới hạn ký tự HTML; việc chia tập theo thời gian thuộc bước khác).
 
 2. **Quy trình kiểm tra kỹ thuật bắt buộc với chế độ `--vetting-only`:**
-   * **Bước 1.1 (Đối soát tệp vật lý):** Tải tệp vật lý về đĩa cục bộ, đo trực tiếp mã băm SHA-256 trên byte thật của tệp Parquet và đối chiếu với giá trị Git-LFS pointer dự kiến (`260cb9c9...`). Cập nhật `locally_verified_sha256` trong manifest. Dừng ngay lập tức nếu mã băm không khớp.
+   * **Bước 1.1 (Đối soát tệp vật lý):** Tải tệp vật lý về đĩa cục bộ, đo trực tiếp dung lượng và mã băm SHA-256 trên byte thật của tệp Parquet và đối chiếu với 322.018.201 byte cùng giá trị Git-LFS pointer dự kiến (`260cb9c9...`). Chỉ ghi nhận `locally_verified_sha256` trong manifest sau khi đo byte thực tế và xác nhận khớp 100%. Dừng ngay lập tức nếu mã băm không khớp.
    * **Bước 1.2 (Chạy kiểm nguồn với chế độ `--vetting-only`):** Chạy toàn bộ bản ghi của shard qua Selection Gate ở chế độ chỉ kiểm định (`--vetting-only`):
      * *Gate 0 (Kiểm tra cách ly Shard):* Xác nhận shard không phải `train-000` hay `train-055`.
      * *Gate 1 (Tính hợp lệ trường dữ liệu):* Kiểm tra tính hợp lệ cơ bản của URL (`http`/`https`, hostname hợp lệ), giới hạn ký tự HTML trong khoảng `[1, 2,000,000]` ký tự, và ngày thu thập nằm trong cửa sổ ngày đủ điều kiện kiểm nguồn `[2024-10-01, 2025-09-08]` (tính cả hai đầu). *(Lưu ý kiểm toán: Gate 1 hoàn toàn không chứa bộ nhận diện thương hiệu hay regex matcher 14 tổ chức)*.
@@ -275,37 +276,33 @@ Thành viên C tiếp tục duy trì khuyến nghị quản trị: **`NO-GO` đ�
    * **Bước 1.3 (Báo cáo số ứng viên trước Gate 4):** Thống kê số lượng ứng viên vượt qua Gate 3 trước Gate 4 so với chỉ tiêu tham chiếu 100 mẫu. Nếu còn dưới 100 ứng viên, ghi nhận số đếm, `meets_quota_target=False` và trạng thái `vetted_insufficient_quota` để Lead D xem xét.
 
 3. **Tiêu chí phân loại xử lý và Dừng an toàn Fail-Closed:**
-   * **Trường hợp bản ghi không đạt điều kiện** theo hành vi đã thiết kế của một cổng (chẳng hạn ngày sai ngoài cửa sổ hoặc lỗi tiền xử lý như URL bất thường, ký tự null đã được cổng bắt giữ): Cổng từ chối bản ghi và trả về lý do cụ thể (`reject_gate1_date_out_of_range`, `reject_gate2_preprocessing_error`, `reject_exclusion_registry_match`, v.v.). Pipeline ghi nhận số lượng theo từng lý do từ chối và **tiếp tục** xử lý với các bản ghi còn lại của shard.
+   * **Trường hợp bản ghi không đạt điều kiện** theo hành vi đã thiết kế của một cổng (chẳng hạn ngày sai ngoài cửa sổ hoặc lỗi tiền xử lý như URL bất thường, ký tự null đã được cổng bắt giữ): Cổng từ chối bản ghi và trả về lý do cụ thể (mã từ chối thực tế: `reject_date_before_min_2024-10-01`, `reject_date_after_max_2025-09-08`, `reject_gate2_preprocessing_error`, `reject_exclusion_registry_match`, `reject_empty_url`, v.v.). Pipeline ghi nhận số lượng theo từng lý do từ chối và **tiếp tục** xử lý với các bản ghi còn lại của shard.
    * **Trường hợp phép kiểm không thể hoàn tất** (chẳng hạn sai hash nguồn byte thực tế so với Git-LFS pointer, hồ sơ cam kết trong exclusion registry bị thiếu hoặc sai mã băm `commitment_sha256`, hoặc ngoại lệ hệ thống `RuntimeError` thoát khỏi cổng): Pipeline **dừng ngay lập tức (Fail-Closed)**, niêm phong toàn bộ log, báo cáo Lead D và tuyệt đối không xuất danh sách rút mẫu.
 
 4. **Phạm vi thực thi & Sản phẩm bàn giao sau bước kiểm nguồn:**
-   * **Lệnh thực thi kiểm nguồn:**
-     `python scripts/data/run_main_selection.py --manifest configs/source_manifest.json --registry data/exclusion_registry.json --shard-name train-001.parquet --vetting-only --output-report data/source_audit/phreshphish/train_001_vetting_report.json`
-   * **Vị trí lưu báo cáo:** `data/source_audit/phreshphish/train_001_vetting_report.json`
+   * **Lệnh thực thi kiểm nguồn (chạy từ thư mục gốc của repository):**
+     ```bash
+     python scripts/data/run_main_selection.py \
+       --shard-path data/raw/phreshphish/data/train-001.parquet \
+       --source phreshphish \
+       --revision eabec4b7a66324b79cc8a0ad856d1731dc26fe1a \
+       --min-date 2024-10-01 \
+       --max-date 2025-09-08 \
+       --quota 100 \
+       --vetting-only \
+       --output-dir data/source_audit/phreshphish/train_001_vetting
+     ```
+   * **Các tệp cấu hình mặc định được runner tự động nạp từ checkout:**
+     * `configs/source_manifest.json` (`34,671 bytes` | SHA-256: `50fa39d58325e4645b76886e519dd5fbaca31db234d8c70eb95a4eeb608e8eb0`)
+     * `data/exclusion_registry.json` (`107,712 bytes` | SHA-256: `aee8c4f398e5b74240501d67e373434e80cca2f1395c6dcab22ad8d3507ce9bc`)
+   * **Vị trí lưu báo cáo tệp đầu ra thực tế:** `data/source_audit/phreshphish/train_001_vetting/source_vetting_audit_manifest.json`
    * **Đầu ra báo cáo là số liệu tổng hợp:** Số đếm qua Gates 0–3, số lượng theo từng lý do từ chối, số ứng viên trước Gate 4, và trạng thái đủ quota (`meets_quota_target: true/false`, `vetted_meets_quota` / `vetted_insufficient_quota`).
    * Quyết định này **CHỈ cho phép kiểm nguồn kỹ thuật, CHƯA cho phép rút 100 mẫu Main, CHƯA mở Main Annotation và CHƯA phát Blind View cho A và B**. Duy trì phạm vi chỉ kiểm nguồn, chờ lệnh riêng của Lead D cho việc rút mẫu và phát Blind View.
 
 ---
 
-### DỰ THẢO QUYẾT ĐỊNH 2: XỬ LÝ SỰ CỐ GIT CỦA PILOT (COMMIT `ad445a7`) & NGHIỆM THU CHUỖI BẰNG CHỨNG PILOT 20
-
-1. **Phương án C khuyến nghị:** **Phương án A (Forward-Fix & Administrative Retirement)**.
-   * Giữ nguyên cây commit lịch sử để bảo toàn audit trail minh bạch, phục vụ đánh giá khoa học và kiểm toán độc lập.
-   * Tuyệt đối không force-push hoặc viết lại lịch sử Git trên nhánh cộng tác khi chưa có lệnh điều phối khẩn cấp từ Lead D.
-2. **Nghiệm thu chuỗi bằng chứng xác minh Pilot 20:**
-   * Xác nhận bản phản hồi Rows API gốc tại `data/source_audit/phreshphish/pilot_20_rows.json` (7,186,229 bytes | SHA-256: `738ea69b920cb3037d7e9da38590024d8faa5f34c2eca6c760cb34690f2f190f`) khớp với hash lịch sử công bố tại `bc674e9` và `a62105a`.
-   * Xác nhận kết quả đối chiếu Parquet tại revision khóa `eabec4b7a66324b79cc8a0ad856d1731dc26fe1a`: 20/20 khớp tại `train-000`, 0/20 khớp tại `train-055`, trong phạm vi hai shard đã kiểm.
-   * Xác nhận giữ nguyên `rows_api_revision_pinned = false` theo đúng phương thức thu thập lịch sử.
-   * Phê duyệt hồ sơ hạn chế V4 (`data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json` - SHA-256: `17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171`), giữ nguyên `lang = null` nguyên bản.
-3. **Cách thức ghi nhận và thực thi loại trừ các mẫu đã biết:**
-   * Đánh dấu vĩnh viễn 20 mẫu Pilot Lô 1 trong `data/exclusion_registry.json` với mã cam kết `EXCL-PILOT-01`, trỏ tới Dossier V4 với `commitment_sha256 = "17f71f23c2314ebf9c36a0a07f9fe21fe56aa18efec682b75f7ec06baf196171"`.
-   * Toàn bộ 20 mẫu này bị loại trừ vĩnh viễn (retired) khỏi mọi tập dữ liệu huấn luyện, thẩm định và đánh giá (M0–M3).
-   * Xác nhận quy chuẩn công bố số đếm: 246 mục khai báo theo lô, 226 cặp URL/HTML duy nhất đã được tái lập độc lập từ đủ 10 lô.
-4. **Phạm vi Shard cách ly:** Cách ly vĩnh viễn shard `train-000.parquet` (`QUARANTINED`), cấm mọi hành vi trích xuất từ shard này cho Main Annotation.
-5. **Thừa nhận Rủi ro tồn dư (Residual Risk) & Bảo mật dữ liệu:**
-   * Phạm vi kiểm vị trí duy nhất đã hoàn thành trên 2 shard (`train-000` và `train-055`). Gate 2 xác thực các cam kết hồ sơ hạn chế và kiểm từng bản ghi theo các lớp hash được triển khai trong exclusion registry cùng Gate 3 sẽ tiếp tục bảo vệ các đợt trích xuất mới.
-   * Thừa nhận phạm vi tiếp xúc lịch sử Git của commit `ad445a7` vẫn chưa được xác minh đầy đủ (do không có access/traffic log máy chủ GitHub; không tuyên bố "0 lượt tiếp xúc" hay "đã xóa sạch lịch sử Git").
-   * Toàn bộ bảng chi tiết cấp mẫu (ID, locator, nhãn nguồn, tên miền) tiếp tục được niêm phong an toàn tại `data/restricted/pilot_batch1_sample_level_audit_table.json` và `data/restricted/pilot_batch1_recovery_dossier_restricted_v4.json`.
+### VĂN BẢN QUYẾT ĐỊNH 2 ĐÃ ĐƯỢC LEAD D PHÊ DUYỆT CHÍNH THỨC
+*(Quyết định 2 đã được Lead D phê duyệt có hiệu lực lúc `2026-11-17T13:26:46+07:00`. Toàn văn văn bản chính thức đã lưu trữ tại [`docs/QUYET_DINH_2_NGHIEM_THU_PILOT_20_VA_XU_LY_GIT_LEAD_D.md`](file:///d:/nguyen%20thang/NCKH/NCKH_2/docs/QUYET_DINH_2_NGHIEM_THU_PILOT_20_VA_XU_LY_GIT_LEAD_D.md))*.
 
 ---
 
