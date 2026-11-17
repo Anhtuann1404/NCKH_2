@@ -194,7 +194,14 @@ class SelectionGatePipeline:
         return True
 
     def gate_1_field_validity(self, sample: Dict[str, Any]) -> Tuple[bool, str]:
-        """Cổng 1: Kiểm tra tính hợp lệ của trường, giới hạn HTML và cửa sổ ngày bắt buộc."""
+        """Cổng 1: Kiểm tra tính hợp lệ trường dữ liệu, giới hạn ký tự HTML và điều kiện ngày ở bước kiểm nguồn.
+
+        Quy chuẩn kiểm định:
+        1. URL: Hợp lệ về scheme (http/https) và hostname sau chuẩn hóa.
+        2. Ký tự HTML: Giới hạn độ dài chuỗi ký tự len(html) trong khoảng [min_html_chars, max_html_chars] (mặc định [1, 2.000.000] ký tự).
+        3. Cửa sổ ngày kiểm nguồn (Temporal Split): Ngày thu thập nằm trong [min_date, max_date] (mặc định [2024-10-01, 2025-09-08]), định dạng chuẩn YYYY-MM-DD.
+        Lưu ý kiểm toán: Tuyệt đối không chứa regex matcher hay nhận diện thương hiệu 14 tổ chức trong Cổng 1.
+        """
         url = sample.get("url")
         html = sample.get("html")
 
@@ -413,14 +420,18 @@ class SelectionGatePipeline:
 
         # Chế độ kiểm nguồn độc lập (Source Vetting Only):
         # Dừng an toàn ngay sau Cổng 3, không thực hiện Cổng 4 (Quota Sampling/Phân tầng mẫu)
+        # Giới hạn đầu ra ở số liệu tổng hợp: Không trả về danh sách ứng viên hay nội dung bản ghi thô
         if vetting_only:
+            meets_quota = len(g3_passed) >= target_quota
             audit_log["vetting_only"] = True
             audit_log["candidates_before_gate_4"] = len(g3_passed)
             audit_log["quota_target"] = target_quota
-            audit_log["meets_quota_target"] = len(g3_passed) >= target_quota
+            audit_log["meets_quota_target"] = meets_quota
+            audit_log["vetting_status"] = (
+                "vetted_meets_quota" if meets_quota else "vetted_insufficient_quota"
+            )
             return {
                 "selected_samples": [],
-                "candidates_before_gate_4": g3_passed,
                 "audit_log": audit_log,
             }
 

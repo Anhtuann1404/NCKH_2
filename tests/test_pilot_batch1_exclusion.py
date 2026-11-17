@@ -43,7 +43,6 @@ from phishing.data.selection_gate import (
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REAL_TRAIN_000_PATH = PROJECT_ROOT / "data" / "raw" / "phreshphish" / "data" / "train-000.parquet"
 REAL_TRAIN_055_PATH = PROJECT_ROOT / "data" / "raw" / "phreshphish" / "data" / "train-055.parquet"
-REAL_DOSSIER_V2_PATH = PROJECT_ROOT / "data" / "restricted" / "pilot_batch1_recovery_dossier_restricted_v2.json"
 
 MOCK_PILOT_RAW_URL = "https://mock-pilot-site.org/login"
 MOCK_PILOT_NORM_URL = "https://mock-pilot-site.org/login"
@@ -431,15 +430,29 @@ class TestGate2CryptographicAntiLeakage:
         with pytest.raises(RuntimeError, match="LỖI TOÀN VẸN HỒ SƠ HẠN CHẾ"):
             ExclusionRegistry(registry_path=reg_file)
 
-    def test_gate2_integration_with_real_restricted_dossier_v2(self):
-        """[REAL RESTRICTED INTEGRATION] Đối soát với hồ sơ V2 thật trên đĩa (Bỏ qua nếu clean checkout)."""
-        if not REAL_DOSSIER_V2_PATH.exists():
-            pytest.skip("Chưa có hồ sơ restricted V2 cục bộ trên clean checkout")
+    def test_gate2_integration_with_committed_restricted_dossier(self):
+        """[REAL RESTRICTED INTEGRATION] Đối soát với hồ sơ hạn chế do registry EXCL-PILOT-01 đang cam kết (Bỏ qua nếu clean checkout)."""
+        reg_path = PROJECT_ROOT / "data" / "exclusion_registry.json"
+        reg = json.loads(reg_path.read_text(encoding="utf-8"))
+        pilot_excl = next(e for e in reg["exclusions"] if e["exclusion_id"] == "EXCL-PILOT-01")
+        ref_rel = pilot_excl.get("restricted_dossier_reference")
+        expected_sha = pilot_excl.get("commitment_sha256")
+        assert ref_rel is not None, "EXCL-PILOT-01 bắt buộc có restricted_dossier_reference"
 
-        real_dossier = json.loads(REAL_DOSSIER_V2_PATH.read_text(encoding="utf-8"))
+        dossier_path = PROJECT_ROOT / ref_rel
+        if not dossier_path.exists():
+            pytest.skip(f"Chưa có hồ sơ restricted '{ref_rel}' trên clean checkout")
+
+        # Xác nhận byte thật của dossier khớp chính xác mã băm registry cam kết
+        actual_sha = compute_file_sha256(dossier_path)
+        assert actual_sha == expected_sha, (
+            f"Mã băm dossier thật ({actual_sha}) không khớp mã băm cam kết registry ({expected_sha})"
+        )
+
+        real_dossier = json.loads(dossier_path.read_text(encoding="utf-8"))
         first_pilot = real_dossier["mapping"][0]
 
-        # Nạp pipeline với registry thật của repo
+        # Nạp pipeline với registry thật của repo và kiểm tra một bản ghi từ chính dossier bị từ chối
         pipeline = SelectionGatePipeline()
         injected = {
             "url": "https://new-url-injecting-pilot-html.org/page",
@@ -816,7 +829,14 @@ class TestEndToEndPipelineAndRunner:
         assert "CÁCH LY" in proc.stderr
 
     def test_pipeline_vetting_only_mode_halts_before_gate_4_quota_sampling(self, clean_pipeline):
-        """[VETTING ONLY] Chế độ kiểm nguồn thuần túy dừng sau Cổng 3, không thực hiện Gate 4 quota sampling."""
+        """[VETTING ONLY] Chế độ kiểm nguồn thuần túy dừng sau Cổng 3, không thực hiện Gate 4 quota sampling.
+
+        Kiểm định:
+        1. Chế độ kiểm nguồn dừng trước Gate 4 và đầu ra không có danh sách ứng viên hay nội dung bản ghi.
+        2. Trường hợp dưới 100 ứng viên vẫn ghi được số đếm, meets_quota_target=False và trạng thái 'vetted_insufficient_quota'.
+        3. Chế độ tuyển chọn bình thường (vetting_only=False) vẫn giữ hành vi fail-closed khi không đủ quota.
+        4. Trường hợp đạt đủ quota ở chế độ kiểm nguồn: meets_quota_target=True, vetting_status='vetted_meets_quota', không xuất mẫu.
+        """
         candidate_pool = []
         tags = ["div", "section", "article", "main", "aside", "nav", "header", "footer"]
         for i in range(5):
@@ -826,20 +846,49 @@ class TestEndToEndPipelineAndRunner:
                 "html": f"<html><body><{t}><p>Semantic content {i}</p></{t}></body></html>",
                 "date": "2025-01-15",
             })
-        # Quota yêu cầu là 100, nhưng candidate_pool chỉ có 5 mẫu.
-        # Nếu chạy bình thường, Gate 4 sẽ ném SelectionGateError vì không đủ 100.
-        # Với vetting_only=True, pipeline dừng an toàn sau Gate 3, không ném lỗi và trả về selected_samples rỗng.
-        res = clean_pipeline.run_selection(
+
+        # 1. Kiểm tra trường hợp dưới 100 ứng viên ở chế độ vetting_only=True
+        # Quota yêu cầu 100 nhưng chỉ có 5 ứng viên: dừng an toàn, không ném lỗi
+        res_insufficient = clean_pipeline.run_selection(
             candidate_pool,
             target_quota=100,
             seed=42,
             skip_gate_0_file_check=True,
             vetting_only=True,
         )
-        assert res["selected_samples"] == []
-        assert len(res["candidates_before_gate_4"]) == 5
-        assert res["audit_log"]["vetting_only"] is True
-        assert res["audit_log"]["candidates_before_gate_4"] == 5
-        assert res["audit_log"]["quota_target"] == 100
-        assert res["audit_log"]["meets_quota_target"] is False
+        assert res_insufficient["selected_samples"] == []
+        # Đầu ra của hàm Python tuyệt đối KHÔNG chứa danh sách bản ghi ứng viên hay nội dung thô
+        assert "candidates_before_gate_4" not in res_insufficient
+        assert res_insufficient["audit_log"]["vetting_only"] is True
+        assert res_insufficient["audit_log"]["candidates_before_gate_4"] == 5
+        assert res_insufficient["audit_log"]["quota_target"] == 100
+        assert res_insufficient["audit_log"]["meets_quota_target"] is False
+        assert res_insufficient["audit_log"]["vetting_status"] == "vetted_insufficient_quota"
+
+        # 2. Kiểm tra chế độ bình thường (vetting_only=False) với cùng dữ liệu:
+        # Bắt buộc ném SelectionGateError dừng an toàn (Fail-Closed)
+        with pytest.raises(SelectionGateError, match="LỆNH CHẶN CỔNG 4"):
+            clean_pipeline.run_selection(
+                candidate_pool,
+                target_quota=100,
+                seed=42,
+                skip_gate_0_file_check=True,
+                vetting_only=False,
+            )
+
+        # 3. Kiểm tra trường hợp đạt đủ quota ở chế độ vetting_only=True (ví dụ target_quota=5)
+        res_sufficient = clean_pipeline.run_selection(
+            candidate_pool,
+            target_quota=5,
+            seed=42,
+            skip_gate_0_file_check=True,
+            vetting_only=True,
+        )
+        assert res_sufficient["selected_samples"] == []
+        assert "candidates_before_gate_4" not in res_sufficient
+        assert res_sufficient["audit_log"]["vetting_only"] is True
+        assert res_sufficient["audit_log"]["candidates_before_gate_4"] == 5
+        assert res_sufficient["audit_log"]["quota_target"] == 5
+        assert res_sufficient["audit_log"]["meets_quota_target"] is True
+        assert res_sufficient["audit_log"]["vetting_status"] == "vetted_meets_quota"
 
