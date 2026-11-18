@@ -35,6 +35,15 @@ class PipelineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fit_fold(self.samples, bad, 'M2', self.dictionary)
 
+    def test_fit_rejects_nonfixture_before_model_construction(self):
+        from unittest.mock import patch
+        changed = list(self.samples)
+        changed[0] = replace(changed[0], group_id='research-domain')
+        with patch('phishing.training.experiment.make_pipeline') as factory:
+            with self.assertRaisesRegex(ValueError, 'invented fixture'):
+                fit_fold(changed, self.fold, 'M0', self.dictionary)
+            factory.assert_not_called()
+
     def test_m0_cannot_use_a_different_missing_html_cohort(self):
         changed = list(self.samples)
         i = self.fold.test[0]

@@ -13,12 +13,13 @@ from phishing.evaluation.grouped import make_folds
 from phishing.evaluation.metrics import binary_metrics, select_validation_threshold
 from phishing.training.pipeline import VARIANTS, make_pipeline, rule_scores
 from phishing.training.plan import RunPlan
-from phishing.training.synthetic import make_dataset
+from phishing.training.synthetic import make_dataset, assert_fixture_cohort
 from phishing.training.config import load_config, validate_config
 from phishing.training.report import summarize, write_report
 
 
 def fit_fold(samples, fold, variant, dictionary, *, candidates=(0.25, 1.0, 4.0), targets=(0.01, 0.05)):
+    assert_fixture_cohort(samples)
     if variant not in VARIANTS:
         raise ValueError('Unknown variant')
     indices = fold.train + fold.validation + fold.test

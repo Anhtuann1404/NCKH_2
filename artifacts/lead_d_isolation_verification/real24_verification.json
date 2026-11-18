@@ -1,0 +1,14 @@
+{
+  "real_runplan_rejections": 144,
+  "real_readiness_rejections": 72,
+  "positive_controls": 3,
+  "research_scope_blocked": true,
+  "records": 24,
+  "binary_eligible_but_blocked": 16,
+  "label_hashes": {
+    ".json": "c853758421c15271fc6c34e3dc40203fcb55c770c3e651eb9336094ec2626c43",
+    ".csv": "7cf9d7704b1c64c6d9f453a48bf0ee37b2e317bcdf1dca7e213d98fcc13714c7"
+  },
+  "models_fitted": 0,
+  "training_blocked": true
+}

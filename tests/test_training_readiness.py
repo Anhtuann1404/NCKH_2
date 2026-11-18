@@ -81,3 +81,25 @@ class TrainingReadinessTests(unittest.TestCase):
         self.change('index', lambda rows: rows[0].update(html_path='../outside.html'))
         with self.assertRaisesRegex(ValueError, 'escapes'):
             check_training_inputs(self.manifest)
+
+    def test_row_isolation_is_read_from_index_and_labels(self):
+        for name in ('index', 'labels'):
+            for field, value in (
+                ('dataset_split', 'calibration_offline_excluded'),
+                ('excluded_from_model_training', True),
+                ('excluded_from_model_validation', True),
+                ('excluded_from_official_test', True),
+            ):
+                with self.subTest(artifact=name, field=field):
+                    self.manifest = cli.write_demo_inputs(self.root)
+                    self.change(name, lambda rows: rows[0].update({field: value}))
+                    with self.assertRaisesRegex(ValueError, 'Isolated sample'):
+                        check_training_inputs(self.manifest)
+
+    def test_ambiguous_isolation_flags_fail_closed(self):
+        for value in ('False', 'true', 0, 1, None):
+            with self.subTest(value=value):
+                self.manifest = cli.write_demo_inputs(self.root)
+                self.change('labels', lambda rows: rows[0].update(excluded_from_model_training=value))
+                with self.assertRaisesRegex(ValueError, 'JSON booleans'):
+                    check_training_inputs(self.manifest)

@@ -1,5 +1,6 @@
 """Fixture-only input contract check; never authorizes research training."""
 
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -20,6 +21,69 @@ def read_json(path):
             result[key] = value
         return result
     return json.loads(Path(path).read_text(encoding='utf-8'), object_pairs_hook=unique_keys)
+
+
+def row_is_isolated(row):
+    """Reject exclusion flags with ambiguous types instead of treating strings as bools."""
+    flags = ('excluded_from_model_training', 'excluded_from_model_validation',
+             'excluded_from_validation', 'excluded_from_official_test')
+    for key in flags:
+        if key in row and type(row[key]) is not bool:
+            raise ValueError('Isolation flags must be JSON booleans')
+    split = row.get('dataset_split')
+    if split is not None and split not in {'train', 'validation', 'test', 'synthetic_fixture_only'}:
+        return True
+    return any(row.get(key) is True for key in flags)
+
+
+def load_isolated_ids(path, expected_sha256):
+    """Read a hash-locked JSON/CSV label artifact into exclusion IDs; never authorize fit."""
+    path = Path(path)
+    if not isinstance(expected_sha256, str) or len(expected_sha256) != 64 or sha256(path) != expected_sha256:
+        raise ValueError('Isolation artifact checksum mismatch')
+    if path.suffix.lower() == '.json':
+        data = read_json(path)
+        rows = data.get('records') if isinstance(data, dict) else data
+    elif path.suffix.lower() == '.csv':
+        with path.open(encoding='utf-8', newline='') as stream:
+            reader = csv.DictReader(stream)
+            if not reader.fieldnames or len(reader.fieldnames) != len(set(reader.fieldnames)):
+                raise ValueError('Unique CSV column names required')
+            rows = list(reader)
+        for row in rows:
+            for key in ('excluded_from_model_training', 'excluded_from_model_validation',
+                        'excluded_from_validation', 'excluded_from_official_test'):
+                if key in row:
+                    if row[key] not in {'True', 'False', 'true', 'false'}:
+                        raise ValueError('Explicit CSV isolation booleans required')
+                    row[key] = row[key].lower() == 'true'
+    else:
+        raise ValueError('JSON or CSV isolation artifact required')
+    if not isinstance(rows, list) or not rows:
+        raise ValueError('Nonempty isolation record list required')
+    seen, excluded = set(), set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError('Isolation records must be objects')
+        sid = row.get('sample_id')
+        if not isinstance(sid, str) or not sid.strip() or sid != sid.strip() or sid in seen:
+            raise ValueError('Nonempty unique isolation sample IDs required')
+        seen.add(sid)
+        if (not isinstance(row.get('dataset_split'), str) or not row['dataset_split']
+                or 'excluded_from_model_training' not in row or 'excluded_from_official_test' not in row
+                or not {'excluded_from_model_validation', 'excluded_from_validation'}.intersection(row)):
+            raise ValueError('Complete row-level isolation metadata required')
+        if row_is_isolated(row):
+            excluded.add(sid)
+    return frozenset(excluded)
+
+
+def check_run_plan_isolation(plan, group_by_sample, *, label_artifacts):
+    """Feed IDs read from locked label files into the real RunPlan validator."""
+    if not label_artifacts:
+        raise ValueError('Explicit isolation label artifacts required')
+    excluded = frozenset().union(*(load_isolated_ids(path, digest) for path, digest in label_artifacts))
+    return plan.validate(group_by_sample, excluded)
 
 
 def check_training_inputs(manifest_path):
@@ -66,6 +130,8 @@ def check_training_inputs(manifest_path):
     if any(not isinstance(g, str) or not g.strip() for g in groups.values()):
         raise ValueError('Provided nonempty group IDs required')
     for sid, row in index.items():
+        if row_is_isolated(row) or row_is_isolated(labels[sid]):
+            raise ValueError('Isolated sample entered input cohort')
         if row.get('exclusion_reason') is not None:
             raise ValueError('Excluded sample entered input cohort')
         if row.get('capture_mode') not in {'stored_html', 'rendered_dom'}:
