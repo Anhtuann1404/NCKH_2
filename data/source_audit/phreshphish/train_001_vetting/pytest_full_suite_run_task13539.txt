@@ -1,0 +1,44 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-7.4.0, pluggy-1.6.0
+rootdir: D:\nguyen thang\NCKH\NCKH_2
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collected 448 items
+
+tests\test_annotate_cli_timer_pause.py .............                     [  2%]
+tests\test_attach_offline_translations.py ...                            [  3%]
+tests\test_blind_view.py ............................................... [ 14%]
+........................................                                 [ 22%]
+tests\test_calibration_release_guards.py .......................         [ 28%]
+tests\test_clean_calibration_blind_view.py ............                  [ 30%]
+tests\test_clean_calibration_selection.py ...................            [ 35%]
+tests\test_clean_calibration_zero_git_leak_regression.py .......         [ 36%]
+tests\test_data_repair.py .......................                        [ 41%]
+tests\test_date_parser.py .........                                      [ 43%]
+tests\test_dictionary_and_annotation.py ..................               [ 47%]
+tests\test_difficulty_strata.py .........                                [ 49%]
+tests\test_domain_rules.py ......                                        [ 51%]
+tests\test_evaluate_kappa.py ................                            [ 54%]
+tests\test_exclusion_registry.py ....................................... [ 63%]
+...                                                                      [ 64%]
+tests\test_kappa_3x3.py ....................                             [ 68%]
+tests\test_label_fixes.py .........                                      [ 70%]
+tests\test_loader.py ............                                        [ 73%]
+tests\test_pilot_batch1_exclusion.py ................................... [ 81%]
+......                                                                   [ 82%]
+tests\test_pilot_v2.py ....ss                                            [ 83%]
+tests\test_prepare_calibration_selection.py ....                         [ 84%]
+tests\test_preprocessing.py ...........                                  [ 87%]
+tests\test_real_calibration_split_isolation.py ......                    [ 88%]
+tests\test_receive_pass1_v2.py ...                                       [ 89%]
+tests\test_selection_gate_cfc3bc7_regression.py .......                  [ 90%]
+tests\test_splits.py .....................................               [ 98%]
+tests\test_translation_experiment.py .....                               [100%]
+
+============================== warnings summary ===============================
+tests/test_translation_experiment.py::test_chunk_empty_text
+  D:\nguyen thang\NCKH\NCKH_2\.venv\Lib\site-packages\transformers\models\marian\tokenization_marian.py:176: UserWarning: Recommended: pip install sacremoses.
+    warnings.warn("Recommended: pip install sacremoses.")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============ 446 passed, 2 skipped, 1 warning in 65.18s (0:01:05) =============

@@ -258,64 +258,80 @@ class TestTemplateSimilarityOptimizationAndBoundaries:
 
     def test_dom_jaccard_and_hamming_combined_branch_boundaries(self):
         """Kiểm tra điều kiện kết hợp Nhánh 2: DOM Jaccard >= 0.85 ĐỒNG THỜI Hamming SimHash <= 12."""
-        engine = TemplateSimilarityEngine(max_allowed_simhash_distance=10, max_allowed_dom_jaccard=0.85)
-
-        # Tập thẻ chuẩn có 20 thẻ duy nhất
-        base_tags = [f"tag_{i}" for i in range(20)]
-        engine.register_template(
-            template_id="tpl_dom",
-            description="Base DOM template",
+        # 1. Nhóm kiểm với template cơ sở 20 thẻ: dùng cho các ca Jaccard = 17/20 = 0.85
+        engine_20 = TemplateSimilarityEngine(max_allowed_simhash_distance=10, max_allowed_dom_jaccard=0.85)
+        base_tags_20 = [f"tag_{i}" for i in range(20)]
+        engine_20.register_template(
+            template_id="tpl_dom_20",
+            description="Base DOM template 20 tags",
             sample_simhash=0x0,
-            sample_dom_tags=base_tags,
+            sample_dom_tags=base_tags_20,
         )
 
         hash_11 = (1 << 11) - 1  # dist = 11 (thỏa <= 12)
         hash_12 = (1 << 12) - 1  # dist = 12 (thỏa <= 12)
         hash_13 = (1 << 13) - 1  # dist = 13 (vượt > 12)
 
-        # Trường hợp 1: Jaccard = 17 / 20 = 0.85 (Đạt ngưỡng 0.85) và Hamming = 11 (<= 12)
+        # Trường hợp 1: Jaccard = 17 / 20 = 0.85 (Đạt ngưỡng 0.85) và Hamming = 11 (<= 12) -> Clone
         # Giao = 17 thẻ (0..16), Hợp = 20 thẻ (0..19)
         tags_jaccard_085 = [f"tag_{i}" for i in range(17)]
-        j_val = compute_dom_jaccard_similarity(base_tags, tags_jaccard_085)
+        j_val = compute_dom_jaccard_similarity(base_tags_20, tags_jaccard_085)
         assert j_val == 0.85
 
-        res_h11_j085 = engine.check_candidate_similarity(
+        res_h11_j085 = engine_20.check_candidate_similarity(
             candidate_simhash=hash_11,
             candidate_dom_tags=tags_jaccard_085,
         )
+        assert res_h11_j085["max_dom_jaccard"] == 0.85
         assert res_h11_j085["is_clone_template"] is True
         assert any("Độ tương đồng DOM Jaccard = 0.85 >= 0.85 kèm SimHash gần (dist=11)" in r for r in res_h11_j085["reasons"])
 
         # Trường hợp 2: Jaccard = 0.85 và Hamming = 12 (<= 12) -> Clone
-        res_h12_j085 = engine.check_candidate_similarity(
+        res_h12_j085 = engine_20.check_candidate_similarity(
             candidate_simhash=hash_12,
             candidate_dom_tags=tags_jaccard_085,
         )
+        assert res_h12_j085["max_dom_jaccard"] == 0.85
         assert res_h12_j085["is_clone_template"] is True
 
         # Trường hợp 3: Jaccard = 0.85 NHƯNG Hamming = 13 (> 12) -> KHÔNG CLONE (kiểm soát chặt chẽ)
-        res_h13_j085 = engine.check_candidate_similarity(
+        res_h13_j085 = engine_20.check_candidate_similarity(
             candidate_simhash=hash_13,
             candidate_dom_tags=tags_jaccard_085,
         )
+        assert res_h13_j085["max_dom_jaccard"] == 0.85
         assert res_h13_j085["is_clone_template"] is False
 
         # Trường hợp 4: Jaccard = 1.0 (trùng hệt DOM) NHƯNG Hamming = 13 (> 12) -> VẪN KHÔNG CLONE
-        res_h13_j100 = engine.check_candidate_similarity(
+        res_h13_j100 = engine_20.check_candidate_similarity(
             candidate_simhash=hash_13,
-            candidate_dom_tags=base_tags,
+            candidate_dom_tags=base_tags_20,
         )
+        assert res_h13_j100["max_dom_jaccard"] == 1.0
         assert res_h13_j100["is_clone_template"] is False
 
-        # Trường hợp 5: Jaccard quanh 0.85 nhưng chưa đạt (16 / 19 = 0.8421 < 0.85) và Hamming = 11
-        # Giao = 16 (0..15), Hợp = 19
-        tags_jaccard_sub_085 = [f"tag_{i}" for i in range(16)]
-        j_sub = compute_dom_jaccard_similarity([f"tag_{i}" for i in range(19)], tags_jaccard_sub_085)
-        assert j_sub < 0.85
-        res_sub_jaccard = engine.check_candidate_similarity(
-            candidate_simhash=hash_11,
-            candidate_dom_tags=tags_jaccard_sub_085,
+        # 2. Nhóm kiểm với template cơ sở 19 thẻ: dùng riêng cho ca kiểm sát dưới ngưỡng 16/19 (theo yêu cầu của Lead D)
+        engine_19 = TemplateSimilarityEngine(max_allowed_simhash_distance=10, max_allowed_dom_jaccard=0.85)
+        base_tags_19 = [f"tag_{i}" for i in range(19)]
+        engine_19.register_template(
+            template_id="tpl_dom_19",
+            description="Base DOM template 19 tags",
+            sample_simhash=0x0,
+            sample_dom_tags=base_tags_19,
         )
+
+        # Ứng viên có 16 thẻ con của base_tags_19: Giao = 16 (0..15), Hợp = 19 (0..18) -> 16 / 19 = 0.8421
+        tags_sub_16 = [f"tag_{i}" for i in range(16)]
+        expected_jaccard_16_19 = round(16 / 19, 4)  # 0.8421
+        assert expected_jaccard_16_19 < 0.85
+
+        res_sub_jaccard = engine_19.check_candidate_similarity(
+            candidate_simhash=hash_11,
+            candidate_dom_tags=tags_sub_16,
+        )
+        # Xác nhận giá trị Jaccard thực tế mà engine báo bằng đúng 16/19 (0.8421)
+        assert res_sub_jaccard["max_dom_jaccard"] == expected_jaccard_16_19
+        # Với Hamming = 11 và Jaccard < 0.85, kết quả bắt buộc KHÔNG phải clone
         assert res_sub_jaccard["is_clone_template"] is False
 
     def test_precomputed_fingerprint_preserves_registered_templates_behavior(self):
