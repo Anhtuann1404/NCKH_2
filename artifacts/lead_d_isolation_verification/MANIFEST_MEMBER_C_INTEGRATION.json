@@ -1,0 +1,29 @@
+{
+  "scope": "Member C integration and verification manifest on develop",
+  "base_commit": "b31a1b1c35192a69e8acf8224f17523a4ff56f12",
+  "initial_commit": "4a6b021783f485ca425e4114b529a4a4b288e915",
+  "lead_d_original_package": {
+    "archive_name": "lead_d_real_isolation_verification_b31a1b1.zip",
+    "bytes": 9651,
+    "sha256": "0a2d15ffa794c16b4e9bbcaea7b2b62a9c01f473ecd946244add294aa7d34e07",
+    "manifest_file": "SHA256SUMS.txt",
+    "manifest_sha256": "4ec6b4b745426b389945a895b66d7adbc4b18c0df9ba0a6bc700445a60e0a544",
+    "components": [
+      {"name": "ISOLATION_VERIFICATION_REPORT.md", "bytes": 5330, "sha256": "b87a60090d0e06b068d900481126fb06320da471f10b541c30a9d334f7eb4861"},
+      {"name": "isolation_guard_b31a1b1.patch", "bytes": 11215, "sha256": "1149ed79addd106f5678388f9da93057198339bafe54e3774a20eb7911db19ac"},
+      {"name": "pytest_full.log", "bytes": 179, "sha256": "008a287c1a26f68bb299333c696a3f72f4dcbecf39b7afa058b4744903643f94"},
+      {"name": "real24_verification.json", "bytes": 421, "sha256": "526a1da866fc36751c13d09b5a7b5a70ab5d005610d934a24056df02ddf706d7"},
+      {"name": "source_hashes.json", "bytes": 533, "sha256": "f8071d84410d08031c9e073be795d683d32dbc6deb6862a4b0e8aef11f801259"},
+      {"name": "verify_real24.py", "bytes": 5196, "sha256": "e4e1576b65389b863b2e8631453b4e95042de2af47e5ff5260396f9f8dc37815"}
+    ]
+  },
+  "member_c_verification": {
+    "executor": "Nguyen Thang (Member C)",
+    "environment": "Windows 11, Python 3.13.14, pytest 7.4.0, pluggy 1.6.0, anyio 4.14.2",
+    "command": "PYTHONUTF8=1 PYTHONPATH=src .venv/Scripts/python.exe -m pytest tests/",
+    "result": "95 passed in 34.85s (0 failed, 0 skipped, 0 deselected)",
+    "log_file": "pytest_member_c_develop_4a6b021_run.txt",
+    "log_bytes": 1443,
+    "log_sha256": "926a82d72167c7f3404d01b0b319cd5c13bd56ceb4a39912b5502ce9b4d2a931"
+  }
+}

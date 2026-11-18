@@ -1,0 +1,22 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.14, pytest-7.4.0, pluggy-1.6.0
+rootdir: D:\nguyen thang\NCKH\NCKH_2
+plugins: anyio-4.14.2
+collected 95 items
+
+tests\test_c_handoff.py ...                                              [  3%]
+tests\test_demo_bundle.py ...                                            [  6%]
+tests\test_demo_model_api.py ....                                        [ 10%]
+tests\test_domain_rules.py ......                                        [ 16%]
+tests\test_error_analysis.py ....                                        [ 21%]
+tests\test_evaluation.py .......                                         [ 28%]
+tests\test_experiment_report.py .....                                    [ 33%]
+tests\test_label_isolation.py ........                                   [ 42%]
+tests\test_mock_api.py ............                                      [ 54%]
+tests\test_preprocessing.py ...........                                  [ 66%]
+tests\test_selected_fit_bundle.py ......                                 [ 72%]
+tests\test_temporal_handoff.py ....                                      [ 76%]
+tests\test_training_pipeline.py ..............                           [ 91%]
+tests\test_training_readiness.py ........                                [100%]
+
+============================= 95 passed in 34.85s =============================
