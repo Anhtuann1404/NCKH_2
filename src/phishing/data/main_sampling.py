@@ -133,39 +133,77 @@ def run_main_batch1_sampling(
     pop_hash = compute_population_fingerprint(sorted_candidates)
     seed_commit = compute_seed_commitment(seed_lot_100, seed_b_subset_30, seed_release_shuffle, blind_salt)
 
-    # Kiểm tra loại trừ các ứng viên đã phân bổ cho các lô khác trong ledger
-    other_lot_allocated: Set[str] = set()
-    is_idempotent_rerun = False
-    if ledger:
-        for ev in ledger.events:
-            if ev.lot_id != lot_id and ev.status in ("PREPARED", "RESERVED", "RELEASED", "COMPLETED"):
-                for cid in ev.details.get("allocated_candidate_ids", []):
-                    other_lot_allocated.add(cid)
-            elif ev.lot_id == lot_id and ev.status in ("RESERVED", "RELEASED"):
-                if ev.details.get("seed_commitment") == seed_commit and ev.details.get("population_hash") == pop_hash:
-                    is_idempotent_rerun = True
-
-    available_candidates = [
-        c for c in sorted_candidates
-        if (c.get("candidate_uid") or c.get("sample_uid") or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]) not in other_lot_allocated
-    ]
-
-    if len(available_candidates) < 100:
-        raise ValueError(
-            f"Quần thể ứng viên khả dụng sau khi trừ các lô khác ({len(available_candidates)}) không đủ 100 mẫu để rút!"
+    # Lập bản đồ tra cứu toàn bộ ứng viên theo candidate_uid và vị trí gốc trong quần thể
+    cand_map: Dict[str, Dict[str, Any]] = {}
+    pop_index_by_uid: Dict[str, int] = {}
+    for idx, c in enumerate(sorted_candidates):
+        c_uid = (
+            c.get("candidate_uid")
+            or c.get("sample_uid")
+            or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]
         )
+        cand_map[c_uid] = c
+        pop_index_by_uid[c_uid] = idx
 
-    # 2. Rút ngẫu nhiên không hoàn lại 100 mẫu Main cho Annotator A
-    rng_lot = random.Random(seed_lot_100)
-    selected_indices_100 = rng_lot.sample(range(len(available_candidates)), 100)
-    selected_indices_100.sort()  # Sắp xếp chỉ số canonical trước khi gán
-    lot_100 = [available_candidates[i] for i in selected_indices_100]
+    existing_details = ledger.get_active_lot_details(lot_id) if ledger else None
+    is_idempotent_rerun = False
 
-    # 3. Rút ngẫu nhiên không hoàn lại 30 mẫu từ lô 100 cho Annotator B (tính Kappa chính)
-    rng_b = random.Random(seed_b_subset_30)
-    b_indices_in_lot100 = rng_b.sample(range(100), 30)
-    b_indices_in_lot100.sort()
-    b_subset_set = set(b_indices_in_lot100)
+    if existing_details:
+        # Trường hợp 1: Chạy lại đúng lot đã niêm phong -> BẮT BUỘC BẢO TOÀN COHORT
+        # Kiểm tra cam kết quần thể và cam kết seed/salt trước khi tiếp tục
+        prior_pop_hash = existing_details.get("population_hash")
+        if prior_pop_hash and prior_pop_hash != pop_hash:
+            raise ValueError(
+                f"TỪ CHỐI RERUN LOT '{lot_id}': population_hash không khớp với lot đã niêm phong "
+                f"(kỳ vọng '{prior_pop_hash}', thực tế '{pop_hash}')!"
+            )
+
+        prior_seed_commit = existing_details.get("seed_commitment")
+        if prior_seed_commit and prior_seed_commit != seed_commit:
+            raise ValueError(
+                f"TỪ CHỐI RERUN LOT '{lot_id}': seed_commitment không khớp với lot đã niêm phong "
+                f"(kỳ vọng '{prior_seed_commit}', thực tế '{seed_commit}')! "
+                "Tuyệt đối không được đổi seed để chọn lại mẫu cho lot cũ. Dùng supersede_lot_sampling nếu cần cấp lại ID."
+            )
+
+        # Nạp lại đúng 100 mẫu và 30 mẫu B đã khóa từ ledger, KHÔNG chạy random sampling lại
+        allocated_uids = existing_details.get("allocated_candidate_ids", [])
+        if len(allocated_uids) != 100:
+            raise ValueError(f"Dữ liệu ledger hỏng: lot '{lot_id}' không có đủ 100 candidate_ids đã cấp.")
+
+        lot_100 = [cand_map[uid] for uid in allocated_uids]
+        b_subset_uids = set(existing_details.get("b_subset_candidate_ids", []))
+        if b_subset_uids:
+            b_subset_set = {i for i, sample in enumerate(lot_100) if (sample.get("candidate_uid") or sample.get("sample_uid") or hashlib.sha256(sample.get("url", "").encode("utf-8")).hexdigest()[:16]) in b_subset_uids}
+        else:
+            b_subset_set = set(existing_details.get("b_indices_in_lot100", []))
+
+        is_idempotent_rerun = True
+
+    else:
+        # Trường hợp 2: Lô mới -> Rút từ các ứng viên chưa từng phân bổ cho bất kỳ lô nào
+        other_lot_allocated = ledger.get_allocated_candidate_ids() if ledger else set()
+        available_candidates = [
+            c for c in sorted_candidates
+            if (c.get("candidate_uid") or c.get("sample_uid") or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]) not in other_lot_allocated
+        ]
+
+        if len(available_candidates) < 100:
+            raise ValueError(
+                f"Quần thể ứng viên khả dụng sau khi trừ các lô khác ({len(available_candidates)}) không đủ 100 mẫu để rút!"
+            )
+
+        # Rút ngẫu nhiên không hoàn lại 100 mẫu Main cho Annotator A
+        rng_lot = random.Random(seed_lot_100)
+        selected_indices_100 = rng_lot.sample(range(len(available_candidates)), 100)
+        selected_indices_100.sort()  # Sắp xếp chỉ số canonical trước khi gán
+        lot_100 = [available_candidates[i] for i in selected_indices_100]
+
+        # Rút ngẫu nhiên không hoàn lại 30 mẫu từ lô 100 cho Annotator B (tính Kappa chính)
+        rng_b = random.Random(seed_b_subset_30)
+        b_indices_in_lot100 = rng_b.sample(range(100), 30)
+        b_indices_in_lot100.sort()
+        b_subset_set = set(b_indices_in_lot100)
 
     # 4. Sinh Blind ID trung tính duy nhất (BLIND-xxxxxxxx) và thiết lập ánh xạ hạn chế
     mapping_restricted: List[Dict[str, Any]] = []
@@ -209,7 +247,18 @@ def run_main_batch1_sampling(
             if forbidden in blind_sample:
                 raise ValueError(f"RÒ RỈ DỮ LIỆU: Trường cấm '{forbidden}' xuất hiện trong Blind View!")
 
+        # Kiểm tra bắt buộc provenance source_row
+        s_row = sample.get("source_row")
+        if s_row is None or type(s_row) is not int or s_row < 0:
+            raise ValueError(
+                f"THIẾU PROVENANCE: Mẫu '{c_uid}' thiếu hoặc có source_row không hợp lệ ({s_row!r}). "
+                "Bắt buộc gắn locator dòng nguồn gốc trước khi lọc."
+            )
+
         sample_content_hash = compute_sample_content_hash(blind_sample)
+        # canonical_pop_index phải chỉ đúng vị trí trong quần thể gốc ban đầu (1.232 mẫu)
+        canonical_pop_idx = pop_index_by_uid[c_uid]
+
         mapping_entry = {
             "blind_id": b_id,
             "candidate_uid": c_uid,
@@ -218,12 +267,12 @@ def run_main_batch1_sampling(
             "url_sha256": hashlib.sha256(sample.get("url", "").encode("utf-8")).hexdigest(),
             "html_sha256": hashlib.sha256((sample.get("html") or "").encode("utf-8")).hexdigest(),
             "sample_content_hash": sample_content_hash,
-            "canonical_pop_index": selected_indices_100[idx],
+            "canonical_pop_index": canonical_pop_idx,
             "assigned_to": assigned_to,
             "is_b_kappa_sample": is_for_b,
             "source_label": sample.get("source_label") or sample.get("label"),
             "source_shard": sample.get("source_shard", "train-001.parquet"),
-            "source_row": sample.get("source_row"),
+            "source_row": s_row,
             "source_revision": sample.get("source_revision", "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"),
         }
 
@@ -300,6 +349,8 @@ def run_main_batch1_sampling(
                     "b_subset_size": 30,
                     "seed_commitment": seed_commit,
                     "allocated_candidate_ids": [m["candidate_uid"] for m in mapping_restricted],
+                    "b_subset_candidate_ids": [m["candidate_uid"] for m in mapping_restricted if m["is_b_kappa_sample"]],
+                    "b_indices_in_lot100": [idx for idx, m in enumerate(mapping_restricted) if m["is_b_kappa_sample"]],
                     "blind_ids": [m["blind_id"] for m in mapping_restricted],
                 },
             )
@@ -320,6 +371,175 @@ def run_main_batch1_sampling(
         blind_view_a=blind_view_a,
         blind_view_b=blind_view_b,
         ledger_event_seq=seq_num,
+        blind_view_a_envelope=envelope_a,
+        blind_view_b_envelope=envelope_b,
+    )
+
+
+def supersede_lot_sampling(
+    sorted_candidates: List[Dict[str, Any]],
+    *,
+    ledger: LotManagementLedger,
+    lot_id: str,
+    new_blind_salt: str,
+    new_seed_release_shuffle: int,
+    actor: str = "Member C (Nguyễn Thắng)",
+    codebook_version: str = "1.1.0",
+    blind_contract_version: str = "1.2.0",
+) -> SamplingResult:
+    """Tái cấp ID trung tính và thứ tự hiển thị phát hành cho một lô đã niêm phong (Supersede), bảo toàn 100% cohort A và B."""
+    existing_details = ledger.get_active_lot_details(lot_id)
+    if not existing_details:
+        raise ValueError(f"Không tìm thấy lô đang hoạt động để supersede: '{lot_id}'")
+
+    pop_hash = compute_population_fingerprint(sorted_candidates)
+    prior_pop_hash = existing_details.get("population_hash")
+    if prior_pop_hash and prior_pop_hash != pop_hash:
+        raise ValueError(f"Không thể supersede lô '{lot_id}': Quần thể ứng viên không khớp hash đã niêm phong!")
+
+    # Lập bản đồ tra cứu ứng viên
+    cand_map: Dict[str, Dict[str, Any]] = {}
+    pop_index_by_uid: Dict[str, int] = {}
+    for idx, c in enumerate(sorted_candidates):
+        c_uid = (
+            c.get("candidate_uid")
+            or c.get("sample_uid")
+            or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]
+        )
+        cand_map[c_uid] = c
+        pop_index_by_uid[c_uid] = idx
+
+    # Bảo toàn nguyên vẹn 100 mẫu A và 30 mẫu B
+    allocated_uids = existing_details["allocated_candidate_ids"]
+    lot_100 = [cand_map[uid] for uid in allocated_uids]
+    b_subset_uids = set(existing_details.get("b_subset_candidate_ids", []))
+    b_subset_set = {i for i, c in enumerate(lot_100) if (c.get("candidate_uid") or c.get("sample_uid") or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]) in b_subset_uids}
+
+    mapping_restricted: List[Dict[str, Any]] = []
+    lot_100_with_blind: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+    seen_blind_ids: Set[str] = set()
+
+    for idx, sample in enumerate(lot_100):
+        c_uid = (
+            sample.get("candidate_uid")
+            or sample.get("sample_uid")
+            or hashlib.sha256(sample.get("url", "").encode("utf-8")).hexdigest()[:16]
+        )
+        b_id = generate_blind_id(new_blind_salt, c_uid)
+        if b_id in seen_blind_ids:
+            b_id = generate_blind_id(f"{new_blind_salt}_{idx}", c_uid)
+        seen_blind_ids.add(b_id)
+
+        is_for_b = idx in b_subset_set
+        assigned_to = ["A", "B"] if is_for_b else ["A"]
+
+        html_content = sample.get("html", "")
+        cleaned_text, struct_summary = extract_safe_view_content(html_content, page_url=sample.get("url", ""))
+
+        blind_sample = {
+            "sample_id": b_id,
+            "url": sample.get("url", ""),
+            "page_text": cleaned_text,
+            "structure_summary": struct_summary,
+            "codebook_version": codebook_version,
+            "blind_contract_version": blind_contract_version,
+            "translation_provided": False,
+        }
+        assert_no_label_leak(blind_sample)
+
+        s_row = sample.get("source_row")
+        if s_row is None or type(s_row) is not int or s_row < 0:
+            raise ValueError(f"THIẾU PROVENANCE: Mẫu '{c_uid}' thiếu locator source_row!")
+
+        sample_content_hash = compute_sample_content_hash(blind_sample)
+        mapping_entry = {
+            "blind_id": b_id,
+            "candidate_uid": c_uid,
+            "url": sample.get("url", ""),
+            "url_normalized": normalize_url(sample.get("url", "")),
+            "url_sha256": hashlib.sha256(sample.get("url", "").encode("utf-8")).hexdigest(),
+            "html_sha256": hashlib.sha256((sample.get("html") or "").encode("utf-8")).hexdigest(),
+            "sample_content_hash": sample_content_hash,
+            "canonical_pop_index": pop_index_by_uid[c_uid],
+            "assigned_to": assigned_to,
+            "is_b_kappa_sample": is_for_b,
+            "source_label": sample.get("source_label") or sample.get("label"),
+            "source_shard": sample.get("source_shard", "train-001.parquet"),
+            "source_row": s_row,
+            "source_revision": sample.get("source_revision", "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"),
+        }
+        mapping_restricted.append(mapping_entry)
+        lot_100_with_blind.append((blind_sample, mapping_entry))
+
+    # Xáo trộn thứ tự phát hành mới
+    rng_shuffle_a = random.Random(new_seed_release_shuffle)
+    shuffled_lot_a = list(lot_100_with_blind)
+    rng_shuffle_a.shuffle(shuffled_lot_a)
+    blind_view_a = [item[0] for item in shuffled_lot_a]
+    for order, (b_sample, m_entry) in enumerate(shuffled_lot_a):
+        m_entry["presentation_order_a"] = order
+
+    rng_shuffle_b = random.Random(new_seed_release_shuffle + 1000)
+    b_candidates = [item for item in lot_100_with_blind if item[1]["is_b_kappa_sample"]]
+    shuffled_lot_b = list(b_candidates)
+    rng_shuffle_b.shuffle(shuffled_lot_b)
+    blind_view_b = [item[0] for item in shuffled_lot_b]
+    for order, (b_sample, m_entry) in enumerate(shuffled_lot_b):
+        m_entry["presentation_order_b"] = order
+
+    envelope_a = {
+        "dataset_id": "MAIN-BATCH1-A",
+        "dataset_type": "main_annotation",
+        "blind_contract_version": blind_contract_version,
+        "codebook_version": codebook_version,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "sample_count": len(blind_view_a),
+        "total_samples": len(blind_view_a),
+        "is_synthetic": False,
+        "samples": blind_view_a,
+    }
+    envelope_b = {
+        "dataset_id": "MAIN-BATCH1-B",
+        "dataset_type": "main_annotation",
+        "blind_contract_version": blind_contract_version,
+        "codebook_version": codebook_version,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "sample_count": len(blind_view_b),
+        "total_samples": len(blind_view_b),
+        "is_synthetic": False,
+        "samples": blind_view_b,
+    }
+    assert_no_label_leak(envelope_a)
+    assert_no_label_leak(envelope_b)
+
+    new_seed_commit = hashlib.sha256(f"supersede:{new_seed_release_shuffle}|salt:{new_blind_salt}".encode("utf-8")).hexdigest()
+    event = ledger.append_event(
+        event_type="SUPERSEDE_LOT_BLIND_VIEW",
+        actor=actor,
+        lot_id=lot_id,
+        status="RESERVED",
+        details={
+            "prior_seed_commitment": existing_details.get("seed_commitment"),
+            "new_seed_commitment": new_seed_commit,
+            "population_hash": pop_hash,
+            "allocated_candidate_ids": allocated_uids,
+            "b_subset_candidate_ids": list(b_subset_uids),
+            "b_indices_in_lot100": existing_details.get("b_indices_in_lot100", []),
+            "blind_ids": [m["blind_id"] for m in mapping_restricted],
+            "reason": "Supersede blind IDs and release shuffle after salt incident while preserving original cohort",
+        },
+    )
+
+    return SamplingResult(
+        population_count=len(sorted_candidates),
+        population_hash=pop_hash,
+        lot_100_blind_ids=[m["blind_id"] for m in mapping_restricted],
+        b_subset_30_blind_ids=[m["blind_id"] for m in mapping_restricted if m["is_b_kappa_sample"]],
+        seed_commitment=new_seed_commit,
+        mapping_restricted=mapping_restricted,
+        blind_view_a=blind_view_a,
+        blind_view_b=blind_view_b,
+        ledger_event_seq=event.seq,
         blind_view_a_envelope=envelope_a,
         blind_view_b_envelope=envelope_b,
     )

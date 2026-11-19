@@ -17,9 +17,12 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
+import shutil
 import sys
 from typing import Any, Dict, List, Optional
+import uuid
 
 # Đảm bảo import được src/ và project root
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -28,6 +31,8 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
+
+from phishing.annotation.blind_view import assert_no_label_leak
 
 from phishing.data.lot_ledger import LotManagementLedger
 from phishing.data.main_sampling import (
@@ -78,8 +83,9 @@ def export_main_batch1(
     blind_salt: Optional[str] = None,
     ledger_path: Path | str = "data/restricted/main_annotation_lot_management_ledger.json",
     actor: str = "Member C (Nguyễn Thắng)",
+    lot_id: str = "main_lot_batch_001",
 ) -> Dict[str, Any]:
-    """Thực thi toàn bộ quy trình đóng gói và niêm phong Main Annotation Đợt 1."""
+    """Thực thi toàn bộ quy trình đóng gói và niêm phong Main Annotation Đợt 1 với Staging và Atomic Publishing."""
     # Nạp tham số bảo mật từ cấu hình hạn chế hoặc biến môi trường nếu không truyền trực tiếp
     cfg = load_private_sampling_params()
     s_lot = seed_lot_100 if seed_lot_100 is not None else cfg.get("seed_lot_100")
@@ -94,146 +100,197 @@ def export_main_batch1(
         )
 
     p_rest = Path(output_dir_restricted)
-    p_rest.mkdir(parents=True, exist_ok=True)
     p_pub = Path(public_artifacts_dir)
-    p_pub.mkdir(parents=True, exist_ok=True)
+    p_ledger = Path(ledger_path)
 
-    # 0. Kiểm tra cách ly Git TRƯỚC KHI XUẤT (Fail-closed)
+    # 0. Kiểm tra cách ly Git TRƯỚC KHI XUẤT (Preflight Check)
     iso_preflight = verify_git_isolation()
     if iso_preflight["overall_status"] != "PASS":
         raise RuntimeError(
             f"EXPORT BLOCKED: Kiểm tra cách ly Git thất bại trước khi đóng gói! {iso_preflight['conclusion']}"
         )
 
-    # 1. Khởi tạo/tải Ledger
-    ledger = LotManagementLedger(ledger_path)
+    # Sao lưu byte của Ledger cũ để khôi phục nguyên vẹn nếu xảy ra lỗi trong quá trình xuất gói
+    ledger_bytes_backup = p_ledger.read_bytes() if p_ledger.exists() else None
 
-    # 2. Chạy lấy mẫu ngẫu nhiên không hoàn lại
-    res: SamplingResult = run_main_batch1_sampling(
-        candidates,
-        seed_lot_100=s_lot,
-        seed_b_subset_30=s_b,
-        seed_release_shuffle=s_shuf,
-        blind_salt=b_salt,
-        ledger=ledger,
-        lot_id="main_lot_batch_001",
-        actor=actor,
-    )
+    # Khởi tạo thư mục STAGING biệt lập trong data/restricted/ và artifacts/
+    stage_uuid = uuid.uuid4().hex[:8]
+    stage_base = p_rest.parent / f".staging_{lot_id}_{stage_uuid}"
+    stage_rest = stage_base / "restricted"
+    stage_pub = stage_base / "public"
+    stage_rest.mkdir(parents=True, exist_ok=True)
+    stage_pub.mkdir(parents=True, exist_ok=True)
 
-    # 3. Lưu trữ gói hạn chế trong data/restricted/
-    mapping_file = p_rest / "mapping_restricted.json"
-    mapping_file.write_text(json.dumps(res.mapping_restricted, indent=2, ensure_ascii=False), encoding="utf-8")
+    try:
+        # 1. Khởi tạo/tải Ledger
+        ledger = LotManagementLedger(p_ledger)
 
-    view_a_file = p_rest / "blind_view_a.json"
-    view_a_file.write_text(json.dumps(res.blind_view_a_envelope, indent=2, ensure_ascii=False), encoding="utf-8")
+        # 2. Chạy lấy mẫu ngẫu nhiên không hoàn lại
+        res: SamplingResult = run_main_batch1_sampling(
+            candidates,
+            seed_lot_100=s_lot,
+            seed_b_subset_30=s_b,
+            seed_release_shuffle=s_shuf,
+            blind_salt=b_salt,
+            ledger=ledger,
+            lot_id=lot_id,
+            actor=actor,
+        )
 
-    view_b_file = p_rest / "blind_view_b.json"
-    view_b_file.write_text(json.dumps(res.blind_view_b_envelope, indent=2, ensure_ascii=False), encoding="utf-8")
+        # 3. Ghi toàn bộ hiện vật vào STAGING trước
+        stg_mapping = stage_rest / "mapping_restricted.json"
+        stg_mapping.write_text(json.dumps(res.mapping_restricted, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # Lưu danh sách quần thể niêm phong (dạng restricted)
-    pop_file = p_rest / "population_1232_sealed.json"
-    pop_metadata = {
-        "population_count": len(candidates),
-        "population_hash": res.population_hash,
-        "sealed_at_utc": datetime.now(timezone.utc).isoformat(),
-        "candidates_uids": [
-            c.get("candidate_uid") or c.get("sample_uid") or c.get("url")
-            for c in candidates
-        ],
-    }
-    pop_file.write_text(json.dumps(pop_metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+        stg_view_a = stage_rest / "blind_view_a.json"
+        stg_view_a.write_text(json.dumps(res.blind_view_a_envelope, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # 4. Tính toán SHA-256 các tệp
-    view_a_hash = hashlib.sha256(view_a_file.read_bytes()).hexdigest()
-    view_b_hash = hashlib.sha256(view_b_file.read_bytes()).hexdigest()
-    mapping_hash = hashlib.sha256(mapping_file.read_bytes()).hexdigest()
+        stg_view_b = stage_rest / "blind_view_b.json"
+        stg_view_b.write_text(json.dumps(res.blind_view_b_envelope, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # Tạo role-specific manifests cho Annotator A và B
-    codebook_path = Path("docs/CODEBOOK_V1_1.md")
-    dictionary_path = Path("configs/dictionary_v1.json")
-    cb_sha256 = hashlib.sha256(codebook_path.read_bytes()).hexdigest() if codebook_path.exists() else ""
-    dict_sha256 = hashlib.sha256(dictionary_path.read_bytes()).hexdigest() if dictionary_path.exists() else ""
+        stg_pop = stage_rest / "population_1232_sealed.json"
+        pop_metadata = {
+            "population_count": len(candidates),
+            "population_hash": res.population_hash,
+            "sealed_at_utc": datetime.now(timezone.utc).isoformat(),
+            "candidates_uids": [
+                c.get("candidate_uid") or c.get("sample_uid") or c.get("url")
+                for c in candidates
+            ],
+        }
+        stg_pop.write_text(json.dumps(pop_metadata, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    manifest_a = {
-        "dataset_id": "MAIN-BATCH1-A",
-        "sample_count": 100,
-        "sampling_plan_version": "MAIN-PLAN-V1.0",
-        "codebook_version": "1.1.0",
-        "codebook_status": "locked",
-        "dictionary_version": "1.0.0",
-        "dictionary_status": "locked",
-        "acceptance": {"B": "pending", "D": "pending"},
-        "ready_for_annotation": False,
-        "blind_view_sha256": view_a_hash,
-        "codebook_sha256": cb_sha256,
-        "dictionary_sha256": dict_sha256,
-        "blind_contract_version": "1.2.0",
-    }
-    manifest_b = {
-        "dataset_id": "MAIN-BATCH1-B",
-        "sample_count": 30,
-        "sampling_plan_version": "MAIN-PLAN-V1.0",
-        "codebook_version": "1.1.0",
-        "codebook_status": "locked",
-        "dictionary_version": "1.0.0",
-        "dictionary_status": "locked",
-        "acceptance": {"B": "pending", "D": "pending"},
-        "ready_for_annotation": False,
-        "blind_view_sha256": view_b_hash,
-        "codebook_sha256": cb_sha256,
-        "dictionary_sha256": dict_sha256,
-        "blind_contract_version": "1.2.0",
-    }
-    (p_rest / "manifest_a.json").write_text(json.dumps(manifest_a, indent=2, ensure_ascii=False), encoding="utf-8")
-    (p_rest / "manifest_b.json").write_text(json.dumps(manifest_b, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Tính toán SHA-256 các tệp trong staging
+        view_a_hash = hashlib.sha256(stg_view_a.read_bytes()).hexdigest()
+        view_b_hash = hashlib.sha256(stg_view_b.read_bytes()).hexdigest()
+        mapping_hash = hashlib.sha256(stg_mapping.read_bytes()).hexdigest()
 
-    # 5. Xuất Release Manifest công khai (tuyệt đối không chứa ID nguồn hay mapping)
-    manifest = {
-        "manifest_version": "1.0.0",
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "lot_id": "main_lot_batch_001",
-        "actor": actor,
-        "contract_versions": {
+        # Tạo role-specific manifests cho Annotator A và B
+        codebook_path = Path("docs/CODEBOOK_V1_1.md")
+        dictionary_path = Path("configs/dictionary_v1.json")
+        cb_sha256 = hashlib.sha256(codebook_path.read_bytes()).hexdigest() if codebook_path.exists() else ""
+        dict_sha256 = hashlib.sha256(dictionary_path.read_bytes()).hexdigest() if dictionary_path.exists() else ""
+
+        manifest_a = {
+            "dataset_id": "MAIN-BATCH1-A",
+            "sample_count": 100,
+            "sampling_plan_version": "MAIN-PLAN-V1.0",
             "codebook_version": "1.1.0",
+            "codebook_status": "locked",
+            "dictionary_version": "1.0.0",
+            "dictionary_status": "locked",
+            "acceptance": {"B": "pending", "D": "pending"},
+            "ready_for_annotation": False,
+            "blind_view_sha256": view_a_hash,
+            "codebook_sha256": cb_sha256,
+            "dictionary_sha256": dict_sha256,
             "blind_contract_version": "1.2.0",
-        },
-        "population": {
-            "source_shard": "data/raw/phreshphish/data/train-001.parquet",
-            "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
-            "candidate_count": res.population_count,
-            "population_fingerprint_sha256": res.population_hash,
-            "seed_population": DEFAULT_SEED_POPULATION,
-        },
-        "sampling_specification": {
-            "method": "Simple Random Sampling without Replacement (SRS)",
-            "lot_size_a": 100,
-            "b_subset_size": 30,
-            "seed_commitment_sha256": res.seed_commitment,
-            "id_format": "BLIND-xxxxxxxx (8 hex chars)",
-        },
-        "governance_flags": {
-            "main_annotation_status": "LOCKED",
-            "training_blocked": True,
-            "official_test_used": False,
-        },
-        "restricted_package_fingerprints": {
-            "blind_view_a_sha256": view_a_hash,
-            "blind_view_b_sha256": view_b_hash,
-            "mapping_restricted_sha256": mapping_hash,
-            "ledger_event_sequence": res.ledger_event_seq,
-        },
-    }
+        }
+        manifest_b = {
+            "dataset_id": "MAIN-BATCH1-B",
+            "sample_count": 30,
+            "sampling_plan_version": "MAIN-PLAN-V1.0",
+            "codebook_version": "1.1.0",
+            "codebook_status": "locked",
+            "dictionary_version": "1.0.0",
+            "dictionary_status": "locked",
+            "acceptance": {"B": "pending", "D": "pending"},
+            "ready_for_annotation": False,
+            "blind_view_sha256": view_b_hash,
+            "codebook_sha256": cb_sha256,
+            "dictionary_sha256": dict_sha256,
+            "blind_contract_version": "1.2.0",
+        }
+        (stage_rest / "manifest_a.json").write_text(json.dumps(manifest_a, indent=2, ensure_ascii=False), encoding="utf-8")
+        (stage_rest / "manifest_b.json").write_text(json.dumps(manifest_b, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    manifest_file = p_pub / "main_batch1_release_manifest.json"
-    manifest_file.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Xuất Release Manifest công khai
+        manifest = {
+            "manifest_version": "1.0.0",
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "lot_id": lot_id,
+            "actor": actor,
+            "contract_versions": {
+                "codebook_version": "1.1.0",
+                "blind_contract_version": "1.2.0",
+            },
+            "population": {
+                "source_shard": "data/raw/phreshphish/data/train-001.parquet",
+                "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+                "candidate_count": res.population_count,
+                "population_fingerprint_sha256": res.population_hash,
+                "seed_population": DEFAULT_SEED_POPULATION,
+            },
+            "sampling_specification": {
+                "method": "Simple Random Sampling without Replacement (SRS)",
+                "lot_size_a": 100,
+                "b_subset_size": 30,
+                "seed_commitment_sha256": res.seed_commitment,
+                "id_format": "BLIND-xxxxxxxx (8 hex chars)",
+            },
+            "governance_flags": {
+                "main_annotation_status": "LOCKED",
+                "training_blocked": True,
+                "official_test_used": False,
+            },
+            "restricted_package_fingerprints": {
+                "blind_view_a_sha256": view_a_hash,
+                "blind_view_b_sha256": view_b_hash,
+                "mapping_restricted_sha256": mapping_hash,
+                "ledger_event_sequence": res.ledger_event_seq,
+            },
+        }
+        stg_manifest = stage_pub / "main_batch1_release_manifest.json"
+        stg_manifest.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # 6. Kiểm tra cách ly Git sau khi ghi
-    iso_res = verify_git_isolation(p_pub / "isolation_verification_report.json")
-    if iso_res["overall_status"] != "PASS":
-        raise RuntimeError("EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi xuất tệp!")
+        # 4. HẬU KIỂM (Postflight Checks) trên các file STAGING trước khi publish
+        assert_no_label_leak(json.loads(stg_view_a.read_text(encoding="utf-8")))
+        assert_no_label_leak(json.loads(stg_view_b.read_text(encoding="utf-8")))
 
-    return {
-        "status": "SUCCESS",
-        "manifest": manifest,
-        "isolation_status": iso_res["overall_status"],
-    }
+        # Kiểm tra manifest công khai không rò rỉ nhãn hoặc mô hình
+        stg_manifest_text = stg_manifest.read_text(encoding="utf-8")
+        for forbidden in ("\"source_label\"", "\"model_score\"", "\"is_phish\""):
+            if forbidden in stg_manifest_text:
+                raise ValueError(f"Release manifest không được chứa trường nhãn: {forbidden}")
+
+        iso_res = verify_git_isolation()
+        if iso_res["overall_status"] != "PASS":
+            raise RuntimeError(f"EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi chuẩn bị staging! {iso_res['conclusion']}")
+
+        # 5. ATOMIC PUBLISHING: Chuyển toàn bộ các tệp từ staging sang thư mục đích
+        p_rest.mkdir(parents=True, exist_ok=True)
+        p_pub.mkdir(parents=True, exist_ok=True)
+
+        for f_src in stage_rest.iterdir():
+            f_dst = p_rest / f_src.name
+            f_tmp = p_rest / f".{f_src.name}_{stage_uuid}.tmp"
+            shutil.copy2(f_src, f_tmp)
+            os.replace(f_tmp, f_dst)
+
+        for f_src in stage_pub.iterdir():
+            f_dst = p_pub / f_src.name
+            f_tmp = p_pub / f".{f_src.name}_{stage_uuid}.tmp"
+            shutil.copy2(f_src, f_tmp)
+            os.replace(f_tmp, f_dst)
+
+        # Ghi nhận báo cáo kiểm toán cách ly chính thức
+        verify_git_isolation(p_pub / "isolation_verification_report.json")
+
+        return {
+            "status": "SUCCESS",
+            "manifest": manifest,
+            "isolation_status": iso_res["overall_status"],
+        }
+    except Exception as exc:
+        # Nếu có bất kỳ lỗi nào, khôi phục nguyên vẹn byte của ledger cũ
+        if ledger_bytes_backup is not None:
+            p_ledger.write_bytes(ledger_bytes_backup)
+        elif p_ledger.exists():
+            try:
+                p_ledger.unlink()
+            except OSError:
+                pass
+        raise exc
+    finally:
+        # Dọn dẹp triệt để thư mục staging
+        if stage_base.exists():
+            shutil.rmtree(stage_base, ignore_errors=True)

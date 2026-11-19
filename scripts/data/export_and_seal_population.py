@@ -64,6 +64,13 @@ def extract_and_seal_main_batch1(
     raw_records = df.to_dict(orient="records")
     print(f"Số bản ghi đọc từ parquet: {len(raw_records)}")
 
+    # GẮN LOCATOR NGUỒN GỐC TRƯỚC MỌI CỔNG LỌC VÀ XÁO TRỘN (Tuân thủ kiểm toán Lead D)
+    shard_name = p_shard.name
+    for idx, r in enumerate(raw_records):
+        r["source_row"] = idx
+        r["source_shard"] = shard_name
+        r["source_revision"] = DEFAULT_APPROVED_REVISION
+
     # 3. Chạy qua Gates 1 - 4 với quota = 1232 để lấy toàn bộ 1232 ứng viên
     res = pipeline.run_selection(
         raw_records,

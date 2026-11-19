@@ -227,6 +227,37 @@ def assert_no_label_leak(data: Any, path: str = "root") -> None:
                     raise ValueError(
                         f"RÒ RỈ DỮ LIỆU: Envelope Main 1.2.0 cấm tuyệt đối 'random_subset' tại '{path}'!"
                     )
+                # Bắt buộc TẤT CẢ các mẫu trong envelope Main 1.2.0 phải là mẫu Main 1.2.0 thống nhất (chống mixed version / sample legacy)
+                for s_idx, sample_item in enumerate(data["samples"]):
+                    if isinstance(sample_item, dict):
+                        s_ver = sample_item.get("blind_contract_version")
+                        if s_ver != BLIND_CONTRACT_VERSION_V1_2_0:
+                            raise ValueError(
+                                f"LỖI MIXED VERSION: Envelope Main 1.2.0 chứa mẫu tại vị trí {s_idx} không khớp phiên bản "
+                                f"(nhận '{s_ver}', yêu cầu '{BLIND_CONTRACT_VERSION_V1_2_0}')!"
+                            )
+                        if "random_subset" in sample_item:
+                            raise ValueError(
+                                f"LỖI ENVELOPE MAIN: Mẫu tại vị trí {s_idx} trong envelope Main 1.2.0 chứa trường cấm 'random_subset'!"
+                            )
+            elif env_contract_ver is not None:
+                if env_contract_ver not in ("1.0.0", "1.1.0"):
+                    raise ValueError(f"LỖI PHIÊN BẢN HỢP ĐỒNG: Envelope có blind_contract_version không xác định: '{env_contract_ver}'.")
+                for s_idx, sample_item in enumerate(data["samples"]):
+                    if isinstance(sample_item, dict):
+                        sid = str(sample_item.get("sample_id", "")).strip()
+                        if re.match(r"^BLIND-[a-f0-9]{8}$", sid):
+                            raise ValueError(
+                                f"LỖI MIXED VERSION: Envelope legacy ('{env_contract_ver}') không được chứa mẫu mang định dạng Main BLIND-xxxxxxxx tại vị trí {s_idx}!"
+                            )
+            else:
+                for s_idx, sample_item in enumerate(data["samples"]):
+                    if isinstance(sample_item, dict):
+                        sid = str(sample_item.get("sample_id", "")).strip()
+                        if re.match(r"^BLIND-[a-f0-9]{8}$", sid) or sample_item.get("blind_contract_version") == BLIND_CONTRACT_VERSION_V1_2_0:
+                            raise ValueError(
+                                f"LỖI ENVELOPE: Envelope chứa mẫu Main tại vị trí {s_idx} nhưng envelope thiếu khai báo blind_contract_version='{BLIND_CONTRACT_VERSION_V1_2_0}'!"
+                            )
 
         # 1. Nếu là từ điển của một mẫu (chứa sample_id và url), áp dụng Allowlist chặt chẽ
         if "sample_id" in data and "url" in data:
@@ -675,11 +706,45 @@ class AnnotationRecord:
 def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str] | None = None) -> AnnotationRecord:
     """Xác thực và nạp bản ghi gán nhãn theo đúng các ràng buộc trong CODEBOOK_V1."""
     contract_ver = data.get("blind_contract_version")
+    sample_id_str = str(data.get("sample_id", "")).strip()
+    is_blind_main_id = bool(re.match(r"^BLIND-[a-f0-9]{8}$", sample_id_str))
+
+    # Chặn hạ cấp Main xuống legacy: nếu mang ID Main BLIND-xxxxxxxx thì bắt buộc phải là 1.2.0
+    if is_blind_main_id and contract_ver != BLIND_CONTRACT_VERSION_V1_2_0:
+        raise ValueError(
+            f"LỖI HỢP ĐỒNG MAIN: Mẫu '{sample_id_str}' mang định dạng Main BLIND-xxxxxxxx "
+            f"nhưng có blind_contract_version={contract_ver!r}. "
+            f"Cấm hạ cấp bản ghi Main xuống legacy bằng cách xóa hoặc đổi phiên bản hợp đồng!"
+        )
+
+    if contract_ver == BLIND_CONTRACT_VERSION_V1_2_0 and not is_blind_main_id:
+        raise ValueError(
+            f"LỖI HỢP ĐỒNG MAIN: Bản ghi khai báo blind_contract_version='{BLIND_CONTRACT_VERSION_V1_2_0}' "
+            f"nhưng sample_id='{sample_id_str}' không đúng định dạng trung tính BLIND-xxxxxxxx!"
+        )
+
     is_main_120 = (contract_ver == BLIND_CONTRACT_VERSION_V1_2_0)
 
     if is_main_120:
         if "random_subset" in data:
             raise ValueError("LỖI BẢN GHI MAIN 1.2.0: Trường 'random_subset' bị cấm tuyệt đối trong bản ghi Main 1.2.0!")
+        
+        # Bắt buộc các trường provenance trong Main 1.2.0 không được None hoặc chuỗi rỗng
+        provenance_fields = (
+            "dataset_id",
+            "dataset_hash",
+            "codebook_hash",
+            "sample_content_hash",
+            "sampling_plan_version",
+            "timestamp_utc",
+        )
+        for pf in provenance_fields:
+            pval = data.get(pf)
+            if pval is None or not isinstance(pval, str) or not pval.strip():
+                raise ValueError(
+                    f"LỖI PROVENANCE MAIN 1.2.0: Bản ghi Main thiếu hoặc có trường provenance '{pf}' rỗng ({pval!r})!"
+                )
+
         required_keys = {
             "annotator_id", "sample_id", "pass_id", "class_label", "primary_org_status",
             "catalog_status", "observed_service", "org_targets", "primary_org",
@@ -827,7 +892,10 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
         elif phishing_type is not None or (hard_benign_type is not None and (class_label != "benign" or hard_benign_type not in VALID_HARD_BENIGN_TYPES)):
             raise ValueError("Codebook v1.1: loại phishing/hard benign không phù hợp nhãn lớp.")
 
-    timestamp = data.get("timestamp_utc") or datetime.now(timezone.utc).isoformat()
+    if is_main_120:
+        timestamp = str(data["timestamp_utc"]).strip()
+    else:
+        timestamp = data.get("timestamp_utc") or datetime.now(timezone.utc).isoformat()
     is_dry = bool(data.get("is_dry_run", False))
     is_synth = bool(data.get("is_synthetic", False))
     ds_id = str(data.get("dataset_id", ""))

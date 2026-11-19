@@ -376,13 +376,16 @@ def test_probe_4_ledger_prevents_duplicate_allocation_across_lots(tmp_path):
     ledger_path = tmp_path / "shared_ledger.json"
     ledger = LotManagementLedger(ledger_path)
 
-    # Tạo pool 120 ứng viên
+    # Tạo pool 120 ứng viên có gắn locator dòng nguồn gốc
     candidates_120 = []
     for i in range(120):
         candidates_120.append({
             "candidate_uid": f"uid_{i:04d}",
             "url": f"https://svc-{i}.test/auth",
             "html": f"<html><body>Auth {i}</body></html>",
+            "source_row": i,
+            "source_shard": "train-001.parquet",
+            "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
         })
 
     # Lot 1 rút 100 mẫu
@@ -447,3 +450,459 @@ def test_probe_5_export_verifier_fails_closed_on_isolation_failure(monkeypatch, 
             blind_salt="test_salt",
             ledger_path=tmp_path / "ledger.json",
         )
+
+
+def test_cohort_preservation_and_rejection_on_rerun(tmp_path):
+    """Kiểm tra: Rerun cùng lot bảo toàn cohort; đổi seed/population bị từ chối; cấp lot khác không ảnh hưởng."""
+    from phishing.data.lot_ledger import LotManagementLedger
+    from phishing.data.main_sampling import run_main_batch1_sampling, supersede_lot_sampling
+
+    ledger_path = tmp_path / "ledger_cohort.json"
+    ledger = LotManagementLedger(ledger_path)
+
+    # 150 ứng viên có locator nguồn
+    pool_150 = [
+        {
+            "candidate_uid": f"uid_{i:04d}",
+            "url": f"https://svc-{i}.test/auth",
+            "html": f"<html><body>Auth {i}</body></html>",
+            "source_row": i,
+            "source_shard": "train-001.parquet",
+            "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+        }
+        for i in range(150)
+    ]
+
+    # Rút lot_001 (100 mẫu)
+    res_001 = run_main_batch1_sampling(
+        pool_150,
+        seed_lot_100=1001,
+        seed_b_subset_30=2001,
+        seed_release_shuffle=3001,
+        blind_salt="salt_lot_1",
+        ledger=ledger,
+        lot_id="lot_001",
+    )
+    lot_001_candidates = [m["candidate_uid"] for m in res_001.mapping_restricted]
+    lot_001_b_candidates = [m["candidate_uid"] for m in res_001.mapping_restricted if m["is_b_kappa_sample"]]
+    assert len(lot_001_candidates) == 100
+    assert len(lot_001_b_candidates) == 30
+
+    # Rút lot_002 từ pool (chỉ còn 50 mẫu khả dụng -> phải bị chặn)
+    with pytest.raises(ValueError, match="không đủ 100 mẫu để rút"):
+        run_main_batch1_sampling(
+            pool_150,
+            seed_lot_100=1002,
+            seed_b_subset_30=2002,
+            seed_release_shuffle=3002,
+            blind_salt="salt_lot_2",
+            ledger=ledger,
+            lot_id="lot_002",
+        )
+
+    # Rerun lại lot_001 cùng tham số -> BẢO TOÀN COHORT 100%
+    res_001_rerun = run_main_batch1_sampling(
+        pool_150,
+        seed_lot_100=1001,
+        seed_b_subset_30=2001,
+        seed_release_shuffle=3001,
+        blind_salt="salt_lot_1",
+        ledger=ledger,
+        lot_id="lot_001",
+    )
+    rerun_candidates = [m["candidate_uid"] for m in res_001_rerun.mapping_restricted]
+    assert rerun_candidates == lot_001_candidates
+    assert res_001_rerun.lot_100_blind_ids == res_001.lot_100_blind_ids
+
+    # Rerun lot_001 nhưng đổi seed -> BỊ TỪ CHỐI
+    with pytest.raises(ValueError, match="TỪ CHỐI RERUN LOT 'lot_001': seed_commitment không khớp"):
+        run_main_batch1_sampling(
+            pool_150,
+            seed_lot_100=9999,  # Đổi seed
+            seed_b_subset_30=2001,
+            seed_release_shuffle=3001,
+            blind_salt="salt_lot_1",
+            ledger=ledger,
+            lot_id="lot_001",
+        )
+
+    # Rerun lot_001 nhưng đổi pool (thay đổi quần thể) -> BỊ TỪ CHỐI
+    pool_altered = list(pool_150)
+    pool_altered[0] = dict(pool_150[0], html="<html>Altered</html>")
+    with pytest.raises(ValueError, match="TỪ CHỐI RERUN LOT 'lot_001': population_hash không khớp"):
+        run_main_batch1_sampling(
+            pool_altered,
+            seed_lot_100=1001,
+            seed_b_subset_30=2001,
+            seed_release_shuffle=3001,
+            blind_salt="salt_lot_1",
+            ledger=ledger,
+            lot_id="lot_001",
+        )
+
+    # Supersede lot_001 với salt mới -> BẢO LƯU COHORT NHƯNG ĐỔI BLIND IDS
+    res_supersede = supersede_lot_sampling(
+        pool_150,
+        ledger=ledger,
+        lot_id="lot_001",
+        new_blind_salt="new_secure_salt_2026",
+        new_seed_release_shuffle=7777,
+    )
+    sup_candidates = [m["candidate_uid"] for m in res_supersede.mapping_restricted]
+    sup_b_candidates = [m["candidate_uid"] for m in res_supersede.mapping_restricted if m["is_b_kappa_sample"]]
+    assert sup_candidates == lot_001_candidates
+    assert sup_b_candidates == lot_001_b_candidates
+    # Blind IDs phải hoàn toàn mới
+    assert res_supersede.lot_100_blind_ids != res_001.lot_100_blind_ids
+    assert res_supersede.seed_commitment != res_001.seed_commitment
+
+
+def test_main_contract_envelope_and_sample_cross_validation():
+    """Kiểm tra: Envelope Main 1.2.0 chặn mẫu legacy; Envelope legacy chặn mẫu Main BLIND-xxxxxxxx."""
+    from phishing.annotation.blind_view import assert_no_label_leak
+
+    # 1. Envelope Main 1.2.0 chứa mẫu có 'random_subset' -> BỊ CHẶN
+    bad_env_main = {
+        "dataset_id": "MAIN-BATCH1-A",
+        "blind_contract_version": "1.2.0",
+        "samples": [
+            {
+                "sample_id": "BLIND-00000001",
+                "url": "https://test.site",
+                "page_text": "Sample text",
+                "blind_contract_version": "1.2.0",
+                "random_subset": True,  # Cấm trong Main 1.2.0
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="chứa trường cấm 'random_subset'"):
+        assert_no_label_leak(bad_env_main)
+
+    # 2. Envelope Main 1.2.0 chứa mẫu không khai báo blind_contract_version="1.2.0" -> BỊ CHẶN
+    mixed_env = {
+        "dataset_id": "MAIN-BATCH1-A",
+        "blind_contract_version": "1.2.0",
+        "samples": [
+            {
+                "sample_id": "BLIND-00000001",
+                "url": "https://test.site",
+                "page_text": "Sample text",
+                "blind_contract_version": "1.0.0",  # Mixed version
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="LỖI MIXED VERSION"):
+        assert_no_label_leak(mixed_env)
+
+    # 3. Envelope legacy (1.1.0) chứa mẫu Main định dạng BLIND-xxxxxxxx -> BỊ CHẶN
+    legacy_env_with_main_id = {
+        "dataset_id": "PILOT-V2",
+        "blind_contract_version": "1.1.0",
+        "samples": [
+            {
+                "sample_id": "BLIND-aabbccdd",
+                "url": "https://test.site",
+                "page_text": "Sample text",
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="LỖI MIXED VERSION: Envelope legacy"):
+        assert_no_label_leak(legacy_env_with_main_id)
+
+    # 4. Envelope thiếu blind_contract_version nhưng chứa mẫu Main BLIND-xxxxxxxx -> BỊ CHẶN
+    no_ver_env_with_main_id = {
+        "dataset_id": "UNKNOWN",
+        "samples": [
+            {
+                "sample_id": "BLIND-aabbccdd",
+                "url": "https://test.site",
+                "page_text": "Sample text",
+            }
+        ],
+    }
+    with pytest.raises(ValueError, match="LỖI ENVELOPE: Envelope chứa mẫu Main"):
+        assert_no_label_leak(no_ver_env_with_main_id)
+
+
+def test_record_main_downgrade_and_provenance_enforcement():
+    """Kiểm tra: Record Main BLIND-xxxxxxxx cấm hạ cấp và bắt buộc đủ provenance."""
+    from phishing.annotation.blind_view import validate_annotation_record
+
+    base_record = {
+        "annotator_id": "A",
+        "sample_id": "BLIND-12345678",
+        "pass_id": 1,
+        "class_label": "phishing",
+        "primary_org_status": "identified",
+        "catalog_status": "in_catalog",
+        "observed_service": "banking",
+        "org_targets": ["microsoft"],
+        "primary_org": "microsoft",
+        "identity_role": "identity_claim",
+        "domain_role": "unverified",
+        "evidence_note": "Giao diện giả mạo",
+        "seconds_spent": 120.0,
+        "difficult_case": False,
+        "codebook_version": "1.1.0",
+        "pause_count": 0,
+        "paused_seconds": 0.0,
+        "org_evidence": [{"org_id": "microsoft", "evidence_basis": "heading", "evidence_quote": "Sign in to Microsoft"}],
+        "primary_phishing_type": "credential_collection",
+        "confidence": "high",
+        "dataset_id": "MAIN-BATCH1-A",
+        "dataset_hash": "a" * 64,
+        "codebook_hash": "b" * 64,
+        "sample_content_hash": "c" * 64,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "timestamp_utc": "2026-11-19T10:00:00Z",
+        "blind_contract_version": "1.2.0",
+    }
+
+    # Hợp lệ
+    rec_valid = validate_annotation_record(base_record)
+    assert rec_valid.blind_contract_version == "1.2.0"
+    assert rec_valid.random_subset is None
+
+    # Hạ cấp: Xóa blind_contract_version để giả mạo legacy -> BỊ TỪ CHỐI
+    downgrade_record = dict(base_record)
+    del downgrade_record["blind_contract_version"]
+    with pytest.raises(ValueError, match="Cấm hạ cấp bản ghi Main xuống legacy"):
+        validate_annotation_record(downgrade_record)
+
+    # Record Main chứa random_subset -> BỊ TỪ CHỐI
+    leak_subset_record = dict(base_record, random_subset=True)
+    with pytest.raises(ValueError, match="Trường 'random_subset' bị cấm tuyệt đối trong bản ghi Main 1.2.0"):
+        validate_annotation_record(leak_subset_record)
+
+    # Record Main thiếu provenance (ví dụ: sample_content_hash rỗng) -> BỊ TỪ CHỐI
+    missing_prov_record = dict(base_record, sample_content_hash="")
+    with pytest.raises(ValueError, match="LỖI PROVENANCE MAIN 1.2.0"):
+        validate_annotation_record(missing_prov_record)
+
+    # Record Main thiếu timestamp_utc -> BỊ TỪ CHỐI, không fallback
+    missing_time_record = dict(base_record, timestamp_utc="")
+    with pytest.raises(ValueError, match="LỖI PROVENANCE MAIN 1.2.0"):
+        validate_annotation_record(missing_time_record)
+
+
+def test_source_row_required_for_main_sampling():
+    """Kiểm tra: Thiếu hoặc sai source_row bị chặn fail-closed trước khi rút mẫu."""
+    from phishing.data.main_sampling import run_main_batch1_sampling
+
+    pool_missing_row = [
+        {
+            "candidate_uid": f"uid_{i:04d}",
+            "url": f"https://svc-{i}.test/auth",
+            "html": f"<html><body>Auth {i}</body></html>",
+        }
+        for i in range(110)
+    ]
+
+    with pytest.raises(ValueError, match="Bắt buộc gắn locator dòng nguồn gốc trước khi lọc"):
+        run_main_batch1_sampling(
+            pool_missing_row,
+            seed_lot_100=1,
+            seed_b_subset_30=2,
+            seed_release_shuffle=3,
+            blind_salt="test_salt",
+        )
+
+
+def test_isolation_scanner_detects_literal_salt_assignment_and_read_errors(tmp_path):
+    """Kiểm tra: Scanner phát hiện literal string gán cho salt/secret mới và phát hiện lỗi đọc tệp."""
+    from scripts.data.verify_git_isolation import scan_public_docs_for_leaks
+
+    scan_dir = tmp_path / "scripts"
+    scan_dir.mkdir()
+
+    # 1. Tệp có gán literal salt cứng
+    bad_code_file = scan_dir / "bad_runner.py"
+    bad_code_file.write_text("blind_salt = 'my_secret_production_salt_2026'\n", encoding="utf-8")
+
+    res = scan_public_docs_for_leaks(target_dirs=[str(scan_dir)])
+    assert res["status"] == "FAIL"
+    assert any("LITERAL_SALT_ASSIGNMENT" in leak["term"] for leak in res["leaks"])
+
+    # 2. Xóa tệp vi phạm -> trạng thái trở về PASS
+    bad_code_file.unlink()
+    good_code_file = scan_dir / "good_runner.py"
+    good_code_file.write_text("b_salt = load_private_salt()\n", encoding="utf-8")
+    res_good = scan_public_docs_for_leaks(target_dirs=[str(scan_dir)])
+    assert res_good["status"] == "PASS"
+
+
+def test_staging_and_atomic_publish_preserves_old_bytes_on_failure(monkeypatch, tmp_path):
+    """Kiểm tra: Staging + Atomic publishing không ghi đè hiện vật cũ và phục hồi byte ledger khi lỗi."""
+    import scripts.data.run_main_batch1_pipeline as runner
+    from scripts.data.run_main_batch1_pipeline import export_main_batch1
+
+    candidates = [
+        {
+            "candidate_uid": f"c_{i:04d}",
+            "url": f"https://u.test/{i}",
+            "html": "p",
+            "source_row": i,
+            "source_shard": "train-001.parquet",
+            "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+        }
+        for i in range(220)
+    ]
+
+    p_rest = tmp_path / "restricted"
+    p_pub = tmp_path / "public"
+    p_ledger = tmp_path / "ledger.json"
+
+    # Lần 1: Xuất thành công
+    res1 = export_main_batch1(
+        candidates,
+        output_dir_restricted=p_rest,
+        public_artifacts_dir=p_pub,
+        seed_lot_100=10,
+        seed_b_subset_30=20,
+        seed_release_shuffle=30,
+        blind_salt="salt_1",
+        ledger_path=p_ledger,
+        lot_id="lot_first",
+    )
+    assert res1["status"] == "SUCCESS"
+
+    old_view_a_bytes = (p_rest / "blind_view_a.json").read_bytes()
+    old_ledger_bytes = p_ledger.read_bytes()
+
+    # Lần 2: Xuất lot khác nhưng mock lỗi ở bước hậu kiểm (Postflight check)
+    original_verify = runner.verify_git_isolation
+    call_count = 0
+
+    def mock_verify(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count > 1:
+            return {"overall_status": "FAIL", "conclusion": "Mock postflight failure"}
+        return original_verify(*args, **kwargs)
+
+    monkeypatch.setattr(runner, "verify_git_isolation", mock_verify)
+
+    with pytest.raises(RuntimeError, match="EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi chuẩn bị staging"):
+        export_main_batch1(
+            candidates,
+            output_dir_restricted=p_rest,
+            public_artifacts_dir=p_pub,
+            seed_lot_100=11,
+            seed_b_subset_30=21,
+            seed_release_shuffle=31,
+            blind_salt="salt_2",
+            ledger_path=p_ledger,
+            lot_id="lot_second",
+        )
+
+    # Xác nhận: Byte của gói cũ và byte của Ledger cũ không hề bị thay đổi
+    assert (p_rest / "blind_view_a.json").read_bytes() == old_view_a_bytes
+    assert p_ledger.read_bytes() == old_ledger_bytes
+    # Xác nhận không còn thư mục staging nào còn sót lại
+    staging_dirs = list(p_rest.parent.glob(".staging_*"))
+    assert len(staging_dirs) == 0
+
+
+def test_receive_main_batch1_intake_pipeline(tmp_path):
+    """Kiểm tra: Pipeline intake Main nhận gói hợp lệ, từ chối random_subset và kiểm toán receipt."""
+    from scripts.data.receive_main_batch1 import receive_main_batch1
+    from scripts.data.run_main_batch1_pipeline import export_main_batch1
+
+    candidates = [
+        {
+            "candidate_uid": f"c_{i:04d}",
+            "url": f"https://u.test/{i}",
+            "html": "<html><body>Main candidate</body></html>",
+            "source_row": i,
+            "source_shard": "train-001.parquet",
+            "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+        }
+        for i in range(220)
+    ]
+
+    p_rest = tmp_path / "restricted"
+    p_pub = tmp_path / "public"
+    p_ledger = tmp_path / "ledger.json"
+    p_intake = tmp_path / "intake"
+
+    export_res = export_main_batch1(
+        candidates,
+        output_dir_restricted=p_rest,
+        public_artifacts_dir=p_pub,
+        seed_lot_100=401,
+        seed_b_subset_30=501,
+        seed_release_shuffle=601,
+        blind_salt="salt_intake_test",
+        ledger_path=p_ledger,
+        lot_id="lot_intake",
+    )
+    assert export_res["status"] == "SUCCESS"
+
+    view_a = json.loads((p_rest / "blind_view_a.json").read_text(encoding="utf-8"))
+    manifest_a = json.loads((p_rest / "manifest_a.json").read_text(encoding="utf-8"))
+
+    # Tạo tệp kết quả JSONL hợp lệ cho A (100 mẫu)
+    valid_records_a = []
+    for s in view_a["samples"]:
+        sid = s["sample_id"]
+        from phishing.annotation.blind_view import compute_sample_content_hash
+        s_hash = compute_sample_content_hash(s)
+        rec = {
+            "annotator_id": "A",
+            "sample_id": sid,
+            "pass_id": 1,
+            "class_label": "benign",
+            "primary_org_status": "no_clear_target",
+            "catalog_status": "unresolved",
+            "observed_service": "generic_site",
+            "org_targets": [],
+            "primary_org": "no_clear_target",
+            "identity_role": "unclear",
+            "domain_role": "unverified",
+            "evidence_note": "Trang dịch vụ bình thường",
+            "seconds_spent": 45.0,
+            "difficult_case": False,
+            "codebook_version": "1.1.0",
+            "pause_count": 0,
+            "paused_seconds": 0.0,
+            "org_evidence": [],
+            "primary_phishing_type": None,
+            "hard_benign_type": None,
+            "confidence": "high",
+            "dataset_id": manifest_a["dataset_id"],
+            "dataset_hash": manifest_a["blind_view_sha256"],
+            "codebook_hash": manifest_a["codebook_sha256"],
+            "sampling_plan_version": manifest_a["sampling_plan_version"],
+            "sample_content_hash": s_hash,
+            "timestamp_utc": "2026-11-19T12:00:00Z",
+            "blind_contract_version": "1.2.0",
+            "is_dry_run": False,
+            "is_synthetic": False,
+        }
+        valid_records_a.append(rec)
+
+    input_jsonl = tmp_path / "submission_a.jsonl"
+    with input_jsonl.open("w", encoding="utf-8") as f:
+        for r in valid_records_a:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+    # Tiếp nhận submission hợp lệ -> ACCEPTED
+    rcp = receive_main_batch1(input_jsonl, "A", out_root=p_intake, restricted_dir=p_rest)
+    assert rcp["status"] == "accepted"
+    assert rcp["sample_count"] == 100
+
+    # Nếu gửi lại cùng submission -> idempotent
+    rcp_dup = receive_main_batch1(input_jsonl, "A", out_root=p_intake, restricted_dir=p_rest)
+    assert rcp_dup["status"] == "accepted"
+
+    # Tạo submission vi phạm có 'random_subset' -> REJECTED
+    bad_records = list(valid_records_a)
+    bad_records[0] = dict(bad_records[0], random_subset=True)
+    bad_jsonl = tmp_path / "submission_bad.jsonl"
+    with bad_jsonl.open("w", encoding="utf-8") as f:
+        for r in bad_records:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+    rcp_bad = receive_main_batch1(bad_jsonl, "A", out_root=p_intake, restricted_dir=p_rest)
+    assert rcp_bad["status"] == "rejected"
+    assert "Trường 'random_subset' bị cấm tuyệt đối" in rcp_bad["reason"]

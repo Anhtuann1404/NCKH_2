@@ -103,12 +103,19 @@ def scan_tracked_files() -> Dict[str, Any]:
 def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs", "src", "scripts"]) -> Dict[str, Any]:
     """Quét các tệp công khai (docs, configs, src, scripts) để phát hiện rò rỉ mã nguồn, seed/salt hoặc nhãn cấm."""
     leaks = []
+    read_errors = []
     scanned_count = 0
 
     # Các từ khóa salt bí mật sản xuất bị cấm xuất hiện dưới dạng chuỗi cứng trong mã nguồn theo dõi
     PROHIBITED_SECRET_PATTERNS = [
         "nckh2_main_batch1_blind_salt_secure_2026",
     ]
+
+    # Regex phát hiện mọi hành vi gán literal string cho biến secret/salt trong code sản xuất/runner
+    LITERAL_SALT_ASSIGNMENT_REGEX = re.compile(
+        r"\b(?:blind_salt|salt_secret|secret_salt|production_salt)\s*=\s*[\"'][^\"']+[\"']",
+        re.IGNORECASE
+    )
 
     for d in target_dirs:
         p_dir = Path(d)
@@ -119,27 +126,42 @@ def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs", "src
                 scanned_count += 1
                 try:
                     text = p.read_text(encoding="utf-8")
-                except Exception:
+                except Exception as exc:
+                    read_errors.append({"file": str(p), "error": str(exc)})
                     continue
 
-                # 1. Quét phát hiện seed/salt sản xuất bị hardcode trong source/scripts (trừ chính tệp kiểm tra)
+                # 1. Quét phát hiện seed/salt sản xuất bị hardcode trong source/scripts (trừ chính tệp scanner)
                 if p.name != "verify_git_isolation.py":
                     for sec_term in PROHIBITED_SECRET_PATTERNS:
                         if sec_term in text:
                             leaks.append({"file": str(p), "term": f"PROHIBITED_SECRET: {sec_term}"})
 
+                    # Phát hiện literal string gán cho salt/secret mới trong src và scripts
+                    if p_dir.name in ("src", "scripts") or "src" in p.parts or "scripts" in p.parts:
+                        for line_no, line in enumerate(text.splitlines(), start=1):
+                            if LITERAL_SALT_ASSIGNMENT_REGEX.search(line):
+                                leaks.append({
+                                    "file": str(p),
+                                    "line": line_no,
+                                    "term": f"LITERAL_SALT_ASSIGNMENT: {line.strip()}"
+                                })
+
                 # 2. Quét rò rỉ trường nhãn nguồn trong docs và configs
-                if d in ("docs", "configs"):
+                if p_dir.name in ("docs", "configs") or "docs" in p.parts or "configs" in p.parts:
                     if "CODEBOOK" in p.name or "API_SPEC" in p.name:
                         continue
                     for term in ("\"source_label\":", "'source_label':"):
                         if term in text:
                             leaks.append({"file": str(p), "term": term})
 
+    has_issues = bool(leaks or read_errors)
     return {
-        "status": "PASS" if not leaks else "FAIL",
+        "status": "FAIL" if has_issues else "PASS",
         "scanned_files_count": scanned_count,
+        "scanned_target_dirs": target_dirs,
         "leaks_count": len(leaks),
+        "read_errors_count": len(read_errors),
+        "read_errors": read_errors,
         "leaks": leaks,
     }
 
@@ -166,11 +188,14 @@ def verify_git_isolation(output_report_path: Optional[Path | str] = None) -> Dic
             "public_content_leak_inspection": leak_res,
         },
         "conclusion": (
-            "Trong phạm vi đã quét, không phát hiện tệp hạn chế nào bị Git theo dõi, "
+            f"Trong phạm vi đã quét ({leak_res.get('scanned_files_count', 0)} tệp thuộc các thư mục {leak_res.get('scanned_target_dirs', [])} và index Git hiện hành), "
+            "không phát hiện tệp hạn chế nào bị Git theo dõi, "
             "toàn bộ đường dẫn probe thuộc data/restricted/ đều được .gitignore cách ly đúng, "
+            "không có lỗi đọc tệp, "
+            "không phát hiện literal string gán cứng cho biến bí mật/salt trong src/scripts, "
             "và không phát hiện trường dữ liệu nguồn bị rò rỉ vào tài liệu công khai."
             if overall_pass else
-            "Phát hiện vi phạm quy tắc cách ly Git! Đề nghị xử lý trước khi phát hành."
+            f"Phát hiện vi phạm quy tắc cách ly Git hoặc rò rỉ bí mật/lỗi đọc tệp! (leaks={leak_res.get('leaks_count', 0)}, read_errors={leak_res.get('read_errors_count', 0)}, tracked_violations={tracked_res.get('violations_count', 0)}). Đề nghị xử lý trước khi phát hành."
         ),
     }
 

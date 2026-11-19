@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""Intake pipeline cho Main Annotation Đợt 1 (Hợp đồng Main v1.2.0).
+
+Tiếp nhận tệp kết quả JSONL từ Annotator A (100 mẫu) hoặc B (30 mẫu),
+đối chiếu với gói Blind View và manifest hạn chế đã niêm phong,
+không yêu cầu hay chấp nhận trường 'random_subset' của pilot.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+from pathlib import Path
+import re
+import sys
+from typing import Any, Dict, List
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from phishing.annotation.blind_view import (
+    BLIND_CONTRACT_VERSION_V1_2_0,
+    compute_sample_content_hash,
+    validate_annotation_record,
+)
+
+
+def compute_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def load_jsonl(path: Path) -> List[Dict[str, Any]]:
+    records = []
+    with path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line_str = line.strip()
+            if not line_str:
+                continue
+            try:
+                records.append(json.loads(line_str))
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Lỗi cú pháp JSON tại dòng {line_no} của '{path}': {exc}")
+    return records
+
+
+def verify_main_batch1_records(
+    records: List[Dict[str, Any]],
+    annotator: str,
+    manifest_path: Path,
+    view_path: Path,
+) -> Dict[str, Any]:
+    """Kiểm tra toàn diện tệp kết quả gán nhãn Main Đợt 1 đối chiếu với Blind View và manifest."""
+    if annotator not in {"A", "B"}:
+        raise ValueError("annotator phải là 'A' hoặc 'B' trong Main Đợt 1")
+
+    expected_count = 100 if annotator == "A" else 30
+
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Không tìm thấy manifest tại '{manifest_path}'")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    if manifest.get("blind_contract_version") != BLIND_CONTRACT_VERSION_V1_2_0:
+        raise ValueError(
+            f"Manifest không thuộc hợp đồng Main 1.2.0 (nhận '{manifest.get('blind_contract_version')}')"
+        )
+    if manifest.get("sample_count") != expected_count:
+        raise ValueError(
+            f"Manifest sample_count ({manifest.get('sample_count')}) không khớp kỳ vọng {expected_count} cho {annotator}"
+        )
+
+    if not view_path.exists():
+        raise FileNotFoundError(f"Không tìm thấy blind view tại '{view_path}'")
+    view_sha = compute_sha256(view_path)
+    if view_sha != manifest.get("blind_view_sha256"):
+        raise ValueError(
+            f"Blind view SHA-256 ('{view_sha}') không khớp manifest ('{manifest.get('blind_view_sha256')}')"
+        )
+
+    view_data = json.loads(view_path.read_text(encoding="utf-8"))
+    if view_data.get("blind_contract_version") != BLIND_CONTRACT_VERSION_V1_2_0:
+        raise ValueError("Blind view envelope thiếu hoặc không khớp blind_contract_version='1.2.0'")
+    if "samples" not in view_data or not isinstance(view_data["samples"], list):
+        raise ValueError("Blind view envelope thiếu danh sách 'samples'")
+
+    samples_list = view_data["samples"]
+    if len(samples_list) != expected_count:
+        raise ValueError(
+            f"Blind view chứa {len(samples_list)} mẫu, kỳ vọng đúng {expected_count} cho {annotator}"
+        )
+
+    samples_by_id = {}
+    for s in samples_list:
+        sid = s.get("sample_id", "")
+        if not re.match(r"^BLIND-[a-f0-9]{8}$", str(sid)):
+            raise ValueError(f"Blind view chứa sample_id '{sid}' không đúng định dạng BLIND-xxxxxxxx")
+        if sid in samples_by_id:
+            raise ValueError(f"Blind view chứa sample_id trùng lặp: '{sid}'")
+        samples_by_id[sid] = s
+
+    if len(records) != expected_count:
+        raise ValueError(
+            f"Tệp kết quả chứa {len(records)} bản ghi, kỳ vọng đúng {expected_count} bản ghi hoàn chỉnh cho {annotator}"
+        )
+
+    expected_provenance = {
+        "dataset_id": manifest.get("dataset_id"),
+        "dataset_hash": manifest.get("blind_view_sha256"),
+        "codebook_version": manifest.get("codebook_version"),
+        "codebook_hash": manifest.get("codebook_sha256"),
+        "sampling_plan_version": manifest.get("sampling_plan_version"),
+    }
+
+    seen_rec_ids = set()
+    for idx, record in enumerate(records, start=1):
+        rec_annotator = record.get("annotator_id")
+        if rec_annotator != annotator:
+            raise ValueError(
+                f"Dòng {idx}: Bản ghi có annotator_id='{rec_annotator}', không khớp '{annotator}'"
+            )
+
+        if record.get("is_dry_run") is True or record.get("is_synthetic") is True:
+            raise ValueError(f"Dòng {idx}: Không nhận bản ghi dry-run hoặc synthetic vào kết quả chính thức")
+
+        sid = record.get("sample_id")
+        if sid not in samples_by_id:
+            raise ValueError(f"Dòng {idx}: sample_id='{sid}' không tồn tại trong Blind View {annotator}")
+        if sid in seen_rec_ids:
+            raise ValueError(f"Dòng {idx}: sample_id='{sid}' xuất hiện trùng lặp trong tệp kết quả")
+        seen_rec_ids.add(sid)
+
+        # Chặn tuyệt đối random_subset của pilot trong Main 1.2.0
+        if "random_subset" in record:
+            raise ValueError(
+                f"Dòng {idx}: Trường 'random_subset' bị cấm tuyệt đối trong bản ghi Main 1.2.0"
+            )
+
+        # Kiểm tra provenance
+        for pf, pval in expected_provenance.items():
+            if record.get(pf) != pval:
+                raise ValueError(
+                    f"Dòng {idx} ({sid}): Trường {pf} ('{record.get(pf)}') không khớp kỳ vọng ('{pval}')"
+                )
+
+        # Kiểm tra tính toàn vẹn nội dung mẫu bằng hàm canonical
+        curr_sample = samples_by_id[sid]
+        expected_content_hash = compute_sample_content_hash(curr_sample)
+        if record.get("sample_content_hash") != expected_content_hash:
+            raise ValueError(
+                f"Dòng {idx} ({sid}): sample_content_hash ('{record.get('sample_content_hash')}') "
+                f"không khớp nội dung mẫu ('{expected_content_hash}')"
+            )
+
+        # Kiểm tra thời gian thao tác
+        sec = record.get("seconds_spent")
+        if type(sec) not in (int, float) or not math.isfinite(sec) or sec < 0:
+            raise ValueError(f"Dòng {idx} ({sid}): seconds_spent ({sec!r}) phải là số hữu hạn không âm")
+
+        # Xác thực toàn bộ ràng buộc của Codebook và hợp đồng Main 1.2.0
+        validate_annotation_record(record)
+
+    if seen_rec_ids != set(samples_by_id.keys()):
+        missing_ids = sorted(list(set(samples_by_id.keys()) - seen_rec_ids))
+        raise ValueError(f"Tệp kết quả thiếu {len(missing_ids)} mẫu trong Blind View: {missing_ids[:5]}...")
+
+    return {
+        "annotator": annotator,
+        "sample_count": expected_count,
+        "manifest_sha256": compute_sha256(manifest_path),
+        "blind_view_sha256": view_sha,
+        "contract_version": BLIND_CONTRACT_VERSION_V1_2_0,
+    }
+
+
+def receive_main_batch1(
+    input_path: Path | str,
+    annotator: str,
+    *,
+    out_root: Path | str = "data/labels/intake_main_batch1",
+    restricted_dir: Path | str = "data/restricted/main_batch1",
+) -> Dict[str, Any]:
+    """Tiếp nhận tệp JSONL Main Đợt 1, bảo toàn byte và xuất biên lai kiểm toán."""
+    p_in = Path(input_path)
+    p_out = Path(out_root)
+    p_rest = Path(restricted_dir)
+
+    if annotator not in {"A", "B"}:
+        raise ValueError("annotator phải là 'A' hoặc 'B'")
+
+    raw = p_in.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+
+    ann_dir = p_out / annotator
+    ann_dir.mkdir(parents=True, exist_ok=True)
+    saved_jsonl = ann_dir / f"{digest}.jsonl"
+
+    if not saved_jsonl.exists():
+        saved_jsonl.write_bytes(raw)
+    elif saved_jsonl.read_bytes() != raw:
+        raise ValueError("Xung đột SHA-256: Tệp cùng mã băm nhưng nội dung byte khác nhau!")
+
+    receipt: Dict[str, Any] = {
+        "dataset_type": "main_annotation_batch1",
+        "annotator": annotator,
+        "file_sha256": digest,
+        "saved_path": str(saved_jsonl),
+    }
+
+    manifest_file = p_rest / ("manifest_a.json" if annotator == "A" else "manifest_b.json")
+    view_file = p_rest / ("blind_view_a.json" if annotator == "A" else "blind_view_b.json")
+
+    try:
+        records = load_jsonl(saved_jsonl)
+        v_res = verify_main_batch1_records(records, annotator, manifest_file, view_file)
+        receipt.update(v_res)
+
+        # Kiểm tra không nhận đè biên lai hợp lệ trước đó
+        prior_receipts = [
+            p for p in ann_dir.glob("*.receipt.json")
+            if p.stem.split(".")[0] != digest and json.loads(p.read_text(encoding="utf-8")).get("status") == "accepted"
+        ]
+        if prior_receipts:
+            raise ValueError(
+                f"Đã tồn tại biên lai ACCEPTED khác cho annotator {annotator} ({prior_receipts[0].name}). "
+                "Cần chỉ đạo của Lead D để xử lý bản nộp lại."
+            )
+
+        receipt["status"] = "accepted"
+    except Exception as exc:
+        receipt["status"] = "rejected"
+        receipt["reason"] = str(exc)
+
+    receipt_path = ann_dir / f"{digest}.receipt.json"
+    receipt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return receipt
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--annotator", choices=("A", "B"), required=True, help="Annotator ('A' hoặc 'B')")
+    parser.add_argument("--input", type=Path, required=True, help="Đường dẫn tệp kết quả JSONL")
+    parser.add_argument("--restricted-dir", type=Path, default=Path("data/restricted/main_batch1"), help="Thư mục gói hạn chế")
+    parser.add_argument("--out-root", type=Path, default=Path("data/labels/intake_main_batch1"), help="Thư mục lưu biên lai intake")
+    args = parser.parse_args()
+
+    receipt = receive_main_batch1(args.input, args.annotator, out_root=args.out_root, restricted_dir=args.restricted_dir)
+    print(f"Trạng thái tiếp nhận: {receipt['status']} (Annotator {args.annotator}, SHA-256={receipt['file_sha256']})")
+    if receipt["status"] != "accepted":
+        print(f"Lý do từ chối: {receipt['reason']}", file=sys.stderr)
+        return 1
+    print(f"Đã lưu tại: {receipt['saved_path']}")
+    print("Biên lai: ACCEPTED. Ghi nhận thành công đợt gán nhãn Main.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

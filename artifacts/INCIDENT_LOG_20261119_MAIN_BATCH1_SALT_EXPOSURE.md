@@ -14,20 +14,22 @@ Từ các giá trị mặc định công khai này, bất kỳ ai có quyền tr
 
 ---
 
-## 2. Đánh giá ranh giới và phạm vi rò rỉ (Scope & Leakage Boundary Assessment)
-Căn cứ theo Kỷ luật Nghiên cứu Hàn lâm (ARS) và nguyên tắc trung thực khoa học, C xác nhận rõ ranh giới kỹ thuật của sự cố:
+## 2. Đánh giá ranh giới và phạm vi ảnh hưởng (Scope & Impact Boundary Assessment)
+Căn cứ theo Kỷ luật Nghiên cứu Hàn lâm (ARS) và nguyên tắc trung thực khoa học, C xác nhận rõ ranh giới kỹ thuật và phạm vi tiếp cận của sự cố:
 
-1. **Tuyệt đối KHÔNG rò rỉ nhãn nguồn hoặc nhãn đích (Zero Label Leakage):**
-   - Sự cố **CHỈ liên quan đến chuỗi muối bí mật (salt) và bộ seed lựa chọn**, hoàn toàn **KHÔNG** làm rò rỉ nhãn lớp (`is_phish`, `label`, `source_label`), tổ chức mục tiêu (`target`, `primary_org`), hay điểm số của matcher/mô hình vào Blind View.
-   - Các trường trong Blind View v1.2.0 vẫn tuân thủ 100% allowlist trung tính, không chứa bất kỳ trường nguồn bị cấm nào.
+1. **Kết luận về nhãn trong phạm vi đã kiểm:**
+   - Trong phạm vi các artifact và file Blind View v1.2.0 đã kiểm tra đối chiếu, **chưa phát hiện trường nhãn trực tiếp** (`source_label`, `is_phish`, `label`, `target`, `primary_org`, `model_score`) xuất hiện trong Blind View gửi cho người gán.
+   - Các trường trong Blind View v1.2.0 vẫn tuân thủ allowlist trung tính của Codebook.
 
 2. **Rủi ro suy luận nhận diện (De-anonymization Risk):**
-   - Do salt và seed bị công khai, nếu một cá nhân nắm được toàn bộ 1.232 mẫu ứng viên đã khóa và thuật toán sinh `generate_blind_id()`, họ có thể suy luận ngược ánh xạ giữa `BLIND-xxxxxxxx` và `candidate_uid` trước khi đợt gán nhãn bắt đầu.
+   - **Mức độ rủi ro:** Đáng kể đối với người nắm được mã nguồn công khai tại commit `b013ed7`.
+   - **Cơ chế suy luận:** Do `DEFAULT_BLIND_SALT` và các seed lựa chọn bị đưa vào mã nguồn, cá nhân có quyền truy cập Git repository và shard dữ liệu nguồn `train-001.parquet` có thể tái lập lại toàn bộ quá trình rút mẫu, tính toán `generate_blind_id()`, từ đó suy luận ngược ánh xạ giữa `BLIND-xxxxxxxx` và danh tính gốc (`url`, `candidate_uid`, `source_row`), làm suy giảm nghiêm ngặt tính mù đôi (double-blind).
 
-3. **Phạm vi người nhận & Trạng thái phát hành thực tế:**
-   - **Chưa có bất kỳ tệp Blind View nào được gửi tới Annotator A hoặc B.**
-   - Toàn bộ dữ liệu thật vẫn được niêm phong trong `data/restricted/` (không bị Git theo dõi).
-   - Quyền gán nhãn Pass 1 chưa từng được mở.
+3. **Tình trạng tiếp cận thực tế của các bên (Access & Exposure Status):**
+   - **Lead D (Anh Tuấn):** Đã kiểm toán trực tiếp tại commit `b013ed7`, phát hiện lỗ hổng và phát hành báo cáo kiểm toán HOLD.
+   - **Annotator B kiêm QA Lead (Phùng Tấn Minh):** Đã phát hành báo cáo QA độc lập `docs/QA_PRE_RELEASE_CHECKLIST_MAIN_BATCH1_B_V1_2_HOLD_B013ED7.md`, xác nhận trạng thái HOLD/PENDING và ghi nhận chưa từng mở mã nguồn công khai tại commit `b013ed7` để kiểm tra seed/salt, bảo toàn tính mù đánh giá viên.
+   - **Annotator A (Nguyễn Văn A):** Hoàn toàn chưa tiếp cận mã nguồn, chưa từng nhận bất kỳ gói Blind View hay dữ liệu nào của Main Batch 1.
+   - **Dữ liệu thật:** Toàn bộ gói hạn chế vẫn lưu trữ trong `data/restricted/` (không bị Git theo dõi); quyền gán nhãn Pass 1 chưa từng được mở.
 
 ---
 

@@ -18,8 +18,10 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
+import uuid
 
 
 LEDGER_SCHEMA_VERSION = "1.0.0"
@@ -136,7 +138,7 @@ class LotManagementLedger:
                     self._allocated_ids.add(cid)
 
     def _save_to_disk(self) -> None:
-        """Ghi dữ liệu sổ cái xuống đĩa đảm bảo UTF-8."""
+        """Ghi dữ liệu sổ cái xuống đĩa nguyên tử (atomic write) đảm bảo UTF-8."""
         data = {
             "schema_version": LEDGER_SCHEMA_VERSION,
             "last_updated_utc": datetime.now(timezone.utc).isoformat(),
@@ -157,7 +159,18 @@ class LotManagementLedger:
                 for e in self.events
             ],
         }
-        self.ledger_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        content = json.dumps(data, indent=2, ensure_ascii=False)
+        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self.ledger_path.with_name(f".{self.ledger_path.stem}_{uuid.uuid4().hex[:8]}.tmp")
+        try:
+            tmp_path.write_text(content, encoding="utf-8")
+            os.replace(tmp_path, self.ledger_path)
+        finally:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
 
     def append_event(
         self,
@@ -199,6 +212,26 @@ class LotManagementLedger:
     def get_allocated_candidate_ids(self) -> Set[str]:
         """Trả về tập hợp tất cả các candidate_id đã được cấp cho bất kỳ lô nào."""
         return set(self._allocated_ids)
+
+    def get_allocated_candidate_ids_excluding_lot(self, lot_id: str) -> Set[str]:
+        """Trả về tập hợp candidate_id đã cấp cho các lô KHÁC (loại trừ lot_id chỉ định)."""
+        excluded = set()
+        for ev in self.events:
+            if ev.lot_id != lot_id and ev.status in ("PREPARED", "RESERVED", "RELEASED", "COMPLETED"):
+                if "allocated_candidate_ids" in ev.details:
+                    excluded.update(ev.details["allocated_candidate_ids"])
+        return excluded
+
+    def get_lot_events(self, lot_id: str) -> List[LedgerEvent]:
+        """Lấy tất cả các sự kiện liên quan đến một lot_id cụ thể theo thứ tự dòng thời gian."""
+        return [ev for ev in self.events if ev.lot_id == lot_id]
+
+    def get_active_lot_details(self, lot_id: str) -> Optional[Dict[str, Any]]:
+        """Lấy thông tin chi tiết (details) của sự kiện đang hoạt động gần nhất của lot_id."""
+        for ev in reversed(self.events):
+            if ev.lot_id == lot_id and ev.status in ("RESERVED", "RELEASED", "COMPLETED"):
+                return ev.details
+        return None
 
     def is_candidate_allocated(self, candidate_id: str) -> bool:
         """Kiểm tra xem candidate_id đã từng được phân bổ vào lô nào chưa."""
