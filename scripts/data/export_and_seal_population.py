@@ -14,7 +14,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # Đảm bảo import được src/ và project root
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -39,10 +39,10 @@ def extract_and_seal_main_batch1(
     output_dir_restricted: Path | str = "data/restricted/main_batch1",
     public_artifacts_dir: Path | str = "artifacts",
     seed_population: int = 42,
-    seed_lot_100: int = 1017,
-    seed_b_subset_30: int = 2042,
-    seed_release_shuffle: int = 2026,
-    blind_salt: str = "nckh2_main_batch1_blind_salt_secure_2026",
+    seed_lot_100: Optional[int] = None,
+    seed_b_subset_30: Optional[int] = None,
+    seed_release_shuffle: Optional[int] = None,
+    blind_salt: Optional[str] = None,
 ) -> Dict[str, Any]:
     p_shard = Path(shard_path)
     print("=" * 70)

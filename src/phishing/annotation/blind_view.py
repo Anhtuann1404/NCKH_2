@@ -102,7 +102,6 @@ FORBIDDEN_LEAK_KEYS: Set[str] = frozenset({
     "source_row",
     "parquet_file",
     "parquet_metadata",
-    "random_subset",
     "strata",
     "lot",
     "selection_quota",
@@ -220,21 +219,36 @@ def assert_neutral_sample_id(sample_id: Any) -> None:
 def assert_no_label_leak(data: Any, path: str = "root") -> None:
     """Kiểm tra đệ quy đảm bảo không có bất kỳ trường nhãn hoặc metadata cấm nào xuất hiện trong Blind View."""
     if isinstance(data, dict):
+        # 0. Nếu là envelope chứa danh sách mẫu
+        if "samples" in data and isinstance(data["samples"], list):
+            env_contract_ver = data.get("blind_contract_version")
+            if env_contract_ver == BLIND_CONTRACT_VERSION_V1_2_0:
+                if "random_subset" in data or "random_subset_default" in data:
+                    raise ValueError(
+                        f"RÒ RỈ DỮ LIỆU: Envelope Main 1.2.0 cấm tuyệt đối 'random_subset' tại '{path}'!"
+                    )
+
         # 1. Nếu là từ điển của một mẫu (chứa sample_id và url), áp dụng Allowlist chặt chẽ
         if "sample_id" in data and "url" in data:
             contract_ver = data.get("blind_contract_version")
+            sid_str = str(data["sample_id"]).strip()
             if contract_ver == BLIND_CONTRACT_VERSION_V1_2_0:
                 current_allowlist = ALLOWED_BLIND_SAMPLE_KEYS_V1_2_0
                 if "random_subset" in data:
                     raise ValueError(
                         f"RÒ RỈ DỮ LIỆU: random_subset bị cấm tuyệt đối trong Blind Contract v1.2.0 tại '{path}'!"
                     )
-                sid = str(data["sample_id"]).strip()
-                if not re.match(r"^BLIND-[a-f0-9]{8}$", sid):
+                if not re.match(r"^BLIND-[a-f0-9]{8}$", sid_str):
                     raise ValueError(
-                        f"sample_id '{sid}' trong Blind View v1.2.0 không đúng định dạng trung tính BLIND-xxxxxxxx!"
+                        f"sample_id '{sid_str}' trong Blind View v1.2.0 không đúng định dạng trung tính BLIND-xxxxxxxx!"
                     )
             else:
+                if re.match(r"^BLIND-[a-f0-9]{8}$", sid_str):
+                    raise ValueError(
+                        f"Mẫu có sample_id '{sid_str}' mang định dạng Main BLIND-xxxxxxxx nhưng thiếu hoặc sai blind_contract_version (yêu cầu '{BLIND_CONTRACT_VERSION_V1_2_0}')! Fail-closed."
+                    )
+                if contract_ver is not None:
+                    raise ValueError(f"Phiên bản hợp đồng blind_contract_version không xác định: '{contract_ver}' tại '{path}'!")
                 current_allowlist = ALLOWED_BLIND_SAMPLE_KEYS
 
             extra_keys = set(data.keys()) - current_allowlist
@@ -593,8 +607,8 @@ class AnnotationRecord:
     domain_role: str
     evidence_note: str
     seconds_spent: float
-    random_subset: bool
-    difficult_case: bool
+    random_subset: Optional[bool] = None
+    difficult_case: bool = False
     codebook_version: str = "1.0.0"
     is_dry_run: bool = False
     is_synthetic: bool = False
@@ -610,6 +624,7 @@ class AnnotationRecord:
     primary_phishing_type: str | None = None
     hard_benign_type: str | None = None
     confidence: str | None = None
+    blind_contract_version: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
@@ -628,7 +643,6 @@ class AnnotationRecord:
             "seconds_spent": round(float(self.seconds_spent), 2),
             "pause_count": int(self.pause_count),
             "paused_seconds": round(float(self.paused_seconds), 2),
-            "random_subset": bool(self.random_subset),
             "difficult_case": bool(self.difficult_case),
             "codebook_version": self.codebook_version,
             "is_dry_run": bool(self.is_dry_run),
@@ -640,6 +654,14 @@ class AnnotationRecord:
             "sample_content_hash": self.sample_content_hash,
             "timestamp_utc": self.timestamp_utc or datetime.now(timezone.utc).isoformat(),
         }
+        if self.blind_contract_version == BLIND_CONTRACT_VERSION_V1_2_0:
+            result["blind_contract_version"] = BLIND_CONTRACT_VERSION_V1_2_0
+        else:
+            if self.random_subset is not None:
+                result["random_subset"] = bool(self.random_subset)
+            else:
+                result["random_subset"] = False
+
         if self.codebook_version.lstrip("v").startswith("1.1."):
             result.update({
                 "org_evidence": self.org_evidence or [],
@@ -652,12 +674,25 @@ class AnnotationRecord:
 
 def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str] | None = None) -> AnnotationRecord:
     """Xác thực và nạp bản ghi gán nhãn theo đúng các ràng buộc trong CODEBOOK_V1."""
-    required_keys = {
-        "annotator_id", "sample_id", "pass_id", "class_label", "primary_org_status",
-        "catalog_status", "observed_service", "org_targets", "primary_org",
-        "identity_role", "domain_role", "evidence_note", "seconds_spent",
-        "random_subset", "difficult_case",
-    }
+    contract_ver = data.get("blind_contract_version")
+    is_main_120 = (contract_ver == BLIND_CONTRACT_VERSION_V1_2_0)
+
+    if is_main_120:
+        if "random_subset" in data:
+            raise ValueError("LỖI BẢN GHI MAIN 1.2.0: Trường 'random_subset' bị cấm tuyệt đối trong bản ghi Main 1.2.0!")
+        required_keys = {
+            "annotator_id", "sample_id", "pass_id", "class_label", "primary_org_status",
+            "catalog_status", "observed_service", "org_targets", "primary_org",
+            "identity_role", "domain_role", "evidence_note", "seconds_spent",
+            "difficult_case",
+        }
+    else:
+        required_keys = {
+            "annotator_id", "sample_id", "pass_id", "class_label", "primary_org_status",
+            "catalog_status", "observed_service", "org_targets", "primary_org",
+            "identity_role", "domain_role", "evidence_note", "seconds_spent",
+            "random_subset", "difficult_case",
+        }
     missing = required_keys - set(data.keys())
     if missing:
         raise ValueError(f"Bản ghi gán nhãn thiếu các trường bắt buộc: {sorted(list(missing))}")
@@ -736,8 +771,12 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
     if v11:
         if type(data["pass_id"]) is not int or data["pass_id"] < 1:
             raise ValueError("Codebook v1.1 yêu cầu pass_id là số nguyên dương.")
-        if type(data["random_subset"]) is not bool or type(data["difficult_case"]) is not bool:
-            raise ValueError("Codebook v1.1 yêu cầu random_subset và difficult_case là boolean.")
+        if not is_main_120:
+            if type(data["random_subset"]) is not bool or type(data["difficult_case"]) is not bool:
+                raise ValueError("Codebook v1.1 yêu cầu random_subset và difficult_case là boolean.")
+        else:
+            if type(data["difficult_case"]) is not bool:
+                raise ValueError("Main 1.2.0 yêu cầu difficult_case là boolean.")
         if not math.isfinite(seconds_spent) or not str(data["evidence_note"]).strip():
             raise ValueError("Codebook v1.1 yêu cầu thời gian hữu hạn và ghi chú bằng chứng không rỗng.")
         if not isinstance(org_evidence, list):
@@ -813,7 +852,7 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
         seconds_spent=seconds_spent,
         pause_count=pause_count,
         paused_seconds=paused_seconds,
-        random_subset=bool(data["random_subset"]),
+        random_subset=bool(data["random_subset"]) if not is_main_120 else None,
         difficult_case=bool(data["difficult_case"]),
         codebook_version=str(data.get("codebook_version", "1.0.0")),
         is_dry_run=is_dry,
@@ -828,6 +867,7 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
         primary_phishing_type=phishing_type,
         hard_benign_type=hard_benign_type,
         confidence=confidence,
+        blind_contract_version=BLIND_CONTRACT_VERSION_V1_2_0 if is_main_120 else None,
     )
 
 

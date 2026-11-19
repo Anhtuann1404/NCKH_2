@@ -22,6 +22,7 @@ from phishing.annotation.blind_view import (
     ALLOWED_BLIND_SAMPLE_KEYS,
     FORBIDDEN_LEAK_KEYS,
     assert_no_label_leak,
+    compute_sample_content_hash,
     extract_safe_view_content,
     normalize_url,
 )
@@ -52,13 +53,39 @@ def compute_seed_commitment(
 
 
 def compute_population_fingerprint(candidates: Sequence[Dict[str, Any]]) -> str:
-    """Tính mã băm chuẩn hóa của toàn bộ 1.232 ứng viên đầu vào."""
-    uids = []
+    """Tính mã băm chuẩn hóa toàn vẹn của quần thể ứng viên đầu vào.
+    
+    Khóa cứng: candidate_uid, URL raw, URL normalized, URL SHA-256,
+    HTML SHA-256, source_shard, source_row, source_revision.
+    Bất kỳ sự thay đổi nào về nội dung HTML, URL, shard, dòng nguồn hay bản sửa đổi
+    đều làm thay đổi mã băm quần thể.
+    """
+    records = []
     for c in candidates:
-        uid = c.get("candidate_uid") or c.get("sample_uid") or c.get("url") or str(c)
-        uids.append(uid)
-    uids.sort()
-    canonical_bytes = json.dumps(uids, sort_keys=True).encode("utf-8")
+        uid = str(c.get("candidate_uid") or c.get("sample_uid") or "")
+        raw_url = str(c.get("url", ""))
+        norm_url = normalize_url(raw_url)
+        url_hash = hashlib.sha256(raw_url.encode("utf-8")).hexdigest()
+        html_content = c.get("html") or ""
+        html_hash = hashlib.sha256(html_content.encode("utf-8")).hexdigest()
+        shard = str(c.get("source_shard", "train-001.parquet"))
+        row = c.get("source_row")
+        revision = str(c.get("source_revision", "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"))
+
+        records.append({
+            "candidate_uid": uid,
+            "url_raw": raw_url,
+            "url_normalized": norm_url,
+            "url_sha256": url_hash,
+            "html_sha256": html_hash,
+            "source_shard": shard,
+            "source_row": row,
+            "source_revision": revision,
+        })
+
+    # Sắp xếp canonical theo url_normalized, html_sha256, candidate_uid
+    records.sort(key=lambda r: (r["url_normalized"], r["html_sha256"], r["candidate_uid"]))
+    canonical_bytes = json.dumps(records, sort_keys=True, ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(canonical_bytes).hexdigest()
 
 
@@ -73,6 +100,8 @@ class SamplingResult:
     blind_view_a: List[Dict[str, Any]]
     blind_view_b: List[Dict[str, Any]]
     ledger_event_seq: int
+    blind_view_a_envelope: Optional[Dict[str, Any]] = None
+    blind_view_b_envelope: Optional[Dict[str, Any]] = None
 
 
 def run_main_batch1_sampling(
@@ -104,11 +133,33 @@ def run_main_batch1_sampling(
     pop_hash = compute_population_fingerprint(sorted_candidates)
     seed_commit = compute_seed_commitment(seed_lot_100, seed_b_subset_30, seed_release_shuffle, blind_salt)
 
+    # Kiểm tra loại trừ các ứng viên đã phân bổ cho các lô khác trong ledger
+    other_lot_allocated: Set[str] = set()
+    is_idempotent_rerun = False
+    if ledger:
+        for ev in ledger.events:
+            if ev.lot_id != lot_id and ev.status in ("PREPARED", "RESERVED", "RELEASED", "COMPLETED"):
+                for cid in ev.details.get("allocated_candidate_ids", []):
+                    other_lot_allocated.add(cid)
+            elif ev.lot_id == lot_id and ev.status in ("RESERVED", "RELEASED"):
+                if ev.details.get("seed_commitment") == seed_commit and ev.details.get("population_hash") == pop_hash:
+                    is_idempotent_rerun = True
+
+    available_candidates = [
+        c for c in sorted_candidates
+        if (c.get("candidate_uid") or c.get("sample_uid") or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]) not in other_lot_allocated
+    ]
+
+    if len(available_candidates) < 100:
+        raise ValueError(
+            f"Quần thể ứng viên khả dụng sau khi trừ các lô khác ({len(available_candidates)}) không đủ 100 mẫu để rút!"
+        )
+
     # 2. Rút ngẫu nhiên không hoàn lại 100 mẫu Main cho Annotator A
     rng_lot = random.Random(seed_lot_100)
-    selected_indices_100 = rng_lot.sample(range(len(sorted_candidates)), 100)
+    selected_indices_100 = rng_lot.sample(range(len(available_candidates)), 100)
     selected_indices_100.sort()  # Sắp xếp chỉ số canonical trước khi gán
-    lot_100 = [sorted_candidates[i] for i in selected_indices_100]
+    lot_100 = [available_candidates[i] for i in selected_indices_100]
 
     # 3. Rút ngẫu nhiên không hoàn lại 30 mẫu từ lô 100 cho Annotator B (tính Kappa chính)
     rng_b = random.Random(seed_b_subset_30)
@@ -158,16 +209,22 @@ def run_main_batch1_sampling(
             if forbidden in blind_sample:
                 raise ValueError(f"RÒ RỈ DỮ LIỆU: Trường cấm '{forbidden}' xuất hiện trong Blind View!")
 
+        sample_content_hash = compute_sample_content_hash(blind_sample)
         mapping_entry = {
             "blind_id": b_id,
             "candidate_uid": c_uid,
             "url": sample.get("url", ""),
+            "url_normalized": normalize_url(sample.get("url", "")),
+            "url_sha256": hashlib.sha256(sample.get("url", "").encode("utf-8")).hexdigest(),
+            "html_sha256": hashlib.sha256((sample.get("html") or "").encode("utf-8")).hexdigest(),
+            "sample_content_hash": sample_content_hash,
             "canonical_pop_index": selected_indices_100[idx],
             "assigned_to": assigned_to,
             "is_b_kappa_sample": is_for_b,
             "source_label": sample.get("source_label") or sample.get("label"),
             "source_shard": sample.get("source_shard", "train-001.parquet"),
             "source_row": sample.get("source_row"),
+            "source_revision": sample.get("source_revision", "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"),
         }
 
         mapping_restricted.append(mapping_entry)
@@ -200,25 +257,58 @@ def run_main_batch1_sampling(
     for order, (b_sample, m_entry) in enumerate(shuffled_lot_b):
         m_entry["presentation_order_b"] = order
 
+    # Tạo Envelope thống nhất cho Blind View A và B
+    envelope_a = {
+        "dataset_id": "MAIN-BATCH1-A",
+        "dataset_type": "main_annotation",
+        "blind_contract_version": blind_contract_version,
+        "codebook_version": codebook_version,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "sample_count": len(blind_view_a),
+        "total_samples": len(blind_view_a),
+        "is_synthetic": False,
+        "samples": blind_view_a,
+    }
+    envelope_b = {
+        "dataset_id": "MAIN-BATCH1-B",
+        "dataset_type": "main_annotation",
+        "blind_contract_version": blind_contract_version,
+        "codebook_version": codebook_version,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "sample_count": len(blind_view_b),
+        "total_samples": len(blind_view_b),
+        "is_synthetic": False,
+        "samples": blind_view_b,
+    }
+    assert_no_label_leak(envelope_a)
+    assert_no_label_leak(envelope_b)
+
     # 6. Ghi nhận vào Sổ quản lý lô (Append-only Ledger) nếu được cấp
     seq_num = -1
     if ledger:
-        event = ledger.append_event(
-            event_type="REGISTER_MAIN_BATCH1_SAMPLES",
-            actor=actor,
-            lot_id=lot_id,
-            status="RESERVED",
-            details={
-                "population_count": len(sorted_candidates),
-                "population_hash": pop_hash,
-                "lot_size": 100,
-                "b_subset_size": 30,
-                "seed_commitment": seed_commit,
-                "allocated_candidate_ids": [m["candidate_uid"] for m in mapping_restricted],
-                "blind_ids": [m["blind_id"] for m in mapping_restricted],
-            },
-        )
-        seq_num = event.seq
+        if not is_idempotent_rerun:
+            event = ledger.append_event(
+                event_type="REGISTER_MAIN_BATCH1_SAMPLES",
+                actor=actor,
+                lot_id=lot_id,
+                status="RESERVED",
+                details={
+                    "population_count": len(sorted_candidates),
+                    "population_hash": pop_hash,
+                    "available_candidates_count": len(available_candidates),
+                    "lot_size": 100,
+                    "b_subset_size": 30,
+                    "seed_commitment": seed_commit,
+                    "allocated_candidate_ids": [m["candidate_uid"] for m in mapping_restricted],
+                    "blind_ids": [m["blind_id"] for m in mapping_restricted],
+                },
+            )
+            seq_num = event.seq
+        else:
+            for ev in reversed(ledger.events):
+                if ev.lot_id == lot_id:
+                    seq_num = ev.seq
+                    break
 
     return SamplingResult(
         population_count=len(sorted_candidates),
@@ -230,4 +320,6 @@ def run_main_batch1_sampling(
         blind_view_a=blind_view_a,
         blind_view_b=blind_view_b,
         ledger_event_seq=seq_num,
+        blind_view_a_envelope=envelope_a,
+        blind_view_b_envelope=envelope_b,
     )

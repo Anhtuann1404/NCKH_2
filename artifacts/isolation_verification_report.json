@@ -27,13 +27,13 @@
     },
     "tracked_files_inspection": {
       "status": "PASS",
-      "total_tracked_files": 197,
+      "total_tracked_files": 208,
       "violations_count": 0,
       "violations": []
     },
     "public_content_leak_inspection": {
       "status": "PASS",
-      "scanned_files_count": 68,
+      "scanned_files_count": 133,
       "leaks_count": 0,
       "leaks": []
     }

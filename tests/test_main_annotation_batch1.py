@@ -274,3 +274,176 @@ def test_git_isolation_verification_passes():
     assert report["checks"]["check_ignore_probes"]["status"] == "PASS"
     assert report["checks"]["tracked_files_inspection"]["status"] == "PASS"
     assert report["checks"]["public_content_leak_inspection"]["status"] == "PASS"
+
+
+# =========================================================================
+# CÁC TEST BỔ SUNG THEO 5 PROBE KIỂM ĐỊNH ĐỘC LẬP CỦA LEAD D
+# =========================================================================
+
+def test_probe_1_main_sample_without_contract_version_fails_closed():
+    """Probe 1: Mẫu mang ID BLIND-xxxxxxxx nhưng thiếu blind_contract_version phải bị chặn (fail-closed)."""
+    sample = {
+        "sample_id": "BLIND-0123abcd",
+        "url": "https://secure-login.example.com",
+        "page_text": "Sign In Form",
+        "structure_summary": {"forms": 1},
+        "codebook_version": "1.1.0",
+        "translation_provided": False,
+    }
+    with pytest.raises(ValueError, match="thiếu hoặc sai blind_contract_version"):
+        assert_no_label_leak(sample)
+
+
+def test_probe_2_population_fingerprint_seals_html_and_provenance():
+    """Probe 2: Giữ nguyên candidate_uid, chỉ sửa đổi nội dung HTML phải làm đổi fingerprint quần thể."""
+    pool1 = [
+        {"candidate_uid": "cand_01", "url": "https://test.example/1", "html": "<html><body>Original Page</body></html>", "source_shard": "train-001.parquet", "source_row": 10},
+        {"candidate_uid": "cand_02", "url": "https://test.example/2", "html": "<html><body>Page Two</body></html>", "source_shard": "train-001.parquet", "source_row": 20},
+    ]
+    pool2 = [
+        {"candidate_uid": "cand_01", "url": "https://test.example/1", "html": "<html><body>MODIFIED Page HTML</body></html>", "source_shard": "train-001.parquet", "source_row": 10},
+        {"candidate_uid": "cand_02", "url": "https://test.example/2", "html": "<html><body>Page Two</body></html>", "source_shard": "train-001.parquet", "source_row": 20},
+    ]
+
+    hash1 = compute_population_fingerprint(pool1)
+    hash2 = compute_population_fingerprint(pool2)
+    assert hash1 != hash2, "Thay đổi nội dung HTML nhưng fingerprint quần thể không thay đổi!"
+
+
+def test_probe_3_cli_loads_envelope_and_omits_random_subset(tmp_path):
+    """Probe 3: CLI nạp đúng cấu trúc envelope và bản ghi Main 1.2.0 hoàn toàn không chứa random_subset."""
+    from scripts.annotate_cli import annotate_interactive_session
+    from scripts.data.run_main_batch1_pipeline import export_main_batch1
+
+    candidates = []
+    for i in range(120):
+        candidates.append({
+            "candidate_uid": f"cand_{i:04d}",
+            "url": f"https://service-{i:03d}.example.org/login",
+            "html": f"<html><body>Login {i}</body></html>",
+            "source_label": "phish" if i % 2 == 0 else "benign",
+            "source_shard": "train-001.parquet",
+            "source_row": i,
+        })
+
+    restricted_dir = tmp_path / "restricted"
+    public_dir = tmp_path / "public"
+    ledger_file = restricted_dir / "ledger.json"
+
+    export_main_batch1(
+        candidates,
+        output_dir_restricted=restricted_dir,
+        public_artifacts_dir=public_dir,
+        seed_lot_100=100,
+        seed_b_subset_30=200,
+        seed_release_shuffle=300,
+        blind_salt="test_salt_secret_probe_3",
+        ledger_path=ledger_file,
+    )
+
+    view_a_path = restricted_dir / "blind_view_a.json"
+    view_data = json.loads(view_a_path.read_text(encoding="utf-8"))
+    assert isinstance(view_data, dict), "Gói view xuất ra đĩa phải là dict envelope, không được là bare list!"
+    assert "samples" in view_data
+    assert len(view_data["samples"]) == 100
+
+    # Chạy một phiên dry-run giả lập qua CLI thật với fixture synthetic
+    view_data_synth = dict(view_data)
+    view_data_synth["is_synthetic"] = True
+    synth_view_path = tmp_path / "synth_view_a.json"
+    synth_view_path.write_text(json.dumps(view_data_synth), encoding="utf-8")
+
+    out_jsonl = tmp_path / "output_a.jsonl"
+    annotate_interactive_session(
+        annotator_id="A",
+        input_path=synth_view_path,
+        output_path=out_jsonl,
+        dry_run=True,
+    )
+
+    # Đọc bản ghi đã lưu từ CLI thật (dry_run lưu tại .dryrun.jsonl)
+    dryrun_out = tmp_path / "output_a.dryrun.jsonl"
+    records = [json.loads(line) for line in dryrun_out.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(records) == 100
+    for r in records:
+        assert "random_subset" not in r, f"Phát hiện trường cấm random_subset trong bản ghi Main 1.2.0: {r}"
+        assert r.get("blind_contract_version") == "1.2.0"
+        assert r["sample_id"].startswith("BLIND-")
+
+
+def test_probe_4_ledger_prevents_duplicate_allocation_across_lots(tmp_path):
+    """Probe 4: Hai lot dùng chung ledger không thể lấy trùng candidate_id."""
+    ledger_path = tmp_path / "shared_ledger.json"
+    ledger = LotManagementLedger(ledger_path)
+
+    # Tạo pool 120 ứng viên
+    candidates_120 = []
+    for i in range(120):
+        candidates_120.append({
+            "candidate_uid": f"uid_{i:04d}",
+            "url": f"https://svc-{i}.test/auth",
+            "html": f"<html><body>Auth {i}</body></html>",
+        })
+
+    # Lot 1 rút 100 mẫu
+    res1 = run_main_batch1_sampling(
+        candidates_120,
+        seed_lot_100=111,
+        seed_b_subset_30=222,
+        seed_release_shuffle=333,
+        blind_salt="salt_lot1",
+        ledger=ledger,
+        lot_id="lot_001",
+    )
+    assert len(res1.lot_100_blind_ids) == 100
+
+    # Lot 2 cố rút 100 mẫu từ cùng pool 120 mẫu (chỉ còn 20 mẫu khả dụng) -> phải bị chặn!
+    with pytest.raises(ValueError, match="không đủ 100 mẫu để rút"):
+        run_main_batch1_sampling(
+            candidates_120,
+            seed_lot_100=111,
+            seed_b_subset_30=222,
+            seed_release_shuffle=333,
+            blind_salt="salt_lot2",
+            ledger=ledger,
+            lot_id="lot_002",
+        )
+
+    # Nhưng nếu retry chính Lot 1 với cùng lot_id -> idempotent, không lỗi
+    res1_retry = run_main_batch1_sampling(
+        candidates_120,
+        seed_lot_100=111,
+        seed_b_subset_30=222,
+        seed_release_shuffle=333,
+        blind_salt="salt_lot1",
+        ledger=ledger,
+        lot_id="lot_001",
+    )
+    assert res1_retry.lot_100_blind_ids == res1.lot_100_blind_ids
+
+
+def test_probe_5_export_verifier_fails_closed_on_isolation_failure(monkeypatch, tmp_path):
+    """Probe 5: Nếu verify_git_isolation thất bại, export_main_batch1 phải chặn phát hành (fail-closed)."""
+    import scripts.data.run_main_batch1_pipeline as runner
+    from scripts.data.run_main_batch1_pipeline import export_main_batch1
+
+    candidates = [{"candidate_uid": f"c_{i}", "url": f"https://u.test/{i}", "html": "p"} for i in range(110)]
+
+    # Mock verify_git_isolation trả về FAIL
+    monkeypatch.setattr(
+        runner,
+        "verify_git_isolation",
+        lambda *args, **kwargs: {"overall_status": "FAIL", "conclusion": "Mock isolation leak detected"},
+    )
+
+    with pytest.raises(RuntimeError, match="EXPORT BLOCKED"):
+        export_main_batch1(
+            candidates,
+            output_dir_restricted=tmp_path / "restricted",
+            public_artifacts_dir=tmp_path / "public",
+            seed_lot_100=1,
+            seed_b_subset_30=2,
+            seed_release_shuffle=3,
+            blind_salt="test_salt",
+            ledger_path=tmp_path / "ledger.json",
+        )

@@ -100,30 +100,41 @@ def scan_tracked_files() -> Dict[str, Any]:
     }
 
 
-def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs"]) -> Dict[str, Any]:
-    """Quét các tệp tài liệu công khai để phát hiện rò rỉ mã định danh nguồn hoặc trường cấm."""
+def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs", "src", "scripts"]) -> Dict[str, Any]:
+    """Quét các tệp công khai (docs, configs, src, scripts) để phát hiện rò rỉ mã nguồn, seed/salt hoặc nhãn cấm."""
     leaks = []
     scanned_count = 0
+
+    # Các từ khóa salt bí mật sản xuất bị cấm xuất hiện dưới dạng chuỗi cứng trong mã nguồn theo dõi
+    PROHIBITED_SECRET_PATTERNS = [
+        "nckh2_main_batch1_blind_salt_secure_2026",
+    ]
 
     for d in target_dirs:
         p_dir = Path(d)
         if not p_dir.exists():
             continue
         for p in p_dir.glob("**/*"):
-            if p.is_file() and p.suffix in (".md", ".json", ".txt"):
+            if p.is_file() and p.suffix in (".md", ".json", ".txt", ".py"):
                 scanned_count += 1
                 try:
                     text = p.read_text(encoding="utf-8")
                 except Exception:
                     continue
 
-                # Ngoại trừ các tài liệu đặc thù mô tả đặc tả / hợp đồng / schema
-                if "CODEBOOK" in p.name or "API_SPEC" in p.name or "blind_view.py" in p.name:
-                    continue
+                # 1. Quét phát hiện seed/salt sản xuất bị hardcode trong source/scripts (trừ chính tệp kiểm tra)
+                if p.name != "verify_git_isolation.py":
+                    for sec_term in PROHIBITED_SECRET_PATTERNS:
+                        if sec_term in text:
+                            leaks.append({"file": str(p), "term": f"PROHIBITED_SECRET: {sec_term}"})
 
-                for term in ("\"source_label\":", "'source_label':"):
-                    if term in text:
-                        leaks.append({"file": str(p), "term": term})
+                # 2. Quét rò rỉ trường nhãn nguồn trong docs và configs
+                if d in ("docs", "configs"):
+                    if "CODEBOOK" in p.name or "API_SPEC" in p.name:
+                        continue
+                    for term in ("\"source_label\":", "'source_label':"):
+                        if term in text:
+                            leaks.append({"file": str(p), "term": term})
 
     return {
         "status": "PASS" if not leaks else "FAIL",

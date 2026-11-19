@@ -19,7 +19,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 # Đảm bảo import được src/ và project root
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -40,10 +40,31 @@ from scripts.data.verify_git_isolation import verify_git_isolation
 
 
 DEFAULT_SEED_POPULATION = 42
-DEFAULT_SEED_LOT_100 = 1017
-DEFAULT_SEED_B_SUBSET_30 = 2042
-DEFAULT_SEED_RELEASE_SHUFFLE = 2026
-DEFAULT_BLIND_SALT = "nckh2_main_batch1_blind_salt_secure_2026"
+
+
+def load_private_sampling_params(
+    config_path: Path | str = "data/restricted/seeds_and_salts.json",
+) -> Dict[str, Any]:
+    """Tải cấu hình seed và salt bí mật từ thư mục restricted hoặc biến môi trường."""
+    p = Path(config_path)
+    res = {}
+    if p.exists():
+        try:
+            res = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    import os
+    if "MAIN_BLIND_SALT" in os.environ:
+        res["blind_salt"] = os.environ["MAIN_BLIND_SALT"]
+    if "MAIN_SEED_LOT_100" in os.environ:
+        res["seed_lot_100"] = int(os.environ["MAIN_SEED_LOT_100"])
+    if "MAIN_SEED_B_SUBSET_30" in os.environ:
+        res["seed_b_subset_30"] = int(os.environ["MAIN_SEED_B_SUBSET_30"])
+    if "MAIN_SEED_RELEASE_SHUFFLE" in os.environ:
+        res["seed_release_shuffle"] = int(os.environ["MAIN_SEED_RELEASE_SHUFFLE"])
+
+    return res
 
 
 def export_main_batch1(
@@ -51,18 +72,38 @@ def export_main_batch1(
     output_dir_restricted: Path | str = "data/restricted/main_batch1",
     public_artifacts_dir: Path | str = "artifacts",
     *,
-    seed_lot_100: int = DEFAULT_SEED_LOT_100,
-    seed_b_subset_30: int = DEFAULT_SEED_B_SUBSET_30,
-    seed_release_shuffle: int = DEFAULT_SEED_RELEASE_SHUFFLE,
-    blind_salt: str = DEFAULT_BLIND_SALT,
+    seed_lot_100: Optional[int] = None,
+    seed_b_subset_30: Optional[int] = None,
+    seed_release_shuffle: Optional[int] = None,
+    blind_salt: Optional[str] = None,
     ledger_path: Path | str = "data/restricted/main_annotation_lot_management_ledger.json",
     actor: str = "Member C (Nguyễn Thắng)",
 ) -> Dict[str, Any]:
     """Thực thi toàn bộ quy trình đóng gói và niêm phong Main Annotation Đợt 1."""
+    # Nạp tham số bảo mật từ cấu hình hạn chế hoặc biến môi trường nếu không truyền trực tiếp
+    cfg = load_private_sampling_params()
+    s_lot = seed_lot_100 if seed_lot_100 is not None else cfg.get("seed_lot_100")
+    s_b = seed_b_subset_30 if seed_b_subset_30 is not None else cfg.get("seed_b_subset_30")
+    s_shuf = seed_release_shuffle if seed_release_shuffle is not None else cfg.get("seed_release_shuffle")
+    b_salt = blind_salt if blind_salt is not None else cfg.get("blind_salt")
+
+    if not b_salt or s_lot is None or s_b is None or s_shuf is None:
+        raise ValueError(
+            "BẮT BUỘC: blind_salt và các seed lựa chọn (seed_lot_100, seed_b_subset_30, seed_release_shuffle) "
+            "phải được cung cấp qua tham số, biến môi trường (MAIN_BLIND_SALT, ...) hoặc tệp hạn chế data/restricted/seeds_and_salts.json!"
+        )
+
     p_rest = Path(output_dir_restricted)
     p_rest.mkdir(parents=True, exist_ok=True)
     p_pub = Path(public_artifacts_dir)
     p_pub.mkdir(parents=True, exist_ok=True)
+
+    # 0. Kiểm tra cách ly Git TRƯỚC KHI XUẤT (Fail-closed)
+    iso_preflight = verify_git_isolation()
+    if iso_preflight["overall_status"] != "PASS":
+        raise RuntimeError(
+            f"EXPORT BLOCKED: Kiểm tra cách ly Git thất bại trước khi đóng gói! {iso_preflight['conclusion']}"
+        )
 
     # 1. Khởi tạo/tải Ledger
     ledger = LotManagementLedger(ledger_path)
@@ -70,10 +111,10 @@ def export_main_batch1(
     # 2. Chạy lấy mẫu ngẫu nhiên không hoàn lại
     res: SamplingResult = run_main_batch1_sampling(
         candidates,
-        seed_lot_100=seed_lot_100,
-        seed_b_subset_30=seed_b_subset_30,
-        seed_release_shuffle=seed_release_shuffle,
-        blind_salt=blind_salt,
+        seed_lot_100=s_lot,
+        seed_b_subset_30=s_b,
+        seed_release_shuffle=s_shuf,
+        blind_salt=b_salt,
         ledger=ledger,
         lot_id="main_lot_batch_001",
         actor=actor,
@@ -84,10 +125,10 @@ def export_main_batch1(
     mapping_file.write_text(json.dumps(res.mapping_restricted, indent=2, ensure_ascii=False), encoding="utf-8")
 
     view_a_file = p_rest / "blind_view_a.json"
-    view_a_file.write_text(json.dumps(res.blind_view_a, indent=2, ensure_ascii=False), encoding="utf-8")
+    view_a_file.write_text(json.dumps(res.blind_view_a_envelope, indent=2, ensure_ascii=False), encoding="utf-8")
 
     view_b_file = p_rest / "blind_view_b.json"
-    view_b_file.write_text(json.dumps(res.blind_view_b, indent=2, ensure_ascii=False), encoding="utf-8")
+    view_b_file.write_text(json.dumps(res.blind_view_b_envelope, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # Lưu danh sách quần thể niêm phong (dạng restricted)
     pop_file = p_rest / "population_1232_sealed.json"
@@ -106,6 +147,45 @@ def export_main_batch1(
     view_a_hash = hashlib.sha256(view_a_file.read_bytes()).hexdigest()
     view_b_hash = hashlib.sha256(view_b_file.read_bytes()).hexdigest()
     mapping_hash = hashlib.sha256(mapping_file.read_bytes()).hexdigest()
+
+    # Tạo role-specific manifests cho Annotator A và B
+    codebook_path = Path("docs/CODEBOOK_V1_1.md")
+    dictionary_path = Path("configs/dictionary_v1.json")
+    cb_sha256 = hashlib.sha256(codebook_path.read_bytes()).hexdigest() if codebook_path.exists() else ""
+    dict_sha256 = hashlib.sha256(dictionary_path.read_bytes()).hexdigest() if dictionary_path.exists() else ""
+
+    manifest_a = {
+        "dataset_id": "MAIN-BATCH1-A",
+        "sample_count": 100,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "codebook_version": "1.1.0",
+        "codebook_status": "locked",
+        "dictionary_version": "1.0.0",
+        "dictionary_status": "locked",
+        "acceptance": {"B": "pending", "D": "pending"},
+        "ready_for_annotation": False,
+        "blind_view_sha256": view_a_hash,
+        "codebook_sha256": cb_sha256,
+        "dictionary_sha256": dict_sha256,
+        "blind_contract_version": "1.2.0",
+    }
+    manifest_b = {
+        "dataset_id": "MAIN-BATCH1-B",
+        "sample_count": 30,
+        "sampling_plan_version": "MAIN-PLAN-V1.0",
+        "codebook_version": "1.1.0",
+        "codebook_status": "locked",
+        "dictionary_version": "1.0.0",
+        "dictionary_status": "locked",
+        "acceptance": {"B": "pending", "D": "pending"},
+        "ready_for_annotation": False,
+        "blind_view_sha256": view_b_hash,
+        "codebook_sha256": cb_sha256,
+        "dictionary_sha256": dict_sha256,
+        "blind_contract_version": "1.2.0",
+    }
+    (p_rest / "manifest_a.json").write_text(json.dumps(manifest_a, indent=2, ensure_ascii=False), encoding="utf-8")
+    (p_rest / "manifest_b.json").write_text(json.dumps(manifest_b, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # 5. Xuất Release Manifest công khai (tuyệt đối không chứa ID nguồn hay mapping)
     manifest = {
@@ -147,8 +227,10 @@ def export_main_batch1(
     manifest_file = p_pub / "main_batch1_release_manifest.json"
     manifest_file.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # 6. Kiểm tra cách ly Git thực tế
+    # 6. Kiểm tra cách ly Git sau khi ghi
     iso_res = verify_git_isolation(p_pub / "isolation_verification_report.json")
+    if iso_res["overall_status"] != "PASS":
+        raise RuntimeError("EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi xuất tệp!")
 
     return {
         "status": "SUCCESS",

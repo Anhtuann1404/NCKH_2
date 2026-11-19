@@ -682,6 +682,12 @@ def annotate_interactive_session(
     with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"LỖI GÓI VIEW: Tệp đầu vào tại '{input_path}' phải là một JSON envelope (dict) chứa metadata và trường 'samples'. "
+            f"Nhận: {type(data).__name__}. Vui lòng kiểm tra lại quá trình xuất gói."
+        )
+
     # Đảm bảo gói dữ liệu đầu vào không rò rỉ nhãn
     assert_no_label_leak(data)
     samples = data.get("samples", [])
@@ -692,6 +698,11 @@ def annotate_interactive_session(
     dataset_hash = hashlib.sha256(input_bytes).hexdigest()
     dataset_id = str(data.get("dataset_id", "UNKNOWN"))
     dataset_type = str(data.get("dataset_type", "blind_view"))
+    contract_ver = data.get("blind_contract_version")
+    is_main_120 = (contract_ver == "1.2.0")
+
+    if is_main_120 and cli_random_subset is not None:
+        raise ValueError("CỜ BỊ CẤM: --random-subset bị cấm tuyệt đối trong hợp đồng Main 1.2.0.")
     if "is_synthetic" in data and type(data["is_synthetic"]) is not bool:
         raise ValueError("LỖI GÓI VIEW: is_synthetic phải là boolean.")
     is_synthetic = data.get("is_synthetic", False)
@@ -816,18 +827,21 @@ def annotate_interactive_session(
         if not isinstance(codebook_version, str) or not codebook_version.strip():
             raise ValueError("Thiếu codebook_version trong metadata hoặc tham số CLI.")
         v11 = codebook_version.lstrip("v").startswith("1.1.")
-        if cli_random_subset is not None:
-            if not dry_run:
-                raise ValueError("CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật. Giá trị random_subset phải lấy từ metadata/manifest đã khóa.")
-            random_subset = cli_random_subset
-        elif "random_subset" in sample:
-            random_subset = sample["random_subset"]
-        elif "random_subset_default" in data:
-            random_subset = data["random_subset_default"]
+        if is_main_120:
+            random_subset = None
         else:
-            raise ValueError("Thiếu random_subset trong metadata hoặc tham số CLI.")
-        if not isinstance(random_subset, bool):
-            raise ValueError("random_subset phải là boolean, không phải chuỗi hoặc số.")
+            if cli_random_subset is not None:
+                if not dry_run:
+                    raise ValueError("CỜ BỊ KHÓA: Không được ghi đè --random-subset qua CLI trong phiên gán nhãn người thật. Giá trị random_subset phải lấy từ metadata/manifest đã khóa.")
+                random_subset = cli_random_subset
+            elif "random_subset" in sample:
+                random_subset = sample["random_subset"]
+            elif "random_subset_default" in data:
+                random_subset = data["random_subset_default"]
+            else:
+                raise ValueError("Thiếu random_subset trong metadata hoặc tham số CLI.")
+            if not isinstance(random_subset, bool):
+                raise ValueError("random_subset phải là boolean, không phải chuỗi hoặc số.")
 
         if dry_run:
             # Chế độ dry-run tự động giả lập 1 mẫu để kiểm thử không treo input
@@ -848,7 +862,6 @@ def annotate_interactive_session(
                 "seconds_spent": elapsed,
                 "pause_count": 0,
                 "paused_seconds": 0.0,
-                "random_subset": random_subset,
                 "difficult_case": False,
                 "codebook_version": codebook_version,
                 "is_dry_run": True,
@@ -860,6 +873,10 @@ def annotate_interactive_session(
                 "sample_content_hash": sample_content_hash,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
+            if is_main_120:
+                record_dict["blind_contract_version"] = "1.2.0"
+            else:
+                record_dict["random_subset"] = random_subset
             if v11:
                 record_dict.update({
                     "primary_org_status": "no_clear_target",
@@ -1008,7 +1025,6 @@ def annotate_interactive_session(
                 "seconds_spent": elapsed,
                 "pause_count": timer.pause_count,
                 "paused_seconds": round(timer.total_paused_seconds, 2),
-                "random_subset": random_subset,
                 "difficult_case": is_diff,
                 "codebook_version": codebook_version,
                 "is_dry_run": False,
@@ -1020,6 +1036,10 @@ def annotate_interactive_session(
                 "sample_content_hash": sample_content_hash,
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             }
+            if is_main_120:
+                record_dict["blind_contract_version"] = "1.2.0"
+            else:
+                record_dict["random_subset"] = random_subset
             if v11:
                 record_dict.update({
                     "org_evidence": org_evidence,
