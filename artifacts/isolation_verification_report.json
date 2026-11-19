@@ -1,0 +1,42 @@
+{
+  "report_type": "GIT_ISOLATION_VERIFICATION",
+  "scope": "Phạm vi kiểm tra thực tế trên Git working tree và index hiện hành",
+  "overall_status": "PASS",
+  "checks": {
+    "check_ignore_probes": {
+      "status": "PASS",
+      "all_probes_ignored": true,
+      "details": {
+        "data/restricted/main_annotation_lot_management_ledger.json": {
+          "ignored": true,
+          "rule": ".gitignore:34:data/restricted/\tdata/restricted/main_annotation_lot_management_ledger.json"
+        },
+        "data/restricted/main_batch1/mapping_restricted.json": {
+          "ignored": true,
+          "rule": ".gitignore:34:data/restricted/\tdata/restricted/main_batch1/mapping_restricted.json"
+        },
+        "data/restricted/population_sealed.jsonl": {
+          "ignored": true,
+          "rule": ".gitignore:34:data/restricted/\tdata/restricted/population_sealed.jsonl"
+        },
+        "data/restricted/seeds_secret.json": {
+          "ignored": true,
+          "rule": ".gitignore:34:data/restricted/\tdata/restricted/seeds_secret.json"
+        }
+      }
+    },
+    "tracked_files_inspection": {
+      "status": "PASS",
+      "total_tracked_files": 197,
+      "violations_count": 0,
+      "violations": []
+    },
+    "public_content_leak_inspection": {
+      "status": "PASS",
+      "scanned_files_count": 68,
+      "leaks_count": 0,
+      "leaks": []
+    }
+  },
+  "conclusion": "Trong phạm vi đã quét, không phát hiện tệp hạn chế nào bị Git theo dõi, toàn bộ đường dẫn probe thuộc data/restricted/ đều được .gitignore cách ly đúng, và không phát hiện trường dữ liệu nguồn bị rò rỉ vào tài liệu công khai."
+}

@@ -47,6 +47,23 @@ ALLOWED_BLIND_SAMPLE_KEYS: Set[str] = frozenset({
     "translation_sha256",
 })
 
+# Danh mục allowlist cho Hợp đồng Blind View v1.2.0 (Khóa cứng: KHÔNG có random_subset)
+BLIND_CONTRACT_VERSION_V1_2_0 = "1.2.0"
+ALLOWED_BLIND_SAMPLE_KEYS_V1_2_0: Set[str] = frozenset({
+    "sample_id",
+    "url",
+    "page_text",
+    "structure_summary",
+    "codebook_version",
+    "blind_contract_version",
+    "translation_provided",
+    "translated_text",
+    "translation_source_language",
+    "translation_tool",
+    "translation_tool_version",
+    "translation_sha256",
+})
+
 TRANSLATION_FIELDS = (
     "translation_provided", "translated_text", "translation_source_language",
     "translation_tool", "translation_tool_version", "translation_sha256",
@@ -81,6 +98,14 @@ FORBIDDEN_LEAK_KEYS: Set[str] = frozenset({
     "annotator_results",
     "is_phish",
     "pilot_row_idx",
+    "locator",
+    "source_row",
+    "parquet_file",
+    "parquet_metadata",
+    "random_subset",
+    "strata",
+    "lot",
+    "selection_quota",
 })
 
 # Các tiền tố bị cấm tuyệt đối (Chống rò rỉ kết quả của người khác hoặc nguồn)
@@ -197,11 +222,26 @@ def assert_no_label_leak(data: Any, path: str = "root") -> None:
     if isinstance(data, dict):
         # 1. Nếu là từ điển của một mẫu (chứa sample_id và url), áp dụng Allowlist chặt chẽ
         if "sample_id" in data and "url" in data:
-            extra_keys = set(data.keys()) - ALLOWED_BLIND_SAMPLE_KEYS
+            contract_ver = data.get("blind_contract_version")
+            if contract_ver == BLIND_CONTRACT_VERSION_V1_2_0:
+                current_allowlist = ALLOWED_BLIND_SAMPLE_KEYS_V1_2_0
+                if "random_subset" in data:
+                    raise ValueError(
+                        f"RÒ RỈ DỮ LIỆU: random_subset bị cấm tuyệt đối trong Blind Contract v1.2.0 tại '{path}'!"
+                    )
+                sid = str(data["sample_id"]).strip()
+                if not re.match(r"^BLIND-[a-f0-9]{8}$", sid):
+                    raise ValueError(
+                        f"sample_id '{sid}' trong Blind View v1.2.0 không đúng định dạng trung tính BLIND-xxxxxxxx!"
+                    )
+            else:
+                current_allowlist = ALLOWED_BLIND_SAMPLE_KEYS
+
+            extra_keys = set(data.keys()) - current_allowlist
             if extra_keys:
                 raise ValueError(
                     f"RÒ RỈ DỮ LIỆU PHÁT HIỆN: Mẫu tại '{path}' chứa các khóa ngoài allowlist: {sorted(list(extra_keys))}! "
-                    f"Blind sample chỉ được phép chứa: {sorted(list(ALLOWED_BLIND_SAMPLE_KEYS))}."
+                    f"Blind sample chỉ được phép chứa: {sorted(list(current_allowlist))}."
                 )
             assert_neutral_sample_id(data["sample_id"])
             if str(data.get("codebook_version") or "").lstrip("v").startswith("1.1.") and "translation_provided" not in data:
