@@ -100,11 +100,16 @@ def scan_tracked_files() -> Dict[str, Any]:
     }
 
 
-def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs", "src", "scripts"]) -> Dict[str, Any]:
+def scan_public_docs_for_leaks(target_dirs: Any = ("docs", "configs", "src", "scripts")) -> Dict[str, Any]:
     """Quét các tệp công khai (docs, configs, src, scripts) để phát hiện rò rỉ mã nguồn, seed/salt hoặc nhãn cấm."""
     leaks = []
     read_errors = []
     scanned_count = 0
+
+    if isinstance(target_dirs, (str, Path)):
+        dirs_to_scan = [Path(target_dirs)]
+    else:
+        dirs_to_scan = [Path(d) for d in target_dirs]
 
     # Các từ khóa salt bí mật sản xuất bị cấm xuất hiện dưới dạng chuỗi cứng trong mã nguồn theo dõi
     PROHIBITED_SECRET_PATTERNS = [
@@ -113,12 +118,11 @@ def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs", "src
 
     # Regex phát hiện mọi hành vi gán literal string cho biến secret/salt trong code sản xuất/runner
     LITERAL_SALT_ASSIGNMENT_REGEX = re.compile(
-        r"\b(?:blind_salt|salt_secret|secret_salt|production_salt)\s*=\s*[\"'][^\"']+[\"']",
+        r"\b(?:[a-z0-9_]*(?:salt|secret)[a-z0-9_]*)\s*=\s*[\"'][^\"']+[\"']",
         re.IGNORECASE
     )
 
-    for d in target_dirs:
-        p_dir = Path(d)
+    for p_dir in dirs_to_scan:
         if not p_dir.exists():
             continue
         for p in p_dir.glob("**/*"):
@@ -158,7 +162,7 @@ def scan_public_docs_for_leaks(target_dirs: List[str] = ["docs", "configs", "src
     return {
         "status": "FAIL" if has_issues else "PASS",
         "scanned_files_count": scanned_count,
-        "scanned_target_dirs": target_dirs,
+        "scanned_target_dirs": [str(d) for d in dirs_to_scan],
         "leaks_count": len(leaks),
         "read_errors_count": len(read_errors),
         "read_errors": read_errors,

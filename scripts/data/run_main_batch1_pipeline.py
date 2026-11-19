@@ -105,9 +105,9 @@ def export_main_batch1(
 
     # 0. Kiểm tra cách ly Git TRƯỚC KHI XUẤT (Preflight Check)
     iso_preflight = verify_git_isolation()
-    if iso_preflight["overall_status"] != "PASS":
+    if iso_preflight.get("overall_status") != "PASS":
         raise RuntimeError(
-            f"EXPORT BLOCKED: Kiểm tra cách ly Git thất bại trước khi đóng gói! {iso_preflight['conclusion']}"
+            f"EXPORT BLOCKED: Kiểm tra cách ly Git thất bại trước khi đóng gói! {iso_preflight.get('conclusion', '')}"
         )
 
     # Sao lưu byte của Ledger cũ để khôi phục nguyên vẹn nếu xảy ra lỗi trong quá trình xuất gói
@@ -253,8 +253,8 @@ def export_main_batch1(
                 raise ValueError(f"Release manifest không được chứa trường nhãn: {forbidden}")
 
         iso_res = verify_git_isolation()
-        if iso_res["overall_status"] != "PASS":
-            raise RuntimeError(f"EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi chuẩn bị staging! {iso_res['conclusion']}")
+        if iso_res.get("overall_status") != "PASS":
+            raise RuntimeError(f"EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi chuẩn bị staging! {iso_res.get('conclusion', '')}")
 
         # 5. ATOMIC PUBLISHING: Chuyển toàn bộ các tệp từ staging sang thư mục đích
         p_rest.mkdir(parents=True, exist_ok=True)
