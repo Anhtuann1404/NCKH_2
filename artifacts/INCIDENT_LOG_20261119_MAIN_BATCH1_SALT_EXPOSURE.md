@@ -28,7 +28,7 @@ Căn cứ theo Kỷ luật Nghiên cứu Hàn lâm (ARS) và nguyên tắc trung
 3. **Tình trạng tiếp cận thực tế của các bên (Access & Exposure Status):**
    - **Lead D (Anh Tuấn):** Đã kiểm toán trực tiếp tại commit `b013ed7`, phát hiện lỗ hổng và phát hành báo cáo kiểm toán HOLD.
    - **Annotator B kiêm QA Lead (Phùng Tấn Minh):** Đã phát hành báo cáo QA độc lập `docs/QA_PRE_RELEASE_CHECKLIST_MAIN_BATCH1_B_V1_2_HOLD_B013ED7.md`, xác nhận trạng thái HOLD/PENDING và ghi nhận chưa từng mở mã nguồn công khai tại commit `b013ed7` để kiểm tra seed/salt, bảo toàn tính mù đánh giá viên.
-   - **Annotator A (Nguyễn Văn A):** Hoàn toàn chưa tiếp cận mã nguồn, chưa từng nhận bất kỳ gói Blind View hay dữ liệu nào của Main Batch 1.
+   - **Annotator A (Khải):** Theo log bàn giao và hiện trạng kiểm toán, chưa từng được cấp phát view hay tệp kết quả nào của Main Batch 1; phần tiếp xúc ngoài kênh bàn giao chính thức giữ mở, chờ xác nhận độc lập khi có yêu cầu từ Lead D.
    - **Dữ liệu thật:** Toàn bộ gói hạn chế vẫn lưu trữ trong `data/restricted/` (không bị Git theo dõi); quyền gán nhãn Pass 1 chưa từng được mở.
 
 ---

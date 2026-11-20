@@ -216,17 +216,23 @@ def assert_neutral_sample_id(sample_id: Any) -> None:
         )
 
 
-def assert_no_label_leak(data: Any, path: str = "root") -> None:
+def assert_no_label_leak(data: Any, path: str = "root", is_main_context: bool = False) -> None:
     """Kiểm tra đệ quy đảm bảo không có bất kỳ trường nhãn hoặc metadata cấm nào xuất hiện trong Blind View."""
     if isinstance(data, dict):
+        contract_ver = data.get("blind_contract_version")
+        if contract_ver == BLIND_CONTRACT_VERSION_V1_2_0 or is_main_context:
+            is_main_context = True
+
+        if is_main_context:
+            if "random_subset" in data or "random_subset_default" in data:
+                raise ValueError(
+                    f"RÒ RỈ DỮ LIỆU: random_subset bị cấm tuyệt đối trong Blind Contract v1.2.0 tại '{path}'!"
+                )
+
         # 0. Nếu là envelope chứa danh sách mẫu
         if "samples" in data and isinstance(data["samples"], list):
             env_contract_ver = data.get("blind_contract_version")
             if env_contract_ver == BLIND_CONTRACT_VERSION_V1_2_0:
-                if "random_subset" in data or "random_subset_default" in data:
-                    raise ValueError(
-                        f"RÒ RỈ DỮ LIỆU: Envelope Main 1.2.0 cấm tuyệt đối 'random_subset' tại '{path}'!"
-                    )
                 # Bắt buộc TẤT CẢ các mẫu trong envelope Main 1.2.0 phải là mẫu Main 1.2.0 thống nhất (chống mixed version / sample legacy)
                 for s_idx, sample_item in enumerate(data["samples"]):
                     if isinstance(sample_item, dict):
@@ -265,10 +271,6 @@ def assert_no_label_leak(data: Any, path: str = "root") -> None:
             sid_str = str(data["sample_id"]).strip()
             if contract_ver == BLIND_CONTRACT_VERSION_V1_2_0:
                 current_allowlist = ALLOWED_BLIND_SAMPLE_KEYS_V1_2_0
-                if "random_subset" in data:
-                    raise ValueError(
-                        f"RÒ RỈ DỮ LIỆU: random_subset bị cấm tuyệt đối trong Blind Contract v1.2.0 tại '{path}'!"
-                    )
                 if not re.match(r"^BLIND-[a-f0-9]{8}$", sid_str):
                     raise ValueError(
                         f"sample_id '{sid_str}' trong Blind View v1.2.0 không đúng định dạng trung tính BLIND-xxxxxxxx!"
@@ -340,10 +342,10 @@ def assert_no_label_leak(data: Any, path: str = "root") -> None:
             if k_lower == "sample_id":
                 assert_neutral_sample_id(value)
 
-            assert_no_label_leak(value, path=f"{path}.{key}")
+            assert_no_label_leak(value, path=f"{path}.{key}", is_main_context=is_main_context)
     elif isinstance(data, (list, tuple)):
         for idx, item in enumerate(data):
-            assert_no_label_leak(item, path=f"{path}[{idx}]")
+            assert_no_label_leak(item, path=f"{path}[{idx}]", is_main_context=is_main_context)
 
 
 class _SafeContentExtractor(HTMLParser):
@@ -743,6 +745,23 @@ def validate_annotation_record(data: Dict[str, Any], *, catalog_org_ids: Set[str
             if pval is None or not isinstance(pval, str) or not pval.strip():
                 raise ValueError(
                     f"LỖI PROVENANCE MAIN 1.2.0: Bản ghi Main thiếu hoặc có trường provenance '{pf}' rỗng ({pval!r})!"
+                )
+
+        # Kiểm tra timestamp_utc chuẩn ISO 8601 có timezone
+        ts_val = data.get("timestamp_utc")
+        try:
+            dt = datetime.fromisoformat(ts_val.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                raise ValueError("thiếu thông tin timezone")
+        except Exception as e:
+            raise ValueError(f"LỖI PROVENANCE MAIN 1.2.0: timestamp_utc={ts_val!r} không đúng định dạng ISO 8601 có timezone: {e}")
+
+        # Kiểm tra định dạng hash SHA-256 (64 hex lowercase)
+        for hf in ("dataset_hash", "codebook_hash", "sample_content_hash"):
+            hval = data.get(hf)
+            if not isinstance(hval, str) or not re.match(r"^[a-f0-9]{64}$", hval.lower()):
+                raise ValueError(
+                    f"LỖI PROVENANCE MAIN 1.2.0: Trường hash '{hf}'={hval!r} không đúng định dạng SHA-256 (64 hex lowercase)!"
                 )
 
         required_keys = {

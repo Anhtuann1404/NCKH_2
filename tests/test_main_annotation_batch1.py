@@ -840,6 +840,10 @@ def test_receive_main_batch1_intake_pipeline(tmp_path):
 
     view_a = json.loads((p_rest / "blind_view_a.json").read_text(encoding="utf-8"))
     manifest_a = json.loads((p_rest / "manifest_a.json").read_text(encoding="utf-8"))
+    # Mô phỏng phê duyệt manifest cho fixture test intake chính thức
+    manifest_a["ready_for_annotation"] = True
+    manifest_a["acceptance"] = {"B": "approved", "D": "approved"}
+    (p_rest / "manifest_a.json").write_text(json.dumps(manifest_a, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # Tạo tệp kết quả JSONL hợp lệ cho A (100 mẫu)
     valid_records_a = []
@@ -867,7 +871,7 @@ def test_receive_main_batch1_intake_pipeline(tmp_path):
             "paused_seconds": 0.0,
             "org_evidence": [],
             "primary_phishing_type": None,
-            "hard_benign_type": None,
+            "hard_benign_type": "official_login",
             "confidence": "high",
             "dataset_id": manifest_a["dataset_id"],
             "dataset_hash": manifest_a["blind_view_sha256"],
@@ -906,3 +910,123 @@ def test_receive_main_batch1_intake_pipeline(tmp_path):
     rcp_bad = receive_main_batch1(bad_jsonl, "A", out_root=p_intake, restricted_dir=p_rest)
     assert rcp_bad["status"] == "rejected"
     assert "Trường 'random_subset' bị cấm tuyệt đối" in rcp_bad["reason"]
+
+
+def test_main_batch1_full_e2e_intake_to_kappa_pairing(tmp_path):
+    """Kiểm tra E2E: Chuỗi từ export -> simulated approval -> intake A (100) & B (30) -> ghép cặp B30 và tính Kappa."""
+    from scripts.data.receive_main_batch1 import receive_main_batch1
+    from scripts.data.run_main_batch1_pipeline import export_main_batch1
+    from phishing.annotation import compute_cohens_kappa_from_labels
+    from phishing.annotation.blind_view import compute_sample_content_hash
+
+    candidates = [
+        {
+            "candidate_uid": f"c_e2e_{i:04d}",
+            "url": f"https://e2e.test/{i}",
+            "html": f"<html><body>Candidate {i}</body></html>",
+            "source_row": i,
+            "source_shard": "train-001.parquet",
+            "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
+        }
+        for i in range(200)
+    ]
+
+    p_rest = tmp_path / "restricted"
+    p_pub = tmp_path / "public"
+    p_ledger = tmp_path / "ledger.json"
+    p_intake = tmp_path / "intake"
+
+    export_res = export_main_batch1(
+        candidates,
+        output_dir_restricted=p_rest,
+        public_artifacts_dir=p_pub,
+        seed_lot_100=701,
+        seed_b_subset_30=801,
+        seed_release_shuffle=901,
+        blind_salt="salt_e2e_kappa_test",
+        ledger_path=p_ledger,
+        lot_id="lot_e2e_kappa",
+    )
+    assert export_res["status"] == "SUCCESS"
+
+    view_a = json.loads((p_rest / "blind_view_a.json").read_text(encoding="utf-8"))
+    manifest_a = json.loads((p_rest / "manifest_a.json").read_text(encoding="utf-8"))
+    view_b = json.loads((p_rest / "blind_view_b.json").read_text(encoding="utf-8"))
+    manifest_b = json.loads((p_rest / "manifest_b.json").read_text(encoding="utf-8"))
+
+    # Mô phỏng phê duyệt manifest
+    manifest_a["ready_for_annotation"] = True
+    manifest_a["acceptance"] = {"B": "approved", "D": "approved"}
+    (p_rest / "manifest_a.json").write_text(json.dumps(manifest_a, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    manifest_b["ready_for_annotation"] = True
+    manifest_b["acceptance"] = {"B": "approved", "D": "approved"}
+    (p_rest / "manifest_b.json").write_text(json.dumps(manifest_b, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def make_record(annotator, s, label, mf):
+        return {
+            "annotator_id": annotator,
+            "sample_id": s["sample_id"],
+            "pass_id": 1,
+            "class_label": label,
+            "primary_org_status": "no_clear_target",
+            "catalog_status": "unresolved",
+            "observed_service": "generic_site",
+            "org_targets": [],
+            "primary_org": "no_clear_target",
+            "identity_role": "unclear",
+            "domain_role": "unverified",
+            "evidence_note": "E2E verification",
+            "seconds_spent": 30.0,
+            "difficult_case": False,
+            "codebook_version": "1.1.0",
+            "pause_count": 0,
+            "paused_seconds": 0.0,
+            "org_evidence": [],
+            "primary_phishing_type": "credential_collection" if label == "phishing" else None,
+            "hard_benign_type": "official_login" if label == "benign" else None,
+            "confidence": "high",
+            "dataset_id": mf["dataset_id"],
+            "dataset_hash": mf["blind_view_sha256"],
+            "codebook_hash": mf["codebook_sha256"],
+            "sampling_plan_version": mf["sampling_plan_version"],
+            "sample_content_hash": compute_sample_content_hash(s),
+            "timestamp_utc": "2026-11-20T10:00:00Z",
+            "blind_contract_version": "1.2.0",
+            "is_dry_run": False,
+            "is_synthetic": False,
+        }
+
+    # Tạo records cho A (100 mẫu)
+    records_a = [make_record("A", s, "benign" if idx % 2 == 0 else "phishing", manifest_a) for idx, s in enumerate(view_a["samples"])]
+    file_a = tmp_path / "submission_a.jsonl"
+    file_a.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in records_a), encoding="utf-8")
+
+    # Tạo records cho B (30 mẫu) - đồng ý 27/30 mẫu, khác biệt 3 mẫu
+    records_b = []
+    a_dict = {r["sample_id"]: r["class_label"] for r in records_a}
+    for idx, s in enumerate(view_b["samples"]):
+        sid = s["sample_id"]
+        a_lbl = a_dict[sid]
+        b_lbl = a_lbl if idx >= 3 else ("phishing" if a_lbl == "benign" else "benign")
+        records_b.append(make_record("B", s, b_lbl, manifest_b))
+    file_b = tmp_path / "submission_b.jsonl"
+    file_b.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in records_b), encoding="utf-8")
+
+    # Intake cả A và B -> đều ACCEPTED
+    rcp_a = receive_main_batch1(file_a, "A", out_root=p_intake, restricted_dir=p_rest)
+    rcp_b = receive_main_batch1(file_b, "B", out_root=p_intake, restricted_dir=p_rest)
+    assert rcp_a["status"] == "accepted", f"A failed: {rcp_a.get('reason')}"
+    assert rcp_b["status"] == "accepted", f"B failed: {rcp_b.get('reason')}"
+
+    # Ghép cặp 30 mẫu chung giữa A và B
+    b_sids = [s["sample_id"] for s in view_b["samples"]]
+    labels_a_30 = [a_dict[sid] for sid in b_sids]
+    labels_b_30 = [r["class_label"] for r in records_b]
+
+    assert len(labels_a_30) == 30 and len(labels_b_30) == 30
+    kappa_res = compute_cohens_kappa_from_labels(labels_a_30, labels_b_30)
+    assert kappa_res.status == "valid"
+    assert kappa_res.sample_count == 30
+    assert kappa_res.observed_agreement == 27 / 30
+    assert kappa_res.kappa > 0.75

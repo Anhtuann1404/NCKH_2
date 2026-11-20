@@ -62,6 +62,12 @@ def verify_main_batch1_records(
         raise FileNotFoundError(f"Không tìm thấy manifest tại '{manifest_path}'")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
+    # Kiểm tra quyền phát hành chính thức (chặn manifest pending / chưa duyệt)
+    if manifest.get("ready_for_annotation") is not True or manifest.get("acceptance") != {"B": "approved", "D": "approved"}:
+        raise ValueError(
+            "LỖI QUYỀN PHÁT HÀNH: Manifest chưa được phê duyệt chính thức (yêu cầu ready_for_annotation=True và acceptance={'B': 'approved', 'D': 'approved'})!"
+        )
+
     if manifest.get("blind_contract_version") != BLIND_CONTRACT_VERSION_V1_2_0:
         raise ValueError(
             f"Manifest không thuộc hợp đồng Main 1.2.0 (nhận '{manifest.get('blind_contract_version')}')"
@@ -121,8 +127,20 @@ def verify_main_batch1_records(
                 f"Dòng {idx}: Bản ghi có annotator_id='{rec_annotator}', không khớp '{annotator}'"
             )
 
-        if record.get("is_dry_run") is True or record.get("is_synthetic") is True:
-            raise ValueError(f"Dòng {idx}: Không nhận bản ghi dry-run hoặc synthetic vào kết quả chính thức")
+        if record.get("pass_id") != 1:
+            raise ValueError(
+                f"Dòng {idx}: pass_id={record.get('pass_id')!r} không hợp lệ, tiếp nhận chính thức Main Đợt 1 chỉ chấp nhận pass_id=1"
+            )
+
+        if type(record.get("is_dry_run")) is not bool or record.get("is_dry_run") is not False:
+            raise ValueError(
+                f"Dòng {idx}: is_dry_run={record.get('is_dry_run')!r} không hợp lệ, phải là boolean False thật trong kết quả chính thức"
+            )
+
+        if type(record.get("is_synthetic")) is not bool or record.get("is_synthetic") is not False:
+            raise ValueError(
+                f"Dòng {idx}: is_synthetic={record.get('is_synthetic')!r} không hợp lệ, phải là boolean False thật trong kết quả chính thức"
+            )
 
         sid = record.get("sample_id")
         if sid not in samples_by_id:
@@ -233,6 +251,18 @@ def receive_main_batch1(
         receipt["reason"] = str(exc)
 
     receipt_path = ann_dir / f"{digest}.receipt.json"
+    if receipt_path.exists():
+        try:
+            prior_r = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if prior_r.get("status") == "accepted":
+                if receipt["status"] != "accepted":
+                    # Bảo toàn nguyên byte biên lai ACCEPTED đã cấp, lưu kết quả kiểm tra lại bị từ chối vào file audit riêng
+                    audit_rejected = ann_dir / f"{digest}.recheck_rejected.json"
+                    audit_rejected.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                    return receipt
+        except Exception:
+            pass
+
     receipt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return receipt
 

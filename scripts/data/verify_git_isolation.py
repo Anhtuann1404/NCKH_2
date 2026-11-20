@@ -138,16 +138,22 @@ def scan_public_docs_for_leaks(target_dirs: Any = ("docs", "configs", "src", "sc
                 if p.name != "verify_git_isolation.py":
                     for sec_term in PROHIBITED_SECRET_PATTERNS:
                         if sec_term in text:
-                            leaks.append({"file": str(p), "term": f"PROHIBITED_SECRET: {sec_term}"})
+                            leaks.append({
+                                "file": str(p),
+                                "rule_code": "SEC002_KNOWN_PROHIBITED_PATTERN",
+                                "term": "PROHIBITED_SECRET: [REDACTED_KNOWN_PATTERN]"
+                            })
 
-                    # Phát hiện literal string gán cho salt/secret mới trong src và scripts
+                    # Phát hiện literal string gán cho salt/secret mới trong src và scripts (che giấu hoàn toàn giá trị)
                     if p_dir.name in ("src", "scripts") or "src" in p.parts or "scripts" in p.parts:
                         for line_no, line in enumerate(text.splitlines(), start=1):
                             if LITERAL_SALT_ASSIGNMENT_REGEX.search(line):
+                                masked_line = re.sub(r"([\"'])(?:(?=(\\?))\2.)*?([\"'])", r"\1[REDACTED_SECRET]\3", line)
                                 leaks.append({
                                     "file": str(p),
                                     "line": line_no,
-                                    "term": f"LITERAL_SALT_ASSIGNMENT: {line.strip()}"
+                                    "rule_code": "SEC001_LITERAL_SECRET_ASSIGNMENT",
+                                    "term": f"LITERAL_SALT_ASSIGNMENT: {masked_line.strip()}"
                                 })
 
                 # 2. Quét rò rỉ trường nhãn nguồn trong docs và configs

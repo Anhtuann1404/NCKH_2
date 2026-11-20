@@ -112,6 +112,8 @@ def export_main_batch1(
 
     # Sao lưu byte của Ledger cũ để khôi phục nguyên vẹn nếu xảy ra lỗi trong quá trình xuất gói
     ledger_bytes_backup = p_ledger.read_bytes() if p_ledger.exists() else None
+    rest_backup: Dict[str, bytes] = {f.name: f.read_bytes() for f in p_rest.iterdir() if f.is_file()} if p_rest.exists() else {}
+    pub_backup: Dict[str, bytes] = {f.name: f.read_bytes() for f in p_pub.iterdir() if f.is_file()} if p_pub.exists() else {}
 
     # Khởi tạo thư mục STAGING biệt lập trong data/restricted/ và artifacts/
     stage_uuid = uuid.uuid4().hex[:8]
@@ -272,13 +274,15 @@ def export_main_batch1(
             shutil.copy2(f_src, f_tmp)
             os.replace(f_tmp, f_dst)
 
-        # Ghi nhận báo cáo kiểm toán cách ly chính thức
-        verify_git_isolation(p_pub / "isolation_verification_report.json")
+        # Ghi nhận báo cáo kiểm toán cách ly chính thức và kiểm tra kết quả
+        iso_final = verify_git_isolation(p_pub / "isolation_verification_report.json")
+        if iso_final.get("overall_status") != "PASS":
+            raise RuntimeError(f"EXPORT BLOCKED: Vi phạm quy tắc cách ly Git sau khi publish! {iso_final.get('conclusion', '')}")
 
         return {
             "status": "SUCCESS",
             "manifest": manifest,
-            "isolation_status": iso_res["overall_status"],
+            "isolation_status": iso_final["overall_status"],
         }
     except Exception as exc:
         # Nếu có bất kỳ lỗi nào, khôi phục nguyên vẹn byte của ledger cũ
@@ -289,6 +293,35 @@ def export_main_batch1(
                 p_ledger.unlink()
             except OSError:
                 pass
+
+        # Khôi phục toàn bộ tệp cũ trong restricted
+        if p_rest.exists():
+            for f in list(p_rest.iterdir()):
+                if f.is_file():
+                    if f.name in rest_backup:
+                        f.write_bytes(rest_backup[f.name])
+                    else:
+                        try:
+                            f.unlink()
+                        except OSError:
+                            pass
+            for name, content in rest_backup.items():
+                (p_rest / name).write_bytes(content)
+
+        # Khôi phục toàn bộ tệp cũ trong public
+        if p_pub.exists():
+            for f in list(p_pub.iterdir()):
+                if f.is_file():
+                    if f.name in pub_backup:
+                        f.write_bytes(pub_backup[f.name])
+                    else:
+                        try:
+                            f.unlink()
+                        except OSError:
+                            pass
+            for name, content in pub_backup.items():
+                (p_pub / name).write_bytes(content)
+
         raise exc
     finally:
         # Dọn dẹp triệt để thư mục staging

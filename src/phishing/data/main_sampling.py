@@ -158,11 +158,12 @@ def run_main_batch1_sampling(
                 f"(kỳ vọng '{prior_pop_hash}', thực tế '{pop_hash}')!"
             )
 
-        prior_seed_commit = existing_details.get("seed_commitment")
-        if prior_seed_commit and prior_seed_commit != seed_commit:
+        prior_seed_commit = existing_details.get("seed_commitment") or existing_details.get("new_seed_commitment")
+        prior_seed_lot_100 = existing_details.get("seed_lot_100")
+        if (prior_seed_commit and prior_seed_commit != seed_commit) or (prior_seed_lot_100 is not None and prior_seed_lot_100 != seed_lot_100):
             raise ValueError(
                 f"TỪ CHỐI RERUN LOT '{lot_id}': seed_commitment không khớp với lot đã niêm phong "
-                f"(kỳ vọng '{prior_seed_commit}', thực tế '{seed_commit}')! "
+                f"(kỳ vọng '{prior_seed_commit}', thực tế '{seed_commit}', seed_lot_100={seed_lot_100})! "
                 "Tuyệt đối không được đổi seed để chọn lại mẫu cho lot cũ. Dùng supersede_lot_sampling nếu cần cấp lại ID."
             )
 
@@ -347,7 +348,11 @@ def run_main_batch1_sampling(
                     "available_candidates_count": len(available_candidates),
                     "lot_size": 100,
                     "b_subset_size": 30,
+                    "seed_lot_100": seed_lot_100,
+                    "seed_b_subset_30": seed_b_subset_30,
+                    "seed_release_shuffle": seed_release_shuffle,
                     "seed_commitment": seed_commit,
+                    "cohort_seed_commitment": seed_commit,
                     "allocated_candidate_ids": [m["candidate_uid"] for m in mapping_restricted],
                     "b_subset_candidate_ids": [m["candidate_uid"] for m in mapping_restricted if m["is_b_kappa_sample"]],
                     "b_indices_in_lot100": [idx for idx, m in enumerate(mapping_restricted) if m["is_b_kappa_sample"]],
@@ -410,9 +415,26 @@ def supersede_lot_sampling(
         pop_index_by_uid[c_uid] = idx
 
     # Bảo toàn nguyên vẹn 100 mẫu A và 30 mẫu B
-    allocated_uids = existing_details["allocated_candidate_ids"]
+    allocated_uids = existing_details.get("allocated_candidate_ids")
+    if not allocated_uids or len(allocated_uids) != 100 or len(set(allocated_uids)) != 100:
+        raise ValueError(f"LỖI SUPERSÈDE: Lô '{lot_id}' không có đủ 100 candidate_uids duy nhất!")
+
+    b_subset_raw = existing_details.get("b_subset_candidate_ids")
+    b_indices_raw = existing_details.get("b_indices_in_lot100")
+    if not b_subset_raw and not b_indices_raw:
+        raise ValueError(f"LỖI SUPERSÈDE: Lô '{lot_id}' thiếu thông tin niêm phong tập B30 (cả b_subset_candidate_ids và b_indices_in_lot100 đều thiếu)!")
+
+    if b_subset_raw:
+        b_subset_uids = set(b_subset_raw)
+    elif b_indices_raw:
+        b_subset_uids = {allocated_uids[i] for i in b_indices_raw if 0 <= i < len(allocated_uids)}
+    else:
+        raise ValueError(f"LỖI SUPERSÈDE: Lô '{lot_id}' thiếu tập B30!")
+
+    if len(b_subset_uids) != 30 or not b_subset_uids.issubset(set(allocated_uids)):
+        raise ValueError(f"LỖI SUPERSÈDE: Tập B30 không đủ 30 mẫu duy nhất hoặc không phải tập con của A100 ({len(b_subset_uids)} mẫu)!")
+
     lot_100 = [cand_map[uid] for uid in allocated_uids]
-    b_subset_uids = set(existing_details.get("b_subset_candidate_ids", []))
     b_subset_set = {i for i, c in enumerate(lot_100) if (c.get("candidate_uid") or c.get("sample_uid") or hashlib.sha256(c.get("url", "").encode("utf-8")).hexdigest()[:16]) in b_subset_uids}
 
     mapping_restricted: List[Dict[str, Any]] = []
@@ -521,6 +543,9 @@ def supersede_lot_sampling(
         details={
             "prior_seed_commitment": existing_details.get("seed_commitment"),
             "new_seed_commitment": new_seed_commit,
+            "seed_commitment": new_seed_commit,
+            "cohort_seed_commitment": existing_details.get("cohort_seed_commitment") or existing_details.get("seed_commitment"),
+            "seed_lot_100": existing_details.get("seed_lot_100"),
             "population_hash": pop_hash,
             "allocated_candidate_ids": allocated_uids,
             "b_subset_candidate_ids": list(b_subset_uids),

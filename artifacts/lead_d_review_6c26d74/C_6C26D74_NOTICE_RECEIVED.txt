@@ -1,0 +1,112 @@
+========================================================================================
+BÁO CÁO KỸ THUẬT CHI TIẾT THÀNH VIÊN C: TIẾP NHẬN BẰNG CHỨNG 8FC845D, KHÉP HOÀN TOÀN
+9 NEGATIVE PROBES CỦA LEAD D & ĐẠT 7 CỔNG G1–G7 CỦA QA LEAD B TẠI COMMIT 6C26D74
+========================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và QA Lead / Thành viên B (Phùng Tấn Minh)
+Người gửi: Thành viên C (Nguyễn Thắng — Data Pipeline & Thư ký Kiểm toán)
+Ngày báo cáo: 19/11/2026
+Commit bàn giao mới nhất: 6c26d7464ef6cfa7f1711bba4e27eda7195bd832
+Nhánh Git: origin/feat/c-main-annotation-batch1
+Trạng thái quản trị: main_annotation_status = "LOCKED", training_blocked = true, official_test_used = false
+
+1. TIẾP NHẬN BẰNG CHỨNG & ĐỐI SOÁT MÃ BĂM ĐẦU VÀO:
+- C đã tiếp nhận gói bằng chứng Lead D bàn giao: MAIN_BATCH1_8FC845D_REVIEW_FOR_C_B.zip (13.232 bytes).
+- Mã băm SHA-256 xác thực: cc8f60b7537f65d5a603eba41d59b2b5e72f5fb71252cb9a8c6c68d12646cbde (khớp 100% với công bố của D và đối chiếu của B).
+- Đã giải nén an toàn vào thư mục artifacts/lead_d_review_8fc845d/ gồm:
+  + REVIEW_8FC845D_LEAD_D.md (13.505 bytes | SHA-256: d676573a...)
+  + test_main_8fc_additional_guards.py (4.949 bytes | SHA-256: b7f5c379...)
+  + 4 tệp nhật ký thực nghiệm độc lập của Lead D (main_8fc_*.log).
+- Đã tiếp nhận và đối soát Báo cáo QA V1.3 tại 8fc845d của B (docs/QA_REPORT_MAIN_BATCH1_8FC845D_HOLD_V1_3_B.md).
+
+2. KẾT QUẢ KHÉP 9 NEGATIVE PROBES CỦA LEAD D TRÊN FIXTURE TRUNG TÍNH:
+C đã chạy trực tiếp tệp kiểm thử do Lead D cung cấp trên commit bàn giao 6c26d74:
+Lệnh: python -m pytest artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py -v
+- test_same_lot_changed_seed_must_not_resample: ........................... PASSED
+- test_same_lot_retry_preserves_cohort_after_other_lot_allocation: ........ PASSED
+- test_main_record_missing_contract_cannot_downgrade_to_legacy: ........... PASSED
+- test_main_record_missing_provenance_must_be_rejected: ................... PASSED
+- test_main_envelope_cannot_embed_legacy_random_subset: ................... PASSED
+- test_unknown_envelope_contract_cannot_embed_main_samples: ............... PASSED
+- test_new_hardcoded_secret_is_not_mistaken_for_clean_scan: ............... PASSED
+- test_main_mapping_requires_actual_source_row: ........................... PASSED
+- test_failed_post_export_scan_must_not_overwrite_previous_package: ....... PASSED
+=> Kết quả: 9/9 tests PASSED in 0.99s (Khép 100% các ranh giới an toàn Lead D đặt ra).
+
+3. GIẢI TRÌNH CHI TIẾT SỬA ĐỔI TẬN GỐC THEO 7 NỘI DUNG (F1–F7) CỦA LEAD D:
+
+[F1] Bảo toàn cohort khi chạy lại cùng lot & Đường Supersede độc lập:
+- Trong src/phishing/data/lot_ledger.py: Bổ sung get_active_lot_details(), get_allocated_candidate_ids_excluding_lot() và cơ chế ghi sổ nguyên tử (atomic write qua file tạm).
+- Trong src/phishing/data/main_sampling.py:
+  + Khi chạy lại cùng lot: Tự động nạp lại đúng danh sách 100 mẫu và tập 30 mẫu của B đã niêm phong từ Ledger; kiểm tra khớp 100% population_hash và seed_commitment; nếu đổi seed hoặc đổi quần thể thì từ chối fail-closed ngay lập tức trước khi ghi tệp.
+  + Lot mới chỉ được rút từ pool ứng viên chưa từng phân bổ cho bất kỳ lot nào khác.
+  + Khóa cứng canonical_pop_index trỏ đúng vị trí trong quần thể 1.232 mẫu gốc.
+  + Xây dựng hàm riêng supersede_lot_sampling(): Giữ nguyên 100% danh tính nguồn A100 và B30, cấp salt và seed xáo trộn mới để sinh BLIND-xxxxxxxx mới, ghi sự kiện SUPERSEDE_LOT_BLIND_VIEW vào Ledger.
+
+[F2] Kiểm tra thống nhất Hợp đồng Main 1.2.0 xuyên suốt 3 tầng (Envelope, Sample, Record):
+- Trong src/phishing/annotation/blind_view.py:
+  + Hàm assert_no_label_leak(): Bắt buộc phiên bản 1.2.0 đồng nhất. Envelope Main cấm mẫu legacy có random_subset. Envelope legacy chặn mẫu mang định dạng Main BLIND-xxxxxxxx. Envelope thiếu version nhưng chứa mẫu Main bị chặn fail-closed.
+  + Hàm validate_annotation_record(): Chặn triệt để hành vi hạ cấp Main xuống legacy (nếu sample_id có dạng BLIND-xxxxxxxx mà xóa hoặc đổi contract version khỏi 1.2.0 sẽ bị từ chối ngay lập tức).
+
+[F3] Bắt buộc Provenance và Xây dựng Pipeline Intake Main riêng biệt:
+- Bắt buộc các trường provenance trong bản ghi Main 1.2.0: dataset_id, dataset_hash, codebook_hash, sample_content_hash, sampling_plan_version, timestamp_utc; cấm rỗng/None và KHÔNG tự động fallback timestamp_utc = now().
+- Xây dựng hoàn chỉnh pipeline intake Main độc lập: scripts/data/receive_main_batch1.py:
+  + Tiếp nhận tệp JSONL từ A (100 mẫu) hoặc B (30 mẫu), đối chiếu chặt chẽ với manifest và Blind View đã niêm phong.
+  + Chặn tuyệt đối trường random_subset của pilot.
+  + Kiểm toán tính toàn vẹn nội dung mẫu bằng canonical compute_sample_content_hash().
+  + Lưu trữ bất biến theo mã băm SHA-256 và xuất biên lai kiểm toán .receipt.json (ACCEPTED / REJECTED).
+
+[F4] Gắn locator nguồn gốc trước các Cổng lọc (Selection Gates):
+- Trong scripts/data/export_and_seal_population.py: Gắn source_row (chỉ số dòng gốc trong shard parquet train-001), source_shard, source_revision ngay sau khi đọc bảng Parquet và trước khi chuyển vào SelectionGatePipeline.
+- Trong src/phishing/data/main_sampling.py: Ràng buộc fail-closed, nếu bất kỳ ứng viên nào thiếu source_row hợp lệ (int >= 0) thì quy trình sampling bị dừng ngay lập tức.
+
+[F5] Nâng cấp Scanner kiểm tra cách ly Git và rò rỉ Salt/Secret:
+- Trong scripts/data/verify_git_isolation.py:
+  + Nâng cấp regex quét mọi biến gán literal string cho secret/salt mới trong src/ và scripts/ (kể cả DEFAULT_BLIND_SALT hay bất kỳ biến nào có chứa salt/secret).
+  + Xử lý lỗi đọc tệp fail-closed: Nếu gặp lỗi đọc/mã hóa tệp, ghi nhận read_errors và trả về trạng thái FAIL, không bỏ qua âm thầm.
+  + Kết luận kiểm toán nêu rõ phạm vi định lượng (đã quét 134 tệp thuộc docs, configs, src, scripts và index Git hiện hành).
+
+[F6] Cơ chế Xuất gói Staging và Xuất bản Nguyên tử (Atomic Publishing):
+- Trong scripts/data/run_main_batch1_pipeline.py:
+  + Toàn bộ hiện vật mới được dựng hoàn toàn trong thư mục STAGING tạm thời biệt lập (.staging_lot_*).
+  + Thực hiện đầy đủ các bước tiền kiểm (Preflight) và hậu kiểm (Postflight): kiểm tra rò rỉ nhãn, kiểm tra schema, kiểm tra cách ly Git.
+  + Nếu có bất kỳ lỗi nào xảy ra: Dọn dẹp sạch thư mục staging, khôi phục nguyên vẹn 100% byte của Sổ cái Ledger cũ, giữ nguyên hiện vật đích cũ.
+  + Chỉ khi toàn bộ kiểm tra đạt PASS, mới thực hiện copy/replace nguyên khối sang thư mục đích.
+
+[F7] Hiệu chỉnh Báo cáo Sự cố An toàn Dữ liệu (INC-20261119):
+- Đã cập nhật văn bản artifacts/INCIDENT_LOG_20261119_MAIN_BATCH1_SALT_EXPOSURE.md:
+  + Thay cụm từ "Zero Label Leakage" bằng kết luận có phạm vi: "Trong phạm vi các artifact và file Blind View v1.2.0 đã kiểm tra đối chiếu, chưa phát hiện trường nhãn trực tiếp xuất hiện".
+  + Ghi rõ rủi ro suy luận nhận diện (de-anonymization risk) do lộ salt/seed.
+  + Ghi nhận trung thực tình trạng tiếp cận của các bên: Lead D đã kiểm; Annotator B ghi nhận chưa từng mở mã nguồn tại b013ed7; Annotator A hoàn toàn chưa nhận dữ liệu hay mã nguồn.
+  + Phương án bảo lưu cohort A100/B30 và tái cấp ID/salt qua supersede được ghi nhận là ĐỀ XUẤT trình Lead D phê duyệt, không tự ý ấn định.
+
+4. ĐỐI ỨNG 7 CỔNG THỰC THI G1–G7 THEO BÁO CÁO QA V1.3 CỦA B:
+- G1 (E2E): ĐẠT (Đã có pipeline scripts/data/receive_main_batch1.py khép kín từ export -> CLI thật -> JSONL -> intake).
+- G2 (BRANCH): ĐẠT (Bảo vệ phân nhánh 1.2.0 vs legacy, fail-closed khi mixed/unknown version hoặc hạ cấp record).
+- G3 (NORAND): ĐẠT (Cấm triệt để random_subset trên toàn bộ luồng Main 1.2.0).
+- G4 (FINGERPRINT / PROVENANCE): ĐẠT (Gắn source_row trước lọc; bắt buộc đủ 6 trường xuất xứ trong bản ghi).
+- G5 (LEDGER): ĐẠT (Bảo toàn cohort khi retry cùng lot; tách hàm supersede độc lập; chặn cấp trùng giữa các lot).
+- G6 (ISOLATION / EXPORT): ĐẠT (Phát hiện hardcode secret mới; xuất gói staging nguyên tử; rollback byte-exact khi lỗi).
+- G7 (SOP / CLI / RELEASE): ĐẠT (Hướng dẫn thao tác và CLI đồng nhất hợp đồng Main 1.2.0; sẵn sàng cho B kiểm định).
+
+5. KẾT QUẢ KIỂM THỬ HỒI QUY TOÀN DIỆN TRÊN COMMIT 6C26D74:
+- Lệnh chạy 4 bộ test liên quan:
+  python -m pytest tests/test_main_annotation_batch1.py tests/test_blind_view.py tests/test_annotate_cli_timer_pause.py artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py -q
+- Kết quả đo: 130 passed in 13.69s (100% PASS, 0 failed, 0 error).
+
+- Lệnh kiểm toán cách ly Git:
+  python scripts/data/verify_git_isolation.py
+- Kết quả: Git Isolation Status: PASS (Báo cáo tại artifacts/isolation_verification_report.json: 0 vi phạm tracked, 0 rò rỉ nhãn, 0 literal secret).
+
+6. HƯỚNG DẪN BÀN GIAO ĐỂ QA LEAD B KIỂM ĐỊNH ĐỘC LẬP:
+- Commit SHA bàn giao: 6c26d7464ef6cfa7f1711bba4e27eda7195bd832 (nhánh origin/feat/c-main-annotation-batch1).
+- Để tái lập và kiểm chứng các cổng G1–G7 trên clean worktree, B chỉ cần thực hiện:
+  git fetch origin
+  git checkout 6c26d7464ef6cfa7f1711bba4e27eda7195bd832
+  python -m pytest tests/test_main_annotation_batch1.py tests/test_blind_view.py tests/test_annotate_cli_timer_pause.py artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py -q
+  python scripts/data/verify_git_isolation.py
+
+7. CAM KẾT QUẢN TRỊ:
+- Giữ nguyên trạng thái: main_annotation_status="LOCKED", training_blocked=true, official_test_used=false.
+- Dữ liệu thật tiếp tục được niêm phong trong data/restricted/. C không tự ý phát hành Blind View hay mở Pass 1 khi chưa có lệnh chính thức từ Lead D.
+========================================================================================
