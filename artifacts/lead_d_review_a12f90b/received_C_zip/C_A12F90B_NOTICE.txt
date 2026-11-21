@@ -1,0 +1,81 @@
+========================================================================================
+BÁO CÁO KỸ THUẬT VÀ BÀN GIAO BẢN SỬA LỖI TẠI COMMIT a12f90b (KHÉP H1 & H2),
+ĐÍNH CHÍNH HỒ SƠ COMMIT, CẬP NHẬT SOP VÀ TÁI LẬP 150/150 TESTS TRONG BẢY TỆP CHỌN LỌC
+========================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và QA Lead B (Phùng Tấn Minh)
+Người gửi: Nguyễn Thắng (Thành viên C — Data Pipeline & Thư ký Kiểm toán)
+Ngày báo cáo: 21/11/2026
+Commit bàn giao: a12f90b4552456b716aca5ca1c0e443f5497584e (nhánh feat/c-main-annotation-batch1)
+Trạng thái Main Batch 1: TIẾP TỤC HOLD / LOCKED (Chờ Lead D & B nghiệm thu, chưa mở Pass 1)
+
+1. ĐÍNH CHÍNH HỒ SƠ & LINEAGE LỊCH SỬ (ERRATA):
+- Đính chính full commit SHA lượt trước:
+  + Chuỗi sai đã ghi trong notice trước: da3a78dbb4ca2efcb6921350a416a9a7a9353982
+  + Commit thực tế trên remote Git/GitHub: da3a78da8444d1bc5bfe781119362b575b3dc4d7
+  + C bảo lưu nguyên vẹn gói ZIP và báo cáo cũ làm lịch sử đối soát, không can thiệp sửa byte tệp cũ.
+  + Ở phiên bản này, full SHA được lấy trực tiếp từ Git (git rev-parse HEAD) và đã xác minh trùng khớp 100% trên remote GitHub: a12f90b4552456b716aca5ca1c0e443f5497584e.
+- Đính chính thời gian kiểm thử:
+  + Lượt trước có sự chênh lệch thời gian giữa thông báo tóm tắt ngoài ZIP (lấy từ lượt chạy thử nội bộ) và raw log chính thức bên trong ZIP.
+  + Tại lượt này, C chuẩn hóa đồng bộ 100% số liệu từ raw log đính kèm: Bộ probe mới của Lead D đạt 2 passed in 3.95s; bảy tệp kiểm chọn lọc đạt 150 passed in 29.09s.
+- Ranh giới trách nhiệm & phát ngôn:
+  + Ghi nhận rõ: Kết quả của C là "C tự kiểm / tái lập test của Lead D"; quyền kiểm định và ký duyệt QA độc lập thuộc về QA Lead B.
+  + Ghi nhận đúng phạm vi: "150 phép kiểm trong bảy tệp chọn lọc", không tuyên bố toàn bộ repository đạt.
+
+2. MỤC TIÊU VÀ PHẠM VI TIẾP NHẬN:
+- Tiếp nhận gói đánh giá MAIN_BATCH1_DA3A78D_LEAD_D_REVIEW.zip (SHA-256: A650DBFE800C8E68F252B07D2C6C4E27A2D87205F9BE5177BEFB08140A331854) từ Lead D.
+- Kích hoạt Mô hình Duo (DeepSeek v4 Reasoning) tham vấn thiết kế tối giản theo kỷ luật Ponytail và kỷ luật hàn lâm ARS.
+- Khắc phục triệt để 2 lỗi vòng đời intake (H1, H2), loại bỏ fallback supersede thiếu seed metadata, và hoàn thiện quy trình SOP.
+
+3. KẾT QUẢ SỬA LỖI MÃ NGUỒN CHI TIẾT:
+a) scripts/data/receive_main_batch1.py (Khép hoàn toàn H1 & H2):
+- Khép H1 (Khóa bản nộp dựa trên toàn bộ lịch sử ACCEPTED):
+  + Bổ sung hàm _check_accepted_history quét toàn bộ tệp lịch sử trong thư mục annotator (cả *.receipt.json và *.attempt_*.json).
+  + Khi phát hiện đã tồn tại bản nộp accepted cho đúng annotator và release (dataset_id, contract_version), mọi bản nộp có input digest khác đều bị từ chối fail-closed.
+  + Thiết lập cơ chế cho phép bản nộp thay thế chỉ khi có quyết định chính thức của Lead D thông qua tham số d_replacement_approval (hoặc cờ CLI --d-replacement-approval).
+  + Thao tác retry đúng input digest và context tiếp tục hoạt động idempotent, không bị khóa nhầm.
+- Khép H2 (Gắn fingerprint context cho cả đường REJECTED):
+  + Thu nhận fingerprint context (digest, manifest_sha256, blind_view_sha256, tool_version, trạng thái lỗi đọc nếu có) ngay từ đầu hàm trước khi thực hiện xác thực nghiệp vụ.
+  + Cả bản ghi accepted và rejected đều mang đầy đủ context hash.
+  + Khi manifest hoặc ngữ cảnh thay đổi (dù cùng loại lỗi từ chối), hệ thống nhận diện khác context và ghi nhận attempt độc lập mới ({digest}.attempt_{num}_{status}_{ctx_sig}.json), không gộp nhầm context và bảo toàn nguyên byte biên lai cũ.
+
+b) src/phishing/data/main_sampling.py (Loại bỏ fallback không an toàn):
+- Trong hàm supersede_lot_sampling: Nếu ledger cũ thiếu seed_lot_100 hoặc seed_b_subset_30, hệ thống dừng an toàn ngay lập tức (fail-closed bằng ValueError), loại bỏ hoàn toàn khối fallback công thức cũ sha256("supersede:...").
+- Đảm bảo mọi thao tác supersede đều phải có đầy đủ seed metadata để bảo toàn khả năng tái lập cohort và Blind ID.
+
+c) docs/QUY_TRINH_KIEM_TRA_INTAKE_MAIN_BATCH1.md (Đồng bộ SOP):
+- Cập nhật quy trình SOP với các lệnh CLI đầy đủ, đoạn script Python thực thi độc lập chuẩn hóa cho cả quy trình Intake và ghép cặp 30 mẫu chung B30 để tính Cohen's Kappa 3x3.
+- Loại bỏ hoàn toàn các câu lệnh placeholder một dòng.
+
+4. KẾT QUẢ KIỂM THỬ TỰ THỰC HIỆN TẠI COMMIT a12f90b:
+- Bộ test probe mới của Lead D (artifacts/lead_d_review_da3a78d/test_main_da3_intake_history.py):
+  + test_accepted_attempt_prevents_second_submission_without_d_decision: PASSED
+  + test_rejected_checks_bind_each_changed_manifest_context: PASSED
+  => Đạt 2 passed in 3.95s (main_da3_intake_history.log).
+
+- Toàn bộ 7 tệp kiểm thử chọn lọc của dự án:
+  + tests/test_main_annotation_batch1.py
+  + tests/test_blind_view.py
+  + tests/test_annotate_cli_timer_pause.py
+  + artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py
+  + artifacts/lead_d_review_6c26d74/test_main_6c26_release_boundaries.py
+  + artifacts/lead_d_review_599c7d9/test_main_599_followup.py
+  + artifacts/lead_d_review_da3a78d/test_main_da3_intake_history.py
+  => TÁI LẬP HOÀN TOÀN: 150 passed in 29.09s (0 failed, 0 warning) (main_150_full.log).
+
+- Kiểm tra cô lập Git và chống rò rỉ bí mật (scripts/data/verify_git_isolation.py):
+  => STATUS: PASS (0 vi phạm, không rò rỉ secret) (verify_git_isolation.log).
+
+5. TRẠNG THÁI QUẢN TRỊ & BẢO VỆ DỮ LIỆU:
+- Main Annotation Batch 1 tiếp tục duy trì trạng thái: HOLD / LOCKED.
+- training_blocked = true; official_test_used = false.
+- Dữ liệu Main thật, mapping và ledger thật chỉ trao đổi qua kênh hạn chế cho Lead D.
+- Không phát Blind View, không mở Pass 1 và không tự ý thay đổi cohort khi chưa có phê duyệt từ Lead D.
+
+6. DANH MỤC GÓI BẰNG CHỨNG KỸ THUẬT (MAIN_BATCH1_A12F90B_EVIDENCE_FOR_B.zip):
+- C_A12F90B_NOTICE.txt (Bản sao toàn văn báo cáo kỹ thuật này)
+- main_da3_intake_history.log (Raw log pytest 2/2 passed của probe Lead D da3a78d)
+- main_150_full.log (Raw log pytest 150/150 passed trên 7 tệp chọn lọc)
+- verify_git_isolation.log (Raw log Git isolation PASS)
+- SHA256SUMS.txt (Bảng mã băm đối soát toàn bộ tệp trong gói)
+========================================================================================

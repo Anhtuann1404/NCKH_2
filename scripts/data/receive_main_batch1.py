@@ -221,12 +221,12 @@ def _check_accepted_history(
             if is_same_annotator and is_same_release:
                 accepted_digest = data.get("file_sha256")
                 if accepted_digest and accepted_digest != current_digest:
-                    if not d_replacement_approval:
-                        raise ValueError(
-                            f"Đã tồn tại bản nộp ACCEPTED khác cho annotator {annotator} "
-                            f"(tệp lịch sử: {p.name}, digest: {accepted_digest}). "
-                            "Cần quyết định thay thế của Lead D có dẫn chiếu."
-                        )
+                    raise ValueError(
+                        f"Đã tồn tại bản nộp ACCEPTED khác cho annotator {annotator} "
+                        f"(tệp lịch sử: {p.name}, digest: {accepted_digest}). "
+                        "Thay thế bản nộp chưa được hỗ trợ tự động trong pipeline intake; "
+                        "mọi trường hợp thay thế cần quyết định và quy trình xử lý riêng của Lead D."
+                    )
 
 
 def receive_main_batch1(
@@ -411,9 +411,21 @@ def main() -> int:
     parser.add_argument("--input", type=Path, required=True, help="Đường dẫn tệp kết quả JSONL")
     parser.add_argument("--restricted-dir", type=Path, default=Path("data/restricted/main_batch1"), help="Thư mục gói hạn chế")
     parser.add_argument("--out-root", type=Path, default=Path("data/labels/intake_main_batch1"), help="Thư mục lưu biên lai intake")
+    parser.add_argument(
+        "--d-replacement-approval",
+        type=str,
+        default=None,
+        help="Mã quyết định của Lead D (tính năng thay thế bản nộp chưa hỗ trợ tự động trong Đợt 1; mọi thay thế cần quyết định riêng từ Lead D)",
+    )
     args = parser.parse_args()
 
-    receipt = receive_main_batch1(args.input, args.annotator, out_root=args.out_root, restricted_dir=args.restricted_dir)
+    receipt = receive_main_batch1(
+        args.input,
+        args.annotator,
+        out_root=args.out_root,
+        restricted_dir=args.restricted_dir,
+        d_replacement_approval=args.d_replacement_approval,
+    )
     print(f"Trạng thái tiếp nhận: {receipt['status']} (Annotator {args.annotator}, SHA-256={receipt['file_sha256']})")
     if receipt["status"] != "accepted":
         print(f"Lý do từ chối: {receipt['reason']}", file=sys.stderr)

@@ -59,7 +59,7 @@ python scripts/data/receive_main_batch1.py \
 **Đầu ra xác định**:
 - Tệp kết quả được lưu bất biến theo hash SHA-256: `data/labels/intake_main_batch1/{annotator}/{digest}.jsonl`.
 - Biên lai kiểm toán sơ cấp `{digest}.receipt.json` (hoặc các nỗ lực kiểm tra lại độc lập `{digest}.attempt_{idx}_{status}_{ctx_sig}.json`).
-- Nếu trạng thái là `accepted`, bản nộp được khóa vĩnh viễn; mọi bản nộp thay thế khác hash bắt buộc phải có cờ phê duyệt `--d-replacement-approval` từ Lead D.
+- Nếu trạng thái là `accepted`, bản nộp được khóa vĩnh viễn đối với mọi input digest khác. Tính năng thay thế bản nộp chưa được hỗ trợ tự động trong pipeline intake; mọi nhu cầu thay thế bản nộp bắt buộc phải tuân theo quyết định và quy trình phân xử riêng do Lead D chủ trì.
 
 ---
 
@@ -70,16 +70,16 @@ python scripts/data/receive_main_batch1.py \
 
 **Đoạn mã Python thực thi chuẩn hóa (chạy độc lập, không dùng placeholder)**:
 ```python
+import hashlib
 import json
 from pathlib import Path
-import sys
 
-from phishing.annotation.kappa_3x3 import compute_kappa_3x3_from_records
+from phishing.annotation.kappa_3x3 import compute_kappa_3x3_from_records, format_kappa_3x3_report
 
 intake_root = Path("data/labels/intake_main_batch1")
 restricted_dir = Path("data/restricted/main_batch1")
 
-# 1. Tìm và nạp biên lai accepted của A và B
+# 1. Tìm và xác định đúng bản nộp ACCEPTED duy nhất đang có hiệu lực cho từng annotator
 receipts = {}
 for role in ("A", "B"):
     ann_dir = intake_root / role
@@ -90,34 +90,57 @@ for role in ("A", "B"):
     ]
     if not accepted_files:
         raise FileNotFoundError(f"Không tìm thấy biên lai ACCEPTED cho annotator {role}")
+
+    # Kiểm tra tính đơn nhất của digest accepted (chống tình trạng đa digest chưa xác định hiệu lực)
+    accepted_digests = {
+        json.loads(p.read_text(encoding="utf-8")).get("file_sha256") for p in accepted_files
+    }
+    if len(accepted_digests) > 1:
+        raise RuntimeError(
+            f"LỖI ĐỐI SOÁT: Tồn tại nhiều bản nộp ACCEPTED khác hash cho annotator {role}: {accepted_digests}. "
+            "Dừng an toàn để đối soát chỉ đạo của Lead D!"
+        )
     receipts[role] = json.loads(accepted_files[0].read_text(encoding="utf-8"))
 
-# 2. Đọc lại các bản ghi từ tệp JSONL đã được intake tiếp nhận
+# 2. Kiểm tra tính toàn vẹn của tệp JSONL và Blind View trước khi tính toán
+manifest_b = json.loads((restricted_dir / "manifest_b.json").read_text(encoding="utf-8"))
+view_b_path = restricted_dir / "blind_view_b.json"
+view_b_sha = hashlib.sha256(view_b_path.read_bytes()).hexdigest()
+if view_b_sha != manifest_b.get("blind_view_sha256"):
+    raise ValueError("LỖI TOÀN VẸN: Blind View B không khớp hash niêm phong trong manifest_b.json")
+
 saved_records = {}
 for role, rcp in receipts.items():
     jsonl_path = Path(rcp["saved_path"])
+    if not jsonl_path.exists():
+        jsonl_path = intake_root / role / f"{rcp['file_sha256']}.jsonl"
+    if not jsonl_path.exists():
+        raise FileNotFoundError(f"Tệp JSONL đã lưu không tồn tại: {jsonl_path}")
+    raw_bytes = jsonl_path.read_bytes()
+    if hashlib.sha256(raw_bytes).hexdigest() != rcp["file_sha256"]:
+        raise ValueError(f"LỖI TOÀN VẸN: Hash tệp JSONL của {role} không khớp biên lai tiếp nhận")
     saved_records[role] = [
-        json.loads(line) for line in jsonl_path.read_text(encoding="utf-8").splitlines() if line.strip()
+        json.loads(line) for line in raw_bytes.decode("utf-8").splitlines() if line.strip()
     ]
 
-# 3. Lấy danh sách sample_id của tập 30 mẫu B30 từ Blind View B đã niêm phong
-blind_view_b = json.loads((restricted_dir / "blind_view_b.json").read_text(encoding="utf-8"))
+# 3. Lấy danh sách 30 sample_id của tập B30 từ Blind View B đã niêm phong
+blind_view_b = json.loads(view_b_path.read_text(encoding="utf-8"))
 target_ids = [s["sample_id"] for s in blind_view_b["samples"]]
+if len(target_ids) != 30:
+    raise ValueError(f"Tập Blind View B phải chứa chính xác 30 mẫu, nhận {len(target_ids)}")
 
-# 4. Tính toán độ đồng thuận Kappa 3x3 với 100 lần bootstrap
+# 4. Tính toán độ đồng thuận Kappa 3x3 với cấu hình chuẩn mực nghiên cứu (B=1.000 lượt, seed=2026)
 result = compute_kappa_3x3_from_records(
     saved_records["A"],
     saved_records["B"],
     target_sample_ids=target_ids,
-    bootstrap_iterations=100,
+    bootstrap_iterations=1000,
+    random_seed=2026,
 )
 
-print(f"=== KẾT QUẢ ĐỘ ĐỒNG THUẬN COHEN'S KAPPA (TẬP 30 MẪU CHUNG) ===")
-print(f"Tổng số mẫu đánh giá: {result.sample_count}")
-print(f"Chỉ số thỏa thuận quan sát (Po): {result.observed_agreement:.4f}")
-print(f"Chỉ số thỏa thuận kỳ vọng (Pe):   {result.expected_agreement:.4f}")
-print(f"Hệ số Cohen's Kappa:             {result.kappa:.4f}")
-print(f"Khoảng tin cậy 95% Bootstrap:   [{result.ci_lower:.4f}, {result.ci_upper:.4f}]")
+# 5. Xuất báo cáo bằng hàm chuẩn hóa format_kappa_3x3_report
+report = format_kappa_3x3_report(result)
+print(report)
 ```
 
 ---

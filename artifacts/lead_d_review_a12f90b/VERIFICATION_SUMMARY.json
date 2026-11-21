@@ -1,0 +1,38 @@
+{
+  "checked_date": "2026-11-21",
+  "zip_bytes": 9506,
+  "zip_sha256": "94280deabdede106d0bb04aa96fda1b9cb57bd29a5984a6bb5ba715732e14967",
+  "members": [
+    {
+      "name": "C_A12F90B_NOTICE.txt",
+      "bytes": 7119,
+      "declared_sha256": "1F4888E4BB40D85B3A253F7D7361DCC61FD1E5B4B9B1032659915501343E92B3",
+      "actual_sha256": "1f4888e4bb40d85b3a253f7d7361dcc61fd1e5b4b9b1032659915501343e92b3",
+      "match": true
+    },
+    {
+      "name": "main_150_full.log",
+      "bytes": 39106,
+      "declared_sha256": "B48DEBEA763FB73C98671994EACA7D847CA03D6ED43E01EEDE1162318D1773AF",
+      "actual_sha256": "b48debea763fb73c98671994eaca7d847ca03d6ed43e01eede1162318d1773af",
+      "match": true
+    },
+    {
+      "name": "main_da3_intake_history.log",
+      "bytes": 1560,
+      "declared_sha256": "EBADEB160A7386E85BE908B0D9829D636C35F5621D24CDEE5D401667CAB44685",
+      "actual_sha256": "ebadeb160a7386e85be908b0d9829d636c35f5621d24cdee5d401667cab44685",
+      "match": true
+    },
+    {
+      "name": "verify_git_isolation.log",
+      "bytes": 188,
+      "declared_sha256": "D2379BB9693F76069659934AA1714B75506B5952D2FC8E033F716E2E83811FC4",
+      "actual_sha256": "d2379bb9693f76069659934aa1714b75506b5952d2fc8e033f716e2e83811fc4",
+      "match": true
+    }
+  ],
+  "remote_commit": "a12f90b4552456b716aca5ca1c0e443f5497584e",
+  "selected_tests": "150 passed in 3.82s",
+  "additional_approval_and_sop_checks": "4 failed in 0.70s"
+}
