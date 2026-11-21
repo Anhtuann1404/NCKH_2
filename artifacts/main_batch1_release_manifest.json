@@ -1,6 +1,6 @@
 {
-  "manifest_version": "1.0.0",
-  "generated_at_utc": "2026-11-19T06:03:10.754139+00:00",
+  "manifest_version": "1.1.0",
+  "generated_at_utc": "2026-11-22T00:40:00.000000+00:00",
   "lot_id": "main_lot_batch_001",
   "actor": "Member C (Nguyễn Thắng)",
   "contract_versions": {
@@ -11,7 +11,8 @@
     "source_shard": "data/raw/phreshphish/data/train-001.parquet",
     "source_revision": "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a",
     "candidate_count": 1232,
-    "population_fingerprint_sha256": "40ad5d600e93b10d3fe5910e7454ce4a7a94fe2384b5625d8e6af8983525f9a8",
+    "population_fingerprint_sha256": "77773871ab50c361cb5df0ca4f9e5604a251a20f933d1bc22ee7d9f016814919",
+    "historical_uid_list_sha256": "40ad5d600e93b10d3fe5910e7454ce4a7a94fe2384b5625d8e6af8983525f9a8",
     "seed_population": 42
   },
   "sampling_specification": {
@@ -27,9 +28,9 @@
     "official_test_used": false
   },
   "restricted_package_fingerprints": {
-    "blind_view_a_sha256": "639ceccf4ec9aaa81bf92be62ce9f9fb46e52296bd503591298523ba090342ba",
-    "blind_view_b_sha256": "529d8616f7e1ebf1a4ea3d8284c264e1f7345b1fd25b2b968c8224206dddff72",
-    "mapping_restricted_sha256": "4890edb629307ca95f70125fe466e058fcc4a56be37d6fb054ea84bbe30f3854",
+    "blind_view_a_sha256": "b16bec2f56bb8f25c9f2d6009ae696fb123a2b30cf8f95aed6fa5f86cd5b3eae",
+    "blind_view_b_sha256": "8a0781d80f051445854d135e01774b4b6ceed7c0f8543a60efec17779783ee04",
+    "mapping_restricted_sha256": "171c75da7e5b88f469eac504d682ec193c1f65ba722ac769806acd03ab0dae55",
     "ledger_event_sequence": 1
   }
 }
