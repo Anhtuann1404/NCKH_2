@@ -1,0 +1,44 @@
+{
+  "checked_date": "2026-11-21",
+  "zip_bytes": 8914,
+  "zip_sha256": "b80832c5e6394f134329b28b957c2263817a9456dbc68087b3ccf2fd72f24de9",
+  "members": [
+    {
+      "name": "C_DA3A78D_NOTICE.txt",
+      "bytes": 5935,
+      "declared_sha256": "9DFE4EA629A12114EE396EAF6B6D32C1BA96963FF30E6FDDE0CE64FB353E91D9",
+      "actual_sha256": "9dfe4ea629a12114ee396eaf6b6d32c1ba96963ff30e6fdde0ce64fb353e91d9",
+      "match": true
+    },
+    {
+      "name": "main_148_full.log",
+      "bytes": 38538,
+      "declared_sha256": "AE9893DFA9B85D8380A70BDF489C33AF7909EDE103B7F3C52407C1FCBD4116DA",
+      "actual_sha256": "ae9893dfa9b85d8380a70bdf489c33af7909ede103b7f3c52407c1fcbd4116da",
+      "match": true
+    },
+    {
+      "name": "main_599_followup.log",
+      "bytes": 1996,
+      "declared_sha256": "B02AA515FD69EFCE9C4D80316EE160A189FB2F61A04D24427171574306B57BB5",
+      "actual_sha256": "b02aa515fd69efce9c4d80316ee160a189fb2f61a04d24427171574306b57bb5",
+      "match": true
+    },
+    {
+      "name": "verify_git_isolation.log",
+      "bytes": 188,
+      "declared_sha256": "D2379BB9693F76069659934AA1714B75506B5952D2FC8E033F716E2E83811FC4",
+      "actual_sha256": "d2379bb9693f76069659934aa1714b75506b5952d2fc8e033f716e2e83811fc4",
+      "match": true
+    }
+  ],
+  "claimed_commit": "da3a78dbb4ca2efcb6921350a416a9a7a9353982",
+  "github_lookup_for_claimed_commit": {
+    "status": 422,
+    "message": "No commit found for SHA: da3a78dbb4ca2efcb6921350a416a9a7a9353982"
+  },
+  "verified_remote_commit": "da3a78da8444d1bc5bfe781119362b575b3dc4d7",
+  "verified_remote_branch": "feat/c-main-annotation-batch1",
+  "selected_tests": "148 passed in 3.57s",
+  "additional_receipt_probes": "2 failed in 0.60s"
+}

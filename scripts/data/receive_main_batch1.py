@@ -193,12 +193,49 @@ def verify_main_batch1_records(
     }
 
 
+def _check_accepted_history(
+    ann_dir: Path,
+    annotator: str,
+    current_digest: str,
+    dataset_id: str | None,
+    contract_version: str | None,
+    d_replacement_approval: str | None = None,
+) -> None:
+    """Quét toàn bộ lịch sử (cả receipt và attempt) để khóa bản nộp khi đã có ACCEPTED."""
+    for p in sorted(ann_dir.glob("*.json")):
+        if not (p.name.endswith(".receipt.json") or ".attempt_" in p.name):
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise RuntimeError(
+                f"LỖI BẢO TOÀN LỊCH SỬ: Không thể đọc tệp lịch sử biên lai '{p}': {exc}. Dừng an toàn để bảo vệ tính toàn vẹn!"
+            )
+        if data.get("status") == "accepted":
+            is_same_annotator = data.get("annotator") == annotator
+            is_same_release = (
+                (dataset_id is not None and data.get("dataset_id") == dataset_id)
+                or (contract_version is not None and data.get("contract_version") == contract_version)
+                or (data.get("dataset_type") == "main_annotation_batch1")
+            )
+            if is_same_annotator and is_same_release:
+                accepted_digest = data.get("file_sha256")
+                if accepted_digest and accepted_digest != current_digest:
+                    if not d_replacement_approval:
+                        raise ValueError(
+                            f"Đã tồn tại bản nộp ACCEPTED khác cho annotator {annotator} "
+                            f"(tệp lịch sử: {p.name}, digest: {accepted_digest}). "
+                            "Cần quyết định thay thế của Lead D có dẫn chiếu."
+                        )
+
+
 def receive_main_batch1(
     input_path: Path | str,
     annotator: str,
     *,
     out_root: Path | str = "data/labels/intake_main_batch1",
     restricted_dir: Path | str = "data/restricted/main_batch1",
+    d_replacement_approval: str | None = None,
 ) -> Dict[str, Any]:
     """Tiếp nhận tệp JSONL Main Đợt 1, bảo toàn byte và xuất biên lai kiểm toán."""
     p_in = Path(input_path)
@@ -220,33 +257,75 @@ def receive_main_batch1(
     elif saved_jsonl.read_bytes() != raw:
         raise ValueError("Xung đột SHA-256: Tệp cùng mã băm nhưng nội dung byte khác nhau!")
 
+    manifest_file = p_rest / ("manifest_a.json" if annotator == "A" else "manifest_b.json")
+    view_file = p_rest / ("blind_view_a.json" if annotator == "A" else "blind_view_b.json")
+
+    # 1. Thu nhận fingerprint context trước bước kiểm nghiệp vụ (cho cả accepted và rejected)
+    manifest_sha256 = None
+    manifest_read_error = None
+    manifest_data = None
+    if not manifest_file.exists():
+        manifest_read_error = f"FileNotFound: {manifest_file}"
+    else:
+        try:
+            m_bytes = manifest_file.read_bytes()
+            manifest_sha256 = hashlib.sha256(m_bytes).hexdigest()
+            try:
+                manifest_data = json.loads(m_bytes.decode("utf-8"))
+            except Exception as exc:
+                manifest_read_error = f"JSONDecodeError: {exc}"
+        except Exception as exc:
+            manifest_read_error = f"ReadError: {exc}"
+
+    view_sha256 = None
+    view_read_error = None
+    if not view_file.exists():
+        view_read_error = f"FileNotFound: {view_file}"
+    else:
+        try:
+            v_bytes = view_file.read_bytes()
+            view_sha256 = hashlib.sha256(v_bytes).hexdigest()
+        except Exception as exc:
+            view_read_error = f"ReadError: {exc}"
+
+    dataset_id = manifest_data.get("dataset_id") if isinstance(manifest_data, dict) else None
+    contract_version = (
+        manifest_data.get("blind_contract_version")
+        if isinstance(manifest_data, dict) and manifest_data.get("blind_contract_version")
+        else BLIND_CONTRACT_VERSION_V1_2_0
+    )
+
     receipt: Dict[str, Any] = {
         "dataset_type": "main_annotation_batch1",
         "annotator": annotator,
+        "contract_version": contract_version,
         "file_sha256": digest,
         "saved_path": str(saved_jsonl),
+        "tool_version": "1.2.0",
+        "manifest_path": str(manifest_file),
+        "view_path": str(view_file),
+        "manifest_sha256": manifest_sha256,
+        "blind_view_sha256": view_sha256,
     }
-
-    manifest_file = p_rest / ("manifest_a.json" if annotator == "A" else "manifest_b.json")
-    view_file = p_rest / ("blind_view_a.json" if annotator == "A" else "blind_view_b.json")
+    if dataset_id:
+        receipt["dataset_id"] = dataset_id
+    if manifest_read_error:
+        receipt["manifest_read_error"] = manifest_read_error
+    if view_read_error:
+        receipt["view_read_error"] = view_read_error
+    if d_replacement_approval:
+        receipt["d_replacement_approval"] = d_replacement_approval
 
     try:
         records = load_jsonl(saved_jsonl)
         v_res = verify_main_batch1_records(records, annotator, manifest_file, view_file)
         receipt.update(v_res)
 
-        # Kiểm tra không nhận đè biên lai hợp lệ trước đó
-        prior_receipts = [
-            p for p in ann_dir.glob("*.receipt.json")
-            if p.stem.split(".")[0] != digest and json.loads(p.read_text(encoding="utf-8")).get("status") == "accepted"
-        ]
-        if prior_receipts:
-            raise ValueError(
-                f"Đã tồn tại biên lai ACCEPTED khác cho annotator {annotator} ({prior_receipts[0].name}). "
-                "Cần chỉ đạo của Lead D để xử lý bản nộp lại."
-            )
+        # 2. H1: Khóa bản nộp dựa trên toàn bộ lịch sử ACCEPTED (cả *.receipt.json và *.attempt_*.json)
+        _check_accepted_history(ann_dir, annotator, digest, dataset_id, contract_version, d_replacement_approval)
 
         receipt["status"] = "accepted"
+        receipt["reason"] = None
     except Exception as exc:
         receipt["status"] = "rejected"
         receipt["reason"] = str(exc)
@@ -260,24 +339,48 @@ def receive_main_batch1(
                 f"LỖI BẢO TOÀN BIÊN LAI: Không thể đọc biên lai gốc '{receipt_path}': {exc}. Dừng để bảo toàn byte!"
             )
 
-        # Kiểm tra idempotent retry cùng ngữ cảnh
+        # Kiểm tra idempotent retry cùng ngữ cảnh (ràng buộc file_sha256, manifest_sha256, view_sha256, tool_version, status, reason)
         is_identical_context = (
-            prior_r.get("status") == receipt["status"]
+            prior_r.get("file_sha256") == receipt.get("file_sha256")
             and prior_r.get("manifest_sha256") == receipt.get("manifest_sha256")
             and prior_r.get("blind_view_sha256") == receipt.get("blind_view_sha256")
+            and prior_r.get("manifest_read_error") == receipt.get("manifest_read_error")
+            and prior_r.get("view_read_error") == receipt.get("view_read_error")
+            and prior_r.get("tool_version") == receipt.get("tool_version")
+            and prior_r.get("status") == receipt.get("status")
             and prior_r.get("reason") == receipt.get("reason")
         )
         if is_identical_context:
             return prior_r
 
+        # Kiểm tra idempotency trên các attempt đã ghi trước đó
+        existing_attempts = sorted(ann_dir.glob(f"{digest}.attempt_*.json"))
+        for att_file in existing_attempts:
+            try:
+                att_data = json.loads(att_file.read_text(encoding="utf-8"))
+            except Exception as exc:
+                raise RuntimeError(
+                    f"LỖI BẢO TOÀN LỊCH SỬ: Không thể đọc attempt '{att_file}': {exc}. Dừng an toàn để bảo vệ tính toàn vẹn!"
+                )
+            if (
+                att_data.get("file_sha256") == receipt.get("file_sha256")
+                and att_data.get("manifest_sha256") == receipt.get("manifest_sha256")
+                and att_data.get("blind_view_sha256") == receipt.get("blind_view_sha256")
+                and att_data.get("manifest_read_error") == receipt.get("manifest_read_error")
+                and att_data.get("view_read_error") == receipt.get("view_read_error")
+                and att_data.get("tool_version") == receipt.get("tool_version")
+                and att_data.get("status") == receipt.get("status")
+                and att_data.get("reason") == receipt.get("reason")
+            ):
+                return att_data
+
         # Nếu ngữ cảnh hoặc kết quả thay đổi: BẢO LƯU NGUYÊN VẸN biên lai gốc và ghi attempt mới
-        existing_attempts = list(ann_dir.glob(f"{digest}.attempt_*.json"))
         attempt_num = len(existing_attempts) + 2
 
-        m_sha = receipt.get("manifest_sha256", "nomanifest")[:8]
+        m_sha = (receipt.get("manifest_sha256") or "nomanifest")[:8]
         status_tag = receipt.get("status", "unknown")
         ctx_sig = hashlib.sha256(
-            f"{digest}:{m_sha}:{status_tag}:{receipt.get('reason', '')}:{datetime.now(timezone.utc).isoformat()}".encode("utf-8")
+            f"{digest}:{m_sha}:{status_tag}:{receipt.get('reason')}:{datetime.now(timezone.utc).isoformat()}".encode("utf-8")
         ).hexdigest()[:8]
 
         attempt_filename = f"{digest}.attempt_{attempt_num:02d}_{status_tag}_{ctx_sig}.json"
@@ -289,9 +392,6 @@ def receive_main_batch1(
 
         receipt["attempt_index"] = attempt_num
         receipt["checked_at_utc"] = datetime.now(timezone.utc).isoformat()
-        receipt["tool_version"] = "1.2.0"
-        receipt["manifest_path"] = str(manifest_file)
-        receipt["view_path"] = str(view_file)
         receipt["prior_receipt_path"] = str(receipt_path)
 
         attempt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -299,9 +399,6 @@ def receive_main_batch1(
 
     receipt["attempt_index"] = 1
     receipt["checked_at_utc"] = datetime.now(timezone.utc).isoformat()
-    receipt["tool_version"] = "1.2.0"
-    receipt["manifest_path"] = str(manifest_file)
-    receipt["view_path"] = str(view_file)
     receipt["prior_receipt_path"] = None
 
     receipt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

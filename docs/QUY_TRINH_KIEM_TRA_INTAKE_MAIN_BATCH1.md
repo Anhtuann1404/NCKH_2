@@ -31,15 +31,94 @@
 
 ---
 
-## 3. QUY TRÌNH GHÉP CẶP VÀ ĐÁNH GIÁ ĐỘ ĐỒNG THUẬN (KAPPA)
-1. **Ghép cặp 30 mẫu chung**:
-   - Thành viên C sử dụng trường `blind_id` để ghép cặp 1-1 giữa kết quả của A và kết quả của B trên đúng 30 mẫu đã niêm phong.
-2. **Tính toán Cohen's Kappa 3x3**:
-   - Chạy module `phishing.annotation.kappa_3x3` trên 30 mẫu ghép cặp.
-   - Xuất ma trận nhầm lẫn (confusion matrix) 3x3 và chỉ số thỏa thuận quan sát ($P_o$), chỉ số kỳ vọng ($P_e$), và hệ số $\kappa$.
-3. **Lập danh sách ca bất đồng**:
-   - Lọc tất cả các mẫu trong 30 mẫu mà A và B không đồng thuận nhãn (`label_A != label_B`).
-   - Lọc tất cả các ca mà A hoặc B đánh dấu cờ ca khó.
+## 3. QUY TRÌNH THỰC THI INTAKE & GHÉP CẶP ĐÁNH GIÁ ĐỘ ĐỒNG THUẬN (KAPPA)
+
+### A. Lệnh thực thi tiếp nhận kết quả (Intake Execution)
+**Điều kiện tiên quyết**:
+- Gói phát hành `data/restricted/main_batch1/` đã được Lead D và QA Lead B phê duyệt chính thức (`ready_for_annotation=True`, `acceptance={'B': 'approved', 'D': 'approved'}`).
+- Tệp kết quả JSONL từ người gán đã hoàn tất toàn bộ số mẫu (100 mẫu cho A, 30 mẫu cho B).
+
+**Lệnh chạy intake cho Annotator A**:
+```bash
+python scripts/data/receive_main_batch1.py \
+  --annotator A \
+  --input data/annotations/A/main_batch1_pass1_A.jsonl \
+  --restricted-dir data/restricted/main_batch1 \
+  --out-root data/labels/intake_main_batch1
+```
+
+**Lệnh chạy intake cho Annotator B**:
+```bash
+python scripts/data/receive_main_batch1.py \
+  --annotator B \
+  --input data/annotations/B/main_batch1_pass1_B.jsonl \
+  --restricted-dir data/restricted/main_batch1 \
+  --out-root data/labels/intake_main_batch1
+```
+
+**Đầu ra xác định**:
+- Tệp kết quả được lưu bất biến theo hash SHA-256: `data/labels/intake_main_batch1/{annotator}/{digest}.jsonl`.
+- Biên lai kiểm toán sơ cấp `{digest}.receipt.json` (hoặc các nỗ lực kiểm tra lại độc lập `{digest}.attempt_{idx}_{status}_{ctx_sig}.json`).
+- Nếu trạng thái là `accepted`, bản nộp được khóa vĩnh viễn; mọi bản nộp thay thế khác hash bắt buộc phải có cờ phê duyệt `--d-replacement-approval` từ Lead D.
+
+---
+
+### B. Kịch bản ghép cặp và tính toán Cohen's Kappa 3x3
+**Điều kiện tiên quyết**:
+- Cả hai bản nộp của Annotator A và B đều đã đạt trạng thái `accepted` tại pipeline intake.
+- Đọc lại trực tiếp từ tệp byte JSONL đã được tiếp nhận chính thức, không ghép từ danh sách nhãn trôi nổi bên ngoài.
+
+**Đoạn mã Python thực thi chuẩn hóa (chạy độc lập, không dùng placeholder)**:
+```python
+import json
+from pathlib import Path
+import sys
+
+from phishing.annotation.kappa_3x3 import compute_kappa_3x3_from_records
+
+intake_root = Path("data/labels/intake_main_batch1")
+restricted_dir = Path("data/restricted/main_batch1")
+
+# 1. Tìm và nạp biên lai accepted của A và B
+receipts = {}
+for role in ("A", "B"):
+    ann_dir = intake_root / role
+    accepted_files = [
+        p for p in ann_dir.glob("*.json")
+        if (p.name.endswith(".receipt.json") or ".attempt_" in p.name)
+        and json.loads(p.read_text(encoding="utf-8")).get("status") == "accepted"
+    ]
+    if not accepted_files:
+        raise FileNotFoundError(f"Không tìm thấy biên lai ACCEPTED cho annotator {role}")
+    receipts[role] = json.loads(accepted_files[0].read_text(encoding="utf-8"))
+
+# 2. Đọc lại các bản ghi từ tệp JSONL đã được intake tiếp nhận
+saved_records = {}
+for role, rcp in receipts.items():
+    jsonl_path = Path(rcp["saved_path"])
+    saved_records[role] = [
+        json.loads(line) for line in jsonl_path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+
+# 3. Lấy danh sách sample_id của tập 30 mẫu B30 từ Blind View B đã niêm phong
+blind_view_b = json.loads((restricted_dir / "blind_view_b.json").read_text(encoding="utf-8"))
+target_ids = [s["sample_id"] for s in blind_view_b["samples"]]
+
+# 4. Tính toán độ đồng thuận Kappa 3x3 với 100 lần bootstrap
+result = compute_kappa_3x3_from_records(
+    saved_records["A"],
+    saved_records["B"],
+    target_sample_ids=target_ids,
+    bootstrap_iterations=100,
+)
+
+print(f"=== KẾT QUẢ ĐỘ ĐỒNG THUẬN COHEN'S KAPPA (TẬP 30 MẪU CHUNG) ===")
+print(f"Tổng số mẫu đánh giá: {result.sample_count}")
+print(f"Chỉ số thỏa thuận quan sát (Po): {result.observed_agreement:.4f}")
+print(f"Chỉ số thỏa thuận kỳ vọng (Pe):   {result.expected_agreement:.4f}")
+print(f"Hệ số Cohen's Kappa:             {result.kappa:.4f}")
+print(f"Khoảng tin cậy 95% Bootstrap:   [{result.ci_lower:.4f}, {result.ci_upper:.4f}]")
+```
 
 ---
 

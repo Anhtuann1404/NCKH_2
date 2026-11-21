@@ -1,0 +1,53 @@
+========================================================================================
+BÁO CÁO KHẮC PHỤC LƯỢT 599C7D9 VÀ BÀN GIAO KIỂM THỬ MAIN BATCH 1 TẠI COMMIT da3a78d
+(DUO MODE: ĐẠT 4/4 FOLLOWUP PROBES & 148/148 REGRESSION TESTS, SẴN SÀNG CHỜ B TÁI LẬP)
+========================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và QA Lead B (Phùng Tấn Minh)
+Người gửi: Nguyễn Thắng (Thành viên C — Data Pipeline & Quản lý mẫu)
+Ngày báo cáo: 21/11/2026
+Commit bàn giao mới: da3a78dbb4ca2efcb6921350a416a9a7a9353982 (nhánh origin/feat/c-main-annotation-batch1)
+Chế độ thực thi: Duo Mode (Antigravity điều phối kết hợp DeepSeek Bridge phản biện kiến trúc)
+Cam kết trạng thái: Tiếp tục duy trì HOLD / LOCKED; training_blocked = true; official_test_used = false
+
+1. MỤC TIÊU VÀ PHẠM VI TIẾP NHẬN:
+- Tiếp nhận đầy đủ gói bằng chứng MAIN_BATCH1_599C7D9_REVIEW_FOR_C_B.zip từ Lead D (đã đối chiếu SHA-256 các hiện vật).
+- Tái lập baseline lỗi tại commit 599c7d9: 3 failed và 1 positive control passed trong test_main_599_followup.py.
+- Sửa tập trung hai nhóm lỗi F1 và F3b theo nguyên tắc kỹ thuật tối giản (Ponytail Discipline) và nghiên cứu chuẩn mực chống rò rỉ (ARS), không thay đổi phương pháp nghiên cứu.
+
+2. KẾT QUẢ SỬA LỖI CHI TIẾT (2 NHÓM NỘI DUNG CỦA LEAD D):
+- F1 (Thống nhất cam kết và rerun hợp lệ sau supersede):
+  + Trong supersede_lot_sampling: Tính toán new_seed_commit bằng đúng hàm compute_seed_commitment(s_lot_100, s_b_30, new_seed_release_shuffle, new_blind_salt). Đồng nhất 100% schema và quy tắc canonical hóa cam kết với run_main_batch1_sampling.
+  + Khi chạy lại lô đã supersede bằng đúng bộ tham số release mới (seed_lot_100, seed_b_subset_30 cũ kết hợp shuffle và salt mới): hàm nhận diện cam kết hợp lệ, nạp đúng active release từ ledger, bảo toàn danh tính nguồn của A100 và B30, và trả về bộ Blind ID mới trùng khớp hoàn toàn với bản supersede ban đầu.
+  + Giữ vững cơ chế bảo vệ: Mọi nỗ lực thay đổi seed chọn mẫu hoặc đổi salt/shuffle không khớp với cam kết active release đều bị từ chối nghiêm ngặt trước khi ghi file/ledger.
+- F3b (Bảo toàn đầy đủ lịch sử biên lai intake):
+  + Tách biệt rạch ròi giữa tệp nhãn gốc (giữ nguyên byte theo file_sha256), biên lai chính thức đầu tiên, và lịch sử các lần kiểm tra lại.
+  + Biên lai gốc ({digest}.receipt.json) được bảo vệ bất biến nguyên byte 100%, không bị ghi đè trong bất kỳ tình huống nào (kể cả khi re-check đạt accepted với manifest context mới hay bị rejected).
+  + Mọi lần kiểm lại với ngữ cảnh mới hoặc lý do khác biệt đều được lưu trữ thành tệp attempt riêng biệt ({digest}.attempt_{idx}_{status}_{ctx_sig}.json) kèm timestamp UTC, tool version, manifest path và liên kết prior_receipt_path.
+  + Loại bỏ hoàn toàn khối `except ...: pass`, dừng fail-closed an toàn nếu không đọc được biên lai cũ; đảm bảo idempotent retry trả về kết quả nhất quán mà không sinh tệp thừa.
+
+3. KẾT QUẢ KIỂM THỬ VÀ ĐỐI SOÁT ĐỘC LẬP TẠI COMMIT da3a78d:
+- Bộ kiểm tra tiếp nối của Lead D:
+  $ python -m pytest artifacts/lead_d_review_599c7d9/test_main_599_followup.py -v
+  => KẾT QUẢ: 4 passed in 5.15s (100% passed: khép cả 3 probes F1, F3b và bảo toàn positive control E2E CLI tới Kappa 3×3).
+- Toàn bộ 6 test suites của dự án (toàn diện 148 bài test):
+  $ python -m pytest tests/test_main_annotation_batch1.py tests/test_blind_view.py tests/test_annotate_cli_timer_pause.py artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py artifacts/lead_d_review_6c26d74/test_main_6c26_release_boundaries.py artifacts/lead_d_review_599c7d9/test_main_599_followup.py -q
+  => KẾT QUẢ: 148 PASSED in 24.72s (100% PASSED).
+- Kiểm tra cách ly Git và rò rỉ bí mật:
+  $ python scripts/data/verify_git_isolation.py
+  => KẾT QUẢ: Git Isolation Status: PASS (0 vi phạm, toàn bộ secret fixture được che chắn redacted).
+
+4. ĐỒNG BỘ CÁCH DÙNG VÀ ĐƯỜNG DẪN THỰC THI (SOP ENTRY POINTS):
+- Đường nạp/chạy lại active release hợp lệ:
+  python -c "from phishing.data.main_sampling import run_main_batch1_sampling; ..."
+- Quy trình tiếp nhận intake chính thức:
+  python scripts/data/receive_main_batch1.py --annotator A --input <path_to_submission.jsonl>
+- Ghép cặp và tính toán Cohen's Kappa 3x3:
+  python -c "from phishing.annotation.kappa_3x3 import compute_kappa_3x3_from_records; ..."
+(Lưu ý: Chỉ số Kappa cao trong fixture là kết quả của scripted input nhân tạo nhằm kiểm chứng tính toàn vẹn của pipeline, không phản ánh chất lượng hay độ đồng thuận của nhãn nghiên cứu thật).
+
+5. KẾ HOẠCH BÀN GIAO TIẾP THEO:
+- Bàn giao mã nguồn tại commit da3a78d trên nhánh origin/feat/c-main-annotation-batch1 cho QA Lead B (Phùng Tấn Minh) tiến hành tái lập độc lập 7 cổng G1–G7 trên clean worktree / fixture trung tính.
+- C tự kiểm tra và ghi nhận các test kỹ thuật đạt; việc công nhận đạt chuẩn QA hoàn toàn phụ thuộc vào chữ ký thẩm định độc lập của B.
+- Tiếp tục giữ Main Batch 1 ở trạng thái HOLD/LOCKED; không phát Blind View hoặc mở Pass 1 khi chưa có quyết định dòng dõi và phê duyệt văn bản từ Lead D.
+========================================================================================

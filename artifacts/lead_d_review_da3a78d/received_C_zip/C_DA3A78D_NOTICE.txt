@@ -1,0 +1,65 @@
+========================================================================================
+BÁO CÁO KỸ THUẬT VÀ BÀN GIAO BẢN SỬA LỖI TẠI COMMIT da3a78d (KHÉP HOÀN TOÀN F1 & F3b),
+TÁI LẬP 148/148 TESTS PASSED, BẢO TOÀN COHORT VÀ BẤT BIẾN BIÊN LAI INTAKE
+========================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và QA Lead B (Phùng Tấn Minh)
+Người gửi: Nguyễn Thắng (Thành viên C — Data Pipeline & Thư ký Kiểm toán)
+Ngày báo cáo: 21/11/2026
+Commit bàn giao: da3a78dbb4ca2efcb6921350a416a9a7a9353982 (nhánh feat/c-main-annotation-batch1)
+Trạng thái Main Batch 1: TIẾP TỤC HOLD / LOCKED (Chờ Lead D & B nghiệm thu, chưa mở Pass 1)
+
+1. MỤC TIÊU VÀ PHẠM VI TIẾP NHẬN:
+- Tiếp nhận kết quả kiểm định độc lập của Lead D tại commit 599c7d9 (144 passed, 3 failed, 1 positive control passed) từ gói MAIN_BATCH1_599C7D9_REVIEW_FOR_C_B.zip.
+- Khắc phục triệt để 2 nhóm lỗi ranh giới còn lại mà Lead D đã chỉ ra:
+  (1) Lỗi F1: Lệch schema seed commitment giữa supersede_lot_sampling và compute_seed_commitment khiến rerun hợp lệ sau supersede bị từ chối;
+  (2) Lỗi F3b: Biên lai sơ cấp {digest}.receipt.json bị ghi đè khi re-check accepted có context manifest mới hoặc nhiều lần re-check rejected ghi đè cùng tên tệp.
+- Duy trì kỷ luật kỹ thuật Ponytail (sửa đúng tận gốc lỗi, diff tối giản) và kỷ luật nghiên cứu ARS (chống rò rỉ dữ liệu, cô lập tuyệt đối Official Test).
+
+2. KẾT QUẢ SỬA LỖI MÃ NGUỒN CHI TIẾT:
+a) src/phishing/data/main_sampling.py (Khép hoàn toàn F1):
+- Thống nhất một công thức cam kết hạt giống duy nhất: Trong supersede_lot_sampling, new_seed_commit được tính trực tiếp thông qua hàm compute_seed_commitment(s_lot_100, s_b_30, new_seed_release_shuffle, new_blind_salt).
+- Lưu trữ đầy đủ 5 trường cam kết chuẩn hóa trong active release: seed_lot_100, seed_b_subset_30, seed_release_shuffle, blind_salt_hash, seed_commitment.
+- Khi sampler chạy lại trên lot đã supersede: Hệ thống đọc active release, đối chiếu đúng 100% cam kết và nạp trực tiếp danh sách candidate_ids và tập B30 đã khóa; không chạy lại random sampling trên pool khả dụng; bảo toàn nguyên vẹn 100% cohort A100 và B30, tái lập chuẩn xác 100% Blind ID mới.
+- Mọi hành vi sửa đổi seed, đổi tham số hoặc can thiệp sai lệch vẫn bị chặn fail-closed ngay lập tức trước khi ghi ledger/file.
+
+b) scripts/data/receive_main_batch1.py (Khép hoàn toàn F3b):
+- Bất biến tuyệt đối biên lai sơ cấp: Tệp {digest}.receipt.json sau khi ghi nhận lần đầu tiên sẽ không bao giờ bị ghi đè hay chỉnh sửa, bảo toàn 100% tính nguyên vẹn của biên lai tiếp nhận ban đầu.
+- Cơ chế ghi nhận attempt độc lập: Mọi lần kiểm lại phát sinh ngữ cảnh mới (manifest_sha256 mới) hoặc kết quả khác trạng thái ban đầu đều được ghi ra tệp attempt độc lập:
+  {digest}.attempt_{idx:02d}_{status}_{ctx_sig}.json
+  kèm timestamp UTC, tool_version="1.2.0", manifest_path, view_path, prior_receipt_path.
+- Loại bỏ hoàn toàn khối try/except pass tiềm ẩn rủi ro; chuyển sang fail-closed an toàn nếu tệp cũ bị hỏng hoặc không thể đọc.
+- Idempotent rerun: Nếu kiểm lại với cùng input digest, cùng manifest sha, view sha và cùng status thì trả về kết quả biên lai hiện có, không sinh tệp thừa rác đĩa.
+
+3. KẾT QUẢ KIỂM THỬ ĐỘC LẬP TẠI COMMIT da3a78d:
+- Bộ test probe mới nhất của Lead D (artifacts/lead_d_review_599c7d9/test_main_599_followup.py):
+  + test_export_real_cli_intake_and_three_class_kappa: PASSED
+  + test_valid_retry_after_supersede_must_preserve_new_ids: PASSED (F1 khép)
+  + test_successful_recheck_keeps_old_accepted_receipt: PASSED (F3b khép)
+  + test_multiple_rejected_rechecks_keep_all_attempts: PASSED (F3b khép)
+  => Đạt 4/4 passed (100%).
+
+- Toàn bộ 6 test suites của dự án (gồm toàn bộ các bộ probe kế thừa từ b013ed7, 8fc845d, 6c26d74, 599c7d9):
+  + tests/test_main_annotation_batch1.py
+  + tests/test_blind_view.py
+  + tests/test_annotate_cli_timer_pause.py
+  + artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py
+  + artifacts/lead_d_review_6c26d74/test_main_6c26_release_boundaries.py
+  + artifacts/lead_d_review_599c7d9/test_main_599_followup.py
+  => TÁI LẬP HOÀN TOÀN: 148 passed in 32.43s (100% passed, 0 failed, 0 warning).
+
+- Kiểm tra cô lập Git và chống rò rỉ bí mật (scripts/data/verify_git_isolation.py):
+  => STATUS: PASS (0 vi phạm, không rò rỉ secret, không vi phạm git status).
+
+4. TRẠNG THÁI QUẢN TRỊ & RANH GIỚI BẢO MẬT:
+- Main Annotation Batch 1 tiếp tục được giữ nguyên trạng thái niêm phong: HOLD / LOCKED.
+- training_blocked = true; official_test_used = false.
+- Thành viên C tuyệt đối không phân phối Blind View thật và không mở Pass 1 khi Lead D và QA Lead B chưa hoàn tất thẩm định độc lập và chưa ký lệnh phát hành chính thức.
+
+5. DANH MỤC GÓI BẰNG CHỨNG KỸ THUẬT (MAIN_BATCH1_DA3A78D_EVIDENCE_FOR_B.zip):
+- C_DA3A78D_NOTICE.txt (Bản sao toàn văn báo cáo kỹ thuật này)
+- main_599_followup.log (Raw output pytest 4/4 passed của bộ test followup)
+- main_148_full.log (Raw output pytest 148/148 passed của toàn bộ 6 suites)
+- verify_git_isolation.log (Bằng chứng Git isolation PASS)
+- SHA256SUMS.txt (Bảng mã băm đối soát toàn bộ tệp bằng chứng)
+========================================================================================

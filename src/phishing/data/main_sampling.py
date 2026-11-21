@@ -536,10 +536,12 @@ def supersede_lot_sampling(
 
     s_lot_100 = existing_details.get("seed_lot_100")
     s_b_30 = existing_details.get("seed_b_subset_30")
-    if s_lot_100 is not None and s_b_30 is not None:
-        new_seed_commit = compute_seed_commitment(s_lot_100, s_b_30, new_seed_release_shuffle, new_blind_salt)
-    else:
-        new_seed_commit = hashlib.sha256(f"supersede:{new_seed_release_shuffle}|salt:{new_blind_salt}".encode("utf-8")).hexdigest()
+    if s_lot_100 is None or s_b_30 is None:
+        raise ValueError(
+            f"LỖI THIẾU SEED METADATA: Ledger thiếu 'seed_lot_100' hoặc 'seed_b_subset_30' cho lot '{lot_id}'. "
+            "Dừng an toàn để khôi phục metadata có bằng chứng hoặc thực hiện quy trình migration riêng của Lead D."
+        )
+    new_seed_commit = compute_seed_commitment(s_lot_100, s_b_30, new_seed_release_shuffle, new_blind_salt)
 
     event = ledger.append_event(
         event_type="SUPERSEDE_LOT_BLIND_VIEW",
