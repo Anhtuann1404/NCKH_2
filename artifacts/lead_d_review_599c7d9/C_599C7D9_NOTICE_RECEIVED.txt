@@ -1,0 +1,44 @@
+========================================================================================
+BÁO CÁO KHẮC PHỤC TOÀN DIỆN VÀ BÀN GIAO KIỂM THỬ MAIN BATCH 1 TẠI COMMIT 599c7d9
+(ĐẠT 13/13 PROBES 6C26D74 & 144/144 REGRESSION TESTS, SẴN SÀNG CHỜ B TÁI LẬP G1–G7)
+========================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và QA Lead B (Phùng Tấn Minh)
+Người gửi: Nguyễn Thắng (Thành viên C — Data Pipeline & Quản lý mẫu)
+Ngày báo cáo: 21/11/2026
+Commit bàn giao mới: 599c7d92a15ce3422d8eeecd7b290e2da3628d53 (nhánh origin/feat/c-main-annotation-batch1)
+Cam kết trạng thái: Duy trì HOLD / LOCKED; training_blocked = true; official_test_used = false
+
+1. MỤC TIÊU VÀ PHẠM VI TIẾP NHẬN:
+- Tiếp nhận đầy đủ gói bằng chứng MAIN_BATCH1_6C26D74_REVIEW_FOR_C_B.zip từ Lead D (đã đối chiếu SHA-256 các hiện vật).
+- Tái lập và giải quyết triệt để 11 điểm failed trong bộ kiểm thử test_main_6c26_release_boundaries.py.
+- Khép trọn vẹn 8 nội dung chỉ đạo F1–F7 của Lead D trên tinh thần kỹ thuật tối giản (Ponytail Discipline) và nghiên cứu chuẩn mực (ARS).
+
+2. KẾT QUẢ SỬA LỖI CHI TIẾT (8 NỘI DUNG CHỈ ĐẠO CỦA LEAD D):
+- F6a (Khép đường isolation sau publish): export_main_batch1 thực hiện kiểm tra returncode và status của verify_git_isolation() lần 3. Nếu không PASS, lập tức ném RuntimeError và kích hoạt cơ chế rollback, tuyệt đối không trả SUCCESS khi kiểm toán thất bại.
+- F6b (Rollback nguyên khối byte-for-byte): Cơ chế staging & atomic publish sao lưu toàn bộ hiện vật đích hiện có tại p_rest và p_pub trước khi kích hoạt thay thế. Nếu xảy ra bất kỳ lỗi I/O nào giữa chừng, toàn bộ các file cũ được phục hồi nguyên vẹn byte 100%, dọn sạch các file tạm/file dở dang, bảo vệ gói niêm phong không bị pha trộn.
+- F1a (Bảo toàn A100/B30 trong supersede): supersede_lot_sampling bắt buộc phải có đúng 100 candidate_uids duy nhất và đúng 30 candidate_uids của B (là tập con hợp lệ của A). Nếu thiếu thông tin B30 niêm phong, pipeline lập tức fail-closed (ném ValueError), không tự động fallback về tập rỗng (chặn đứng rủi ro A100/B0).
+- F1b (Bảo toàn cam kết seed sau supersede): Sự kiện SUPERSEDE_LOT_BLIND_VIEW lưu trữ thống nhất seed_commitment, cohort_seed_commitment và seed_lot_100. Khi rerun lot đã supersede, sampler đối chiếu chặt chẽ cam kết hiện hành, từ chối mọi nỗ lực thay đổi seed để rút lại mẫu.
+- F3a (Siết chặt intake kết quả chính thức): verify_main_batch1_records kiểm tra quyền phát hành nghiêm ngặt (từ chối manifest pending, yêu cầu ready_for_annotation=True và acceptance={"B": "approved", "D": "approved"}); bắt buộc pass_id=1; kiểm tra kiểu dữ liệu boolean thuần túy (is_dry_run is False và is_synthetic is False, loại bỏ chuỗi "true").
+- F3b (Bảo toàn nguyên byte biên lai ACCEPTED): receive_main_batch1 không ghi đè lên biên lai ACCEPTED đã cấp nếu một lần tái thẩm định sau đó bị rejected (kết quả rejected được ghi vào file audit riêng để giữ nguyên vẹn lịch sử).
+- F3c (Kiểm định định dạng timestamp & hash): validate_annotation_record thực hiện parse chuẩn ISO 8601 bắt buộc có timezone cho timestamp_utc, kiểm định dạng SHA-256 (64 hex lowercase) cho toàn bộ các trường hash.
+- F2/G3 (Chặn random_subset lồng đệ quy): assert_no_label_leak truyền ngữ cảnh is_main_context đệ quy qua toàn bộ cây dữ liệu, chặn đứng trường random_subset xuất hiện ở metadata lồng (như release_info.random_subset) mà không làm ảnh hưởng đến dữ liệu legacy hợp lệ.
+- F5 (Che giấu bí mật trong báo cáo scanner): Báo cáo scan_public_docs_for_leaks sử dụng [REDACTED_SECRET] và [REDACTED_KNOWN_PATTERN], tuyệt đối không in literal raw secret ra file JSON report công khai.
+- Hồ sơ kiểm toán: Sửa đổi định danh Annotator A (Khải) trong INCIDENT_LOG, ghi rõ mức độ tiếp cận "theo log bàn giao và hiện trạng kiểm toán, phần chưa xác minh giữ mở". Kết luận chuyển thành "C tự kiểm theo checklist G1–G7, chờ B tái lập".
+
+3. KẾT QUẢ KIỂM THỬ TÁI LẬP ĐỘC LẬP TẠI COMMIT 599c7d9:
+- Chạy toàn bộ 5 bộ kiểm thử liên quan:
+  $ python -m pytest tests/test_main_annotation_batch1.py tests/test_blind_view.py tests/test_annotate_cli_timer_pause.py artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py artifacts/lead_d_review_6c26d74/test_main_6c26_release_boundaries.py -q
+  => KẾT QUẢ: 144 PASSED in 27.45s (ĐẠT 100%)
+  + test_main_6c26_release_boundaries.py: 13/13 passed (khép toàn bộ 11 failures cũ + 2 positive controls).
+  + test_main_8fc_additional_guards.py: 9/9 passed.
+  + tests/test_main_annotation_batch1.py: 22/22 passed (đã bổ sung bài test E2E kiểm chứng chuỗi Export -> Intake A (100) & B (30) -> Ghép cặp B30 -> Tính Cohen's Kappa đạt 0.75+).
+  + tests/test_blind_view.py & tests/test_annotate_cli_timer_pause.py: 100/100 passed.
+- Kiểm tra cách ly Git:
+  $ python scripts/data/verify_git_isolation.py
+  => KẾT QUẢ: Git Isolation Status: PASS (0 vi phạm, toàn bộ secret được che chắn).
+
+4. KẾ HOẠCH BÀN GIAO TIẾP THEO:
+- Bàn giao mã nguồn sạch tại commit 599c7d9 trên nhánh feat/c-main-annotation-batch1 cho QA Lead B (Phùng Tấn Minh) tiến hành tái lập độc lập 7 cổng G1–G7 trên clean worktree / fixture trung tính.
+- Tiếp tục duy trì Main Batch 1 ở trạng thái HOLD/LOCKED; không mở Pass 1 hay phân phối Blind View thật cho A và B khi chưa có quyết định dòng dõi và chữ ký nghiệm thu của B và D.
+========================================================================================

@@ -534,7 +534,13 @@ def supersede_lot_sampling(
     assert_no_label_leak(envelope_a)
     assert_no_label_leak(envelope_b)
 
-    new_seed_commit = hashlib.sha256(f"supersede:{new_seed_release_shuffle}|salt:{new_blind_salt}".encode("utf-8")).hexdigest()
+    s_lot_100 = existing_details.get("seed_lot_100")
+    s_b_30 = existing_details.get("seed_b_subset_30")
+    if s_lot_100 is not None and s_b_30 is not None:
+        new_seed_commit = compute_seed_commitment(s_lot_100, s_b_30, new_seed_release_shuffle, new_blind_salt)
+    else:
+        new_seed_commit = hashlib.sha256(f"supersede:{new_seed_release_shuffle}|salt:{new_blind_salt}".encode("utf-8")).hexdigest()
+
     event = ledger.append_event(
         event_type="SUPERSEDE_LOT_BLIND_VIEW",
         actor=actor,
@@ -545,7 +551,10 @@ def supersede_lot_sampling(
             "new_seed_commitment": new_seed_commit,
             "seed_commitment": new_seed_commit,
             "cohort_seed_commitment": existing_details.get("cohort_seed_commitment") or existing_details.get("seed_commitment"),
-            "seed_lot_100": existing_details.get("seed_lot_100"),
+            "seed_lot_100": s_lot_100,
+            "seed_b_subset_30": s_b_30,
+            "seed_release_shuffle": new_seed_release_shuffle,
+            "blind_salt_hash": hashlib.sha256(new_blind_salt.encode("utf-8")).hexdigest(),
             "population_hash": pop_hash,
             "allocated_candidate_ids": allocated_uids,
             "b_subset_candidate_ids": list(b_subset_uids),

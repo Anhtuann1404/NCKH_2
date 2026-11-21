@@ -1,0 +1,87 @@
+========================================================================================
+BÁO CÁO THẨM ĐỊNH QA ĐỘC LẬP TẠI COMMIT 6c26d74 (TRẠNG THÁI FAIL / HOLD),
+TÁI LẬP 11 LỖI RANH GIỚI PHÁT HÀNH & MỞ RỘNG CỔNG THỰC THI G1–G7 (PHIÊN BẢN V1.4)
+========================================================================================
+
+Kính gửi: Lead D (Anh Tuấn) và Thành viên C (Nguyễn Thắng)
+Người gửi: Phùng Tấn Minh (Thành viên B — Annotator B kiêm QA Lead & Nhóm trưởng)
+Ngày báo cáo: 20/11/2026
+Commit đã kiểm & giữ trạng thái FAIL/HOLD: 6c26d7464ef6cfa7f1711bba4e27eda7195bd832 (nhánh origin/feat/c-main-annotation-batch1)
+Tài liệu báo cáo QA & cổng thực thi V1.4: docs/QA_REPORT_MAIN_BATCH1_6C26D74_HOLD_V1_4_B.md
+(Dung lượng: 34.343 bytes | SHA-256: f1031f647513d0235345a856200162cf78b136ab2f0390b42847e8b31b30ca0b)
+Các báo cáo lịch sử bảo lưu nguyên byte:
+- V1.3 (commit 8fc845d): docs/QA_REPORT_MAIN_BATCH1_8FC845D_HOLD_V1_3_B.md (30.791 bytes | SHA-256: 06cc07fc0f9c35126efb93ea8d1c44c2fe68424785a5ce446fe7ba1f36bad356)
+- V1.2 (commit b013ed7): docs/QA_PRE_RELEASE_CHECKLIST_MAIN_BATCH1_B_V1_2_HOLD_B013ED7.md (16.337 bytes | SHA-256: 660fe8004bfe5b5c45d2754519e455d7942f72953f860dc331334878f4d2f2ef)
+
+1. MỤC TIÊU VÀ PHẠM VI:
+- Tiếp nhận gói bằng chứng MAIN_BATCH1_6C26D74_REVIEW_FOR_C_B.zip từ Lead D, kiểm tra mã băm SHA-256 và tái lập thực nghiệm trên clean Git worktree của commit 6c26d7464ef6cfa7f1711bba4e27eda7195bd832.
+- Ghi nhận 9 probe nguyên bản từ 8fc845d đã đạt tại 6c26d74 trong phạm vi kiểm của chúng (130 passed), nhưng không kế thừa thành PASS cho toàn bộ G1–G7 do bộ kiểm ranh giới phát hành mới còn 11 failed (cùng 2 positive controls intake A/B passed).
+- Mở rộng danh mục 7 cổng thực thi cứng G1–G7 lên Phiên bản V1.4 và yêu cầu hiệu chỉnh hồ sơ/báo cáo sự cố của C để kiểm trên phiên bản sửa tiếp theo của C.
+
+2. NGƯỜI THỰC HIỆN / NGƯỜI KIỂM ĐỘC LẬP:
+- Người kiểm tra phát hiện 11 lỗi ranh giới mới & bàn giao gói bằng chứng tại 6c26d74: Lead D (Anh Tuấn).
+- Người đối chiếu mã băm, tái lập thực nghiệm độc lập & phát hành báo cáo QA V1.4: Phùng Tấn Minh (Thành viên B — Annotator B kiêm QA Lead & Nhóm trưởng).
+- Người tiếp nhận bằng chứng lỗi để sửa mã nguồn và hồ sơ: Nguyễn Thắng (Thành viên C — Data Pipeline & Thư ký).
+
+3. AI ĐÃ DÙNG:
+- AI hỗ trợ kiểm tra mã băm SHA-256 của gói MAIN_BATCH1_6C26D74_REVIEW_FOR_C_B.zip, đọc kiểm tra mã test_main_6c26_release_boundaries.py trước khi chạy, thực thi pytest trên Git worktree tạm tại 6c26d74 (sau đó gỡ bỏ worktree) và soạn thảo báo cáo QA V1.4.
+- Không dùng AI cho dữ liệu hạn chế, pool, mapping, seed thật, gói A hoặc nhãn nguồn.
+
+4. ĐẦU VÀO ĐÃ KHÓA:
+- Gói bằng chứng của Lead D: MAIN_BATCH1_6C26D74_REVIEW_FOR_C_B.zip (20.687 bytes | SHA-256: 1f8c29c11659ed115261ab8b37ed2477caa16c06cda819251a1616cb31ce49dc), gồm:
+  + C_6C26D74_NOTICE_RECEIVED.txt (10.855 bytes | SHA-256: c32580b576e6d4ac9978f3ba4302b4da40ada2b1538e043788dfd06243095b03)
+  + REVIEW_6C26D74_LEAD_D.md (12.295 bytes | SHA-256: 0a6bb637b583606952c92692bb3a2f4bc35ba80c02c9e76e92d1f9d0edc3d0a3)
+  + main_6c26_boundaries.log (10.150 bytes | SHA-256: b686e341fc54935f4b0eb50871055b73845262166bc3eceebc47ae8c86bc0af5)
+  + main_6c26_broad.log (8.385 bytes | SHA-256: c77de3717c7e8d53a4d1946bbeeba51b326d408bd587636991d4d0b7a858ecc3)
+  + main_6c26_selected.log (180 bytes | SHA-256: 079e3d89c7d9f047e293aac59d18fd1d995339ba650a714a18b46e4d2c05f566)
+  + test_main_6c26_release_boundaries.py (7.659 bytes | SHA-256: 4f117730fe811401e2132c50458dbad576a14c9e8fad22988f50099882cbb63d)
+  + test_main_8fc_additional_guards.py (4.949 bytes | SHA-256: b7f5c37902032701f7aa009024a4c079c800c2321a964a29480fd6ae41e8410a)
+  + SHA256SUMS.txt (657 bytes | SHA-256: a7a4564de26b82ca1bfd13dad6d488b4cf2d82dd13c1f669c7a771de1ea3b119)
+- Git commit được kiểm: 6c26d7464ef6cfa7f1711bba4e27eda7195bd832 (nhánh origin/feat/c-main-annotation-batch1, kế thừa 8fc845dfbade60a880cf62fdcb3ccda47474207b).
+- Các văn bản QA lịch sử của B được giữ nguyên byte: V1.3 (30.791 bytes | SHA-256: 06cc07fc...), V1.2 (16.337 bytes | SHA-256: 660fe800...), V1.1 (17.587 bytes | SHA-256: a574026b...), V1.0 (13.100 bytes | SHA-256: de51db19...), phụ lục 02fca4f (16.721 bytes | SHA-256: 42e5389e...).
+
+5. THAY ĐỔI THỰC TẾ:
+- Phát hành văn bản QA độc lập cho commit 6c26d74 tại docs/QA_REPORT_MAIN_BATCH1_6C26D74_HOLD_V1_4_B.md (34.343 bytes | SHA-256: f1031f647513d0235345a856200162cf78b136ab2f0390b42847e8b31b30ca0b).
+- Mở rộng 7 cổng thực thi cứng G1–G7 (Phiên bản V1.4) tích hợp đầy đủ 11 phép kiểm ranh giới mới và 2 positive controls intake A100/B30.
+- Yêu cầu C hiệu chỉnh hồ sơ bàn giao và báo cáo sự cố artifacts/INCIDENT_LOG_20261119_MAIN_BATCH1_SALT_EXPOSURE.md:
+  + C chỉ ghi "tự kiểm theo G1–G7, chờ B thẩm định độc lập", không trình bày như đã có chữ ký QA của B.
+  + Sửa đúng định danh Annotator A trong báo cáo sự cố là Khải (theo docs/TEAM.md, không ghi "Nguyễn Văn A") và mô tả phạm vi tiếp xúc theo đúng nguồn log/xác nhận, giữ mở phần lịch sử truy cập chưa xác minh.
+  + Phân biệt rõ kết quả chạy trực tiếp, kết quả bên khác báo và phần chưa có hiện vật để kiểm; không kết luận không có mọi rò rỉ chỉ vì scanner PASS.
+- B không sửa bất kỳ tệp mã nguồn hay tài liệu nào thuộc phạm vi của C.
+
+6. TỰ KIỂM:
+- Đối chiếu trực tiếp mã băm SHA-256 của gói MAIN_BATCH1_6C26D74_REVIEW_FOR_C_B.zip và 7/7 tệp bên trong với SHA256SUMS.txt: khớp từng byte.
+- Kiểm tra bảo toàn nguyên byte toàn bộ các báo cáo QA lịch sử của B.
+
+7. KIỂM THỬ (TÁI LẬP ĐỘC LẬP TRÊN CLEAN WORKTREE 6c26d7464ef6cfa7f1711bba4e27eda7195bd832):
+- Môi trường: Windows 11, Python 3.14.2, pytest-9.1.1, pluggy-1.6.0.
+- Lượt 1 (3 suite chọn lọc + 9 probe nguyên bản từ 8fc845d):
+  + Lệnh: $env:PYTHONPATH=".;src"; python -m pytest tests/test_main_annotation_batch1.py tests/test_blind_view.py tests/test_annotate_cli_timer_pause.py ../test_main_8fc_additional_guards.py -q
+  + Kết quả: passed=130, failed=0, skipped=0, deselected=0 in 5.98s.
+- Lượt 2 (13 phép kiểm ranh giới phát hành mới test_main_6c26_release_boundaries.py):
+  + Lệnh: $env:PYTHONPATH=".;src"; python -m pytest ../test_main_6c26_release_boundaries.py -q
+  + Kết quả: passed=2 (positive controls intake A100 và B30), failed=11, skipped=0, deselected=0 in 6.16s.
+- Lượt 3 (Lượt chạy rộng toàn bộ tests/ bỏ qua test_translation_experiment.py do thiếu transformers):
+  + Lệnh: $env:PYTHONPATH=".;src"; python -m pytest tests/ --ignore=tests/test_translation_experiment.py -q
+  + Kết quả tách riêng: passed=420, failed=6 (do thiếu tệp hạn chế ngoài Git tại test_real_calibration_split_isolation.py), skipped=38 (không gộp vào passed), deselected=0, subtests passed=32 (ghi riêng, không tính thành số test độc lập) in 24.70s.
+
+8. QA ĐỘC LẬP (TRẠNG THÁI CỔNG G1–G7 TẠI COMMIT 6c26d74):
+- G1 (E2E & Intake): FAIL (5 lỗi: nhận manifest pending/ready=false, nhận pass_id=2, nhận chuỗi is_dry_run="true", ghi đè biên lai accepted cũ khi kiểm lại, và nhận timestamp_utc sai định dạng).
+- G2 (BRANCH): PASS trên phạm vi probe hiện có (cần giữ không hồi quy khi sửa G3).
+- G3 (NORAND): FAIL (1 lỗi: lọt release_info.random_subset=True lồng trong envelope Main 1.2.0).
+- G4 (FINGERPRINT / PROVENANCE): PASS trên phạm vi fixture (phần đối soát nguồn thật: PENDING chờ D kiểm).
+- G5 (LEDGER / SUPERSEDE): FAIL (2 lỗi: supersede không dừng khi ledger cũ thiếu b_subset_candidate_ids mà tạo tập B rỗng; rerun sau supersede không đọc new_seed_commitment nên không chặn khi đổi seed).
+- G6 (ISOLATION / PUBLISH): FAIL (3 lỗi: bỏ qua kết quả FAIL của lần quét isolation cuối sau publish; lỗi OSError giữa chừng khi os.replace từng tệp làm mất nguyên vẹn gói cũ; báo cáo quét isolation chép nguyên giá trị literal của secret phát hiện được vào JSON công khai).
+- G7 (SOP / CLI / RELEASE / KAPPA): PENDING / HOLD (chờ chứng minh chuỗi khép kín CLI → JSONL → Intake → Ghép cặp B30 / Kappa hoạt động trên hợp đồng Main 1.2.0 không phụ thuộc random_subset của pilot và đồng bộ câu lệnh vào SOP).
+- Kết luận tổng thể tại commit 6c26d7464ef6cfa7f1711bba4e27eda7195bd832: FAIL / HOLD.
+
+9. GIỚI HẠN VÀ VIỆC CÒN MỞ:
+- Giới hạn: B chỉ kiểm trên mã công khai và fixture trung tính để bảo toàn tính mù; không nhận hoặc mở pool, mapping, seed thật, gói A hoặc nhãn nguồn. Phần kiểm byte gói Main thật và chứng minh migration giữ cohort thật do Lead D (hoặc người được D giao) thực hiện và được ghi là điều kiện kiểm riêng.
+- Việc còn mở:
+  + Thành viên C khắc phục đầy đủ 11 lỗi ranh giới mới tại G1, G3, G5, G6, hoàn thiện chuỗi CLI → JSONL → Intake → Ghép B30 / Kappa tại G7 và hiệu chỉnh hồ sơ/báo cáo sự cố, sau đó bàn giao commit mới.
+  + Trên đúng commit sửa cuối của C, B sẽ kiểm tra độc lập và phát hành văn bản QA mới tách rõ 6 kết luận (chức năng, legacy, tính mù, provenance, bất biến cohort/artifact và điều kiện phát hành).
+
+10. TRẠNG THÁI QUẢN TRỊ:
+- Gói chuẩn bị Main Annotation Đợt 1 tại commit 6c26d74: FAIL / HOLD (Chưa đủ điều kiện phát hành).
+- Các cờ khóa quản trị hiện hành: main_annotation_status="LOCKED", training_blocked=true, official_test_used=false (Chưa phát Blind View, chưa mở Pass 1).
+========================================================================================

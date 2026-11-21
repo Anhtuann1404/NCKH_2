@@ -9,6 +9,7 @@ không yêu cầu hay chấp nhận trường 'random_subset' của pilot.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -254,14 +255,54 @@ def receive_main_batch1(
     if receipt_path.exists():
         try:
             prior_r = json.loads(receipt_path.read_text(encoding="utf-8"))
-            if prior_r.get("status") == "accepted":
-                if receipt["status"] != "accepted":
-                    # Bảo toàn nguyên byte biên lai ACCEPTED đã cấp, lưu kết quả kiểm tra lại bị từ chối vào file audit riêng
-                    audit_rejected = ann_dir / f"{digest}.recheck_rejected.json"
-                    audit_rejected.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-                    return receipt
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError(
+                f"LỖI BẢO TOÀN BIÊN LAI: Không thể đọc biên lai gốc '{receipt_path}': {exc}. Dừng để bảo toàn byte!"
+            )
+
+        # Kiểm tra idempotent retry cùng ngữ cảnh
+        is_identical_context = (
+            prior_r.get("status") == receipt["status"]
+            and prior_r.get("manifest_sha256") == receipt.get("manifest_sha256")
+            and prior_r.get("blind_view_sha256") == receipt.get("blind_view_sha256")
+            and prior_r.get("reason") == receipt.get("reason")
+        )
+        if is_identical_context:
+            return prior_r
+
+        # Nếu ngữ cảnh hoặc kết quả thay đổi: BẢO LƯU NGUYÊN VẸN biên lai gốc và ghi attempt mới
+        existing_attempts = list(ann_dir.glob(f"{digest}.attempt_*.json"))
+        attempt_num = len(existing_attempts) + 2
+
+        m_sha = receipt.get("manifest_sha256", "nomanifest")[:8]
+        status_tag = receipt.get("status", "unknown")
+        ctx_sig = hashlib.sha256(
+            f"{digest}:{m_sha}:{status_tag}:{receipt.get('reason', '')}:{datetime.now(timezone.utc).isoformat()}".encode("utf-8")
+        ).hexdigest()[:8]
+
+        attempt_filename = f"{digest}.attempt_{attempt_num:02d}_{status_tag}_{ctx_sig}.json"
+        attempt_path = ann_dir / attempt_filename
+        while attempt_path.exists():
+            attempt_num += 1
+            ctx_sig = hashlib.sha256(f"{ctx_sig}:{attempt_num}".encode("utf-8")).hexdigest()[:8]
+            attempt_path = ann_dir / f"{digest}.attempt_{attempt_num:02d}_{status_tag}_{ctx_sig}.json"
+
+        receipt["attempt_index"] = attempt_num
+        receipt["checked_at_utc"] = datetime.now(timezone.utc).isoformat()
+        receipt["tool_version"] = "1.2.0"
+        receipt["manifest_path"] = str(manifest_file)
+        receipt["view_path"] = str(view_file)
+        receipt["prior_receipt_path"] = str(receipt_path)
+
+        attempt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        return receipt
+
+    receipt["attempt_index"] = 1
+    receipt["checked_at_utc"] = datetime.now(timezone.utc).isoformat()
+    receipt["tool_version"] = "1.2.0"
+    receipt["manifest_path"] = str(manifest_file)
+    receipt["view_path"] = str(view_file)
+    receipt["prior_receipt_path"] = None
 
     receipt_path.write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return receipt
