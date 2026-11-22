@@ -30,7 +30,7 @@
   "restricted_package_fingerprints": {
     "blind_view_a_sha256": "b16bec2f56bb8f25c9f2d6009ae696fb123a2b30cf8f95aed6fa5f86cd5b3eae",
     "blind_view_b_sha256": "8a0781d80f051445854d135e01774b4b6ceed7c0f8543a60efec17779783ee04",
-    "mapping_restricted_sha256": "171c75da7e5b88f469eac504d682ec193c1f65ba722ac769806acd03ab0dae55",
+    "mapping_restricted_sha256": "9fb364c649df6d71c45f6403f6ce4f35040155cf976a24368478fe77e9c1a55f",
     "ledger_event_sequence": 1
   }
 }
