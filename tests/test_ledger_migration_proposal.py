@@ -36,7 +36,9 @@ SYNTHETIC_LOT_ID = "synthetic_lot_proposal_a_001"
 SYNTHETIC_DUMMY_SEED_LOT_100 = 7101
 SYNTHETIC_DUMMY_SEED_B_SUBSET_30 = 8202
 SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE = 9303
-SYNTHETIC_DUMMY_SALT = "synthetic_dummy_salt_for_proposal_a_test_only_xyz"
+# Distinct synthetic salts to test historical cohort commitment vs rotated supersede commitment
+SYNTHETIC_DUMMY_SALT_HISTORICAL = "synthetic_dummy_salt_historical_genesis_abc123"
+SYNTHETIC_DUMMY_SALT_SUPERSEDE = "synthetic_dummy_salt_rotated_supersede_xyz789"
 
 
 def _create_synthetic_candidate_pool(count: int = 150):
@@ -66,11 +68,22 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
     # 1. Create synthetic candidate pool
     candidates = _create_synthetic_candidate_pool(150)
     pop_fp = compute_population_fingerprint(candidates)
-    seed_commit = compute_seed_commitment(
+    
+    # Compute distinct historical commitment and supersede commitment
+    seed_commit_historical = compute_seed_commitment(
         SYNTHETIC_DUMMY_SEED_LOT_100,
         SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
         SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-        SYNTHETIC_DUMMY_SALT,
+        SYNTHETIC_DUMMY_SALT_HISTORICAL,
+    )
+    seed_commit_supersede = compute_seed_commitment(
+        SYNTHETIC_DUMMY_SEED_LOT_100,
+        SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
+        SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
+        SYNTHETIC_DUMMY_SALT_SUPERSEDE,
+    )
+    assert seed_commit_historical != seed_commit_supersede, (
+        "Historical commitment and supersede commitment must be strictly distinct in test!"
     )
 
     # 2. Append Block 1: Baseline Lot Reservation (seq: 1)
@@ -88,7 +101,7 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
         "seed_lot_100": SYNTHETIC_DUMMY_SEED_LOT_100,
         "seed_b_subset_30": SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
         "seed_release_shuffle": SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-        "seed_commitment": seed_commit,
+        "seed_commitment": seed_commit_historical,
         "allocated_candidate_ids": alloc_uids,
     }
 
@@ -120,15 +133,16 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
         "seed_lot_100": SYNTHETIC_DUMMY_SEED_LOT_100,
         "seed_b_subset_30": SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
         "seed_release_shuffle": SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-        "seed_commitment": seed_commit,
-        "cohort_seed_commitment": seed_commit,
+        "seed_commitment": seed_commit_supersede,
+        "cohort_seed_commitment": seed_commit_historical,
+        "prior_seed_commitment": seed_commit_historical,
         "allocated_candidate_ids": alloc_uids,
         "b_subset_candidate_ids": b_uids,
         "b_indices_in_lot100": b_indices,
-        "blind_ids": [generate_blind_id(SYNTHETIC_DUMMY_SALT, uid) for uid in alloc_uids],
+        "blind_ids": [generate_blind_id(SYNTHETIC_DUMMY_SALT_SUPERSEDE, uid) for uid in alloc_uids],
         "predecessor_event_id": ev1.event_id,
         "predecessor_seq": 1,
-        "migration_reason": "Synthetic fixture proposal A verification",
+        "migration_reason": "Synthetic fixture proposal A verification with distinct historical vs supersede commitments",
         "lineage_audit_hash": hashlib.sha256(b"synthetic_lineage_dummy").hexdigest(),
     }
 
@@ -149,13 +163,22 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
     assert reloaded_ledger.events[1].event_hash == ev1.event_hash
     assert reloaded_ledger.events[2].event_hash == ev2.event_hash
 
-    # 5. Verify get_active_lot_details retrieves the full active state
+    # 5. Verify get_active_lot_details retrieves the full active state and distinguishes commitments
     active_details = reloaded_ledger.get_active_lot_details(SYNTHETIC_LOT_ID)
     assert active_details is not None
     assert active_details["population_hash"] == pop_fp
     assert active_details["allocated_candidate_ids"] == alloc_uids
     assert active_details["b_subset_candidate_ids"] == b_uids
     assert active_details["b_indices_in_lot100"] == b_indices
+    # Strictly verify that current seed_commitment and historical cohort_seed_commitment are separated
+    assert active_details["seed_commitment"] == seed_commit_supersede
+    assert active_details["cohort_seed_commitment"] == seed_commit_historical
+    assert active_details["prior_seed_commitment"] == seed_commit_historical
+    assert active_details["cohort_seed_commitment"] != active_details["seed_commitment"], (
+        "cohort_seed_commitment must NOT be equal to rotated seed_commitment!"
+    )
+    # Verify that cohort_seed_commitment matches Block 1's seed_commitment
+    assert active_details["cohort_seed_commitment"] == ev1.details["seed_commitment"]
 
     # 6. Tampering check 1: Mismatched seed must fail-closed
     with pytest.raises(ValueError, match="seed_commitment không khớp"):
@@ -164,7 +187,7 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
             seed_lot_100=9999,  # Intentionally wrong seed
             seed_b_subset_30=SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
             seed_release_shuffle=SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-            blind_salt=SYNTHETIC_DUMMY_SALT,
+            blind_salt=SYNTHETIC_DUMMY_SALT_SUPERSEDE,
             ledger=reloaded_ledger,
             lot_id=SYNTHETIC_LOT_ID,
         )
@@ -178,7 +201,7 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
             seed_lot_100=SYNTHETIC_DUMMY_SEED_LOT_100,
             seed_b_subset_30=SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
             seed_release_shuffle=SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-            blind_salt=SYNTHETIC_DUMMY_SALT,
+            blind_salt=SYNTHETIC_DUMMY_SALT_SUPERSEDE,
             ledger=reloaded_ledger,
             lot_id=SYNTHETIC_LOT_ID,
         )
@@ -189,12 +212,17 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
         seed_lot_100=SYNTHETIC_DUMMY_SEED_LOT_100,
         seed_b_subset_30=SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
         seed_release_shuffle=SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-        blind_salt=SYNTHETIC_DUMMY_SALT,
+        blind_salt=SYNTHETIC_DUMMY_SALT_SUPERSEDE,
         ledger=reloaded_ledger,
         lot_id=SYNTHETIC_LOT_ID,
     )
     assert len(res1.lot_100_blind_ids) == 100
     assert len(res1.b_subset_30_blind_ids) == 30
+    # Cohort preserved exactly: candidate UIDs match
+    rerun_uids = [m["candidate_uid"] for m in res1.mapping_restricted]
+    assert rerun_uids == alloc_uids
+    rerun_b_uids = [m["candidate_uid"] for m in res1.mapping_restricted if m["is_b_kappa_sample"]]
+    assert rerun_b_uids == b_uids
     assert len(reloaded_ledger.events) == 3  # No new block appended!
 
     # 9. Second rerun must still append NO new block
@@ -203,7 +231,7 @@ def test_synthetic_ledger_migration_proposal_a_idempotent(tmp_path: Path):
         seed_lot_100=SYNTHETIC_DUMMY_SEED_LOT_100,
         seed_b_subset_30=SYNTHETIC_DUMMY_SEED_B_SUBSET_30,
         seed_release_shuffle=SYNTHETIC_DUMMY_SEED_RELEASE_SHUFFLE,
-        blind_salt=SYNTHETIC_DUMMY_SALT,
+        blind_salt=SYNTHETIC_DUMMY_SALT_SUPERSEDE,
         ledger=reloaded_ledger,
         lot_id=SYNTHETIC_LOT_ID,
     )

@@ -240,12 +240,12 @@ def verify_git_isolation(output_report_path: Optional[Path | str] = None) -> Dic
             "public_content_leak_inspection": leak_res,
         },
         "conclusion": (
-            f"Trong phạm vi đã quét ({leak_res.get('scanned_files_count', 0)} tệp thuộc các thư mục {leak_res.get('scanned_target_dirs', [])} và index Git hiện hành), "
-            "không phát hiện tệp hạn chế nào bị Git theo dõi, "
-            "toàn bộ đường dẫn probe thuộc data/restricted/ đều được .gitignore cách ly đúng, "
-            "không có lỗi đọc tệp, "
-            "không phát hiện literal bí mật vận hành thật trong code/tests/docs, "
-            "và toàn bộ giá trị literal trong test đều mang nhãn synthetic/dummy hợp lệ."
+            f"Trong phạm vi đã quét ({leak_res.get('scanned_files_count', 0)} tệp thuộc các thư mục {leak_res.get('scanned_target_dirs', [])} và index Git hiện hành): "
+            "không phát hiện tệp hạn chế nào bị Git theo dõi; "
+            "toàn bộ đường dẫn probe thuộc data/restricted/ đều được .gitignore cách ly đúng; "
+            "không có lỗi đọc tệp; "
+            "không phát hiện chuỗi bí mật vận hành đã biết trong danh sách cấm; "
+            "không có hành vi gán literal bí mật trong thư mục code (src/, scripts/)."
             if overall_pass else
             f"Phát hiện vi phạm quy tắc cách ly Git hoặc rò rỉ bí mật/lỗi đọc tệp! (leaks={leak_res.get('leaks_count', 0)}, read_errors={leak_res.get('read_errors_count', 0)}, tracked_violations={tracked_res.get('violations_count', 0)}). Đề nghị xử lý trước khi phát hành."
         ),

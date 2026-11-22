@@ -63,11 +63,11 @@ def compute_population_fingerprint(candidates: Sequence[Dict[str, Any]]) -> str:
     records = []
     for c in candidates:
         uid = str(c.get("candidate_uid") or c.get("sample_uid") or "")
-        raw_url = str(c.get("url", ""))
-        norm_url = normalize_url(raw_url)
-        url_hash = hashlib.sha256(raw_url.encode("utf-8")).hexdigest()
+        raw_url = str(c.get("url_raw") or c.get("url") or "")
+        norm_url = str(c.get("url_normalized") or normalize_url(raw_url))
+        url_hash = str(c.get("url_sha256") or hashlib.sha256(raw_url.encode("utf-8")).hexdigest())
         html_content = c.get("html") or ""
-        html_hash = hashlib.sha256(html_content.encode("utf-8")).hexdigest()
+        html_hash = str(c.get("html_sha256") or hashlib.sha256(html_content.encode("utf-8")).hexdigest())
         shard = str(c.get("source_shard", "train-001.parquet"))
         row = c.get("source_row")
         revision = str(c.get("source_revision", "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"))
@@ -126,8 +126,8 @@ def run_main_batch1_sampling(
     sorted_candidates = sorted(
         candidates,
         key=lambda s: (
-            s.get("url", ""),
-            hashlib.sha256((s.get("html") or "").encode("utf-8")).hexdigest(),
+            str(s.get("url_raw") or s.get("url", "")),
+            str(s.get("html_sha256") or hashlib.sha256((s.get("html") or "").encode("utf-8")).hexdigest()),
         ),
     )
     pop_hash = compute_population_fingerprint(sorted_candidates)
