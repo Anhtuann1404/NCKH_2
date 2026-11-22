@@ -27,18 +27,20 @@
     },
     "tracked_files_inspection": {
       "status": "PASS",
-      "total_tracked_files": 246,
+      "total_tracked_files": 249,
       "violations_count": 0,
       "violations": []
     },
     "public_content_leak_inspection": {
       "status": "PASS",
-      "scanned_files_count": 142,
+      "scanned_files_count": 211,
       "scanned_target_dirs": [
         "docs",
         "configs",
         "src",
-        "scripts"
+        "scripts",
+        "tests",
+        "artifacts"
       ],
       "leaks_count": 0,
       "read_errors_count": 0,
@@ -46,5 +48,5 @@
       "leaks": []
     }
   },
-  "conclusion": "Trong phạm vi đã quét (142 tệp thuộc các thư mục ['docs', 'configs', 'src', 'scripts'] và index Git hiện hành), không phát hiện tệp hạn chế nào bị Git theo dõi, toàn bộ đường dẫn probe thuộc data/restricted/ đều được .gitignore cách ly đúng, không có lỗi đọc tệp, không phát hiện literal string gán cứng cho biến bí mật/salt trong src/scripts, và không phát hiện trường dữ liệu nguồn bị rò rỉ vào tài liệu công khai."
+  "conclusion": "Trong phạm vi đã quét (211 tệp thuộc các thư mục ['docs', 'configs', 'src', 'scripts', 'tests', 'artifacts'] và index Git hiện hành), không phát hiện tệp hạn chế nào bị Git theo dõi, toàn bộ đường dẫn probe thuộc data/restricted/ đều được .gitignore cách ly đúng, không có lỗi đọc tệp, không phát hiện literal bí mật vận hành thật trong code/tests/docs, và toàn bộ giá trị literal trong test đều mang nhãn synthetic/dummy hợp lệ."
 }

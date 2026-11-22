@@ -8,7 +8,7 @@
 ---
 
 ## 1. Tóm tắt sự cố (Executive Summary)
-Trong đợt nghiệm thu độc lập commit `b013ed7` ngày 19/11/2026, Lead D phát hiện giá trị chuỗi muối che mù mặc định (`DEFAULT_BLIND_SALT = "nckh2_main_batch1_blind_salt_secure_2026"`) cùng bộ seed lựa chọn (`1017, 2042, 2026`) đã bị đưa dưới dạng giá trị mặc định (default values) trong mã nguồn công khai `scripts/data/run_main_batch1_pipeline.py`.
+Trong đợt nghiệm thu độc lập commit `b013ed7` ngày 19/11/2026, Lead D phát hiện giá trị chuỗi muối che mù mặc định (`DEFAULT_BLIND_SALT = "nckh2_main_batch1_blind_salt_***"` [SHA-256: `192d2b05faf304f9427ce1270cee27b677e7e22688148f8b62794dec3f2e7417`]) cùng bộ seed lựa chọn (`1017, 2042, 2026`) đã bị đưa dưới dạng giá trị mặc định (default values) trong mã nguồn công khai `scripts/data/run_main_batch1_pipeline.py`.
 
 Từ các giá trị mặc định công khai này, bất kỳ ai có quyền truy cập mã nguồn đều có thể tính toán lại chính xác cam kết băm `seed_commitment_sha256` công bố trong `artifacts/main_batch1_release_manifest.json`, làm mất tính bảo mật của cam kết niêm phong trước phát hành.
 
@@ -68,3 +68,41 @@ C đã tiến hành rà soát và khắc phục tận gốc ở tầng mã ngu�
 
 ## 5. Cam kết kiểm toán
 Thành viên C cam kết duy trì tính bảo mật, trung thực khoa học, và không phát hành bất kỳ gói dữ liệu nào cho Annotator A hoặc B khi chưa có quyết định dòng dõi và lệnh phát hành chính thức bằng văn bản từ Lead D.
+
+---
+
+## 6. Phụ lục Sự cố Bổ sung (Addendum 2026-11-22): Rò rỉ Literal Tham số Vận hành trong Test Fixture
+
+### A. Tóm tắt Phát hiện & Bối cảnh
+Trong đợt nghiệm thu độc lập gói V3 tại commit `38998ca` / `74bbf41` ngày 22/11/2026, Lead D phát hiện tệp `tests/test_ledger_migration_proposal.py` có chứa:
+1. Chuỗi muối vận hành gán cứng (`salt = "nckh2_main_batch1_blind_salt_***" [SHA-256: 192d2b05...]`).
+2. Ba tham số seed vận hành thật (`seed_lot_100=1017`, `seed_b_subset_30=2042`, `seed_release_shuffle=2026`).
+3. Lệnh đọc trực tiếp tệp sổ cái hạn chế thật `data/restricted/main_annotation_lot_management_ledger.json` và trích xuất 100 candidate UIDs thật.
+
+### B. Phân tích Nguyên nhân Gốc rễ (Root Cause Analysis)
+- Khi xây dựng test fixture để chứng minh tính khả thi của Phương án A (Successor State Snapshot cho Migration Ledger), Thành viên C đã sử dụng dữ liệu và tham số thật để làm rehearsal thay vì tạo fixture thuần synthetic (giả lập).
+- Bộ quét `verify_git_isolation.py` phiên bản trước chỉ cấu hình quét các thư mục `docs`, `configs`, `src`, `scripts`, chưa đưa thư mục `tests` vào danh mục quét tự động bắt buộc trước commit.
+
+### C. Ranh giới Ảnh hưởng & Đánh giá Rủi ro (Impact Assessment theo chuẩn ARS)
+1. **Phạm vi đã xác minh:**
+   - Tệp `tests/test_ledger_migration_proposal.py` đã bị push lên nhánh `feat/c-main-annotation-batch1` trên GitHub remote.
+2. **Phạm vi chưa biết & Rủi ro tiềm tàng:**
+   - Bất kỳ ai clone hoặc fetch nhánh `feat/c-main-annotation-batch1` trong giai đoạn này đều có thể tiếp cận chuỗi muối và 3 sampling seeds.
+   - Nhóm nghiên cứu **tuyệt đối không tuyên bố** "không có tiếp xúc", "không thể tái định danh" hay "đã xóa sạch lịch sử". Về mặt kỹ thuật mật mã, chuỗi muối này bị coi là **đã bị thỏa hiệp (compromised)** và bắt buộc phải thu hồi (revoke/supersede).
+3. **Audit Trail:**
+   - Bảo toàn nguyên vẹn lịch sử Git; tuyệt đối không force-push hay viết lại commit history để che đậy sự cố.
+
+### D. Hành động Khắc phục Triệt để (Remediation Implemented)
+1. **Tách biệt 100% Synthetic Test Fixture:**
+   - Viết lại toàn bộ `tests/test_ledger_migration_proposal.py` thành fixture thuần tổng hợp: Tự sinh 150 candidate UIDs giả, URLs/HTMLs giả, sổ cái giả lập trong `tmp_path`, và các hằng số `SYNTHETIC_DUMMY_*`. Tuyệt đối không đọc `data/restricted/`.
+2. **Nâng cấp Bộ quét Bảo vệ (`verify_git_isolation.py`):**
+   - Đưa `tests` và `artifacts` vào phạm vi quét mặc định.
+   - Phát hiện mọi literal bí mật vận hành thật; phân biệt rõ giá trị test giả lập hợp lệ (`SYNTHETIC_TEST_MARKERS`).
+   - Mọi thông báo vi phạm đều được che giấu giá trị bí mật (`[REDACTED_SECRET]`).
+3. **Bổ sung Test Hồi quy Bộ quét (`tests/test_isolation_scanner_regression.py`):**
+   - Chứng minh bộ quét phát hiện chính xác literal vận hành nếu xuất hiện trong test, trong khi fixture synthetic hợp lệ vẫn chạy qua mà không bị cảnh báo giả.
+4. **Chuẩn bị Staging V4 thực hiện Salt Rotation:**
+   - Sinh chuỗi muối mới ngẫu nhiên mật mã trong khu vực hạn chế (`secrets.token_hex(16)`).
+   - Tái tính toán toàn bộ `blind_id` cho 100 mẫu Main, giữ nguyên 100 candidate UIDs, 30 B30 UIDs, và thứ tự hiển thị (`presentation_order_a`, `presentation_order_b`).
+   - Lập bảng lineage đối chiếu đầy đủ để Lead D kiểm định trước khi áp dụng.
+
