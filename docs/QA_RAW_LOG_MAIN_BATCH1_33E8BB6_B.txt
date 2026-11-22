@@ -1,0 +1,140 @@
+# RAW LOG EXECUTIONS BY QA LEAD B AT COMMIT 33e8bb6c29c7ee15209ae5847d48aae973a3f536
+# Environment: Windows 11 (win32), Python 3.14.2, pytest-9.1.1, pluggy-1.6.0
+
+## [LOG 1] 8 Selected Test Suites (154 passed) & verify_git_isolation.py (task-4419.log)
+Preparing worktree (detached HEAD 33e8bb6)
+HEAD is now at 33e8bb6 chore(audit): update isolation verification report tracked count
+=== 1. VERIFY PROBE FILE HASHES AT 33e8bb6 ===
+artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py: LF_bytes=4949 | LF_sha256=b7f5c37902032701f7aa009024a4c079c800c2321a964a29480fd6ae41e8410a | Raw_bytes=4949 | Raw_sha256=b7f5c37902032701f7aa009024a4c079c800c2321a964a29480fd6ae41e8410a
+artifacts/lead_d_review_6c26d74/test_main_6c26_release_boundaries.py: LF_bytes=7659 | LF_sha256=4f117730fe811401e2132c50458dbad576a14c9e8fad22988f50099882cbb63d | Raw_bytes=7659 | Raw_sha256=4f117730fe811401e2132c50458dbad576a14c9e8fad22988f50099882cbb63d
+artifacts/lead_d_review_599c7d9/test_main_599_followup.py: LF_bytes=6210 | LF_sha256=da4b89eb038412f2860071311e3e8e18c67bca94c6aa214203f8d2a6369254a6 | Raw_bytes=6210 | Raw_sha256=da4b89eb038412f2860071311e3e8e18c67bca94c6aa214203f8d2a6369254a6
+artifacts/lead_d_review_da3a78d/test_main_da3_intake_history.py: LF_bytes=2770 | LF_sha256=514f39e734e666d272a55473ed5fe41700683fa7e33f5ceca80283bcde320605 | Raw_bytes=2770 | Raw_sha256=514f39e734e666d272a55473ed5fe41700683fa7e33f5ceca80283bcde320605
+artifacts/lead_d_review_a12f90b/test_main_a12_approval_and_sop.py: LF_bytes=2715 | LF_sha256=200a273bb83d13835e08ee84c42072b618578d2bd1ab1dcf07b2ffcfc29e6e87 | Raw_bytes=2715 | Raw_sha256=200a273bb83d13835e08ee84c42072b618578d2bd1ab1dcf07b2ffcfc29e6e87
+=== 2. RUN 8 SELECTED TEST SUITES (154 TESTS) ===
+........................................................................ [ 46%]
+........................................................................ [ 93%]
+..........                                                               [100%]
+154 passed in 19.82s
+=== 3. RUN verify_git_isolation.py ===
+Git Isolation Status: PASS
+Report written to: artifacts\isolation_verification_report.json
+
+## [LOG 2] Broad Test Suite --ignore=tests/test_translation_experiment.py (task-4424.log)
+=== 4. DIRECT SYNTHETIC FIXTURE VERIFICATION OF ADDENDUM ITEMS ===
+Traceback (most recent call last):
+  File "<string>", line 53, in <module>
+    assert len(mapping['mappings']) == 100
+               ~~~~~~~^^^^^^^^^^^^
+TypeError: list indices must be integers or slices, not str
+PASS: compute_population_fingerprint changes when url, html, source_row, source_shard, or source_revision changes (with candidate_uid unchanged).
+PASS: CLI explicitly rejects bare list view -> AttributeError module 'scripts.annotate_cli' has no attribute 'run_annotation_session'
+=== 5. BROAD SUITE WITHOUT TRANSLATION ===
+........................................................................ [ 15%]
+........................................ssssssssssssssssssssssssss...... [ 30%]
+..........s.s.ss........................................................ [ 46%]
+.........uuuu.uuu.uuuuu...............s...............s................. [ 59%]
+........................................................................ [ 74%]
+....s.....................s..................ssss.....uuuuuuuuuu..uuuuuu [ 87%]
+u....uuu....FFFFFF...............................................        [100%]
+================================== FAILURES ===================================
+_ IndependentQAGovernancePackTests.test_01_cryptographic_pack_and_file_integrity _
+
+self = <test_real_calibration_split_isolation.IndependentQAGovernancePackTests testMethod=test_01_cryptographic_pack_and_file_integrity>
+
+    def test_01_cryptographic_pack_and_file_integrity(self):
+        """1. [Đọc trực tiếp tệp] Kiểm định mã băm SHA-256 của tệp gói nén và 10 tệp bên trong."""
+>       self.assertTrue(ZIP_PATH.is_file(), f"Không tìm thấy gói ZIP: {ZIP_PATH}")
+E       AssertionError: False is not true : Không tìm thấy gói ZIP: D:\UED\NCKH2\scratch\33e8bb6_wt\data\restricted\clean_calibration_runway_a_closed_governance_pack.zip
+
+tests\test_real_calibration_split_isolation.py:49: AssertionError
+_ IndependentQAGovernancePackTests.test_02_approval_status_consistency_across_all_files _
+
+self = <test_real_calibration_split_isolation.IndependentQAGovernancePackTests testMethod=test_02_approval_status_consistency_across_all_files>
+
+    def test_02_approval_status_consistency_across_all_files(self):
+        """2. [Đọc trực tiếp tệp] Kiểm tra tính nhất quán tuyệt đối của trạng thái chờ phê duyệt (pending)."""
+        # Kiểm tra JSON
+>       with open(JSON_LABELS_PATH, "r", encoding="utf-8") as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\UED\\NCKH2\\scratch\\33e8bb6_wt\\data\\labels\\calibration_clean_runway_a\\clean_calibration_runway_a_labels_final.json'
+
+tests\test_real_calibration_split_isolation.py:68: FileNotFoundError
+_ IndependentQAGovernancePackTests.test_03_row_level_isolation_and_label_integrity _
+
+self = <test_real_calibration_split_isolation.IndependentQAGovernancePackTests testMethod=test_03_row_level_isolation_and_label_integrity>
+
+    def test_03_row_level_isolation_and_label_integrity(self):
+        """3. [Đọc trực tiếp tệp] Kiểm tra 4 cờ cách ly cấp dòng trên 24/24 bản ghi của cả JSON và CSV."""
+        # JSON
+>       with open(JSON_LABELS_PATH, "r", encoding="utf-8") as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\UED\\NCKH2\\scratch\\33e8bb6_wt\\data\\labels\\calibration_clean_runway_a\\clean_calibration_runway_a_labels_final.json'
+
+tests\test_real_calibration_split_isolation.py:92: FileNotFoundError
+_ IndependentQAGovernancePackTests.test_04_id_extraction_bridge_and_runplan_validation _
+
+self = <test_real_calibration_split_isolation.IndependentQAGovernancePackTests testMethod=test_04_id_extraction_bridge_and_runplan_validation>
+
+    def test_04_id_extraction_bridge_and_runplan_validation(self):
+        """4. [Có bước chuyển đổi ID] Kiểm tra bước trích xuất ID trung gian (ID Extraction Bridge).
+    
+        RANH GIỚI KỸ THUẬT RÕ RÀNG THEO CHỈ ĐẠO CỦA LEAD D:
+        - Bài test đọc cờ cách ly từ tệp, sau đó chủ động trích xuất thành danh sách ID trung gian
+          (dynamically_extracted_excluded_ids).
+        - Khi truyền danh sách ID này vào logic kiểm tra chia tập hoặc hàm filter_eligible_records,
+          toàn bộ 24 mẫu bị loại bỏ 100%.
+        - TUYỆT ĐỐI KHÔNG KẾT LUẬN rằng RunPlan hay DataLoader tự động đọc cờ cách ly từ tệp;
+          sự cách ly hoàn toàn phụ thuộc vào bước chuyển đổi ID này.
+        """
+>       with open(JSON_LABELS_PATH, "r", encoding="utf-8") as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\UED\\NCKH2\\scratch\\33e8bb6_wt\\data\\labels\\calibration_clean_runway_a\\clean_calibration_runway_a_labels_final.json'
+
+tests\test_real_calibration_split_isolation.py:133: FileNotFoundError
+_ IndependentQAGovernancePackTests.test_05_contract_scope_gatekeeper_readiness _
+
+self = <test_real_calibration_split_isolation.IndependentQAGovernancePackTests testMethod=test_05_contract_scope_gatekeeper_readiness>
+
+    def test_05_contract_scope_gatekeeper_readiness(self):
+        """5. [Chặn theo hợp đồng đầu vào] Chốt chặn phạm vi hợp đồng hệ thống (Scope Gatekeeper).
+    
+        RANH GIỚI KỸ THUẬT RÕ RÀNG THEO CHỈ ĐẠO CỦA LEAD D:
+        - ExclusionRegistry.assert_training_allowed ném RuntimeError do cờ hệ thống training_blocked=True
+          và trạng thái ánh xạ pilot chưa tích hợp (rows_api_revision_pinned=false).
+        - Đây là chốt chặn cấp hợp đồng hệ thống trước khi nạp; KHÔNG PHẢI là bằng chứng hệ thống
+          đã đọc hay phân tích nội dung 4 cờ cách ly của tệp nhãn.
+        """
+        reg = ExclusionRegistry()
+        self.assertTrue(reg.training_blocked)
+        with self.assertRaises(RuntimeError) as cm:
+            reg.assert_training_allowed()
+        self.assertIn("Anti-Leakage Protocol", str(cm.exception))
+        self.assertIn("rows_api_revision_pinned=false", str(cm.exception))
+    
+        # detect_real_data_record phát hiện tiền tố SMP- của dữ liệu thật
+>       with open(JSON_LABELS_PATH, "r", encoding="utf-8") as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\UED\\NCKH2\\scratch\\33e8bb6_wt\\data\\labels\\calibration_clean_runway_a\\clean_calibration_runway_a_labels_final.json'
+
+tests\test_real_calibration_split_isolation.py:187: FileNotFoundError
+_ IndependentQAGovernancePackTests.test_06_plan01_three_tier_measurement_and_personnel_accounting _
+
+self = <test_real_calibration_split_isolation.IndependentQAGovernancePackTests testMethod=test_06_plan01_three_tier_measurement_and_personnel_accounting>
+
+    def test_06_plan01_three_tier_measurement_and_personnel_accounting(self):
+        """6. [Kiểm tra tài liệu] Kiểm định Báo cáo PLAN-01: Ba tầng đo lường và ngân sách dự phóng 25 giờ."""
+>       with open(PLAN01_PATH, "r", encoding="utf-8") as f:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: 'D:\\UED\\NCKH2\\scratch\\33e8bb6_wt\\data\\restricted\\plan_01_calibration_effort_report.json'
+
+tests\test_real_calibration_split_isolation.py:196: FileNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_real_calibration_split_isolation.py::IndependentQAGovernancePackTests::test_01_cryptographic_pack_and_file_integrity
+FAILED tests/test_real_calibration_split_isolation.py::IndependentQAGovernancePackTests::test_02_approval_status_consistency_across_all_files
+FAILED tests/test_real_calibration_split_isolation.py::IndependentQAGovernancePackTests::test_03_row_level_isolation_and_label_integrity
+FAILED tests/test_real_calibration_split_isolation.py::IndependentQAGovernancePackTests::test_04_id_extraction_bridge_and_runplan_validation
+FAILED tests/test_real_calibration_split_isolation.py::IndependentQAGovernancePackTests::test_05_contract_scope_gatekeeper_readiness
+FAILED tests/test_real_calibration_split_isolation.py::IndependentQAGovernancePackTests::test_06_plan01_three_tier_measurement_and_personnel_accounting
+6 failed, 421 passed, 38 skipped, 32 subtests passed in 27.32s
+=== 6. CHECK WORKING TREE CLEANLINESS ===
+ M artifacts/isolation_verification_report.json
