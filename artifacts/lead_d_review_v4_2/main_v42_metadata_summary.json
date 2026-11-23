@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-23",
+  "zip_bytes": 646230,
+  "zip_sha256": "99defd93b7e7f616a71818b79349ac2d6ee12dc78f540eb6c3d853cbda67a1b4",
+  "crc_ok": true,
+  "component_hashes_matched": 25,
+  "component_hashes_total": 25,
+  "reported_commit": "ac2cf1d82d9a742ec0f5e9af81e0ce116fdfbe3d",
+  "reported_commit_matches_remote": true,
+  "core_fix_commit": "fb487540aa6c877553eeb9e0978437642a4173b1",
+  "unchanged_from_v4_1": {
+    "blind_view_a.json": true,
+    "blind_view_b.json": true,
+    "mapping_restricted.json": true,
+    "population_1232_canonical_records_v1.json": true,
+    "population_1232_sealed.json": true,
+    "exclusion_registry.json": true,
+    "pilot_batch1_recovery_dossier_restricted_v4.json": true,
+    "clean_calibration_exclusion_mapping_c_32.json": true,
+    "provenance_recovery_audit_log.json": true,
+    "main_annotation_lot_management_ledger.json": true
+  },
+  "salt_and_selection_seeds_unchanged": true,
+  "role_manifests": {
+    "a": {
+      "all_mandatory_fields_present": true,
+      "view_hash_matches": true,
+      "codebook_hash_matches": true,
+      "dictionary_hash_matches": true,
+      "acceptance": {
+        "B": "pending",
+        "D": "pending"
+      },
+      "ready": false,
+      "blocked_for_pending": true,
+      "output_created": false
+    },
+    "b": {
+      "all_mandatory_fields_present": true,
+      "view_hash_matches": true,
+      "codebook_hash_matches": true,
+      "dictionary_hash_matches": true,
+      "acceptance": {
+        "B": "pending",
+        "D": "pending"
+      },
+      "ready": false,
+      "blocked_for_pending": true,
+      "output_created": false
+    }
+  },
+  "proposal_commitments": {
+    "cohort_matches_block1": true,
+    "release_commitment_matches_new": true,
+    "commitments_distinct": true
+  },
+  "raw_source_exact_proposal_rehearsal": {
+    "old_events_unchanged": true,
+    "events_after_two_reruns": 3,
+    "ledger_copy_unchanged_by_reruns": true,
+    "a_view_matches_package": true,
+    "b_view_matches_package": true,
+    "two_reruns_equal": true,
+    "applied_to_real_ledger": false
+  },
+  "metadata_only_rejection": {
+    "rejected": true,
+    "error_type": "ValueError",
+    "ledger_copy_still_unchanged": true
+  },
+  "text_counts": {
+    "a_total": 100,
+    "a_nonempty": 97,
+    "a_empty": 3,
+    "b_total": 30,
+    "b_nonempty": 30
+  },
+  "governance": {
+    "main_batch1_status": "HOLD",
+    "ready_for_annotation": false,
+    "acceptance": {
+      "B": "pending",
+      "D": "pending"
+    },
+    "training_blocked": true,
+    "official_test_used": false,
+    "ledger_migration_status": "RESERVED_PROPOSAL_ONLY_2_BLOCKS_ON_DISK"
+  }
+}

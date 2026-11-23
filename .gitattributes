@@ -5,3 +5,4 @@
 *.py text eol=lf
 *.lock text eol=lf
 *.parquet binary
+docs/QA_ADDENDUM_MAIN_BATCH1_B5B7DB2_MIGRATION_VERIFIER_PENDING_V1_7_B.md -text
