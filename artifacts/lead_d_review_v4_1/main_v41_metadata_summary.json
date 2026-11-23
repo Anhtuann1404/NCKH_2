@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-23",
+  "zip_bytes": 644720,
+  "zip_sha256": "5c3e23eac2082ac96b8d3f09beebd59317a98a56dd630d6398d1fa731bd1f6c8",
+  "crc_ok": true,
+  "component_hashes_matched": 24,
+  "component_hashes_total": 24,
+  "reported_commit": "28462fc48f29bf4244f77c2aa5b214f4eb04c54e",
+  "reported_commit_github_422": true,
+  "verified_actual_commit": "28462fcece5883a652779976e342d939f7a81e5a",
+  "unchanged_from_v4": {
+    "blind_view_a.json": true,
+    "blind_view_b.json": true,
+    "mapping_restricted.json": true,
+    "population_1232_canonical_records_v1.json": true,
+    "population_1232_sealed.json": true,
+    "exclusion_registry.json": true,
+    "pilot_batch1_recovery_dossier_restricted_v4.json": true,
+    "clean_calibration_exclusion_mapping_c_32.json": true,
+    "provenance_recovery_audit_log.json": true,
+    "main_annotation_lot_management_ledger.json": true
+  },
+  "salt_and_selection_seeds_unchanged": true,
+  "role_manifests": {
+    "a": {
+      "all_mandatory_fields_present": true,
+      "view_hash_matches": true,
+      "codebook_hash_matches": true,
+      "dictionary_hash_matches": true,
+      "acceptance": {
+        "B": "pending",
+        "D": "pending"
+      },
+      "ready": false,
+      "blocked_for_pending": true,
+      "output_created": false
+    },
+    "b": {
+      "all_mandatory_fields_present": true,
+      "view_hash_matches": true,
+      "codebook_hash_matches": true,
+      "dictionary_hash_matches": true,
+      "acceptance": {
+        "B": "pending",
+        "D": "pending"
+      },
+      "ready": false,
+      "blocked_for_pending": true,
+      "output_created": false
+    }
+  },
+  "proposal_commitments": {
+    "cohort_matches_block1": true,
+    "release_commitment_matches_new": true,
+    "commitments_distinct": true
+  },
+  "raw_source_exact_proposal_rehearsal": {
+    "repeated_this_session": false,
+    "reason": "Previously verified temporary Parquet is no longer present; source-related artifacts and views remain byte-identical to V4"
+  },
+  "C_rehearsal_metadata_only_path": {
+    "sampler_did_not_reject": true,
+    "a_returned": 100,
+    "a_empty_page_text": 100,
+    "b_returned": 30,
+    "b_empty_page_text": 30,
+    "a_view_matches_package": false,
+    "b_view_matches_package": false,
+    "ledger_copy_still_unchanged": true
+  },
+  "governance": {
+    "main_batch1_status": "HOLD",
+    "ready_for_annotation": false,
+    "acceptance": {
+      "B": "pending",
+      "D": "pending"
+    },
+    "training_blocked": true,
+    "official_test_used": false,
+    "ledger_migration_status": "RESERVED_PROPOSAL_ONLY_2_BLOCKS_ON_DISK"
+  }
+}

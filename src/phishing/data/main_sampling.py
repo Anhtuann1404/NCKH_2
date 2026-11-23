@@ -58,16 +58,40 @@ def compute_population_fingerprint(candidates: Sequence[Dict[str, Any]]) -> str:
     Khóa cứng: candidate_uid, URL raw, URL normalized, URL SHA-256,
     HTML SHA-256, source_shard, source_row, source_revision.
     Bất kỳ sự thay đổi nào về nội dung HTML, URL, shard, dòng nguồn hay bản sửa đổi
-    đều làm thay đổi mã băm quần thể.
+    đều làm thay đổi mã băm quần thể. Raw bytes luôn là căn cứ tối thượng.
     """
     records = []
     for c in candidates:
         uid = str(c.get("candidate_uid") or c.get("sample_uid") or "")
-        raw_url = str(c.get("url_raw") or c.get("url") or "")
-        norm_url = str(c.get("url_normalized") or normalize_url(raw_url))
-        url_hash = str(c.get("url_sha256") or hashlib.sha256(raw_url.encode("utf-8")).hexdigest())
-        html_content = c.get("html") or ""
-        html_hash = str(c.get("html_sha256") or hashlib.sha256(html_content.encode("utf-8")).hexdigest())
+        
+        # Raw URL là căn cứ tối thượng
+        raw_url = str(c.get("url") or c.get("url_raw") or "")
+        url_hash = hashlib.sha256(raw_url.encode("utf-8")).hexdigest()
+        if "url_sha256" in c and c["url_sha256"] and c["url_sha256"] != url_hash:
+            raise ValueError(
+                f"Dữ liệu mâu thuẫn cho ứng viên '{uid}': url_sha256 khai báo ('{c['url_sha256']}') "
+                f"không khớp với hash tính từ URL thật ('{url_hash}')!"
+            )
+        norm_url = normalize_url(raw_url)
+        if "url_normalized" in c and c["url_normalized"] and c["url_normalized"] != norm_url:
+            raise ValueError(
+                f"Dữ liệu mâu thuẫn cho ứng viên '{uid}': url_normalized khai báo ('{c['url_normalized']}') "
+                f"không khớp với normalize_url(raw_url) ('{norm_url}')!"
+            )
+
+        # Raw HTML là căn cứ tối thượng
+        if "html" in c and c.get("html") is not None:
+            html_content = c.get("html") or ""
+            html_hash = hashlib.sha256(html_content.encode("utf-8")).hexdigest()
+            if "html_sha256" in c and c["html_sha256"] and c["html_sha256"] != html_hash:
+                raise ValueError(
+                    f"Dữ liệu mâu thuẫn cho ứng viên '{uid}': html_sha256 khai báo ('{c['html_sha256']}') "
+                    f"không khớp với hash tính từ raw HTML ('{html_hash}')!"
+                )
+        else:
+            # Thiếu raw HTML payload -> tính theo empty bytes
+            html_hash = hashlib.sha256(b"").hexdigest()
+
         shard = str(c.get("source_shard", "train-001.parquet"))
         row = c.get("source_row")
         revision = str(c.get("source_revision", "eabec4b7a66324b79cc8a0ad856d1731dc26fe1a"))
@@ -126,8 +150,10 @@ def run_main_batch1_sampling(
     sorted_candidates = sorted(
         candidates,
         key=lambda s: (
-            str(s.get("url_raw") or s.get("url", "")),
-            str(s.get("html_sha256") or hashlib.sha256((s.get("html") or "").encode("utf-8")).hexdigest()),
+            str(s.get("url") or s.get("url_raw") or ""),
+            hashlib.sha256((s.get("html") or "").encode("utf-8")).hexdigest()
+            if ("html" in s and s.get("html") is not None)
+            else str(s.get("html_sha256") or hashlib.sha256(b"").hexdigest()),
         ),
     )
     pop_hash = compute_population_fingerprint(sorted_candidates)
