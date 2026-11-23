@@ -1,0 +1,30 @@
+Preparing worktree (detached HEAD ac2cf1d)
+HEAD is now at ac2cf1d chore: update isolation verification report for commit fb48754
+=== WORKTREE HEAD & ENVIRONMENT ===
+ac2cf1d82d9a742ec0f5e9af81e0ce116fdfbe3d
+fb487540aa6c877553eeb9e0978437642a4173b1
+Python 3.14.2
+pytest 9.1.1
+=== TEST DATA/RESTRICTED ABSENCE ===
+False
+=== PROBE SUITE (2 TESTS) ===
+============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\LAPTOP MSI\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: D:\UED\NCKH2\scratch\ac2cf1d_wt
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collecting ... collected 2 items
+
+tests/test_main_v41_fingerprint_integrity.py::test_changed_raw_html_cannot_hide_behind_stale_supplied_hash PASSED [ 50%]
+tests/test_main_v41_fingerprint_integrity.py::test_metadata_only_rerun_cannot_silently_replace_views_with_empty_text PASSED [100%]
+
+============================== 2 passed in 0.63s ==============================
+=== 12 SELECTED REPOSITORY TEST SUITES (165 TESTS) ===
+........................................................................ [ 43%]
+........................................................................ [ 87%]
+.....................                                                    [100%]
+165 passed in 28.06s
+=== GIT ISOLATION VERIFIER ===
+Git Isolation Status: PASS
+Report written to: artifacts\isolation_verification_report.json
