@@ -6,3 +6,10 @@
 *.lock text eol=lf
 *.parquet binary
 docs/QA_ADDENDUM_MAIN_BATCH1_B5B7DB2_MIGRATION_VERIFIER_PENDING_V1_7_B.md -text
+docs/QA_REPORT_MAIN_BATCH1_28462FC_HOLD_V1_8_B.md -text
+docs/QA_REPORT_MAIN_BATCH1_AC2CF1D_FINAL_V1_9_B.md -text
+docs/QA_RAW_LOG_MAIN_BATCH1_AC2CF1D_B.txt -text
+docs/QA_REPORT_MAIN_BATCH1_V4_2_ERRATA_V1_9_1_B.md -text
+artifacts/qa_b_transfer_v1_9_1/README_TRANSFER.md -text
+artifacts/qa_b_transfer_v1_9_1/SHA256SUMS.txt -text
+artifacts/qa_b_transfer_v1_9_1/TRANSFER_PROVENANCE.json -text

@@ -1,0 +1,89 @@
+================================================================================
+RAW EXECUTION LOG — QA ĐỘC LẬP MAIN ANNOTATION BATCH 1 (V4.2) — THÀNH VIÊN B
+Người thực hiện: Phùng Tấn Minh (Thành viên B — Annotator B kiêm QA Lead & Nhóm trưởng)
+Ngày kiểm: 2026-11-23
+Repository: https://github.com/Anhtuann1404/NCKH_2
+Branch: origin/feat/c-main-annotation-batch1
+HEAD Commit: ac2cf1d82d9a742ec0f5e9af81e0ce116fdfbe3d
+Core Fix Commit (Parent): fb487540aa6c877553eeb9e0978437642a4173b1
+Faulty V4.1 Baseline Commit: 28462fcece5883a652779976e342d939f7a81e5a
+Environment: Windows (win32) | Python 3.14.2 | pytest 9.1.1 | pluggy 1.6.0
+Clean Worktree: D:\UED\NCKH2\scratch\ac2cf1d_wt (Test-Path data/restricted = False)
+================================================================================
+
+[1] VERIFY LEAD D REVIEW PACKAGE (MAIN_BATCH1_V4_2_LEAD_D_REVIEW.zip)
+--------------------------------------------------------------------------------
+ZIP Path: C:\Users\LAPTOP MSI\.gemini\antigravity\brain\238444cf-9e64-47ca-b4b1-8b6bffc9f73e\.user_uploaded\media_1795409310005_23195349.zip
+ZIP Size: 10377 bytes
+ZIP SHA-256: 5626514cc1b61083879bf4516fdff126dd22946200e44eb9e4cf1b02ec8a03fb
+
+Member SHA-256 Verification against SHA256SUMS_D.txt:
+- COMMANDS.md                            | 1437 bytes | 7a963823b15f2a8547b4928a7b40b4126d9b2c0fc78aa3c399a163f8a8539561 | MATCH
+- REVIEW_MAIN_BATCH1_V4_2_LEAD_D.md      | 6101 bytes | 0c925c1769fc8a648fc96834d8609b173e56ab25f06c432c0b027116fcdbeb0a | MATCH
+- SHA256SUMS_D.txt                       |  737 bytes | 930a43753aaf5e8e8681ca2baa7b9373102e07762bc34fb687d96c7f7413a0e5 | SELF
+- SOURCE_VERIFIED.json                   |  455 bytes | 788116daa985287dd7cb4a72e6b9796a64aecef7417ca73e8c0bbf0d07f098ec | MATCH
+- audit_main_v42_metadata.py             | 7253 bytes | 72b720703efa9236bf695e3320e5ffd2edf7fd1214c4ef5bd0a48a8e8c1b8d16 | MATCH
+- main_v42_isolation.log                 |   91 bytes | 5703c86b8b3ff5c3f9d6763b6fbb607062bbda7a6ea608c2b35175a5ac2028cc | MATCH
+- main_v42_metadata_summary.json         | 2618 bytes | fc622298a1ff45fe6943793bbacc898624cc533e97c663c3809778822f1d6016 | MATCH
+- main_v42_selected.log                  |  260 bytes | 37043a65f53d2346d8b67818e61b33d7249927724ed5f0e8360d184ef6ae9999 | MATCH
+- test_main_v41_fingerprint_integrity.py | 1942 bytes | c28107eb706d3a4a707653b3a7903d2331f51e058f135dd6b7262cf5b931425d | MATCH
+
+Repository Probe File Match at commit ac2cf1d82d9a742ec0f5e9af81e0ce116fdfbe3d:
+- tests/test_main_v41_fingerprint_integrity.py | 1942 bytes | c28107eb706d3a4a707653b3a7903d2331f51e058f135dd6b7262cf5b931425d | MATCH
+
+[2] CLEAN WORKTREE SETUP & ENVIRONMENT CHECK
+--------------------------------------------------------------------------------
+Command:
+git worktree add --detach scratch/ac2cf1d_wt ac2cf1d82d9a742ec0f5e9af81e0ce116fdfbe3d
+
+Output:
+Preparing worktree (detached HEAD ac2cf1d)
+HEAD is now at ac2cf1d chore: update isolation verification report for commit fb48754
+=== WORKTREE HEAD & ENVIRONMENT ===
+ac2cf1d82d9a742ec0f5e9af81e0ce116fdfbe3d
+fb487540aa6c877553eeb9e0978437642a4173b1
+Python 3.14.2
+pytest 9.1.1
+=== TEST DATA/RESTRICTED ABSENCE ===
+False
+
+[3] V4.1 REGRESSION PROBE SUITE (2 TESTS)
+--------------------------------------------------------------------------------
+Command:
+$env:PYTHONPATH=".;src"; python -m pytest tests/test_main_v41_fingerprint_integrity.py -v
+
+Output:
+============================= test session starts =============================
+platform win32 -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\LAPTOP MSI\AppData\Local\Python\pythoncore-3.14-64\python.exe
+cachedir: .pytest_cache
+rootdir: D:\UED\NCKH2\scratch\ac2cf1d_wt
+configfile: pytest.ini
+plugins: anyio-4.14.2
+collecting ... collected 2 items
+
+tests/test_main_v41_fingerprint_integrity.py::test_changed_raw_html_cannot_hide_behind_stale_supplied_hash PASSED
+tests/test_main_v41_fingerprint_integrity.py::test_metadata_only_rerun_cannot_silently_replace_views_with_empty_text PASSED
+
+============================== 2 passed in 0.63s ==============================
+
+[4] 12 SELECTED REPOSITORY TEST SUITES (165 TESTS)
+--------------------------------------------------------------------------------
+Command:
+$env:PYTHONPATH=".;src"; python -m pytest tests/test_main_annotation_batch1.py tests/test_blind_view.py tests/test_annotate_cli_timer_pause.py tests/test_ledger_migration_proposal.py tests/test_isolation_scanner_regression.py tests/test_main_batch1_manifest_preflight.py tests/test_main_v41_fingerprint_integrity.py artifacts/lead_d_review_8fc845d/test_main_8fc_additional_guards.py artifacts/lead_d_review_6c26d74/test_main_6c26_release_boundaries.py artifacts/lead_d_review_599c7d9/test_main_599_followup.py artifacts/lead_d_review_da3a78d/test_main_da3_intake_history.py artifacts/lead_d_review_a12f90b/test_main_a12_approval_and_sop.py -q
+
+Output:
+165 passed, 0 failed, 0 skipped, 0 deselected in 28.06s
+
+Note on test count alignment with Lead D:
+- 12 repository test files above = 165 passed (163 tests at 28462fc + 2 new tests in tests/test_main_v41_fingerprint_integrity.py; note artifacts/lead_d_review_v4_1/test_main_v41_fingerprint_integrity.py in the repo is an identical copy of tests/test_main_v41_fingerprint_integrity.py).
+- Lead D's 167 passed command in COMMANDS.md additionally included /private/tmp/test_main_v3_pure_fixture_migration.py (2 pure-fixture tests outside the repository).
+
+[5] GIT ISOLATION VERIFIER
+--------------------------------------------------------------------------------
+Command:
+$env:PYTHONPATH=".;src"; python scripts/data/verify_git_isolation.py
+
+Output:
+Git Isolation Status: PASS
+Report written to: artifacts\isolation_verification_report.json
+================================================================================

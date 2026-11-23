@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-23",
+  "prepared_by": "AI supporting Lead D; transfer package only, no new QA signature or approval",
+  "files": [
+    {
+      "path": "docs/QA_REPORT_MAIN_BATCH1_28462FC_HOLD_V1_8_B.md",
+      "bytes": 27759,
+      "sha256": "bbdb9d20e94e401375f786cc9d1443b575088390b225b9c9d0f7bcd4fda82192",
+      "provenance": "Copied byte-for-byte from original file supplied by user; not recreated from pasted text."
+    },
+    {
+      "path": "docs/QA_REPORT_MAIN_BATCH1_AC2CF1D_FINAL_V1_9_B.md",
+      "bytes": 26080,
+      "sha256": "baf0e5c39b97f0a1a12a1f17ce6d1f3f42b21dded1e0f68f74c3157e7b061f4c",
+      "provenance": "Copied byte-for-byte from original file supplied by user; not recreated from pasted text."
+    },
+    {
+      "path": "docs/QA_RAW_LOG_MAIN_BATCH1_AC2CF1D_B.txt",
+      "bytes": 5823,
+      "sha256": "bbfc3d991c000f2c99a56ba74968403b7ec536535e98a4799bf55f13ca74a2e4",
+      "provenance": "Reconstructed from user-pasted wrapper text by appending exactly one final LF; matches B declared bytes/hash. This is the formatted wrapper, not original execution raw task log."
+    },
+    {
+      "path": "docs/QA_REPORT_MAIN_BATCH1_V4_2_ERRATA_V1_9_1_B.md",
+      "bytes": 52912,
+      "sha256": "a51ab9457c8de973ebcfd1c92de8fbf7983d381a1223f6542c620ccf31436b24",
+      "provenance": "Copied byte-for-byte from original file supplied by user; not recreated from pasted text."
+    }
+  ],
+  "V19_formatted_paste_not_used": true,
+  "original_execution_task_log_not_included": true
+}
