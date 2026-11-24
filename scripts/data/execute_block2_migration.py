@@ -97,6 +97,54 @@ def validate_proposal_payload(proposal_data: Dict[str, Any]) -> None:
         raise ValueError(f"Proposal details b_indices_in_lot100 không đủ 30 chỉ số (thực tế: {len(b_indices)})")
 
 
+def check_file_independence(file1: Path, file2: Path, label1: str, label2: str) -> None:
+    """Kiểm tra tính độc lập vật lý của hai tệp: bắt buộc phải là hai tệp riêng biệt.
+
+    Ngăn chặn tuyệt đối:
+      - Cùng đường dẫn chuỗi hoặc sau khi chuẩn hóa (relative/canonical/case).
+      - Hardlink trỏ đến cùng một inode trên Linux / file index trên Windows NTFS.
+      - Symlink trỏ đến cùng một tệp.
+    Nếu không thể xác minh do lỗi truy cập/hệ thống, raise OSError để dừng an toàn (fail-closed).
+    """
+    # 1. Kiểm tra tồn tại và là tệp thông thường
+    if not file1.is_file():
+        raise FileNotFoundError(f"{label1} không tồn tại hoặc không phải tệp: {file1}")
+    if not file2.is_file():
+        raise FileNotFoundError(f"{label2} không tồn tại hoặc không phải tệp: {file2}")
+
+    # 2. Chuẩn hóa đường dẫn (resolve symlinks, .., chuyển về absolute canonical)
+    try:
+        canonical1 = file1.resolve(strict=True)
+        canonical2 = file2.resolve(strict=True)
+    except OSError as exc:
+        raise OSError(
+            f"Không thể phân giải đường dẫn khi kiểm tra độc lập {label1}/{label2}: {exc}"
+        ) from exc
+
+    # So sánh đường dẫn chuẩn hóa (không phân biệt hoa thường trên Windows)
+    norm1 = os.path.normcase(os.path.abspath(str(canonical1)))
+    norm2 = os.path.normcase(os.path.abspath(str(canonical2)))
+    if norm1 == norm2:
+        raise ValueError(
+            f"LỖI BẢO VỆ AN TOÀN: {label1} và {label2} trỏ tới cùng một tệp vật lý! "
+            f"Không được dùng chung đường dẫn cho sổ cái và bản sao lưu (bắt buộc phải là bản sao độc lập)."
+        )
+
+    # 3. Phát hiện hardlink/symlink trỏ tới cùng file (thông qua st_ino/st_dev trên POSIX và NTFS)
+    try:
+        same = os.path.samefile(file1, file2)
+    except OSError as exc:
+        raise OSError(
+            f"Không thể xác minh độc lập tệp giữa {label1} và {label2}: {exc}"
+        ) from exc
+
+    if same:
+        raise ValueError(
+            f"LỖI BẢO VỆ AN TOÀN: {label1} và {label2} trỏ tới cùng một tệp vật lý (hardlink hoặc symlink)! "
+            f"Bản sao lưu phải là một tệp độc lập, không được là hardlink/symlink của sổ cái."
+        )
+
+
 def cmd_precheck(ledger_path: Path, proposal_path: Path) -> None:
     """Thực thi tiền kiểm độc lập (Pre-check)."""
     print("=" * 70)
@@ -145,16 +193,19 @@ def cmd_apply(ledger_path: Path, proposal_path: Path, backup_path: Path) -> None
     if not proposal_path.exists():
         raise FileNotFoundError(f"LỖI TIỀN KIỂM TRƯỚC GHI: Không tìm thấy proposal tại: {proposal_path}")
 
-    # 2. Kiểm tra sổ cái và backup CÙNG khớp dung lượng và hash 2 block đã khóa
+    # 2. Kiểm tra tính độc lập vật lý giữa sổ cái và bản sao lưu (chặn cùng file, relative/canonical, hardlink, symlink)
+    check_file_independence(ledger_path, backup_path, "sổ cái", "bản sao lưu")
+
+    # 3. Kiểm tra sổ cái và backup CÙNG khớp dung lượng và hash 2 block đã khóa
     raw_ledger = check_file_integrity(ledger_path, EXPECTED_LEDGER_SIZE, EXPECTED_LEDGER_HASH, "sổ cái trước ghi")
     raw_backup = check_file_integrity(backup_path, EXPECTED_LEDGER_SIZE, EXPECTED_LEDGER_HASH, "bản sao lưu")
 
-    # 3. Kiểm tra proposal khớp kích thước và hash
+    # 4. Kiểm tra proposal khớp kích thước và hash
     raw_prop = check_file_integrity(proposal_path, EXPECTED_PROPOSAL_SIZE, EXPECTED_PROPOSAL_HASH, "proposal snapshot")
     proposal_data = json.loads(raw_prop.decode("utf-8"))
     validate_proposal_payload(proposal_data)
 
-    # 4. Kiểm tra sổ cái có đúng 2 sự kiện lịch sử hợp lệ
+    # 5. Kiểm tra sổ cái có đúng 2 sự kiện lịch sử hợp lệ
     ledger = LotManagementLedger(ledger_path)
     if len(ledger.events) != 2:
         raise ValueError(f"LỖI TIỀN KIỂM TRƯỚC GHI: Sổ cái có số sự kiện != 2 ({len(ledger.events)})")
@@ -213,6 +264,10 @@ def cmd_verify(ledger_path: Path, proposal_path: Path, backup_path: Optional[Pat
     # 1. Tải lại độc lập sổ cái từ đĩa và xác thực sequence / cryptographic hash chain
     if not ledger_path.exists():
         raise FileNotFoundError(f"Không tìm thấy sổ cái tại: {ledger_path}")
+
+    # Kiểm tra tính độc lập vật lý giữa sổ cái và bản sao lưu đối soát
+    check_file_independence(ledger_path, backup_path, "sổ cái", "bản sao lưu")
+
     ledger = LotManagementLedger(ledger_path)
     if len(ledger.events) != 3:
         raise ValueError(f"Số lượng block không đúng! Kỳ vọng: 3, thực tế: {len(ledger.events)}")

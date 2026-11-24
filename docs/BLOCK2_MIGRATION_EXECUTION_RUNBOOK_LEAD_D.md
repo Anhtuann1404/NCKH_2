@@ -60,6 +60,10 @@ Write-Host "✅ Đã sao lưu an toàn tại: $backupPath"
 $env:BACKUP_PATH = $backupPath
 ```
 
+> [!IMPORTANT]
+> **Yêu cầu tính độc lập vật lý của bản sao lưu (Backup Independence):**  
+> Bản sao lưu bắt buộc phải là một tệp vật lý độc lập (sao chép nguyên byte qua `Copy-Item`). Tuyệt đối không được dùng chung đường dẫn với sổ cái, hoặc tạo bản sao lưu dưới dạng hardlink/symlink của sổ cái. Lệnh `apply` và `verify` được trang bị chốt an toàn `check_file_independence` (sử dụng `Path.resolve()` và `os.path.samefile()`) để chặn đứng thao tác và dừng ngay lập tức (fail-closed) nếu phát hiện hai đường dẫn trỏ về cùng một tệp vật lý.
+
 ---
 
 ## 3. LỆNH THỰC THI NỐI BLOCK 2 (EXECUTION COMMAND - APPLY)
@@ -73,11 +77,12 @@ python scripts/data/execute_block2_migration.py apply
 **Cơ chế tự kiểm tra lại đầu vào ngay trong bước ghi:**
 Công cụ `apply` tự động tái xác thực toàn bộ các điều kiện tiên quyết **ngay trước khi gọi `append_event`**:
 1. Bắt buộc đường dẫn sổ cái, proposal và backup đã được cung cấp và các tệp phải tồn tại trên đĩa; tuyệt đối không tự khởi tạo sổ cái mới nếu thiếu tệp.
-2. Cả sổ cái và bản sao lưu đều phải khớp đúng dung lượng 8.253 bytes và SHA-256 `11acdaf1...`.
-3. Proposal phải khớp đúng dung lượng 8.847 bytes và SHA-256 `64337317...`.
-4. Sổ cái phải có đúng 2 block lịch sử hợp lệ với hash Block 1 là `675440ba...`.
-5. Proposal phải đúng lô, loại sự kiện, tác nhân và trạng thái đã kiểm định.
-6. **Nguyên tắc dừng an toàn (Fail-Closed):** Nếu sai bất kỳ điều kiện nào, công cụ dừng ngay lập tức trước khi ghi, không can thiệp tệp và không tự động sao chép đè bản sao lưu.
+2. **Kiểm tra tính độc lập vật lý của bản sao lưu:** Sổ cái và bản sao lưu bắt buộc phải là hai tệp vật lý riêng biệt trên đĩa; chặn triệt để trường hợp trùng đường dẫn, đường dẫn tương đối trỏ cùng tệp, hardlink hoặc symlink.
+3. Cả sổ cái và bản sao lưu đều phải khớp đúng dung lượng 8.253 bytes và SHA-256 `11acdaf1...`.
+4. Proposal phải khớp đúng dung lượng 8.847 bytes và SHA-256 `64337317...`.
+5. Sổ cái phải có đúng 2 block lịch sử hợp lệ với hash Block 1 là `675440ba...`.
+6. Proposal phải đúng lô, loại sự kiện, tác nhân và trạng thái đã kiểm định.
+7. **Nguyên tắc dừng an toàn (Fail-Closed):** Nếu sai bất kỳ điều kiện nào, công cụ dừng ngay lập tức trước khi ghi, không can thiệp tệp và không tự động sao chép đè bản sao lưu.
 
 ---
 
